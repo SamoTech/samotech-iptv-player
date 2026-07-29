@@ -26,6 +26,21 @@ dev = [
 asyncio_mode = "auto"
 testpaths  = ["tests"]
 
+# ── Package discovery ─────────────────────────────────────────────────────────
+# src/ layout: canonical package lives under src/
+# Legacy providers/ package kept for backward-compat migration window
 [tool.setuptools.packages.find]
-where = ["."]
-include = ["providers*"]
+where = ["src", "."]
+include = ["samotech_iptv*", "providers*"]
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+# ── Ruff ──────────────────────────────────────────────────────────────────────
+[tool.ruff]
+src = ["src", "tests"]
+
+# ── MyPy ─────────────────────────────────────────────────────────────────────
+[tool.mypy]
+mypy_path = "src"
+packages = ["samotech_iptv"]
