@@ -1,0 +1,51 @@
+"""
+Stream URL resolution for the MAG provider.
+"""
+from __future__ import annotations
+
+import logging
+from urllib.parse import urlparse
+
+from .constants import ENDPOINT_CREATE_LINK, ENDPOINT_VOD_LINK
+from .connection import MAGConnection
+from .session import MAGSession
+from ..base.errors import StreamError
+
+log = logging.getLogger(__name__)
+
+
+class MAGStream:
+    def __init__(self, connection: MAGConnection, session: MAGSession) -> None:
+        self._conn = connection
+        self._sess = session
+
+    async def get_stream_url(self, stream_id: int, stream_type: str = "live") -> str:
+        log.info("Resolving stream URL (id=%d, type=%s)", stream_id, stream_type)
+        endpoint = ENDPOINT_VOD_LINK if stream_type in ("vod", "series") else ENDPOINT_CREATE_LINK
+        params = {
+            "cmd": f"ffmpeg http://localhost/ch/{stream_id}_",
+            "forced_storage": "undefined",
+            "disable_ad": "0",
+            "JsHttpRequest": "1-xml",
+        }
+        data = await self._conn.get(endpoint, params=params, headers=self._sess.get_headers())
+
+        cmd = (data.get("js") or {}).get("cmd", "")
+        if not cmd:
+            raise StreamError(
+                f"Portal returned no stream command for stream_id={stream_id}. "
+                "Verify you are authorised to access this content."
+            )
+
+        url = cmd.strip()
+        for part in cmd.split():
+            if part.startswith("http"):
+                url = part
+                break
+
+        parsed = urlparse(url)
+        if parsed.scheme not in ("http", "https", "rtsp", "rtmp"):
+            raise StreamError(f"Unexpected stream URL scheme: {parsed.scheme!r} in {url!r}")
+
+        log.info("Resolved stream URL (scheme=%s)", parsed.scheme)
+        return url

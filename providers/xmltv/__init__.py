@@ -1,0 +1,1 @@
+"""XMLTV EPG provider stub."""

@@ -1,0 +1,102 @@
+"""
+MAGProvider — top-level facade registered as "mag".
+"""
+from __future__ import annotations
+
+import logging
+from typing import Any
+
+from ..base.provider import BaseProvider
+from ..registry import register
+from .connection import MAGConnection
+from .session import MAGSession
+from .credentials import MAGCredentials
+from .profile import MAGProfile
+from .catalogue import MAGCatalogue
+from .stream import MAGStream
+from .constants import DEFAULT_TIMEOUT_S, DEFAULT_MAX_RETRIES
+
+log = logging.getLogger(__name__)
+
+
+@register("mag")
+class MAGProvider(BaseProvider):
+    """
+    Stalker / MAG middleware provider.
+
+    Required config keys
+    --------------------
+    portal_url : str
+    mac_address : str
+
+    Optional config keys
+    --------------------
+    serial_number, device_id, device_id2 : str
+    timeout_s : float          (default 30)
+    max_retries : int          (default 3)
+    dev_mode : bool            (default False)
+    use_keyring : bool         (default False)
+    """
+
+    def __init__(self, config: dict[str, Any]) -> None:
+        super().__init__(config)
+
+        if config.get("use_keyring"):
+            creds = MAGCredentials.from_keyring(config["portal_url"])
+        else:
+            creds = MAGCredentials(
+                portal_url=config["portal_url"],
+                mac_address=config["mac_address"],
+                serial_number=config.get("serial_number", ""),
+                device_id=config.get("device_id", ""),
+                device_id2=config.get("device_id2", ""),
+            )
+
+        self._connection = MAGConnection(
+            portal_url=config["portal_url"],
+            timeout_s=float(config.get("timeout_s", DEFAULT_TIMEOUT_S)),
+            max_retries=int(config.get("max_retries", DEFAULT_MAX_RETRIES)),
+            dev_mode=bool(config.get("dev_mode", False)),
+        )
+        self._session = MAGSession(self._connection, creds)
+        self._profile_mgr = MAGProfile(self._connection, self._session)
+        self._catalogue = MAGCatalogue(self._connection, self._session)
+        self._stream = MAGStream(self._connection, self._session)
+
+    async def connect(self) -> None:
+        await self._connection.open()
+        await self._session.authenticate()
+        log.info("MAGProvider connected to %s", self._config["portal_url"])
+
+    async def close(self) -> None:
+        await self._session.close()
+        await self._connection.close()
+        log.info("MAGProvider disconnected")
+
+    async def authenticate(self) -> None:
+        await self._session.authenticate()
+
+    async def refresh_token(self) -> None:
+        await self._session.refresh()
+
+    async def get_profile(self) -> dict[str, Any]:
+        return await self._profile_mgr.get_profile()
+
+    async def get_channels(self) -> list[dict[str, Any]]:
+        return await self._catalogue.get_channels()
+
+    async def get_vod(self, page: int = 0, category_id: int | None = None) -> list[dict[str, Any]]:
+        return await self._catalogue.get_vod(page=page, category_id=category_id)
+
+    async def get_series(self, page: int = 0, category_id: int | None = None) -> list[dict[str, Any]]:
+        return await self._catalogue.get_series(page=page, category_id=category_id)
+
+    async def get_epg(
+        self,
+        channel_ids: list[int] | None = None,
+        period: int = 3,
+    ) -> dict[int, list[dict[str, Any]]]:
+        return await self._catalogue.get_epg(channel_ids=channel_ids, period=period)
+
+    async def get_stream_url(self, stream_id: int, stream_type: str = "live") -> str:
+        return await self._stream.get_stream_url(stream_id=stream_id, stream_type=stream_type)
