@@ -1,7 +1,11 @@
-"""Security / credential store — Phase B.
+"""Security infrastructure package.
 
-Concrete implementation of ``application.ports.CredentialStorePort``
-backed by the OS keyring (via the ``keyring`` library).
-
-Phase A: empty.
+Provides:
+- ``KeyringCredentialStore``: OS keyring-backed implementation of
+  ``CredentialStorePort``.
 """
+from samotech_iptv.infrastructure.security.keyring_credential_store import (
+    KeyringCredentialStore,
+)
+
+__all__ = ["KeyringCredentialStore"]

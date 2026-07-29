@@ -1,7 +1,10 @@
-"""Configuration loaders — Phase B.
+"""Configuration infrastructure package.
 
-File-based (TOML/JSON) and environment-variable config loaders that
-produce an ``AppConfig`` instance.
-
-Phase A: empty.
+Provides ``ConfigurationProvider``, a thin env-var + override-dict
+backed reader that surfaces ``core.config`` typed settings.
 """
+from samotech_iptv.infrastructure.configuration.configuration_provider import (
+    ConfigurationProvider,
+)
+
+__all__ = ["ConfigurationProvider"]

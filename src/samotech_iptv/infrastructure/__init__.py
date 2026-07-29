@@ -1,21 +1,23 @@
-"""Infrastructure layer — concrete adapters for ports.
+"""Infrastructure layer — external-world adapters.
 
-This package contains all I/O-dependent implementations:
-- Provider adapters (MAG, Xtream, M3U)
-- Database repositories (SQLite via aiosqlite)
-- Network client
-- Security / keyring
-- Configuration loaders
+Implements the application-layer port interfaces using real technology.
 
-Phase A: structure only.  No concrete implementations yet.
-Provider migration from ``providers/`` happens in Phase B.
+Packages:
+  network/       — async HTTP client (aiohttp)
+  security/      — OS-keyring credential store
+  configuration/ — env-var + override config provider
+  providers/     — provider registry and factory (adapters in B.2+)
+  database/      — SQLite repositories (Phase B.3)
+  player/        — MPV / WinRT player adapters (Phase C)
 
 Allowed dependencies:
-  infrastructure  →  application (ports/DTOs)
+  infrastructure  →  application.ports
   infrastructure  →  domain
   infrastructure  →  core
-  infrastructure  →  third-party libraries (aiohttp, aiosqlite, keyring, …)
+  infrastructure  →  stdlib
+  infrastructure  →  third-party (aiohttp, keyring, …)
 
 Forbidden:
-  infrastructure  →  presentation
+  infrastructure  ←  presentation
+  infrastructure  ←  application.use_cases  (only ports)
 """
