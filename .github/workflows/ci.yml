@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: Lint + Typecheck + Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Install dependencies
+        run: uv sync --all-groups
+
+      - name: Ruff lint
+        run: uv run ruff check src/ tests/
+
+      - name: Black format check
+        run: uv run black --check src/ tests/
+
+      - name: mypy typecheck
+        run: uv run mypy src/
+
+      - name: pytest (unit + integration)
+        run: uv run pytest tests/unit tests/integration --cov=src --cov-report=xml -q
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage.xml
+        continue-on-error: true
+
+  build:
+    name: PyInstaller Build (Windows)
+    needs: quality
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Install dependencies
+        run: uv sync --all-groups
+
+      - name: Build with PyInstaller
+        run: uv run pyinstaller samotech-iptv-player.spec
+        continue-on-error: true  # spec not yet created in Phase 1
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: samotech-iptv-player-windows
+          path: dist/
+        if: always()

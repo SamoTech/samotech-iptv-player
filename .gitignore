@@ -1,0 +1,56 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+*.egg
+
+# uv / venv
+.venv/
+venv/
+.uv/
+
+# pytest / coverage
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# mypy
+.mypy_cache/
+
+# PyInstaller
+*.spec.bak
+dist/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Qt / PySide6
+*.pyc
+*.qmlc
+*.jsc
+
+# Translations (compiled)
+*.qm
+
+# App data
+*.db
+*.sqlite
+*.sqlite3
+
+# Secrets
+.env
+.env.*
+secrets.json
