@@ -1,83 +1,63 @@
 # Package Layout
 
-## Source Tree
+## Source Tree (Phase B.0)
 
 ```
 src/samotech_iptv/
-├── __init__.py               # package root, version export
-├── version.py                # single source of truth for version string
+├── __init__.py
+├── version.py
+├── py.typed                          ← PEP 561 marker
 │
-├── core/                     # infrastructure-independent primitives
-│   ├── __init__.py
-│   ├── README.md
-│   ├── config.py             # AppConfig, NetworkConfig, PlayerConfig
-│   ├── constants.py          # named constants
-│   ├── logging.py            # get_logger(), configure_logging()
-│   ├── exceptions.py         # SamotechError hierarchy
-│   ├── result.py             # Result[T, E] / Ok / Err
-│   ├── events.py             # DomainEvent base
-│   └── typing.py             # shared type aliases / protocols
+├── core/
+│   ├── config.py / constants.py / logging.py
+│   └── exceptions.py / result.py / events.py / typing.py
 │
-├── domain/                   # pure business model
-│   ├── __init__.py
-│   ├── README.md
-│   ├── entities.py           # Channel, Category, Playlist, Movie, ...
-│   ├── value_objects.py      # ProviderId, ChannelId, StreamId, URL, Credential
-│   ├── repositories.py       # abstract repository interfaces
-│   └── events.py             # domain event types
+├── domain/
+│   ├── entities/                        ← one file per entity
+│   │   ├── channel.py
+│   │   ├── category.py / playlist.py / movie.py / series.py
+│   │   ├── episode.py / stream.py / provider.py
+│   │   └── epg_entry.py / favorite.py / history.py
+│   ├── value_objects/                   ← one file per value object
+│   │   └── provider_id.py / channel_id.py / stream_id.py / url.py / credential.py
+│   ├── repositories/                    ← one file per interface
+│   │   └── channel_repository.py / playlist_repository.py / ...
+│   ├── events/                          ← grouped by concern
+│   │   └── provider_events.py / playback_events.py / library_events.py
+│   └── [entities.py / value_objects.py / repositories.py / events.py]  ← shims
 │
-├── application/              # use-case orchestration
-│   ├── __init__.py
-│   ├── README.md
-│   ├── ports.py              # ProviderPort, PlayerPort, StoragePort, ...
-│   ├── dtos.py               # request/response DTOs
-│   └── use_cases/
-│       ├── __init__.py
-│       ├── authenticate_provider.py
-│       ├── load_channels.py
-│       ├── load_categories.py
-│       ├── load_epg.py
-│       ├── resolve_stream.py
-│       ├── search_channels.py
-│       ├── save_favorite.py
-│       ├── load_history.py
-│       └── refresh_provider.py
+├── application/
+│   ├── ports/                           ← one file per port
+│   │   ├── provider_port.py
+│   │   ├── player_port.py / storage_port.py
+│   │   ├── credential_store_port.py / notification_port.py
+│   │   └── provider_capabilities.py        ← ISP interfaces
+│   ├── dtos/                            ← one file per domain concern
+│   │   └── provider.py / auth.py / channels.py / categories.py
+│   │       epg.py / stream.py / history.py / favorites.py
+│   ├── use_cases/                       ← one file per use-case
+│   └── [ports.py / dtos.py]             ← shims
 │
-├── infrastructure/           # I/O adapters (Phase B+)
-│   ├── __init__.py
-│   ├── README.md
-│   ├── providers/            # ProviderPort implementations
-│   ├── player/               # PlayerPort implementations
-│   ├── database/             # repository implementations
-│   ├── network/              # HTTP client factory
-│   ├── security/             # CredentialStorePort implementation
-│   └── configuration/        # config file loaders
+├── infrastructure/  (Phase B.1+)
+│   └── providers/ player/ database/ network/ security/ configuration/
 │
-└── presentation/             # MVVM UI (Phase D)
-    ├── __init__.py
-    ├── README.md
-    ├── views/
-    ├── dialogs/
-    ├── viewmodels/
-    ├── widgets/
-    └── theme/
-```
-
-## Legacy Packages (migration window)
-
-```
-providers/          # ← untouched until Phase B migration
-tests/              # ← existing MAG provider tests, unchanged
+└── presentation/    (Phase D)
+    └── views/ dialogs/ viewmodels/ widgets/ theme/
 ```
 
 ## Import Convention
 
 ```python
-# New code — canonical
-from samotech_iptv.domain.entities import Channel
-from samotech_iptv.application.ports import ProviderPort
-from samotech_iptv.core.exceptions import SamotechError
+# Canonical (Phase B.0+)
+from samotech_iptv.domain.entities.channel import Channel
+from samotech_iptv.application.ports.provider_capabilities import CatalogProvider
+from samotech_iptv.application.dtos.channels import ChannelDTO
 
-# Legacy — still valid during migration window
-from providers.mag_provider import MAGProvider
+# Flat package (also valid)
+from samotech_iptv.domain.entities import Channel
+from samotech_iptv.application.ports import CatalogProvider
+
+# Shim (Phase A compat, deprecated)
+from samotech_iptv.domain.entities import Channel  # via shim
+from samotech_iptv.application.ports import ProviderPort  # via shim
 ```
