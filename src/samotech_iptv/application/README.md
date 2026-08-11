@@ -42,3 +42,9 @@ application  →  stdlib
 - Raise `core.exceptions.*` on validation failures; let infrastructure
   exceptions propagate wrapped in `core.exceptions.ProviderError`.
 - Emit `domain.events.*` after successful state changes.
+
+## Playback orchestration
+
+`PlayChannel` is the application boundary for playback. It depends on the fine-grained `PlaybackProvider` interface and the abstract `PlayerPort`: it first resolves an authorized canonical stream URL through the provider, then passes only that URL to the player. Provider credentials, tokens, protocol DTOs, and sessions must never cross into the player port or presentation layer.
+
+The concrete player is deliberately chosen outside this package. Infrastructure currently composes the sole supported backend, libVLC, through `samotech_iptv.infrastructure.player.composition.build_player()`.
