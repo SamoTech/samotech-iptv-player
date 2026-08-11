@@ -268,7 +268,9 @@ class TestRealLegacyConstruction:
     def test_real_legacy_provider_receives_mag_identity(
         self, metadata: InfraProviderMetadata, context: ProviderContext, credential: Credential
     ) -> None:
-        adapter = MagProviderAdapter(metadata, context)
+        factory = ProviderFactory()
+        register_with_factory(factory)
+        adapter = factory.create(metadata, context=context)
         adapter._set_credential(
             MagCredential.from_application_credential(credential, metadata.base_url)
         )
