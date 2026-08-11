@@ -4,7 +4,7 @@ Verifies:
   - All new infrastructure modules import successfully
   - Infrastructure never imports from presentation
   - Infrastructure never imports from application.use_cases
-  - Provider-specific adapters do not yet exist
+  - Provider adapters require explicit registration
   - Error translation module only uses core + infra.network
   - All modules use core.logging (no print / logging.basicConfig)
 """
@@ -86,14 +86,16 @@ def test_infra_module_no_print_statements(module: str) -> None:
                 pytest.fail(f"{module} contains a bare print() call")
 
 
-# ── No provider adapters exist yet ──────────────────────────────────────────────
+# ── Explicit adapter registration ──────────────────────────────────────────────
 
-def test_no_mag_adapter_in_infrastructure() -> None:
-    """MagProviderAdapter must not exist until Phase B.2."""
-    import samotech_iptv.infrastructure.providers as pkg
-    src = inspect.getsource(pkg)
-    assert "MagProviderAdapter" not in src
-    assert "mag_provider_adapter" not in src
+
+def test_provider_package_does_not_auto_register_adapters() -> None:
+    """Provider adapters must be registered by the composition root explicitly."""
+    from samotech_iptv.infrastructure.providers.provider_factory import ProviderFactory
+
+    factory = ProviderFactory()
+    assert not factory.is_registered("mag")
+
 
 
 def test_provider_factory_starts_empty() -> None:

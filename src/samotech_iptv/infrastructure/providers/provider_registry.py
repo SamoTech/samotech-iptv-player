@@ -56,10 +56,7 @@ class ProviderRegistry:
         try:
             return self._providers[provider_id]
         except KeyError:
-            raise NotFoundError(
-                resource_type="Provider",
-                resource_id=provider_id,
-            ) from None
+            raise NotFoundError("Provider", provider_id) from None
 
     def find(self, provider_id: str) -> Optional[InfraProviderMetadata]:
         """Return metadata or None (never raises)."""

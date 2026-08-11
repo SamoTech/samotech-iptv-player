@@ -71,10 +71,7 @@ class ProviderFactory:
         """
         constructor = self._constructors.get(metadata.provider_type)
         if constructor is None:
-            raise NotFoundError(
-                resource_type="ProviderType",
-                resource_id=metadata.provider_type,
-            )
+            raise NotFoundError("ProviderType", metadata.provider_type)
         _log.debug("Creating provider id=%s type=%s",
                    metadata.provider_id, metadata.provider_type)
         return constructor(metadata, **kwargs)
