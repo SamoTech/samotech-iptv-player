@@ -1,6 +1,6 @@
 [build-system]
 requires = ["setuptools>=70", "wheel"]
-build-backend = "setuptools.backends.legacy:build"
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "samotech-iptv-player"
@@ -20,6 +20,9 @@ dev = [
     "pytest-asyncio>=0.23",
     "pytest-cov>=5",
     "aioresponses>=0.7",
+    "black>=24",
+    "mypy>=1.10",
+    "ruff>=0.6",
 ]
 
 [tool.pytest.ini_options]
@@ -27,14 +30,11 @@ asyncio_mode = "auto"
 testpaths  = ["tests"]
 
 # ── Package discovery ─────────────────────────────────────────────────────────
-# src/ layout: canonical package lives under src/
-# Legacy providers/ package kept for backward-compat migration window
+# The canonical package lives under src/.  The legacy providers package is
+# retained during the migration and must ship with the MAG adapter.
 [tool.setuptools.packages.find]
 where = ["src", "."]
 include = ["samotech_iptv*", "providers*"]
-
-[tool.setuptools.package-dir]
-"" = "src"
 
 # ── Ruff ──────────────────────────────────────────────────────────────────────
 [tool.ruff]
