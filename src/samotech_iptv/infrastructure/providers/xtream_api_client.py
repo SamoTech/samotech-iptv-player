@@ -49,6 +49,20 @@ class XtreamApiClient:
         """Return raw series records for canonical series translation."""
         return await self._stream_records("get_series", "series")
 
+    async def short_epg(self, stream_id: str) -> Sequence[Mapping[str, object]]:
+        """Return validated short-EPG records for one Xtream live stream."""
+        payload = await self._http_client.get_json(
+            str(self._request_builder.player_api("get_short_epg", stream_id=stream_id))
+        )
+        if not isinstance(payload, Mapping):
+            raise ProviderError("Xtream short-EPG response must be an object")
+        listings = payload.get("epg_listings")
+        if not isinstance(listings, list) or not all(
+            isinstance(item, Mapping) for item in listings
+        ):
+            raise ProviderError("Xtream short-EPG response must include a list of objects")
+        return cast("Sequence[Mapping[str, object]]", listings)
+
     async def _stream_records(self, action: str, label: str) -> Sequence[Mapping[str, object]]:
         payload = await self._http_client.get_json(str(self._request_builder.player_api(action)))
         if not isinstance(payload, list) or not all(isinstance(item, Mapping) for item in payload):

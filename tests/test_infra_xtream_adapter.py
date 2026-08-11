@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, cast
 
 import pytest
 
+from samotech_iptv.domain.value_objects.channel_id import ChannelId
 from samotech_iptv.domain.value_objects.credential import Credential
 from samotech_iptv.domain.value_objects.provider_capability import ProviderCapability
 from samotech_iptv.infrastructure.providers.provider_factory import ProviderFactory
@@ -30,6 +31,16 @@ class FakeHttpClient:
             return [{"stream_id": 42, "name": "Example Movie"}]
         if "get_series" in url:
             return [{"series_id": 84, "name": "Example Series"}]
+        if "get_short_epg" in url:
+            return {
+                "epg_listings": [
+                    {
+                        "title": "RXhhbXBsZSBQcm9ncmFtbWU=",
+                        "start_timestamp": 1_700_000_000,
+                        "stop_timestamp": 1_700_003_600,
+                    }
+                ]
+            }
         return {"user_info": {"auth": 1}}
 
 
@@ -82,6 +93,9 @@ async def test_adapter_authenticates_stores_credentials_and_translates_live_chan
     assert [channel.name for channel in await adapter.search_channels("sport")] == ["Sports"]
     assert [movie.title for movie in await adapter.load_movies()] == ["Example Movie"]
     assert [series.title for series in await adapter.load_series()] == ["Example Series"]
+    assert [entry.title for entry in await adapter.load_epg(ChannelId("xtream-demo:1"))] == [
+        "Example Programme"
+    ]
 
 
 def test_adapter_advertises_only_implemented_capabilities_and_registers_with_factory() -> None:
@@ -92,6 +106,7 @@ def test_adapter_advertises_only_implemented_capabilities_and_registers_with_fac
     assert adapter.supported_capabilities() == {
         ProviderCapability.AUTHENTICATION,
         ProviderCapability.LIVE,
+        ProviderCapability.EPG,
         ProviderCapability.VOD,
         ProviderCapability.SERIES,
         ProviderCapability.SEARCH,

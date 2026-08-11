@@ -8,11 +8,12 @@ from samotech_iptv.application.ports.provider_capabilities import (
     AuthenticationProvider,
     CapabilityProvider,
     CatalogProvider,
+    EPGProvider,
     SearchProvider,
     SeriesProvider,
     VodProvider,
 )
-from samotech_iptv.core.exceptions import AuthenticationError
+from samotech_iptv.core.exceptions import AuthenticationError, ValidationError
 from samotech_iptv.domain.value_objects.provider_capability import ProviderCapability
 from samotech_iptv.domain.value_objects.provider_id import ProviderId
 from samotech_iptv.domain.value_objects.url import URL
@@ -24,8 +25,10 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from samotech_iptv.domain.entities.channel import Channel
+    from samotech_iptv.domain.entities.epg_entry import EPGEntry
     from samotech_iptv.domain.entities.movie import Movie
     from samotech_iptv.domain.entities.series import Series
+    from samotech_iptv.domain.value_objects.channel_id import ChannelId
     from samotech_iptv.domain.value_objects.credential import Credential
     from samotech_iptv.infrastructure.providers.provider_context import ProviderContext
     from samotech_iptv.infrastructure.providers.provider_factory import ProviderFactory
@@ -37,6 +40,7 @@ _CAPABILITIES = frozenset(
     {
         ProviderCapability.AUTHENTICATION,
         ProviderCapability.LIVE,
+        ProviderCapability.EPG,
         ProviderCapability.VOD,
         ProviderCapability.SERIES,
         ProviderCapability.SEARCH,
@@ -47,6 +51,7 @@ _CAPABILITIES = frozenset(
 class XtreamProviderAdapter(
     AuthenticationProvider,
     CatalogProvider,
+    EPGProvider,
     VodProvider,
     SeriesProvider,
     SearchProvider,
@@ -89,6 +94,13 @@ class XtreamProviderAdapter(
             for record in await client.live_streams()
         ]
 
+    async def load_epg(self, channel_id: ChannelId) -> Sequence[EPGEntry]:
+        """Retrieve and translate short-EPG data for an owned Xtream live channel."""
+        client = await self._stored_client()
+        return XtreamDomainTranslator.epg_entries(
+            await client.short_epg(self._stream_id_for(channel_id)), channel_id
+        )
+
     async def load_movies(self) -> Sequence[Movie]:
         """Retrieve stored credentials then translate Xtream VOD DTOs into movies."""
         client = await self._stored_client()
@@ -121,6 +133,12 @@ class XtreamProviderAdapter(
         if credential is None:
             raise AuthenticationError("Xtream credentials are not available")
         return self._client_for(credential)
+
+    def _stream_id_for(self, channel_id: ChannelId) -> str:
+        prefix = f"{self.provider_id.value}:"
+        if not channel_id.value.startswith(prefix) or channel_id.value == prefix:
+            raise ValidationError("channel_id", "channel does not belong to this Xtream provider")
+        return channel_id.value.removeprefix(prefix)
 
     def _client_for(self, credential: Credential) -> XtreamApiClient:
         builder = XtreamRequestBuilder(URL(self._metadata.base_url), credential)

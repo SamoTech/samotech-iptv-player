@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+from base64 import b64decode
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from samotech_iptv.core.exceptions import ValidationError
 from samotech_iptv.domain.entities.channel import Channel
+from samotech_iptv.domain.entities.epg_entry import EPGEntry
 from samotech_iptv.domain.entities.movie import Movie
 from samotech_iptv.domain.entities.series import Series
 from samotech_iptv.domain.value_objects.channel_id import ChannelId
@@ -13,7 +16,7 @@ from samotech_iptv.domain.value_objects.stream_id import StreamId
 from samotech_iptv.domain.value_objects.url import URL
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Mapping, Sequence
 
     from samotech_iptv.domain.value_objects.provider_id import ProviderId
 
@@ -75,11 +78,63 @@ class XtreamDomainTranslator:
         )
 
     @staticmethod
+    def epg_entries(
+        raw_records: Sequence[Mapping[str, object]], channel_id: ChannelId
+    ) -> list[EPGEntry]:
+        """Map Xtream short-EPG records for a channel to canonical EPG entries."""
+        return [XtreamDomainTranslator.epg_entry(record, channel_id) for record in raw_records]
+
+    @staticmethod
+    def epg_entry(raw: Mapping[str, object], channel_id: ChannelId) -> EPGEntry:
+        """Map one Xtream short-EPG record to a canonical programme entry."""
+        start_timestamp = XtreamDomainTranslator._required_timestamp(raw, "start_timestamp")
+        end_timestamp = XtreamDomainTranslator._required_timestamp(raw, "stop_timestamp")
+        title = XtreamDomainTranslator._decoded_required_text(raw, "title")
+        entry_id = str(raw.get("id") or f"{channel_id.value}:{start_timestamp}:{title}").strip()
+        return EPGEntry(
+            id=entry_id,
+            channel_id=channel_id,
+            title=title,
+            start=datetime.fromtimestamp(start_timestamp, tz=UTC),
+            end=datetime.fromtimestamp(end_timestamp, tz=UTC),
+            description=XtreamDomainTranslator._decoded_optional_text(raw.get("description")),
+            category=str(raw.get("category") or "").strip() or None,
+        )
+
+    @staticmethod
     def _required_text(raw: Mapping[str, object], field: str) -> str:
         value = str(raw.get(field) or "").strip()
         if not value:
             raise ValidationError(field, f"Xtream response is missing {field}")
         return value
+
+    @staticmethod
+    def _decoded_required_text(raw: Mapping[str, object], field: str) -> str:
+        value = XtreamDomainTranslator._decoded_optional_text(raw.get(field))
+        if not value:
+            raise ValidationError(field, f"Xtream response is missing {field}")
+        return value
+
+    @staticmethod
+    def _decoded_optional_text(value: object) -> str | None:
+        text = str(value or "").strip()
+        if not text:
+            return None
+        try:
+            decoded = b64decode(text, validate=True).decode("utf-8").strip()
+        except (UnicodeDecodeError, ValueError):
+            return text
+        return decoded or text
+
+    @staticmethod
+    def _required_timestamp(raw: Mapping[str, object], field: str) -> int:
+        value = raw.get(field)
+        if value in (None, "", 0, "0"):
+            raise ValidationError(field, f"Xtream response is missing {field}")
+        try:
+            return int(str(value))
+        except (TypeError, ValueError) as exc:
+            raise ValidationError(field, "Xtream timestamp must be an integer") from exc
 
     @staticmethod
     def _optional_int(value: object) -> int | None:

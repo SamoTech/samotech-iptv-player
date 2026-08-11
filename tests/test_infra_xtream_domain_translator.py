@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 
 from samotech_iptv.core.exceptions import ValidationError
+from samotech_iptv.domain.value_objects.channel_id import ChannelId
 from samotech_iptv.domain.value_objects.provider_id import ProviderId
 from samotech_iptv.infrastructure.providers.xtream_domain_translator import XtreamDomainTranslator
 
@@ -41,6 +42,26 @@ def test_series_maps_xtream_series_record() -> None:
     assert series.id == "xtream-demo:84"
     assert series.category_id == "drama"
     assert series.poster_url is not None
+
+
+def test_epg_entry_maps_xtream_short_epg_record() -> None:
+    entries = XtreamDomainTranslator.epg_entries(
+        [
+            {
+                "id": "guide-84",
+                "title": "RXhhbXBsZSBQcm9ncmFtbWU=",
+                "description": "QSBkZXRlcm1pbmlzdGljIEVQRyBmaXh0dXJlLg==",
+                "start_timestamp": 1_700_000_000,
+                "stop_timestamp": 1_700_003_600,
+            }
+        ],
+        ChannelId("xtream-demo:101"),
+    )
+
+    assert entries[0].id == "guide-84"
+    assert entries[0].title == "Example Programme"
+    assert entries[0].description == "A deterministic EPG fixture."
+    assert entries[0].start.tzinfo is not None
 
 
 def test_channel_maps_xtream_live_stream_record() -> None:

@@ -53,6 +53,13 @@ async def test_series_returns_object_records() -> None:
 
 
 @pytest.mark.asyncio
+async def test_short_epg_returns_listing_records() -> None:
+    records = await _client({"epg_listings": [{"title": "Example Programme"}]}).short_epg("101")
+
+    assert records[0]["title"] == "Example Programme"
+
+
+@pytest.mark.asyncio
 async def test_client_rejects_malformed_responses() -> None:
     with pytest.raises(ProviderError):
         await _client({}).live_streams()
