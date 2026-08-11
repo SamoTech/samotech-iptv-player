@@ -16,6 +16,7 @@ SamoTech IPTV Player is an in-progress, open-source IPTV project. This revision 
 | **Implemented** | Provider registry and explicit factory registration | Adapters are registered by the composition root rather than import-time global state. |
 | **Implemented** | MAG/Stalker provider core | Authentication, channel catalogue loading, local channel search, EPG loading, stream URL resolution, error translation, and session refresh are covered by unit and integration tests using test-only providers. |
 | **Implemented** | Configuration composition | `ConfigurationProvider` owns `IPTV_*` environment parsing with explicit override → environment → default precedence. |
+| **Implemented** | Extended M3U parsing | `M3UParser` translates `#EXTINF` metadata and HTTP(S) stream URLs into canonical `Channel` and `Stream` entities with deterministic IDs and malformed-input errors. |
 | **Implemented** | Credential/session separation | A MAG connection identity is distinct from the short-lived runtime session token. Tokens are not stored in provider metadata. |
 | **Partially implemented** | Secure credential storage | A keyring-backed credential-store adapter exists. Its deployment and platform integration remain to be exercised by the future application composition root. |
 | **Planned** | M3U/Xtream application adapters and playlist management | Legacy/provider scaffolding exists, but these are not yet integrated through the canonical application provider contract. |
@@ -83,7 +84,7 @@ Do not commit portals, authorized MAC addresses, credentials, or session tokens.
 
 ## Project phases
 
-The initial scaffold and the core recovery work are complete. The next product phase is **Phase 2: complete domain entities, value objects, and the M3U parser with unit tests**. The desktop player and UI remain later phases, after the provider/application core is extended. See [ROADMAP.md](ROADMAP.md) for the complete sequence.
+The initial scaffold and core recovery work are complete. **Phase 2 is in progress**: an extended M3U parser and focused tests are delivered, while remaining domain/value-object coverage and future M3U adapter integration continue. The desktop player and UI remain later phases, after the provider/application core is extended. See [ROADMAP.md](ROADMAP.md) for the complete sequence.
 
 ## Contributing and security
 
