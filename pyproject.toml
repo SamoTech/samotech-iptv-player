@@ -12,6 +12,7 @@ requires-python = ">=3.12"
 dependencies = [
     "aiohttp>=3.9",
     "defusedxml>=0.7",
+    "python-vlc>=3.0.21203",
 ]
 
 [project.optional-dependencies]
