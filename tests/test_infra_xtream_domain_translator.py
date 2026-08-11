@@ -26,6 +26,23 @@ def test_movie_maps_xtream_vod_stream_record() -> None:
     assert movie.category_id == "movies"
 
 
+def test_series_maps_xtream_series_record() -> None:
+    series = XtreamDomainTranslator.series(
+        {
+            "series_id": 84,
+            "name": "Example Series",
+            "category_id": "drama",
+            "cover": "https://assets.example.test/series.jpg",
+            "plot": "A deterministic series fixture.",
+        },
+        ProviderId("xtream-demo"),
+    )
+
+    assert series.id == "xtream-demo:84"
+    assert series.category_id == "drama"
+    assert series.poster_url is not None
+
+
 def test_channel_maps_xtream_live_stream_record() -> None:
     channel = XtreamDomainTranslator.channel(
         {

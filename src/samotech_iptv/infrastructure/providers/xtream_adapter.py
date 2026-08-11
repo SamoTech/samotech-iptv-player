@@ -9,6 +9,7 @@ from samotech_iptv.application.ports.provider_capabilities import (
     CapabilityProvider,
     CatalogProvider,
     SearchProvider,
+    SeriesProvider,
     VodProvider,
 )
 from samotech_iptv.core.exceptions import AuthenticationError
@@ -24,6 +25,7 @@ if TYPE_CHECKING:
 
     from samotech_iptv.domain.entities.channel import Channel
     from samotech_iptv.domain.entities.movie import Movie
+    from samotech_iptv.domain.entities.series import Series
     from samotech_iptv.domain.value_objects.credential import Credential
     from samotech_iptv.infrastructure.providers.provider_context import ProviderContext
     from samotech_iptv.infrastructure.providers.provider_factory import ProviderFactory
@@ -36,13 +38,19 @@ _CAPABILITIES = frozenset(
         ProviderCapability.AUTHENTICATION,
         ProviderCapability.LIVE,
         ProviderCapability.VOD,
+        ProviderCapability.SERIES,
         ProviderCapability.SEARCH,
     }
 )
 
 
 class XtreamProviderAdapter(
-    AuthenticationProvider, CatalogProvider, VodProvider, SearchProvider, CapabilityProvider
+    AuthenticationProvider,
+    CatalogProvider,
+    VodProvider,
+    SeriesProvider,
+    SearchProvider,
+    CapabilityProvider,
 ):
     """Retrieve and translate Xtream live channels through canonical boundaries."""
 
@@ -87,6 +95,14 @@ class XtreamProviderAdapter(
         return [
             XtreamDomainTranslator.movie(record, self.provider_id)
             for record in await client.vod_streams()
+        ]
+
+    async def load_series(self) -> Sequence[Series]:
+        """Retrieve stored credentials then translate Xtream series DTOs into series."""
+        client = await self._stored_client()
+        return [
+            XtreamDomainTranslator.series(record, self.provider_id)
+            for record in await client.series()
         ]
 
     async def search_channels(self, query: str, limit: int = 100) -> Sequence[Channel]:

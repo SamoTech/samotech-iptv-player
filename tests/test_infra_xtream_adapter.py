@@ -28,6 +28,8 @@ class FakeHttpClient:
             return [{"stream_id": 1, "name": "News"}, {"stream_id": 2, "name": "Sports"}]
         if "get_vod_streams" in url:
             return [{"stream_id": 42, "name": "Example Movie"}]
+        if "get_series" in url:
+            return [{"series_id": 84, "name": "Example Series"}]
         return {"user_info": {"auth": 1}}
 
 
@@ -79,6 +81,7 @@ async def test_adapter_authenticates_stores_credentials_and_translates_live_chan
     assert [channel.name for channel in await adapter.load_channels()] == ["News", "Sports"]
     assert [channel.name for channel in await adapter.search_channels("sport")] == ["Sports"]
     assert [movie.title for movie in await adapter.load_movies()] == ["Example Movie"]
+    assert [series.title for series in await adapter.load_series()] == ["Example Series"]
 
 
 def test_adapter_advertises_only_implemented_capabilities_and_registers_with_factory() -> None:
@@ -90,6 +93,7 @@ def test_adapter_advertises_only_implemented_capabilities_and_registers_with_fac
         ProviderCapability.AUTHENTICATION,
         ProviderCapability.LIVE,
         ProviderCapability.VOD,
+        ProviderCapability.SERIES,
         ProviderCapability.SEARCH,
     }
     assert factory.is_registered("xtream")

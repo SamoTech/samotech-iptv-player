@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 from samotech_iptv.core.exceptions import ValidationError
 from samotech_iptv.domain.entities.channel import Channel
 from samotech_iptv.domain.entities.movie import Movie
+from samotech_iptv.domain.entities.series import Series
 from samotech_iptv.domain.value_objects.channel_id import ChannelId
 from samotech_iptv.domain.value_objects.stream_id import StreamId
 from samotech_iptv.domain.value_objects.url import URL
@@ -53,6 +54,21 @@ class XtreamDomainTranslator:
             title=title,
             provider_id=provider_id,
             stream_id=StreamId(stream_id),
+            category_id=str(raw.get("category_id") or "").strip() or None,
+            poster_url=URL(poster) if poster else None,
+            plot=str(raw.get("plot") or "").strip() or None,
+        )
+
+    @staticmethod
+    def series(raw: Mapping[str, object], provider_id: ProviderId) -> Series:
+        """Map a series record returned by ``get_series`` to a canonical series."""
+        series_id = XtreamDomainTranslator._required_text(raw, "series_id")
+        title = XtreamDomainTranslator._required_text(raw, "name")
+        poster = str(raw.get("cover") or raw.get("cover_big") or "").strip()
+        return Series(
+            id=f"{provider_id.value}:{series_id}",
+            title=title,
+            provider_id=provider_id,
             category_id=str(raw.get("category_id") or "").strip() or None,
             poster_url=URL(poster) if poster else None,
             plot=str(raw.get("plot") or "").strip() or None,

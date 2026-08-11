@@ -46,6 +46,13 @@ async def test_live_streams_returns_object_records() -> None:
 
 
 @pytest.mark.asyncio
+async def test_series_returns_object_records() -> None:
+    records = await _client([{"series_id": 84, "name": "Example Series"}]).series()
+
+    assert records[0]["name"] == "Example Series"
+
+
+@pytest.mark.asyncio
 async def test_client_rejects_malformed_responses() -> None:
     with pytest.raises(ProviderError):
         await _client({}).live_streams()

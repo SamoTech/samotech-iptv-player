@@ -45,6 +45,10 @@ class XtreamApiClient:
         """Return raw VOD records for canonical movie translation."""
         return await self._stream_records("get_vod_streams", "VOD")
 
+    async def series(self) -> Sequence[Mapping[str, object]]:
+        """Return raw series records for canonical series translation."""
+        return await self._stream_records("get_series", "series")
+
     async def _stream_records(self, action: str, label: str) -> Sequence[Mapping[str, object]]:
         payload = await self._http_client.get_json(str(self._request_builder.player_api(action)))
         if not isinstance(payload, list) or not all(isinstance(item, Mapping) for item in payload):
