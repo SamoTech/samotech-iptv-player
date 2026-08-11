@@ -26,7 +26,7 @@ SamoTech IPTV Player is an in-progress, open-source IPTV project. This revision 
 | **Implemented** | Value-object validation | Identifier, credential, and URL value objects have focused validation, redaction, and immutable value-semantics coverage. URLs require complete whitespace-free HTTP(S) authorities. |
 | **Implemented** | Credential/session separation | A MAG connection identity is distinct from the short-lived runtime session token. Tokens are not stored in provider metadata. |
 | **Partially implemented** | Secure credential storage | A keyring-backed credential-store adapter exists. Its deployment and platform integration remain to be exercised by the future application composition root. |
-| **Planned** | M3U/Xtream application adapters and playlist management | Legacy/provider scaffolding exists, but these are not yet integrated through the canonical application provider contract. |
+| **Partially implemented** | M3U and Xtream provider foundations | M3U local/HTTP(S) source loading and canonical catalogue translation are available through a capability-oriented adapter. Xtream has credential-safe request construction; its API client and DTO translation remain future work. |
 | **Planned** | Playback, persistence, desktop UI, EPG grid, recording, plugins, settings, updater, packaging | See [ROADMAP.md](ROADMAP.md). |
 
 ## Architecture
