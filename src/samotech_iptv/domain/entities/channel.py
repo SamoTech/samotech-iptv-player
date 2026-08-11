@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from samotech_iptv.core.exceptions import ValidationError
+from ._catalogue_validation import validate_nonblank_text
 
 if TYPE_CHECKING:
     from samotech_iptv.domain.value_objects.channel_id import ChannelId
@@ -30,5 +30,18 @@ class Channel:
     number: int | None = None
 
     def __post_init__(self) -> None:
-        if not self.name.strip():
-            raise ValidationError("name", "Channel name must not be blank")
+        validate_nonblank_text(self.name, field="name", label="Channel name")
+        if self.category_id is not None:
+            validate_nonblank_text(
+                self.category_id,
+                field="category_id",
+                label="Category ID",
+                when_supplied=True,
+            )
+        if self.epg_channel_id is not None:
+            validate_nonblank_text(
+                self.epg_channel_id,
+                field="epg_channel_id",
+                label="EPG channel ID",
+                when_supplied=True,
+            )

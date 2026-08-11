@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from ._library_validation import validate_favorite
+
 if TYPE_CHECKING:
     from datetime import datetime
 
@@ -19,3 +21,10 @@ class Favorite:
     item_id: str
     item_type: str  # "channel" | "movie" | "series"
     added_at: datetime
+
+    def __post_init__(self) -> None:
+        validate_favorite(
+            record_id=self.id,
+            item_id=self.item_id,
+            item_type=self.item_type,
+        )

@@ -27,6 +27,7 @@ if TYPE_CHECKING:
     from samotech_iptv.domain.entities.epg_entry import EPGEntry
     from samotech_iptv.domain.value_objects.channel_id import ChannelId
     from samotech_iptv.domain.value_objects.credential import Credential
+    from samotech_iptv.domain.value_objects.provider_capability import ProviderCapability
     from samotech_iptv.domain.value_objects.provider_id import ProviderId
     from samotech_iptv.domain.value_objects.url import URL
 
@@ -120,12 +121,6 @@ class CapabilityProvider(ABC):
     """
 
     @abstractmethod
-    def supported_capabilities(self) -> frozenset[str]:
-        """Return a frozenset of capability names this provider supports.
-
-        Canonical names::
-
-            "authentication", "session", "catalog", "epg",
-            "search", "playback"
-        """
+    def supported_capabilities(self) -> frozenset[ProviderCapability]:
+        """Return the canonical capabilities this provider implements at runtime."""
         ...

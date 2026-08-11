@@ -12,6 +12,7 @@ from samotech_iptv.domain.entities.channel import Channel
 from samotech_iptv.domain.entities.stream import Stream
 from samotech_iptv.domain.value_objects.channel_id import ChannelId
 from samotech_iptv.domain.value_objects.stream_id import StreamId
+from samotech_iptv.domain.value_objects.stream_uri import StreamURI
 from samotech_iptv.domain.value_objects.url import URL
 
 if TYPE_CHECKING:
@@ -61,16 +62,16 @@ class _PendingEntry:
 
 
 class M3UParser:
-    """Translate an HTTP/HTTPS extended M3U playlist into domain entities."""
+    """Translate an extended M3U playlist into canonical channel and stream entities."""
 
     def parse(self, text: str, provider_id: ProviderId) -> ParsedM3UPlaylist:
         """Parse a playlist string using the supplied canonical provider ID.
 
         The parser supports ``#EXTINF`` attributes including ``tvg-id``,
         ``tvg-name``, ``tvg-logo``, ``group-title``, and ``tvg-chno``. A stream
-        URL must follow every ``#EXTINF`` entry. Non-HTTP(S) stream URLs are
-        rejected by the domain ``URL`` value object rather than silently passed
-        to future playback layers.
+        URI must follow every ``#EXTINF`` entry. Supported non-HTTP media
+        transports are preserved in the domain ``StreamURI`` value object for
+        later protocol classification and player-capability negotiation.
         """
         lines = text.lstrip("\ufeff").splitlines()
         if not lines or not lines[0].strip().upper().startswith("#EXTM3U"):
@@ -139,7 +140,7 @@ class M3UParser:
         identifier = M3UParser._next_identifier(base_identifier, occurrences)
         channel_id = ChannelId(f"{provider_id.value}:{identifier}")
         stream_id = StreamId(channel_id.value)
-        stream_url = M3UParser._stream_url(raw_stream_url, entry.line_number)
+        stream_url = M3UParser._stream_uri(raw_stream_url, entry.line_number)
         logo_url = M3UParser._optional_logo_url(attributes.get("tvg-logo"), entry.line_number)
 
         channel = Channel(
@@ -167,9 +168,9 @@ class M3UParser:
         return normalized if occurrence == 1 else f"{normalized}-{occurrence}"
 
     @staticmethod
-    def _stream_url(value: str, line_number: int) -> URL:
+    def _stream_uri(value: str, line_number: int) -> StreamURI:
         try:
-            return URL(value)
+            return StreamURI(value)
         except ValidationError as exc:
             raise M3UParserError(f"Line {line_number} has an invalid stream URL") from exc
 
@@ -192,6 +193,6 @@ class M3UParser:
             raise M3UParserError(f"Line {line_number} has an invalid tvg-chno value") from exc
 
     @staticmethod
-    def _container_for(url: URL) -> str:
+    def _container_for(url: StreamURI) -> str:
         suffix = PurePosixPath(url.value.split("?", maxsplit=1)[0]).suffix.lstrip(".").lower()
         return suffix or "unknown"

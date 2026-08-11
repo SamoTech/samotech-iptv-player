@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from ._catalogue_validation import validate_catalogue_metadata
+
 if TYPE_CHECKING:
     from samotech_iptv.domain.value_objects.provider_id import ProviderId
     from samotech_iptv.domain.value_objects.stream_id import StreamId
@@ -26,3 +28,12 @@ class Movie:
     rating: float | None = None
     poster_url: URL | None = None
     plot: str | None = None
+
+    def __post_init__(self) -> None:
+        validate_catalogue_metadata(
+            item_id=self.id,
+            title=self.title,
+            category_id=self.category_id,
+            year=self.year,
+            rating=self.rating,
+        )

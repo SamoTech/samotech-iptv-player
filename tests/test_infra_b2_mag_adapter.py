@@ -10,6 +10,7 @@ import pytest
 from samotech_iptv.core.exceptions import AuthenticationError, ValidationError
 from samotech_iptv.domain.value_objects.channel_id import ChannelId
 from samotech_iptv.domain.value_objects.credential import Credential
+from samotech_iptv.domain.value_objects.provider_capability import ProviderCapability
 from samotech_iptv.infrastructure.providers.mag_adapter import (
     MagProviderAdapter,
     register_with_factory,
@@ -170,12 +171,12 @@ class TestProviderCapabilities:
     ) -> None:
         assert adapter.provider_id.value == "mag-test"
         assert adapter.supported_capabilities() == {
-            "authentication",
-            "catalog",
-            "epg",
-            "search",
-            "playback",
-            "session",
+            ProviderCapability.AUTHENTICATION,
+            ProviderCapability.SESSION,
+            ProviderCapability.LIVE,
+            ProviderCapability.EPG,
+            ProviderCapability.SEARCH,
+            ProviderCapability.STREAM_RESOLUTION,
         }
 
     def test_factory_creates_a_concrete_adapter(

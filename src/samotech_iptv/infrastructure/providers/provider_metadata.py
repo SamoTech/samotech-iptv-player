@@ -9,6 +9,10 @@ through the domain layer.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from samotech_iptv.domain.value_objects.provider_capability import ProviderCapability
 
 __all__ = ["InfraProviderMetadata"]
 
@@ -23,7 +27,7 @@ class InfraProviderMetadata:
                        (e.g. ``"mag"``, ``"xtream"``, ``"m3u"``).
         base_url:      Base URL of the remote service.
         is_active:     Whether the provider is eligible for use.
-        capabilities:  Set of capability names this provider supports.
+        capabilities:  Canonical capabilities this provider implements.
         last_error:    Most recent error message, if any.  Session tokens
                        are held only by the live provider adapter.
     """
@@ -32,5 +36,5 @@ class InfraProviderMetadata:
     provider_type: str
     base_url: str
     is_active: bool = True
-    capabilities: frozenset[str] = field(default_factory=lambda: frozenset())
+    capabilities: frozenset[ProviderCapability] = field(default_factory=frozenset)
     last_error: str | None = None
