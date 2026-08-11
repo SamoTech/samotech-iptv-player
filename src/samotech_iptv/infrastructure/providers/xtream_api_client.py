@@ -1,0 +1,47 @@
+"""HTTP-backed Xtream-compatible API client with no retained provider session state."""
+
+from __future__ import annotations
+
+from collections.abc import Mapping
+from typing import TYPE_CHECKING, cast
+
+from samotech_iptv.core.exceptions import ProviderError
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from samotech_iptv.infrastructure.network.http_client import AsyncHttpClient
+    from samotech_iptv.infrastructure.providers.xtream_request_builder import XtreamRequestBuilder
+
+__all__ = ["XtreamApiClient"]
+
+
+class XtreamApiClient:
+    """Retrieve Xtream API DTOs through the shared asynchronous HTTP client."""
+
+    def __init__(self, http_client: AsyncHttpClient, request_builder: XtreamRequestBuilder) -> None:
+        self._http_client = http_client
+        self._request_builder = request_builder
+
+    async def authenticate(self) -> bool:
+        """Return whether a standard authentication response reports an active user."""
+        payload = await self._http_client.get_json(str(self._request_builder.player_api()))
+        if not isinstance(payload, Mapping):
+            raise ProviderError("Xtream authentication response must be an object")
+        user_info = payload.get("user_info")
+        if not isinstance(user_info, Mapping):
+            return False
+        return str(user_info.get("auth") or user_info.get("status") or "").casefold() in {
+            "1",
+            "true",
+            "active",
+        }
+
+    async def live_streams(self) -> Sequence[Mapping[str, object]]:
+        """Return raw live-stream records for canonical adapter translation."""
+        payload = await self._http_client.get_json(
+            str(self._request_builder.player_api("get_live_streams"))
+        )
+        if not isinstance(payload, list) or not all(isinstance(item, Mapping) for item in payload):
+            raise ProviderError("Xtream live-stream response must be a list of objects")
+        return cast("Sequence[Mapping[str, object]]", payload)
