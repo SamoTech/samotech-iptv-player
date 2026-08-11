@@ -8,6 +8,7 @@ from samotech_iptv.application.ports.provider_capabilities import (
     AuthenticationProvider,
     CapabilityProvider,
     CatalogProvider,
+    CategoryProvider,
     EPGProvider,
     PlaybackProvider,
     SearchProvider,
@@ -25,6 +26,7 @@ from samotech_iptv.infrastructure.providers.xtream_request_builder import Xtream
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
 
+    from samotech_iptv.domain.entities.category import Category
     from samotech_iptv.domain.entities.channel import Channel
     from samotech_iptv.domain.entities.epg_entry import EPGEntry
     from samotech_iptv.domain.entities.movie import Movie
@@ -41,6 +43,7 @@ _CAPABILITIES = frozenset(
     {
         ProviderCapability.AUTHENTICATION,
         ProviderCapability.LIVE,
+        ProviderCapability.CATEGORIES,
         ProviderCapability.EPG,
         ProviderCapability.STREAM_RESOLUTION,
         ProviderCapability.VOD,
@@ -53,6 +56,7 @@ _CAPABILITIES = frozenset(
 class XtreamProviderAdapter(
     AuthenticationProvider,
     CatalogProvider,
+    CategoryProvider,
     EPGProvider,
     PlaybackProvider,
     VodProvider,
@@ -96,6 +100,21 @@ class XtreamProviderAdapter(
             XtreamDomainTranslator.channel(record, self.provider_id)
             for record in await client.live_streams()
         ]
+
+    async def load_live_categories(self) -> Sequence[Category]:
+        """Retrieve stored credentials then translate Xtream live categories."""
+        client = await self._stored_client()
+        return XtreamDomainTranslator.categories(await client.live_categories(), self.provider_id)
+
+    async def load_vod_categories(self) -> Sequence[Category]:
+        """Retrieve stored credentials then translate Xtream VOD categories."""
+        client = await self._stored_client()
+        return XtreamDomainTranslator.categories(await client.vod_categories(), self.provider_id)
+
+    async def load_series_categories(self) -> Sequence[Category]:
+        """Retrieve stored credentials then translate Xtream series categories."""
+        client = await self._stored_client()
+        return XtreamDomainTranslator.categories(await client.series_categories(), self.provider_id)
 
     async def resolve_stream(self, channel_id: ChannelId) -> URL:
         """Resolve an owned live channel to its validated Xtream playback URL."""

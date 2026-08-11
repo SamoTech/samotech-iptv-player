@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from samotech_iptv.core.exceptions import ValidationError
+from samotech_iptv.domain.entities.category import Category
 from samotech_iptv.domain.entities.channel import Channel
 from samotech_iptv.domain.entities.epg_entry import EPGEntry
 from samotech_iptv.domain.entities.movie import Movie
@@ -25,6 +26,23 @@ __all__ = ["XtreamDomainTranslator"]
 
 class XtreamDomainTranslator:
     """Stateless mappings from Xtream API records to canonical entities."""
+
+    @staticmethod
+    def categories(
+        raw_records: Sequence[Mapping[str, object]], provider_id: ProviderId
+    ) -> list[Category]:
+        """Map a single Xtream category family to canonical category entities."""
+        return [XtreamDomainTranslator.category(record, provider_id) for record in raw_records]
+
+    @staticmethod
+    def category(raw: Mapping[str, object], provider_id: ProviderId) -> Category:
+        """Map an Xtream category record while preserving its content-facing identifier."""
+        return Category(
+            id=XtreamDomainTranslator._required_text(raw, "category_id"),
+            name=XtreamDomainTranslator._required_text(raw, "category_name"),
+            provider_id=provider_id,
+            parent_id=str(raw.get("parent_id") or "").strip() or None,
+        )
 
     @staticmethod
     def channel(raw: Mapping[str, object], provider_id: ProviderId) -> Channel:

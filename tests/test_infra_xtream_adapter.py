@@ -32,6 +32,12 @@ class FakeHttpClient:
             ]
         if "get_vod_streams" in url:
             return [{"stream_id": 42, "name": "Example Movie"}]
+        if "get_live_categories" in url:
+            return [{"category_id": "news", "category_name": "News"}]
+        if "get_vod_categories" in url:
+            return [{"category_id": "movies", "category_name": "Movies"}]
+        if "get_series_categories" in url:
+            return [{"category_id": "drama", "category_name": "Drama"}]
         if "get_series" in url:
             return [{"series_id": 84, "name": "Example Series"}]
         if "get_short_epg" in url:
@@ -96,6 +102,9 @@ async def test_adapter_authenticates_stores_credentials_and_translates_live_chan
     assert [channel.name for channel in await adapter.search_channels("sport")] == ["Sports"]
     assert [movie.title for movie in await adapter.load_movies()] == ["Example Movie"]
     assert [series.title for series in await adapter.load_series()] == ["Example Series"]
+    assert [category.id for category in await adapter.load_live_categories()] == ["news"]
+    assert [category.id for category in await adapter.load_vod_categories()] == ["movies"]
+    assert [category.id for category in await adapter.load_series_categories()] == ["drama"]
     assert [entry.title for entry in await adapter.load_epg(ChannelId("xtream-demo:1"))] == [
         "Example Programme"
     ]
@@ -112,6 +121,7 @@ def test_adapter_advertises_only_implemented_capabilities_and_registers_with_fac
     assert adapter.supported_capabilities() == {
         ProviderCapability.AUTHENTICATION,
         ProviderCapability.LIVE,
+        ProviderCapability.CATEGORIES,
         ProviderCapability.EPG,
         ProviderCapability.STREAM_RESOLUTION,
         ProviderCapability.VOD,

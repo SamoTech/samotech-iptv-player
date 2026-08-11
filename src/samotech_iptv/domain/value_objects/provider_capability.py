@@ -13,6 +13,7 @@ class ProviderCapability(StrEnum):
     AUTHENTICATION = "authentication"
     SESSION = "session"
     LIVE = "live"
+    CATEGORIES = "categories"
     VOD = "vod"
     SERIES = "series"
     EPG = "epg"

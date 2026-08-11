@@ -53,6 +53,13 @@ async def test_series_returns_object_records() -> None:
 
 
 @pytest.mark.asyncio
+async def test_live_categories_returns_object_records() -> None:
+    records = await _client([{"category_id": "news", "category_name": "News"}]).live_categories()
+
+    assert records[0]["category_name"] == "News"
+
+
+@pytest.mark.asyncio
 async def test_short_epg_returns_listing_records() -> None:
     records = await _client({"epg_listings": [{"title": "Example Programme"}]}).short_epg("101")
 

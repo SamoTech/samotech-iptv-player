@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
+    from samotech_iptv.domain.entities.category import Category
     from samotech_iptv.domain.entities.channel import Channel
     from samotech_iptv.domain.entities.epg_entry import EPGEntry
     from samotech_iptv.domain.entities.movie import Movie
@@ -36,6 +37,7 @@ if TYPE_CHECKING:
 __all__ = [
     "AuthenticationProvider",
     "CatalogProvider",
+    "CategoryProvider",
     "VodProvider",
     "SeriesProvider",
     "EPGProvider",
@@ -82,6 +84,25 @@ class CatalogProvider(ABC):
     @abstractmethod
     async def load_channels(self) -> Sequence[Channel]:
         """Return the full channel list."""
+        ...
+
+
+class CategoryProvider(ABC):
+    """Capability: load provider category families without cross-family identifier collisions."""
+
+    @abstractmethod
+    async def load_live_categories(self) -> Sequence[Category]:
+        """Return categories used to group the provider's live channels."""
+        ...
+
+    @abstractmethod
+    async def load_vod_categories(self) -> Sequence[Category]:
+        """Return categories used to group the provider's VOD movies."""
+        ...
+
+    @abstractmethod
+    async def load_series_categories(self) -> Sequence[Category]:
+        """Return categories used to group the provider's series catalogue."""
         ...
 
 

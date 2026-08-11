@@ -50,6 +50,18 @@ class XtreamApiClient:
         """Return raw series records for canonical series translation."""
         return await self._stream_records("get_series", "series")
 
+    async def live_categories(self) -> Sequence[Mapping[str, object]]:
+        """Return raw live category records for canonical translation."""
+        return await self._stream_records("get_live_categories", "live-category")
+
+    async def vod_categories(self) -> Sequence[Mapping[str, object]]:
+        """Return raw VOD category records for canonical translation."""
+        return await self._stream_records("get_vod_categories", "VOD-category")
+
+    async def series_categories(self) -> Sequence[Mapping[str, object]]:
+        """Return raw series category records for canonical translation."""
+        return await self._stream_records("get_series_categories", "series-category")
+
     def live_stream_url(self, stream_id: str, extension: str) -> URL:
         """Build the credential-safe playback URL for one live stream."""
         return self._request_builder.stream_url("live", stream_id, extension)

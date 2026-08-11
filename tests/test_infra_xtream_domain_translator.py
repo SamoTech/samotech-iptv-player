@@ -10,6 +10,17 @@ from samotech_iptv.domain.value_objects.provider_id import ProviderId
 from samotech_iptv.infrastructure.providers.xtream_domain_translator import XtreamDomainTranslator
 
 
+def test_category_maps_xtream_group_record() -> None:
+    category = XtreamDomainTranslator.category(
+        {"category_id": "drama", "category_name": "Drama", "parent_id": "premium"},
+        ProviderId("xtream-demo"),
+    )
+
+    assert category.id == "drama"
+    assert category.name == "Drama"
+    assert category.parent_id == "premium"
+
+
 def test_movie_maps_xtream_vod_stream_record() -> None:
     movie = XtreamDomainTranslator.movie(
         {

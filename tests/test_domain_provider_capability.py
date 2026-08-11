@@ -11,6 +11,7 @@ def test_provider_capability_defines_the_supported_canonical_vocabulary() -> Non
         ProviderCapability.AUTHENTICATION,
         ProviderCapability.SESSION,
         ProviderCapability.LIVE,
+        ProviderCapability.CATEGORIES,
         ProviderCapability.VOD,
         ProviderCapability.SERIES,
         ProviderCapability.EPG,
@@ -24,3 +25,4 @@ def test_provider_capability_preserves_its_canonical_wire_value() -> None:
     """Capabilities remain safe to serialize into configuration or presentation boundaries."""
     assert str(ProviderCapability.STREAM_RESOLUTION) == "stream_resolution"
     assert ProviderCapability.LIVE == "live"
+    assert ProviderCapability.CATEGORIES == "categories"
