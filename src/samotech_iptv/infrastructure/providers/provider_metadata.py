@@ -24,8 +24,8 @@ class InfraProviderMetadata:
         base_url:      Base URL of the remote service.
         is_active:     Whether the provider is eligible for use.
         capabilities:  Set of capability names this provider supports.
-        last_error:    Most recent error message, if any.
-        auth_token:    Opaque session token (not persisted).
+        last_error:    Most recent error message, if any.  Session tokens
+                       are held only by the live provider adapter.
     """
 
     provider_id: str
@@ -36,4 +36,3 @@ class InfraProviderMetadata:
         default_factory=lambda: frozenset()
     )
     last_error: Optional[str] = None
-    auth_token: Optional[str] = None

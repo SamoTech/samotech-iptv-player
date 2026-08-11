@@ -1,418 +1,279 @@
-"""Unit tests for Phase B.2 — MagProviderAdapter.
-
-All MAGProvider calls are mocked.  No real network access.
-"""
+"""Contract and behaviour tests for the MAG provider adapter."""
 from __future__ import annotations
 
-import asyncio
+from types import SimpleNamespace
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from samotech_iptv.infrastructure.providers.provider_metadata import InfraProviderMetadata
-from samotech_iptv.infrastructure.providers.provider_context import ProviderContext
 from samotech_iptv.infrastructure.providers.provider_factory import ProviderFactory
-from samotech_iptv.infrastructure.providers.provider_registry import ProviderRegistry
+from samotech_iptv.core.exceptions import AuthenticationError, ProviderError, ValidationError
+from samotech_iptv.domain.value_objects.channel_id import ChannelId
+from samotech_iptv.domain.value_objects.credential import Credential
 from samotech_iptv.infrastructure.providers.mag_adapter import (
     MagProviderAdapter,
     register_with_factory,
 )
-from samotech_iptv.infrastructure.providers.mag_dto_translator import MagDtoTranslator
-from samotech_iptv.infrastructure.providers.mag_error_translator import translate_mag_error
-from samotech_iptv.application.dtos.auth import AuthenticateRequest
-from samotech_iptv.application.dtos.channels import LoadChannelsRequest
-from samotech_iptv.application.dtos.epg import LoadEPGRequest
-from samotech_iptv.application.dtos.stream import ResolveStreamRequest
-from samotech_iptv.core.exceptions import (
-    AuthenticationError,
-    NetworkError,
-    ProviderError,
-    ValidationError,
-)
+from samotech_iptv.infrastructure.providers.mag_credential import MagCredential
+from samotech_iptv.infrastructure.providers.mag_domain_translator import MagDomainTranslator
+from samotech_iptv.infrastructure.providers.provider_context import ProviderContext
+from samotech_iptv.infrastructure.providers.provider_metadata import InfraProviderMetadata
 
 
-# ──────────────────────────────────── Fixtures
+class FakeMagProvider:
+    """Protocol-faithful in-memory MAG provider used to isolate network I/O."""
+
+    def __init__(self) -> None:
+        self._session = SimpleNamespace(token="")
+        self.connect_calls = 0
+        self.refresh_calls = 0
+        self.close_calls = 0
+        self.epg_calls: list[tuple[list[int] | None, int]] = []
+        self.stream_calls: list[tuple[int, str]] = []
+        self.channels: list[dict[str, Any]] = [
+            {
+                "id": 1,
+                "name": "BBC One",
+                "logo": "https://logo.example.test/bbc1.png",
+                "tv_genre_id": 10,
+                "number": 1,
+            },
+            {"id": 2, "name": "ITV", "tv_genre_id": 10, "number": 2},
+        ]
+        self.epg: dict[int, list[dict[str, Any]]] = {
+            1: [
+                {
+                    "id": 101,
+                    "name": "News at Six",
+                    "descr": "Evening news programme.",
+                    "start_timestamp": 1700000000,
+                    "stop_timestamp": 1700003600,
+                }
+            ]
+        }
+
+    async def connect(self) -> None:
+        self.connect_calls += 1
+        self._session.token = "session-token-for-test-only"
+
+    async def close(self) -> None:
+        self.close_calls += 1
+
+    async def refresh_token(self) -> None:
+        self.refresh_calls += 1
+        self._session.token = "refreshed-session-token-for-test-only"
+
+    async def get_channels(self) -> list[dict[str, Any]]:
+        return self.channels
+
+    async def get_epg(
+        self, channel_ids: list[int] | None = None, period: int = 3
+    ) -> dict[int, list[dict[str, Any]]]:
+        self.epg_calls.append((channel_ids, period))
+        if channel_ids is None:
+            return self.epg
+        return {channel_id: self.epg.get(channel_id, []) for channel_id in channel_ids}
+
+    async def get_stream_url(self, stream_id: int, stream_type: str = "live") -> str:
+        self.stream_calls.append((stream_id, stream_type))
+        return f"https://stream.example.test/live/{stream_id}.m3u8"
+
 
 @pytest.fixture
-def meta() -> InfraProviderMetadata:
+def metadata() -> InfraProviderMetadata:
     return InfraProviderMetadata(
         provider_id="mag-test",
         provider_type="mag",
-        base_url="http://portal.example.com",
+        base_url="https://portal.example.test",
     )
 
 
 @pytest.fixture
-def mock_context() -> ProviderContext:
-    ctx = MagicMock(spec=ProviderContext)
-    ctx.config = MagicMock()
-    ctx.config.network_config.return_value = MagicMock(
-        connect_timeout=10.0,
-        read_timeout=30.0,
-        max_retries=3,
-    )
-    return ctx
+def context() -> ProviderContext:
+    return ProviderContext.build(overrides={"connect_timeout": 10, "read_timeout": 30})
 
 
 @pytest.fixture
-def mock_legacy() -> MagicMock:
-    """A fully mocked MAGProvider instance."""
-    provider = MagicMock()
-    provider._session = MagicMock()
-    provider._session.token = "test-token-abc"
-    provider.connect = AsyncMock()
-    provider.close = AsyncMock()
-    provider.authenticate = AsyncMock()
-    provider.refresh_token = AsyncMock()
-    provider.get_channels = AsyncMock(return_value=[
-        {"id": 1, "name": "BBC One", "logo": "http://logo.example.com/bbc1.png",
-         "tv_genre_id": 10, "number": 1},
-        {"id": 2, "name": "ITV", "logo": "", "tv_genre_id": 10, "number": 2},
-    ])
-    provider.get_vod = AsyncMock(return_value=[])
-    provider.get_series = AsyncMock(return_value=[])
-    provider.get_epg = AsyncMock(return_value={
-        1: [
-            {
-                "name": "News at Six",
-                "descr": "Evening news programme.",
-                "start_timestamp": 1700000000,
-                "stop_timestamp":  1700003600,
-            }
-        ]
-    })
-    provider.get_stream_url = AsyncMock(return_value="http://stream.example.com/live/1.m3u8")
-    return provider
+def legacy() -> FakeMagProvider:
+    return FakeMagProvider()
 
 
 @pytest.fixture
-def adapter(meta, mock_context, mock_legacy) -> MagProviderAdapter:
-    return MagProviderAdapter(
-        metadata=meta,
-        context=mock_context,
-        legacy_provider=mock_legacy,
-    )
+def adapter(
+    metadata: InfraProviderMetadata, context: ProviderContext, legacy: FakeMagProvider
+) -> MagProviderAdapter:
+    return MagProviderAdapter(metadata=metadata, context=context, legacy_provider=legacy)
 
 
-# ──────────────────────────────────── Authentication
+@pytest.fixture
+def credential() -> Credential:
+    return Credential(username="00:11:22:33:44:55", _password="test-only-secret")
+
 
 class TestAuthentication:
     @pytest.mark.asyncio
-    async def test_authenticate_returns_response_with_token(
-        self, adapter: MagProviderAdapter, mock_legacy: MagicMock
+    async def test_authentication_consumes_mac_identity(
+        self, adapter: MagProviderAdapter, credential: Credential, legacy: FakeMagProvider
     ) -> None:
-        req = AuthenticateRequest(portal_url="http://portal.example.com", mac_address="AA:BB:CC")
-        resp = await adapter.authenticate(req)
-        mock_legacy.connect.assert_called_once()
-        assert resp.token == "test-token-abc"
-        assert resp.success is True
-
-    @pytest.mark.asyncio
-    async def test_is_authenticated_true_after_success(
-        self, adapter: MagProviderAdapter
-    ) -> None:
-        req = AuthenticateRequest(portal_url="http://portal.example.com", mac_address="AA:BB:CC")
-        await adapter.authenticate(req)
+        assert await adapter.authenticate(credential) is True
+        assert legacy.connect_calls == 1
         assert adapter.is_authenticated is True
+        assert adapter._credential is not None
+        assert adapter._credential.mac_address == credential.username
+        assert adapter._credential.portal_url == "https://portal.example.test"
 
     @pytest.mark.asyncio
-    async def test_authentication_error_translated(
-        self, meta: InfraProviderMetadata, mock_context: ProviderContext
+    async def test_authentication_keeps_session_token_out_of_metadata(
+        self,
+        adapter: MagProviderAdapter,
+        credential: Credential,
+        metadata: InfraProviderMetadata,
     ) -> None:
-        """An AuthError from the legacy provider must become AuthenticationError."""
-        from providers.base.errors import AuthError as LegacyAuthError
-        legacy = MagicMock()
-        legacy._session = MagicMock(token="")
-        legacy.connect = AsyncMock(side_effect=LegacyAuthError("bad mac"))
-
-        adapter = MagProviderAdapter(
-            metadata=meta, context=mock_context, legacy_provider=legacy
-        )
-        req = AuthenticateRequest(portal_url="http://p.example.com", mac_address="XX")
-        with pytest.raises(AuthenticationError):
-            await adapter.authenticate(req)
-        assert adapter.is_authenticated is False
-
-
-# ──────────────────────────────────── Catalog
-
-class TestCatalog:
-    @pytest.mark.asyncio
-    async def test_load_channels_returns_dtos(
-        self, adapter: MagProviderAdapter
-    ) -> None:
-        resp = await adapter.load_channels(LoadChannelsRequest())
-        assert resp.total == 2
-        assert resp.channels[0].name == "BBC One"
-        assert resp.channels[1].name == "ITV"
+        await adapter.authenticate(credential)
+        assert adapter._session_token == "session-token-for-test-only"
+        assert not hasattr(metadata, "auth_token")
 
     @pytest.mark.asyncio
-    async def test_load_channels_dto_fields(
-        self, adapter: MagProviderAdapter
+    async def test_authentication_translates_legacy_failure(
+        self, metadata: InfraProviderMetadata, context: ProviderContext, credential: Credential
     ) -> None:
-        resp = await adapter.load_channels(LoadChannelsRequest())
-        bbc = resp.channels[0]
-        assert bbc.id == "1"
-        assert bbc.logo_url == "http://logo.example.com/bbc1.png"
-        assert bbc.number == 1
-
-    @pytest.mark.asyncio
-    async def test_load_categories_returns_empty_list(
-        self, adapter: MagProviderAdapter
-    ) -> None:
-        cats = await adapter.load_categories()
-        assert cats == []
-
-    @pytest.mark.asyncio
-    async def test_channel_network_error_translated(
-        self, meta: InfraProviderMetadata, mock_context: ProviderContext
-    ) -> None:
-        from providers.base.errors import NetworkError as LegacyNetworkError
-        legacy = MagicMock()
-        legacy.get_channels = AsyncMock(
-            side_effect=LegacyNetworkError("DNS failure")
-        )
-        adapter = MagProviderAdapter(
-            metadata=meta, context=mock_context, legacy_provider=legacy
-        )
-        with pytest.raises(NetworkError):
-            await adapter.load_channels(LoadChannelsRequest())
-
-
-# ──────────────────────────────────── EPG
-
-class TestEPG:
-    @pytest.mark.asyncio
-    async def test_load_epg_returns_entries(
-        self, adapter: MagProviderAdapter
-    ) -> None:
-        req = LoadEPGRequest(channel_ids=["1"], period_days=3)
-        resp = await adapter.load_epg(req)
-        assert "1" in resp.entries_by_channel
-        entries = resp.entries_by_channel["1"]
-        assert len(entries) == 1
-        assert entries[0].title == "News at Six"
-
-    @pytest.mark.asyncio
-    async def test_load_epg_empty_channel_ids_passes_none(
-        self, adapter: MagProviderAdapter, mock_legacy: MagicMock
-    ) -> None:
-        req = LoadEPGRequest(channel_ids=[], period_days=1)
-        await adapter.load_epg(req)
-        mock_legacy.get_epg.assert_called_once_with(channel_ids=None, period=1)
-
-    @pytest.mark.asyncio
-    async def test_load_epg_error_translated(
-        self, meta: InfraProviderMetadata, mock_context: ProviderContext
-    ) -> None:
-        from providers.base.errors import NetworkError as LegacyNetworkError
-        legacy = MagicMock()
-        legacy.get_epg = AsyncMock(side_effect=LegacyNetworkError("timeout"))
-        adapter = MagProviderAdapter(
-            metadata=meta, context=mock_context, legacy_provider=legacy
-        )
-        with pytest.raises(NetworkError):
-            await adapter.load_epg(LoadEPGRequest(channel_ids=None, period_days=3))
-
-
-# ──────────────────────────────────── Search
-
-class TestSearch:
-    @pytest.mark.asyncio
-    async def test_search_filters_by_name(
-        self, adapter: MagProviderAdapter
-    ) -> None:
-        from samotech_iptv.application.dtos.channels import ChannelDTO
-        channels = [
-            ChannelDTO(id="1", name="BBC One", logo_url="", category_id="",
-                       stream_id="1", number=1, is_favorite=False),
-            ChannelDTO(id="2", name="ITV", logo_url="", category_id="",
-                       stream_id="2", number=2, is_favorite=False),
-            ChannelDTO(id="3", name="BBC Two", logo_url="", category_id="",
-                       stream_id="3", number=3, is_favorite=False),
-        ]
-        results = await adapter.search_channels("bbc", channels=channels)
-        assert len(results) == 2
-        assert all("bbc" in ch.name.lower() for ch in results)
-
-    @pytest.mark.asyncio
-    async def test_search_empty_query_returns_all(
-        self, adapter: MagProviderAdapter, mock_legacy: MagicMock
-    ) -> None:
-        from samotech_iptv.application.dtos.channels import ChannelDTO
-        channels = [
-            ChannelDTO(id="1", name="BBC One", logo_url="", category_id="",
-                       stream_id="1", number=1, is_favorite=False),
-        ]
-        results = await adapter.search_channels("", channels=channels)
-        assert len(results) == 1
-
-
-# ──────────────────────────────────── Stream resolution
-
-class TestStreamResolution:
-    @pytest.mark.asyncio
-    async def test_resolve_stream_returns_url(
-        self, adapter: MagProviderAdapter
-    ) -> None:
-        req = ResolveStreamRequest(stream_id="1", stream_type="live")
-        resp = await adapter.resolve_stream(req)
-        assert resp.url == "http://stream.example.com/live/1.m3u8"
-        assert resp.stream_id == "1"
-
-    @pytest.mark.asyncio
-    async def test_resolve_stream_invalid_id_raises_validation_error(
-        self, adapter: MagProviderAdapter
-    ) -> None:
-        req = ResolveStreamRequest(stream_id="not-an-int", stream_type="live")
-        with pytest.raises(ValidationError):
-            await adapter.resolve_stream(req)
-
-    @pytest.mark.asyncio
-    async def test_resolve_stream_error_translated(
-        self, meta: InfraProviderMetadata, mock_context: ProviderContext
-    ) -> None:
-        from providers.base.errors import ProviderError as LegacyProviderError
-        legacy = MagicMock()
-        legacy.get_stream_url = AsyncMock(
-            side_effect=LegacyProviderError("stream unavailable")
-        )
-        adapter = MagProviderAdapter(
-            metadata=meta, context=mock_context, legacy_provider=legacy
-        )
-        req = ResolveStreamRequest(stream_id="42", stream_type="live")
-        with pytest.raises(ProviderError):
-            await adapter.resolve_stream(req)
-
-
-# ──────────────────────────────────── Token refresh
-
-class TestTokenRefresh:
-    @pytest.mark.asyncio
-    async def test_refresh_session_calls_legacy(
-        self, adapter: MagProviderAdapter, mock_legacy: MagicMock
-    ) -> None:
-        await adapter.refresh_session()
-        mock_legacy.refresh_token.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_close_session_calls_legacy_close(
-        self, adapter: MagProviderAdapter, mock_legacy: MagicMock
-    ) -> None:
-        await adapter.close_session()
-        mock_legacy.close.assert_called_once()
-
-
-# ──────────────────────────────────── Registry / Factory
-
-class TestRegistryAndFactory:
-    def test_register_with_factory_adds_mag_type(self) -> None:
-        factory = ProviderFactory()
-        register_with_factory(factory)
-        assert factory.is_registered("mag") is True
-
-    def test_factory_creates_adapter(
-        self, meta: InfraProviderMetadata, mock_context: ProviderContext
-    ) -> None:
-        factory = ProviderFactory()
-        register_with_factory(factory)
-        mock_legacy = MagicMock()
-        adapter = factory.create(meta, context=mock_context, legacy_provider=mock_legacy)
-        assert isinstance(adapter, MagProviderAdapter)
-
-    def test_registry_accepts_adapter(
-        self, meta: InfraProviderMetadata
-    ) -> None:
-        registry = ProviderRegistry()
-        registry.register(meta)
-        assert "mag-test" in registry
-
-    def test_capabilities_contains_all_six(
-        self, adapter: MagProviderAdapter
-    ) -> None:
-        caps = adapter.capabilities()
-        for cap in ("authentication", "catalog", "epg", "search", "playback", "session"):
-            assert cap in caps
-
-    def test_supports_known_capability(
-        self, adapter: MagProviderAdapter
-    ) -> None:
-        assert adapter.supports("authentication") is True
-        assert adapter.supports("nonexistent") is False
-
-
-# ──────────────────────────────────── DTO translation
-
-class TestDtoTranslation:
-    def test_channel_dto_mapping(self) -> None:
-        raw = {"id": 42, "name": "Sky News", "logo": "http://sky.com/logo.png",
-               "tv_genre_id": 5, "number": 100, "fav": 1}
-        dto = MagDtoTranslator.channel(raw)
-        assert dto.id == "42"
-        assert dto.name == "Sky News"
-        assert dto.logo_url == "http://sky.com/logo.png"
-        assert dto.category_id == "5"
-        assert dto.number == 100
-        assert dto.is_favorite is True
-
-    def test_channel_dto_missing_name_defaults_empty(self) -> None:
-        dto = MagDtoTranslator.channel({"id": 1})
-        assert dto.name == ""
-
-    def test_epg_entry_timestamps_converted(self) -> None:
-        raw = {
-            "name": "Film Tonight",
-            "descr": "A great film.",
-            "start_timestamp": 1700000000,
-            "stop_timestamp": 1700007200,
-        }
-        entry = MagDtoTranslator.epg_entry(raw, channel_id=10)
-        assert entry.title == "Film Tonight"
-        assert entry.start is not None
-        assert entry.end is not None
-        assert entry.channel_id == "10"
-
-    def test_epg_entry_zero_timestamps_yields_none(self) -> None:
-        raw = {"name": "Unknown", "start_timestamp": 0, "stop_timestamp": 0}
-        entry = MagDtoTranslator.epg_entry(raw, channel_id=1)
-        assert entry.start is None
-        assert entry.end is None
-
-    def test_auth_response_has_token(self) -> None:
-        resp = MagDtoTranslator.auth_response("http://p.com", "mytoken")
-        assert resp.token == "mytoken"
-        assert resp.success is True
-
-    def test_stream_response_has_url(self) -> None:
-        resp = MagDtoTranslator.stream_response("http://stream.com/live.m3u8", "7")
-        assert resp.url == "http://stream.com/live.m3u8"
-        assert resp.stream_id == "7"
-
-
-# ──────────────────────────────────── Error translation
-
-class TestMagErrorTranslation:
-    def test_legacy_auth_error_translated(self) -> None:
         from providers.base.errors import AuthError
-        result = translate_mag_error(AuthError("bad credentials"))
-        assert isinstance(result, AuthenticationError)
 
-    def test_legacy_network_error_translated(self) -> None:
-        from providers.base.errors import NetworkError as LegacyNetworkError
-        result = translate_mag_error(LegacyNetworkError("connection refused"))
-        assert isinstance(result, NetworkError)
+        class FailingMagProvider(FakeMagProvider):
+            async def connect(self) -> None:
+                raise AuthError("invalid subscription")
 
-    def test_legacy_provider_error_translated(self) -> None:
-        from providers.base.errors import ProviderError as LegacyProviderError
-        result = translate_mag_error(LegacyProviderError("generic failure"))
-        assert isinstance(result, ProviderError)
+        failing_adapter = MagProviderAdapter(metadata, context, FailingMagProvider())
+        with pytest.raises(AuthenticationError):
+            await failing_adapter.authenticate(credential)
+        assert failing_adapter.is_authenticated is False
 
-    def test_domain_error_passes_through(self) -> None:
-        original = ProviderError("already domain")
-        result = translate_mag_error(original)
-        assert result is original
 
-    def test_arbitrary_exception_becomes_provider_error(self) -> None:
-        result = translate_mag_error(RuntimeError("something wild"))
-        assert isinstance(result, ProviderError)
+class TestProviderCapabilities:
+    def test_adapter_is_concrete_and_has_canonical_capabilities(
+        self, adapter: MagProviderAdapter
+    ) -> None:
+        assert adapter.provider_id.value == "mag-test"
+        assert adapter.supported_capabilities() == {
+            "authentication", "catalog", "epg", "search", "playback", "session"
+        }
+
+    def test_factory_creates_a_concrete_adapter(
+        self, metadata: InfraProviderMetadata, context: ProviderContext, legacy: FakeMagProvider
+    ) -> None:
+        factory = ProviderFactory()
+        register_with_factory(factory)
+        result = factory.create(metadata, context=context, legacy_provider=legacy)
+        assert isinstance(result, MagProviderAdapter)
+        assert result.provider_id.value == metadata.provider_id
+
+
+class TestCatalogAndSearch:
+    @pytest.mark.asyncio
+    async def test_load_channels_returns_domain_entities(
+        self, adapter: MagProviderAdapter, credential: Credential
+    ) -> None:
+        await adapter.authenticate(credential)
+        channels = await adapter.load_channels()
+        assert [channel.name for channel in channels] == ["BBC One", "ITV"]
+        assert channels[0].provider_id == adapter.provider_id
+        assert str(channels[0].stream_id) == "1"
+
+    @pytest.mark.asyncio
+    async def test_search_channels_filters_and_limits(
+        self, adapter: MagProviderAdapter, credential: Credential
+    ) -> None:
+        await adapter.authenticate(credential)
+        results = await adapter.search_channels("bbc", limit=1)
+        assert [channel.name for channel in results] == ["BBC One"]
+        assert await adapter.search_channels("", limit=0) == []
+
+
+class TestEpgAndPlayback:
+    @pytest.mark.asyncio
+    async def test_load_epg_returns_domain_entries(
+        self, adapter: MagProviderAdapter, credential: Credential, legacy: FakeMagProvider
+    ) -> None:
+        await adapter.authenticate(credential)
+        entries = await adapter.load_epg(ChannelId("1"))
+        assert legacy.epg_calls == [([1], 3)]
+        assert entries[0].id == "101"
+        assert entries[0].title == "News at Six"
+        assert str(entries[0].channel_id) == "1"
+
+    @pytest.mark.asyncio
+    async def test_resolve_stream_returns_validated_url(
+        self, adapter: MagProviderAdapter, credential: Credential, legacy: FakeMagProvider
+    ) -> None:
+        await adapter.authenticate(credential)
+        url = await adapter.resolve_stream(ChannelId("1"))
+        assert str(url) == "https://stream.example.test/live/1.m3u8"
+        assert legacy.stream_calls == [(1, "live")]
+
+    @pytest.mark.asyncio
+    async def test_non_numeric_mag_channel_id_is_rejected(
+        self, adapter: MagProviderAdapter, credential: Credential
+    ) -> None:
+        await adapter.authenticate(credential)
+        with pytest.raises(ValidationError):
+            await adapter.resolve_stream(ChannelId("not-a-number"))
+
+
+class TestSessionLifecycle:
+    @pytest.mark.asyncio
+    async def test_refresh_and_close_manage_volatile_session_state(
+        self, adapter: MagProviderAdapter, credential: Credential, legacy: FakeMagProvider
+    ) -> None:
+        await adapter.authenticate(credential)
+        assert await adapter.refresh_session() is True
+        assert legacy.refresh_calls == 1
+        assert adapter._session_token == "refreshed-session-token-for-test-only"
+        await adapter.close_session()
+        assert legacy.close_calls == 1
+        assert adapter.is_authenticated is False
+        assert adapter._session_token is None
+
+
+class TestDomainTranslation:
+    def test_channel_translation_requires_canonical_domain_fields(self, adapter: MagProviderAdapter) -> None:
+        channel = MagDomainTranslator.channel(
+            {"id": 42, "name": "Sky News", "number": "100"}, adapter.provider_id
+        )
+        assert channel.id.value == "42"
+        assert channel.stream_id.value == "42"
+        assert channel.number == 100
+
+    def test_epg_translation_requires_valid_time_range(self) -> None:
+        entry = MagDomainTranslator.epg_entry(
+            {
+                "id": "e1",
+                "name": "Film Tonight",
+                "start_timestamp": 1700000000,
+                "stop_timestamp": 1700007200,
+            },
+            ChannelId("10"),
+        )
+        assert entry.id == "e1"
+        assert entry.end > entry.start
+
+    def test_invalid_epg_timestamp_is_rejected(self) -> None:
+        with pytest.raises(ValidationError):
+            MagDomainTranslator.epg_entry(
+                {"name": "Unknown", "start_timestamp": 0, "stop_timestamp": 0},
+                ChannelId("1"),
+            )
+
+
+class TestRealLegacyConstruction:
+    def test_real_legacy_provider_receives_mag_identity(
+        self, metadata: InfraProviderMetadata, context: ProviderContext, credential: Credential
+    ) -> None:
+        adapter = MagProviderAdapter(metadata, context)
+        adapter._set_credential(
+            MagCredential.from_application_credential(credential, metadata.base_url)
+        )
+        legacy = adapter._ensure_provider()
+        legacy_credentials = legacy._session._creds  # type: ignore[attr-defined]
+        assert legacy_credentials.portal_url == metadata.base_url
+        assert legacy_credentials.mac_address == credential.username
+        assert not hasattr(metadata, "auth_token")

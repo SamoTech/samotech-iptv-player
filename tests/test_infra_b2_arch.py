@@ -20,7 +20,7 @@ import pytest
 @pytest.mark.parametrize("module", [
     "samotech_iptv.infrastructure.providers.provider_context",
     "samotech_iptv.infrastructure.providers.mag_adapter",
-    "samotech_iptv.infrastructure.providers.mag_dto_translator",
+    "samotech_iptv.infrastructure.providers.mag_domain_translator",
     "samotech_iptv.infrastructure.providers.mag_error_translator",
 ])
 def test_b2_module_importable(module: str) -> None:
@@ -33,7 +33,7 @@ def _src(mod_name: str) -> str:
 
 @pytest.mark.parametrize("module", [
     "samotech_iptv.infrastructure.providers.mag_adapter",
-    "samotech_iptv.infrastructure.providers.mag_dto_translator",
+    "samotech_iptv.infrastructure.providers.mag_domain_translator",
     "samotech_iptv.infrastructure.providers.mag_error_translator",
     "samotech_iptv.infrastructure.providers.provider_context",
 ])
@@ -43,7 +43,7 @@ def test_no_presentation_import(module: str) -> None:
 
 @pytest.mark.parametrize("module", [
     "samotech_iptv.infrastructure.providers.mag_adapter",
-    "samotech_iptv.infrastructure.providers.mag_dto_translator",
+    "samotech_iptv.infrastructure.providers.mag_domain_translator",
     "samotech_iptv.infrastructure.providers.mag_error_translator",
     "samotech_iptv.infrastructure.providers.provider_context",
 ])

@@ -1,57 +1,65 @@
-"""MagProviderAdapter — bridges the Clean Architecture and the legacy MAGProvider.
+"""MAG provider adapter for the canonical domain-oriented provider ports.
 
-This adapter:
-  - Owns one ``MAGProvider`` instance (injected or lazily created).
-  - Implements all seven ISP capability interfaces.
-  - Translates legacy dicts → domain DTOs via ``MagDtoTranslator``.
-  - Translates legacy exceptions → core domain errors via
-    ``translate_mag_error``.
-  - Registers itself with ``ProviderFactory`` at import time.
-  - Never duplicates protocol logic.
-  - Never exposes any ``providers.mag.*`` type to callers.
-
-Dependency direction::
-
-    Application (ports)
-          ↓
-    MagProviderAdapter
-          ↓
-    ProviderContext  +  MAGProvider (legacy)
-          ↓
-    Infrastructure Runtime (B.1)
+The adapter owns protocol translation and keeps MAG-specific credentials and
+session state inside infrastructure.  Application code sees only domain value
+objects and entities.
 """
 from __future__ import annotations
 
 import asyncio
-from typing import Any, Optional
+from collections.abc import Awaitable, Callable, Mapping, Sequence
+from typing import Any, Protocol, TypeVar, cast
 
 from samotech_iptv.application.ports.provider_capabilities import (
     AuthenticationProvider,
-    CatalogProvider,
     CapabilityProvider,
+    CatalogProvider,
     EPGProvider,
     PlaybackProvider,
     SearchProvider,
     SessionProvider,
 )
-from samotech_iptv.application.dtos.auth import AuthenticateRequest, AuthenticateResponse
-from samotech_iptv.application.dtos.channels import ChannelDTO, LoadChannelsRequest, LoadChannelsResponse
-from samotech_iptv.application.dtos.categories import CategoryDTO
-from samotech_iptv.application.dtos.epg import EPGEntryDTO, LoadEPGRequest, LoadEPGResponse
-from samotech_iptv.application.dtos.stream import ResolveStreamRequest, ResolveStreamResponse
+from samotech_iptv.application.ports.provider_port import ProviderPort
 from samotech_iptv.core.exceptions import ProviderError, ValidationError
 from samotech_iptv.core.logging import get_logger
-from samotech_iptv.infrastructure.providers.mag_dto_translator import MagDtoTranslator
+from samotech_iptv.domain.entities.channel import Channel
+from samotech_iptv.domain.entities.epg_entry import EPGEntry
+from samotech_iptv.domain.value_objects.channel_id import ChannelId
+from samotech_iptv.domain.value_objects.credential import Credential
+from samotech_iptv.domain.value_objects.provider_id import ProviderId
+from samotech_iptv.domain.value_objects.url import URL
+from samotech_iptv.infrastructure.providers.mag_credential import MagCredential
+from samotech_iptv.infrastructure.providers.mag_domain_translator import MagDomainTranslator
 from samotech_iptv.infrastructure.providers.mag_error_translator import translate_mag_and_raise
 from samotech_iptv.infrastructure.providers.provider_context import ProviderContext
 from samotech_iptv.infrastructure.providers.provider_metadata import InfraProviderMetadata
 
-__all__ = ["MagProviderAdapter"]
+__all__ = ["MagProviderAdapter", "register_with_factory"]
 
-_log = get_logger(__name__)
+_LOG = get_logger(__name__)
+_T = TypeVar("_T")
+
+
+class _LegacyMagProvider(Protocol):
+    """Minimal legacy MAG facade required by this adapter."""
+
+    async def connect(self) -> None: ...
+
+    async def close(self) -> None: ...
+
+    async def refresh_token(self) -> None: ...
+
+    async def get_channels(self) -> list[dict[str, Any]]: ...
+
+    async def get_epg(
+        self, channel_ids: list[int] | None = None, period: int = 3
+    ) -> dict[int, list[dict[str, Any]]]: ...
+
+    async def get_stream_url(self, stream_id: int, stream_type: str = "live") -> str: ...
 
 
 class MagProviderAdapter(
+    ProviderPort,
     AuthenticationProvider,
     CatalogProvider,
     EPGProvider,
@@ -60,227 +68,192 @@ class MagProviderAdapter(
     SessionProvider,
     CapabilityProvider,
 ):
-    """Adapter that wraps the legacy ``MAGProvider`` behind the ISP interfaces.
+    """Adapt the legacy MAG/Stalker provider to the application provider ports.
 
-    Constructor arguments
-    ---------------------
-    metadata:  Runtime registration metadata (id, type, base_url).
-    context:   Shared infrastructure services bundle.
-    legacy_provider:
-        Optional pre-built ``MAGProvider`` for testing.  When None
-        the adapter constructs one lazily on first ``authenticate()``.
-
-    Usage (production)::
-
-        registry = ProviderRegistry()
-        factory  = ProviderFactory()
-        # factory already has "mag" registered (see module bottom)
-        ctx = ProviderContext.build()
-        adapter = factory.create(meta, context=ctx)
-
-    Usage (test)::
-
-        adapter = MagProviderAdapter(
-            metadata=meta,
-            context=ctx,
-            legacy_provider=mock_mag_provider,
-        )
+    ``Credential.username`` is the authorised MAG MAC address.  The adapter
+    combines it with the registered provider's portal URL only when an
+    authentication attempt occurs.  Short-lived portal tokens remain private
+    runtime state and are never stored in provider metadata.
     """
 
     def __init__(
         self,
         metadata: InfraProviderMetadata,
         context: ProviderContext,
-        legacy_provider: Any = None,
+        legacy_provider: _LegacyMagProvider | None = None,
     ) -> None:
         self._meta = metadata
         self._ctx = context
-        self._legacy: Any = legacy_provider  # MAGProvider — type erased to avoid hard dep
+        self._legacy = legacy_provider
+        self._credential: MagCredential | None = None
+        self._session_token: str | None = None
         self._is_authenticated = False
 
-    # ------------------------------------------------------------------ helpers
+    @property
+    def provider_id(self) -> ProviderId:
+        """Return this registered provider's stable application identity."""
+        return ProviderId(self._meta.provider_id)
 
-    def _ensure_provider(self) -> Any:
-        """Lazily construct the legacy MAGProvider if not injected."""
-        if self._legacy is None:
-            try:
-                from providers.mag.provider import MAGProvider  # noqa: PLC0415
-            except ImportError as exc:
-                raise ProviderError(
-                    "Legacy MAGProvider package not found. "
-                    "Ensure the 'providers' package is on sys.path."
-                ) from exc
+    @property
+    def is_authenticated(self) -> bool:
+        """Whether this adapter holds a successfully established MAG session."""
+        return self._is_authenticated
 
-            net_cfg = self._ctx.config.network_config()
-            self._legacy = MAGProvider(config={
-                "portal_url": self._meta.base_url,
-                "mac_address": self._meta.auth_token or "",
-                "timeout_s": net_cfg.connect_timeout + net_cfg.read_timeout,
-                "max_retries": net_cfg.max_retries,
-                "use_keyring": False,  # keyring handled by CredentialStore
-            })
-        return self._legacy
+    def supported_capabilities(self) -> frozenset[str]:
+        """Return the canonical capability names supported by MAG."""
+        return frozenset(
+            {"authentication", "catalog", "epg", "search", "playback", "session"}
+        )
 
-    async def _call(self, coro_fn, *args, **kwargs) -> Any:  # type: ignore[no-untyped-def]
-        """Invoke a legacy provider coroutine, translating any exception."""
-        try:
-            provider = self._ensure_provider()
-            return await coro_fn(provider, *args, **kwargs)
-        except asyncio.CancelledError:
-            raise
-        except Exception as exc:
-            translate_mag_and_raise(exc)
+    async def authenticate(self, credential: Credential) -> bool:
+        """Authenticate using the MAG MAC address supplied by the application.
 
-    # ------------------------------------------------------------------ AuthenticationProvider
-
-    async def authenticate(self, request: AuthenticateRequest) -> AuthenticateResponse:
-        """Authenticate with the MAG portal and store the token."""
-        _log.info("[%s] Authenticating", self._meta.provider_id)
+        The generic credential's username maps to the MAG subscription MAC.
+        The legacy protocol does not submit its password field; no session
+        token is persisted or copied into registration metadata.
+        """
+        mag_credential = MagCredential.from_application_credential(
+            credential, self._meta.base_url
+        )
+        self._set_credential(mag_credential)
+        _LOG.info("[%s] Authenticating MAG provider", self._meta.provider_id)
         try:
             provider = self._ensure_provider()
             await provider.connect()
-            token = provider._session.token
+            self._session_token = self._read_session_token(provider)
             self._is_authenticated = True
-            self._meta.auth_token = token
-            _log.info("[%s] Authentication successful", self._meta.provider_id)
-            return MagDtoTranslator.auth_response(
-                portal_url=self._meta.base_url,
-                token=token,
-            )
+            return True
         except asyncio.CancelledError:
             raise
         except Exception as exc:
             self._is_authenticated = False
+            self._session_token = None
             translate_mag_and_raise(exc)
 
-    @property
-    def is_authenticated(self) -> bool:
-        return self._is_authenticated
-
-    # ------------------------------------------------------------------ SessionProvider
-
-    async def refresh_session(self) -> None:
-        """Refresh the MAG portal token."""
-        _log.info("[%s] Refreshing session", self._meta.provider_id)
-        await self._call(lambda p: p.refresh_token())
+    async def refresh_session(self) -> bool:
+        """Refresh the active MAG session token without exposing it."""
+        await self._call(lambda provider: provider.refresh_token())
+        self._session_token = self._read_session_token(self._ensure_provider())
+        self._is_authenticated = True
+        return True
 
     async def close_session(self) -> None:
-        """Close the underlying MAGProvider connection gracefully."""
-        if self._legacy is not None:
-            try:
-                await self._legacy.close()
-                _log.info("[%s] Session closed", self._meta.provider_id)
-            except Exception as exc:  # noqa: BLE001
-                _log.warning("[%s] Error during close: %s", self._meta.provider_id, exc)
-
-    # ------------------------------------------------------------------ CatalogProvider
-
-    async def load_channels(
-        self, request: LoadChannelsRequest
-    ) -> LoadChannelsResponse:
-        """Fetch live TV channels from the MAG catalogue."""
-        _log.info("[%s] Loading channels", self._meta.provider_id)
-        raw: list[dict] = await self._call(lambda p: p.get_channels())
-        dtos = MagDtoTranslator.channels(raw or [])
-        _log.info("[%s] Loaded %d channels", self._meta.provider_id, len(dtos))
-        return LoadChannelsResponse(channels=dtos, total=len(dtos))
-
-    async def load_categories(self, category_type: str = "live") -> list[CategoryDTO]:
-        """Return an empty list — MAG does not have a standalone categories endpoint.
-
-        Categories are embedded within channel records.  A dedicated endpoint
-        may be added in a future MAG protocol extension phase.
-        """
-        return []
-
-    # ------------------------------------------------------------------ EPGProvider
-
-    async def load_epg(
-        self, request: LoadEPGRequest
-    ) -> LoadEPGResponse:
-        """Fetch EPG data from the MAG portal."""
-        _log.info("[%s] Loading EPG (channel_ids=%s)",
-                  self._meta.provider_id, request.channel_ids)
-        channel_ids: list[int] | None = (
-            [int(cid) for cid in request.channel_ids]
-            if request.channel_ids else None
-        )
-        raw: dict = await self._call(
-            lambda p: p.get_epg(channel_ids=channel_ids, period=request.period_days)
-        )
-        entries_by_channel = MagDtoTranslator.epg(raw or {})
-        _log.info("[%s] EPG loaded for %d channels",
-                  self._meta.provider_id, len(entries_by_channel))
-        return LoadEPGResponse(entries_by_channel=entries_by_channel)
-
-    # ------------------------------------------------------------------ SearchProvider
-
-    async def search_channels(
-        self, query: str, channels: Optional[list[ChannelDTO]] = None
-    ) -> list[ChannelDTO]:
-        """Search channels by name prefix (client-side, no server round-trip).
-
-        MAG does not expose a server-side search endpoint.  We filter the
-        already-loaded channel list in memory.
-        """
-        if channels is None:
-            raw: list[dict] = await self._call(lambda p: p.get_channels())
-            channels = MagDtoTranslator.channels(raw or [])
-
-        q = query.strip().lower()
-        if not q:
-            return channels
-        return [ch for ch in channels if q in ch.name.lower()]
-
-    # ------------------------------------------------------------------ PlaybackProvider
-
-    async def resolve_stream(
-        self, request: ResolveStreamRequest
-    ) -> ResolveStreamResponse:
-        """Resolve a playback URL for the given stream ID."""
-        _log.info("[%s] Resolving stream id=%s type=%s",
-                  self._meta.provider_id, request.stream_id, request.stream_type)
+        """Close the legacy connection and discard volatile session state."""
+        if self._legacy is None:
+            return
         try:
-            stream_id_int = int(request.stream_id)
-        except (ValueError, TypeError) as exc:
-            raise ValidationError(
-                f"Invalid stream_id {request.stream_id!r}: must be an integer string"
+            await self._legacy.close()
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:  # pragma: no cover - shutdown must be best effort
+            _LOG.warning("[%s] Error during MAG session close: %s", self._meta.provider_id, exc)
+        finally:
+            self._is_authenticated = False
+            self._session_token = None
+
+    async def load_channels(self) -> Sequence[Channel]:
+        """Fetch and translate the MAG live-TV catalogue."""
+        raw = await self._call(lambda provider: provider.get_channels())
+        return MagDomainTranslator.channels(raw, self.provider_id)
+
+    async def load_epg(self, channel_id: ChannelId) -> Sequence[EPGEntry]:
+        """Fetch and translate EPG records for a single channel."""
+        numeric_channel_id = self._as_mag_numeric_id(channel_id)
+        raw = await self._call(
+            lambda provider: provider.get_epg(channel_ids=[numeric_channel_id])
+        )
+        records = self._epg_records_for_channel(raw, numeric_channel_id)
+        return MagDomainTranslator.epg_entries(records, channel_id)
+
+    async def search_channels(self, query: str, limit: int = 100) -> Sequence[Channel]:
+        """Search the MAG catalogue locally because MAG has no search endpoint."""
+        if limit <= 0:
+            return []
+        normalized_query = query.strip().casefold()
+        channels = await self.load_channels()
+        matches = (
+            channel
+            for channel in channels
+            if not normalized_query or normalized_query in channel.name.casefold()
+        )
+        return list(matches)[:limit]
+
+    async def resolve_stream(self, channel_id: ChannelId) -> URL:
+        """Resolve a playable URL for a MAG channel identifier."""
+        stream_id = self._as_mag_numeric_id(channel_id)
+        raw_url = await self._call(
+            lambda provider: provider.get_stream_url(stream_id=stream_id, stream_type="live")
+        )
+        return MagDomainTranslator.stream_url(raw_url)
+
+    def _set_credential(self, credential: MagCredential) -> None:
+        """Set the connection credential while rejecting identity changes in-session."""
+        if self._credential is not None and self._credential != credential:
+            raise ProviderError(
+                "MAG credentials cannot be changed on an active provider instance; "
+                "create a new provider session instead."
+            )
+        self._credential = credential
+
+    def _ensure_provider(self) -> _LegacyMagProvider:
+        """Return a legacy provider, building it only after credentials are supplied."""
+        if self._legacy is not None:
+            return self._legacy
+        if self._credential is None:
+            raise ProviderError("Authenticate before invoking a MAG provider operation")
+
+        try:
+            from providers.mag.provider import MAGProvider
+        except ImportError as exc:  # pragma: no cover - exercised by packaging smoke tests
+            raise ProviderError(
+                "Legacy MAG provider package not found. Ensure the providers package is installed."
             ) from exc
 
-        url: str = await self._call(
-            lambda p: p.get_stream_url(
-                stream_id=stream_id_int,
-                stream_type=request.stream_type or "live",
-            )
+        network = self._ctx.config.network_config()
+        legacy_config = self._credential.as_legacy_config(
+            timeout_s=network.connect_timeout + network.read_timeout,
+            max_retries=network.max_retries,
         )
-        _log.info("[%s] Stream resolved -> %s", self._meta.provider_id, url[:60])
-        return MagDtoTranslator.stream_response(url=url, stream_id=request.stream_id)
+        self._legacy = cast(_LegacyMagProvider, MAGProvider(config=legacy_config))
+        return self._legacy
 
-    # ------------------------------------------------------------------ CapabilityProvider
+    async def _call(self, operation: Callable[[_LegacyMagProvider], Awaitable[_T]]) -> _T:
+        """Run a legacy operation and translate all non-cancellation errors."""
+        try:
+            return await operation(self._ensure_provider())
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            translate_mag_and_raise(exc)
 
-    def capabilities(self) -> frozenset[str]:
-        """Declare all capabilities this adapter supports."""
-        return frozenset({
-            "authentication",
-            "catalog",
-            "epg",
-            "search",
-            "playback",
-            "session",
-        })
+    @staticmethod
+    def _as_mag_numeric_id(channel_id: ChannelId) -> int:
+        try:
+            return int(str(channel_id))
+        except (TypeError, ValueError) as exc:
+            raise ValidationError("channel_id", "MAG channel IDs must be numeric") from exc
 
-    def supports(self, capability: str) -> bool:
-        return capability in self.capabilities()
+    @staticmethod
+    def _epg_records_for_channel(
+        raw: Mapping[int, list[dict[str, Any]]], channel_id: int
+    ) -> list[dict[str, Any]]:
+        records = raw.get(channel_id)
+        if records is None:
+            records = raw.get(str(channel_id), [])  # type: ignore[arg-type]
+        return records
 
+    @staticmethod
+    def _read_session_token(provider: _LegacyMagProvider) -> str | None:
+        """Read the legacy runtime token without leaking it from infrastructure."""
+        session = getattr(provider, "_session", None)
+        token = getattr(session, "token", None)
+        return str(token) if token else None
 
-# ---------------------------------------------------------------------------
-# Factory registration — executed once when this module is first imported.
-# ---------------------------------------------------------------------------
 
 def _build_mag_adapter(
     metadata: InfraProviderMetadata,
     context: ProviderContext,
-    legacy_provider: Any = None,
+    legacy_provider: _LegacyMagProvider | None = None,
 ) -> MagProviderAdapter:
     return MagProviderAdapter(
         metadata=metadata,
@@ -289,16 +262,7 @@ def _build_mag_adapter(
     )
 
 
-def register_with_factory(factory) -> None:  # type: ignore[no-untyped-def]
-    """Register the MAG adapter type with a ``ProviderFactory``.
-
-    Called explicitly by application startup code::
-
-        from samotech_iptv.infrastructure.providers.mag_adapter import register_with_factory
-        register_with_factory(provider_factory)
-
-    We do *not* auto-register against a module-level singleton factory because
-    that would require a global instance, which violates the no-globals rule.
-    """
+def register_with_factory(factory: Any) -> None:
+    """Register MAG adapter construction with an application-owned factory."""
     factory.register_type("mag", _build_mag_adapter)
-    _log.info("MagProviderAdapter registered with ProviderFactory")
+    _LOG.info("MAG provider adapter registered with ProviderFactory")
