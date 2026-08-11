@@ -22,6 +22,7 @@ SamoTech IPTV Player is an in-progress, open-source IPTV project. This revision 
 | **Implemented** | Stream metadata validation | `Stream` rejects blank containers/codecs and non-positive supplied bitrates while preserving optional codec and bitrate metadata. |
 | **Implemented** | Catalogue grouping and provider validation | `Category` and `Playlist` reject blank identifiers and names; supplied category parents must be nonblank. `Provider` also rejects a blank factory discriminator. |
 | **Implemented** | Programme-record validation | `Channel` rejects blank supplied category/EPG references, while `Episode` and `EPGEntry` enforce required identity/title metadata and safe numeric or temporal boundaries. |
+| **Implemented** | Value-object validation | Identifier, credential, and URL value objects have focused validation, redaction, and immutable value-semantics coverage. URLs require complete whitespace-free HTTP(S) authorities. |
 | **Implemented** | Credential/session separation | A MAG connection identity is distinct from the short-lived runtime session token. Tokens are not stored in provider metadata. |
 | **Partially implemented** | Secure credential storage | A keyring-backed credential-store adapter exists. Its deployment and platform integration remain to be exercised by the future application composition root. |
 | **Planned** | M3U/Xtream application adapters and playlist management | Legacy/provider scaffolding exists, but these are not yet integrated through the canonical application provider contract. |
@@ -89,7 +90,7 @@ Do not commit portals, authorized MAC addresses, credentials, or session tokens.
 
 ## Project phases
 
-The initial scaffold and core recovery work are complete. **Phase 2 is in progress**: an extended M3U parser, validated catalogue, library, stream, and programme records, and focused tests are delivered. The remaining Phase 2 work is value-object coverage and future M3U adapter integration. The desktop player and UI remain later phases, after the provider/application core is extended. See [ROADMAP.md](ROADMAP.md) for the complete sequence.
+The initial scaffold, core recovery, and **Phase 2 domain/parser completion** are complete: an extended M3U parser plus validated catalogue, library, stream, programme-record, and value-object contracts are delivered with focused tests. M3U provider-adapter integration remains deliberately deferred to future provider-management work. The desktop player and UI remain later phases, after the provider/application core is extended. See [ROADMAP.md](ROADMAP.md) for the complete sequence.
 
 ## Contributing and security
 
