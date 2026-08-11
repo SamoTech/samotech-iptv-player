@@ -1,4 +1,5 @@
 """Plugin loader — discovers third-party providers at runtime."""
+
 import importlib
 import pkgutil
 from pathlib import Path

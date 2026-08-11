@@ -14,17 +14,21 @@ Capability matrix (planned):
   PlaybackProvider        ✓      ✓       ✓      ?
   CapabilityProvider      ✓      ✓       ✓      ?
 """
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Sequence
+from typing import TYPE_CHECKING
 
-from samotech_iptv.domain.entities.channel import Channel
-from samotech_iptv.domain.entities.epg_entry import EPGEntry
-from samotech_iptv.domain.value_objects.channel_id import ChannelId
-from samotech_iptv.domain.value_objects.credential import Credential
-from samotech_iptv.domain.value_objects.provider_id import ProviderId
-from samotech_iptv.domain.value_objects.url import URL
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from samotech_iptv.domain.entities.channel import Channel
+    from samotech_iptv.domain.entities.epg_entry import EPGEntry
+    from samotech_iptv.domain.value_objects.channel_id import ChannelId
+    from samotech_iptv.domain.value_objects.credential import Credential
+    from samotech_iptv.domain.value_objects.provider_id import ProviderId
+    from samotech_iptv.domain.value_objects.url import URL
 
 __all__ = [
     "AuthenticationProvider",

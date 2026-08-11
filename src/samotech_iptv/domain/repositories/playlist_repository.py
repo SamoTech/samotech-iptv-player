@@ -1,10 +1,14 @@
 """PlaylistRepository — abstract CRUD contract for Playlist aggregates."""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Optional, Sequence
+from typing import TYPE_CHECKING
 
-from samotech_iptv.domain.entities.playlist import Playlist
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from samotech_iptv.domain.entities.playlist import Playlist
 
 __all__ = ["PlaylistRepository"]
 
@@ -13,7 +17,7 @@ class PlaylistRepository(ABC):
     """CRUD contract for Playlist aggregates."""
 
     @abstractmethod
-    async def get_by_id(self, playlist_id: str) -> Optional[Playlist]: ...
+    async def get_by_id(self, playlist_id: str) -> Playlist | None: ...
 
     @abstractmethod
     async def list_all(self) -> Sequence[Playlist]: ...

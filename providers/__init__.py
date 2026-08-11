@@ -2,7 +2,8 @@
 SamoTech IPTV Player — Provider Package
 Exposes the registry and base interfaces.
 """
-from .base import BaseProvider, ProviderError, AuthError, StreamError
+
+from .base import AuthError, BaseProvider, ProviderError, StreamError
 from .registry import ProviderRegistry
 
 __all__ = [

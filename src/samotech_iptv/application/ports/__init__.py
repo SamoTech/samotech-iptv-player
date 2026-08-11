@@ -12,23 +12,24 @@ Or via ISP capability interfaces::
         EPGProvider,
     )
 """
+
 # Original coarse-grained ports (backward compatibility)
-from samotech_iptv.application.ports.provider_port import ProviderPort
-from samotech_iptv.application.ports.player_port import PlayerPort
-from samotech_iptv.application.ports.storage_port import StoragePort
 from samotech_iptv.application.ports.credential_store_port import CredentialStorePort
 from samotech_iptv.application.ports.notification_port import NotificationPort
+from samotech_iptv.application.ports.player_port import PlayerPort
 
 # ISP fine-grained capability interfaces
 from samotech_iptv.application.ports.provider_capabilities import (
     AuthenticationProvider,
+    CapabilityProvider,
     CatalogProvider,
     EPGProvider,
-    SearchProvider,
     PlaybackProvider,
+    SearchProvider,
     SessionProvider,
-    CapabilityProvider,
 )
+from samotech_iptv.application.ports.provider_port import ProviderPort
+from samotech_iptv.application.ports.storage_port import StoragePort
 
 __all__ = [
     # Original ports

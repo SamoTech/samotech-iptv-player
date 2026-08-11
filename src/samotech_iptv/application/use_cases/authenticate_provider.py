@@ -1,10 +1,15 @@
 """AuthenticateProvider use-case."""
+
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from samotech_iptv.application.dtos import AuthenticateRequest, AuthenticateResponse
-from samotech_iptv.application.ports import CredentialStorePort, ProviderPort
 from samotech_iptv.core.logging import get_logger
 from samotech_iptv.domain.value_objects import Credential
+
+if TYPE_CHECKING:
+    from samotech_iptv.application.ports import CredentialStorePort, ProviderPort
 
 _log = get_logger("use_cases.authenticate_provider")
 
@@ -22,10 +27,8 @@ class AuthenticateProvider:
 
     async def execute(self, request: AuthenticateRequest) -> AuthenticateResponse:
         _log.info("Authenticating provider %s", request.provider_id)
-        credential = Credential(
-            username=request.username, _password=request.password
-        )
         try:
+            credential = Credential(username=request.username, _password=request.password)
             success = await self._provider.authenticate(credential)
         except Exception as exc:  # noqa: BLE001
             _log.error("Authentication error: %s", exc)

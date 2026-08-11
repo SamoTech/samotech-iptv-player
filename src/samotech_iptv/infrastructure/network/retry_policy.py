@@ -3,16 +3,17 @@
 No networking code lives here — this module is pure logic and is fully
 testable without aiohttp or any I/O.
 """
+
 from __future__ import annotations
 
 import asyncio
-import random
 from dataclasses import dataclass, field
-from typing import Container
+from random import SystemRandom
 
 __all__ = ["RetryPolicy"]
 
 _DEFAULT_RETRYABLE_STATUSES: frozenset[int] = frozenset({429, 500, 502, 503, 504})
+_SYSTEM_RANDOM = SystemRandom()
 
 
 @dataclass(frozen=True)
@@ -33,9 +34,7 @@ class RetryPolicy:
     max_delay: float = 30.0
     exponential_base: float = 2.0
     jitter: bool = True
-    retryable_statuses: frozenset[int] = field(
-        default_factory=lambda: _DEFAULT_RETRYABLE_STATUSES
-    )
+    retryable_statuses: frozenset[int] = field(default_factory=lambda: _DEFAULT_RETRYABLE_STATUSES)
 
     def __post_init__(self) -> None:
         if self.max_attempts < 1:
@@ -66,12 +65,12 @@ class RetryPolicy:
             attempt: 0-based index of the attempt that just *failed*.
         """
         delay = min(
-            self.base_delay * (self.exponential_base ** attempt),
+            self.base_delay * (self.exponential_base**attempt),
             self.max_delay,
         )
         if self.jitter:
             noise = delay * 0.25
-            delay = delay + random.uniform(-noise, noise)
+            delay = delay + _SYSTEM_RANDOM.uniform(-noise, noise)
         return max(delay, 0.0)
 
     async def sleep(self, attempt: int) -> None:
@@ -79,11 +78,11 @@ class RetryPolicy:
         await asyncio.sleep(self.wait_time(attempt))
 
     @classmethod
-    def no_retry(cls) -> "RetryPolicy":
+    def no_retry(cls) -> RetryPolicy:
         """A policy that never retries."""
         return cls(max_attempts=1, base_delay=1.0, max_delay=1.0)
 
     @classmethod
-    def aggressive(cls) -> "RetryPolicy":
+    def aggressive(cls) -> RetryPolicy:
         """A policy suitable for flaky endpoints (5 attempts, 2 s base)."""
         return cls(max_attempts=5, base_delay=2.0, max_delay=30.0)

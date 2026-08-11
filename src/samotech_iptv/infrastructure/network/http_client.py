@@ -4,16 +4,21 @@ This is the primary entry point for all outbound HTTP traffic.
 Provider adapters must use this class instead of creating their own
 aiohttp sessions.
 """
+
 from __future__ import annotations
 
 import asyncio
-from typing import Any, Optional
+from typing import TYPE_CHECKING, cast
 
 from samotech_iptv.core.logging import get_logger
+
+if TYPE_CHECKING:
+    from types import TracebackType
+
+    from samotech_iptv.core.typing import JSON
 from samotech_iptv.infrastructure.network.exceptions import (
     HttpClientError,
     HttpConnectionError,
-    HttpError,
     HttpServerError,
     HttpTimeoutError,
 )
@@ -53,9 +58,9 @@ class AsyncHttpClient:
 
     def __init__(
         self,
-        timeout: Optional[TimeoutConfig] = None,
-        retry_policy: Optional[RetryPolicy] = None,
-        default_headers: Optional[dict[str, str]] = None,
+        timeout: TimeoutConfig | None = None,
+        retry_policy: RetryPolicy | None = None,
+        default_headers: dict[str, str] | None = None,
     ) -> None:
         self._timeout = timeout or TimeoutConfig()
         self._retry = retry_policy or RetryPolicy()
@@ -72,11 +77,16 @@ class AsyncHttpClient:
     async def close(self) -> None:
         await self._session.close()
 
-    async def __aenter__(self) -> "AsyncHttpClient":
+    async def __aenter__(self) -> AsyncHttpClient:
         await self.open()
         return self
 
-    async def __aexit__(self, *_: Any) -> None:
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
         await self.close()
 
     # ------------------------------------------------------------------ requests
@@ -85,9 +95,9 @@ class AsyncHttpClient:
         self,
         url: str,
         *,
-        params: Optional[dict[str, str]] = None,
-        headers: Optional[dict[str, str]] = None,
-    ) -> Any:
+        params: dict[str, str] | None = None,
+        headers: dict[str, str] | None = None,
+    ) -> JSON:
         """Perform a GET request and return parsed JSON.
 
         Args:
@@ -110,25 +120,26 @@ class AsyncHttpClient:
         self,
         url: str,
         *,
-        json: Optional[Any] = None,
-        data: Optional[dict[str, str]] = None,
-        headers: Optional[dict[str, str]] = None,
-    ) -> Any:
+        json: JSON | None = None,
+        data: dict[str, str] | None = None,
+        headers: dict[str, str] | None = None,
+    ) -> JSON:
         """Perform a POST request and return parsed JSON."""
-        return await self._request_with_retry(
-            "POST", url, json=json, data=data, headers=headers
-        )
+        return await self._request_with_retry("POST", url, json=json, data=data, headers=headers)
 
     async def get_text(
         self,
         url: str,
         *,
-        params: Optional[dict[str, str]] = None,
-        headers: Optional[dict[str, str]] = None,
+        params: dict[str, str] | None = None,
+        headers: dict[str, str] | None = None,
     ) -> str:
         """Perform a GET request and return the raw response body as text."""
-        return await self._request_with_retry(
-            "GET", url, params=params, headers=headers, as_text=True
+        return cast(
+            "str",
+            await self._request_with_retry(
+                "GET", url, params=params, headers=headers, as_text=True
+            ),
         )
 
     # ------------------------------------------------------------------ internals
@@ -138,20 +149,23 @@ class AsyncHttpClient:
         method: str,
         url: str,
         *,
-        params: Optional[dict[str, str]] = None,
-        headers: Optional[dict[str, str]] = None,
-        json: Optional[Any] = None,
-        data: Optional[dict[str, str]] = None,
+        params: dict[str, str] | None = None,
+        headers: dict[str, str] | None = None,
+        json: JSON | None = None,
+        data: dict[str, str] | None = None,
         as_text: bool = False,
-    ) -> Any:
+    ) -> JSON | str:
         last_exc: Exception = RuntimeError("No attempts made")
 
         for attempt in range(self._retry.max_attempts):
             try:
                 result = await self._single_request(
-                    method, url,
-                    params=params, headers=headers,
-                    json=json, data=data,
+                    method,
+                    url,
+                    params=params,
+                    headers=headers,
+                    json=json,
+                    data=data,
                     as_text=as_text,
                 )
                 if attempt > 0:
@@ -163,22 +177,39 @@ class AsyncHttpClient:
 
             except HttpTimeoutError as exc:
                 last_exc = exc
-                _log.warning("%s %s timed out (attempt %d/%d)",
-                             method, url, attempt + 1, self._retry.max_attempts)
+                _log.warning(
+                    "%s %s timed out (attempt %d/%d)",
+                    method,
+                    url,
+                    attempt + 1,
+                    self._retry.max_attempts,
+                )
                 if not self._retry.should_retry(attempt, None):
                     raise
 
             except HttpConnectionError as exc:
                 last_exc = exc
-                _log.warning("%s %s connection error (attempt %d/%d): %s",
-                             method, url, attempt + 1, self._retry.max_attempts, exc)
+                _log.warning(
+                    "%s %s connection error (attempt %d/%d): %s",
+                    method,
+                    url,
+                    attempt + 1,
+                    self._retry.max_attempts,
+                    exc,
+                )
                 if not self._retry.should_retry(attempt, None):
                     raise
 
             except HttpServerError as exc:
                 last_exc = exc
-                _log.warning("%s %s server error %s (attempt %d/%d)",
-                             method, url, exc.status_code, attempt + 1, self._retry.max_attempts)
+                _log.warning(
+                    "%s %s server error %s (attempt %d/%d)",
+                    method,
+                    url,
+                    exc.status_code,
+                    attempt + 1,
+                    self._retry.max_attempts,
+                )
                 if not self._retry.should_retry(attempt, exc.status_code):
                     raise
 
@@ -194,18 +225,19 @@ class AsyncHttpClient:
         method: str,
         url: str,
         *,
-        params: Optional[dict[str, str]] = None,
-        headers: Optional[dict[str, str]] = None,
-        json: Optional[Any] = None,
-        data: Optional[dict[str, str]] = None,
+        params: dict[str, str] | None = None,
+        headers: dict[str, str] | None = None,
+        json: JSON | None = None,
+        data: dict[str, str] | None = None,
         as_text: bool = False,
-    ) -> Any:
+    ) -> JSON | str:
         try:
             import aiohttp  # noqa: PLC0415
 
             _log.debug("%s %s params=%s", method, url, params)
             async with self._session.raw.request(
-                method, url,
+                method,
+                url,
                 params=params,
                 headers=headers,
                 json=json,
@@ -226,11 +258,11 @@ class AsyncHttpClient:
                 _log.debug("%s %s -> %d", method, url, resp.status)
                 if as_text:
                     return await resp.text()
-                return await resp.json(content_type=None)
+                return cast("JSON", await resp.json(content_type=None))
 
-        except asyncio.TimeoutError as exc:
+        except TimeoutError as exc:
             raise HttpTimeoutError(f"{method} {url} timed out") from exc
-        except aiohttp.ClientConnectorError as exc:  # type: ignore[possibly-undefined]
+        except aiohttp.ClientConnectorError as exc:
             raise HttpConnectionError(f"Cannot connect to {url}: {exc}") from exc
-        except aiohttp.ClientError as exc:  # type: ignore[possibly-undefined]
+        except aiohttp.ClientError as exc:
             raise HttpConnectionError(f"{method} {url} client error: {exc}") from exc

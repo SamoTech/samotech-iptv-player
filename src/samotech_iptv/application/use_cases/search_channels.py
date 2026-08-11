@@ -1,13 +1,18 @@
 """SearchChannels use-case."""
+
 from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from samotech_iptv.application.dtos import (
     ChannelDTO,
     SearchChannelsRequest,
     SearchChannelsResponse,
 )
-from samotech_iptv.domain.repositories import ChannelRepository
 from samotech_iptv.core.logging import get_logger
+
+if TYPE_CHECKING:
+    from samotech_iptv.domain.repositories import ChannelRepository
 
 _log = get_logger("use_cases.search_channels")
 

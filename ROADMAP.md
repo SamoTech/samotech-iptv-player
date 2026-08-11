@@ -1,16 +1,31 @@
 # Roadmap
 
+## Current project status
+
+The repository scaffold and the core recovery are complete. The recovered core is installable, has a single configuration boundary, uses domain-oriented provider ports, includes a tested MAG/Stalker adapter, and passes the configured test, type, and lint checks.
+
+> **Current phase:** Phase 2 — Domain completion and M3U parsing.
+> **Completed milestone:** Core recovery, MAG provider integration, and an initial domain-oriented M3U parser.
+> **Next product milestone:** Complete the remaining domain/value-object coverage and integrate the parser through a future M3U provider adapter.
+
 | Phase | Scope | Status |
-|---|---|---|
-| **Phase 1** | Repo scaffold, pyproject, CI, stub modules | 🚧 In Progress |
-| **Phase 2** | Domain entities, value objects, M3U parser, unit tests | ⏳ Planned |
-| **Phase 3** | VLC adapter, SQLite repos, DI wiring, basic window | ⏳ Planned |
-| **Phase 4** | Channel browser UI, search, favorites, history | ⏳ Planned |
-| **Phase 5** | Xtream Codes + Stalker async clients, playlist manager UI | ⏳ Planned |
-| **Phase 6** | XMLTV EPG parser, EPG grid view | ⏳ Planned |
-| **Phase 7** | Recording (stream → file via VLC), Recording UI | ⏳ Planned |
-| **Phase 8** | Plugin SDK, example provider plugin, loader | ⏳ Planned |
-| **Phase 9** | Theme engine, dark/light QSS, settings UI | ⏳ Planned |
-| **Phase 10** | Auto-updater, crash reporter, PiP, subtitle/audio mgmt | ⏳ Planned |
-| **Phase 11** | Performance pass, memory profiling, large playlist stress tests | ⏳ Planned |
-| **Phase 12** | PyInstaller packaging, NSIS/WiX installer, release CI | ⏳ Planned |
+|---:|---|---|
+| **Recovery** | Packaging repair; configuration composition; canonical provider ports; MAG adapter/credential/session ownership; integration coverage; strict quality gate; truthful documentation | **Completed** |
+| **1** | Repository scaffold, baseline architecture, CI configuration, module placeholders | **Completed** |
+| **2** | Complete domain entities and value objects; M3U parser; parser and domain unit tests | **In progress** — extended-M3U parser and focused parser tests delivered; remaining domain coverage continues |
+| **3** | VLC/player adapter, SQLite repositories, dependency-injection composition root, and basic window | Planned |
+| **4** | Channel browser UI, search, favorites, and watch history | Planned |
+| **5** | Xtream Codes and Stalker provider clients; playlist manager UI | Partially advanced by the recovered MAG/Stalker core; application integration remains planned |
+| **6** | XMLTV EPG parser and EPG grid view | Planned |
+| **7** | Stream recording through the player adapter and recording UI | Planned |
+| **8** | Plugin SDK, example provider plugin, and plugin loader | Planned |
+| **9** | Theme engine, dark/light styles, and settings UI | Planned |
+| **10** | Auto-updater, crash reporting, picture-in-picture, subtitle/audio management | Planned |
+| **11** | Performance pass, memory profiling, and large-playlist stress testing | Planned |
+| **12** | PyInstaller packaging, Windows installer, and release automation | Planned |
+
+## Ordering rationale
+
+The project will not start desktop UI work until the domain, application ports, provider adapters, and persistence/player composition have stable contracts. Phase 2 therefore focuses on deterministic parsing and domain behavior; it is the appropriate next increment after the core-recovery milestone.
+
+Each phase must add or update focused tests and pass the full quality gate before it is marked complete.

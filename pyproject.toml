@@ -1,6 +1,6 @@
 [build-system]
 requires = ["setuptools>=70", "wheel"]
-build-backend = "setuptools.backends.legacy:build"
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "samotech-iptv-player"
@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "SamoTech IPTV Player with pluggable provider architecture"
 readme = "README.md"
 license = { text = "MIT" }
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dependencies = [
     "aiohttp>=3.9",
 ]
@@ -20,6 +20,9 @@ dev = [
     "pytest-asyncio>=0.23",
     "pytest-cov>=5",
     "aioresponses>=0.7",
+    "black>=24",
+    "mypy>=1.10",
+    "ruff>=0.6",
 ]
 
 [tool.pytest.ini_options]
@@ -27,20 +30,26 @@ asyncio_mode = "auto"
 testpaths  = ["tests"]
 
 # ── Package discovery ─────────────────────────────────────────────────────────
-# src/ layout: canonical package lives under src/
-# Legacy providers/ package kept for backward-compat migration window
+# The canonical package lives under src/.  The legacy providers package is
+# retained during the migration and must ship with the MAG adapter.
 [tool.setuptools.packages.find]
 where = ["src", "."]
 include = ["samotech_iptv*", "providers*"]
-
-[tool.setuptools.package-dir]
-"" = "src"
 
 # ── Ruff ──────────────────────────────────────────────────────────────────────
 [tool.ruff]
 src = ["src", "tests"]
 
+# ── Black ────────────────────────────────────────────────────────────────────
+[tool.black]
+line-length = 100
+target-version = ["py312"]
+
 # ── MyPy ─────────────────────────────────────────────────────────────────────
 [tool.mypy]
 mypy_path = "src"
 packages = ["samotech_iptv"]
+
+[[tool.mypy.overrides]]
+module = ["keyring", "keyring.*"]
+ignore_missing_imports = true

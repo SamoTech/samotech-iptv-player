@@ -13,13 +13,13 @@ Allowed dependencies: stdlib only.
 Forbidden: domain, application, infrastructure, presentation, providers.
 """
 
+from samotech_iptv.core.events import DomainEvent
 from samotech_iptv.core.exceptions import (
-    SamotechError,
     ConfigurationError,
+    SamotechError,
     ValidationError,
 )
-from samotech_iptv.core.result import Result, Ok, Err
-from samotech_iptv.core.events import DomainEvent
+from samotech_iptv.core.result import Err, Ok, Result
 
 __all__ = [
     "SamotechError",

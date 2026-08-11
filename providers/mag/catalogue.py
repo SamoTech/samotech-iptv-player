@@ -1,21 +1,20 @@
-"""
-Catalogue retrieval helpers for the MAG provider.
-"""
+"""Catalogue retrieval helpers for the MAG provider."""
+
 from __future__ import annotations
 
 import logging
-from typing import Any
+from collections.abc import Mapping
+from typing import TYPE_CHECKING
 
-from .constants import (
-    ENDPOINT_CHANNELS,
-    ENDPOINT_VOD,
-    ENDPOINT_SERIES,
-    ENDPOINT_EPG,
-)
-from .connection import MAGConnection
-from .session import MAGSession
+from .constants import ENDPOINT_CHANNELS, ENDPOINT_EPG, ENDPOINT_SERIES, ENDPOINT_VOD
+
+if TYPE_CHECKING:
+    from .connection import MAGConnection
+    from .session import MAGSession
 
 log = logging.getLogger(__name__)
+
+type MagRecord = dict[str, object]
 
 
 class MAGCatalogue:
@@ -23,30 +22,35 @@ class MAGCatalogue:
         self._conn = connection
         self._sess = session
 
-    async def get_channels(self) -> list[dict[str, Any]]:
+    async def get_channels(self) -> list[MagRecord]:
+        """Return the portal's live-TV records."""
         log.info("Fetching channel catalogue")
         data = await self._conn.get(ENDPOINT_CHANNELS, headers=self._sess.get_headers())
-        items: list[dict] = (data.get("js") or {}).get("data", [])
+        items = self._records_from_response(data)
         log.info("Retrieved %d channels", len(items))
         return items
 
-    async def get_vod(self, page: int = 0, category_id: int | None = None) -> list[dict[str, Any]]:
+    async def get_vod(self, page: int = 0, category_id: int | None = None) -> list[MagRecord]:
+        """Return a page of MAG VOD records."""
         log.info("Fetching VOD catalogue (page=%d, category=%s)", page, category_id)
-        params: dict[str, Any] = {"p": page, "items_num": 100, "sortby": "added"}
+        params: dict[str, str | int] = {"p": page, "items_num": 100, "sortby": "added"}
         if category_id is not None:
             params["category"] = category_id
         data = await self._conn.get(ENDPOINT_VOD, params=params, headers=self._sess.get_headers())
-        items: list[dict] = (data.get("js") or {}).get("data", [])
+        items = self._records_from_response(data)
         log.info("Retrieved %d VOD items", len(items))
         return items
 
-    async def get_series(self, page: int = 0, category_id: int | None = None) -> list[dict[str, Any]]:
+    async def get_series(self, page: int = 0, category_id: int | None = None) -> list[MagRecord]:
+        """Return a page of MAG series records."""
         log.info("Fetching series catalogue (page=%d, category=%s)", page, category_id)
-        params: dict[str, Any] = {"p": page, "items_num": 100, "sortby": "added"}
+        params: dict[str, str | int] = {"p": page, "items_num": 100, "sortby": "added"}
         if category_id is not None:
             params["category"] = category_id
-        data = await self._conn.get(ENDPOINT_SERIES, params=params, headers=self._sess.get_headers())
-        items: list[dict] = (data.get("js") or {}).get("data", [])
+        data = await self._conn.get(
+            ENDPOINT_SERIES, params=params, headers=self._sess.get_headers()
+        )
+        items = self._records_from_response(data)
         log.info("Retrieved %d series", len(items))
         return items
 
@@ -54,18 +58,40 @@ class MAGCatalogue:
         self,
         channel_ids: list[int] | None = None,
         period: int = 3,
-    ) -> dict[int, list[dict[str, Any]]]:
+    ) -> dict[int, list[MagRecord]]:
+        """Return EPG records keyed by numeric MAG channel ID."""
         log.info("Fetching EPG (channels=%s, period=%d days)", channel_ids, period)
-        params: dict[str, Any] = {"period": period}
+        params: dict[str, str | int] = {"period": period}
         if channel_ids:
-            params["ch_id"] = ",".join(str(c) for c in channel_ids)
+            params["ch_id"] = ",".join(str(channel_id) for channel_id in channel_ids)
         data = await self._conn.get(ENDPOINT_EPG, params=params, headers=self._sess.get_headers())
-        raw: dict = data.get("js") or {}
-        result: dict[int, list[dict]] = {}
-        for ch_id_str, programmes in raw.items():
+        raw = self._js_payload(data)
+        result: dict[int, list[MagRecord]] = {}
+        for raw_channel_id, programmes in raw.items():
             try:
-                result[int(ch_id_str)] = programmes if isinstance(programmes, list) else []
+                channel_id = int(str(raw_channel_id))
             except ValueError:
-                pass
+                continue
+            result[channel_id] = self._records(programmes)
         log.info("EPG fetched for %d channels", len(result))
         return result
+
+    @staticmethod
+    def _records_from_response(data: object) -> list[MagRecord]:
+        """Extract list-shaped payload data while rejecting malformed records."""
+        return MAGCatalogue._records(MAGCatalogue._js_payload(data).get("data", []))
+
+    @staticmethod
+    def _js_payload(data: object) -> Mapping[str, object]:
+        """Return a MAG ``js`` envelope as an empty mapping when malformed."""
+        if not isinstance(data, Mapping):
+            return {}
+        payload = data.get("js", {})
+        return payload if isinstance(payload, Mapping) else {}
+
+    @staticmethod
+    def _records(value: object) -> list[MagRecord]:
+        """Normalize a list of external mapping records into mutable dictionaries."""
+        if not isinstance(value, list):
+            return []
+        return [dict(record) for record in value if isinstance(record, Mapping)]

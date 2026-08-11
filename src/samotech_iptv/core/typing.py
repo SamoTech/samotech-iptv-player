@@ -1,7 +1,8 @@
 """Shared type aliases and protocols used across all layers."""
+
 from __future__ import annotations
 
-from typing import Any, Protocol, TypeAlias, TypeVar, runtime_checkable
+from typing import Protocol, TypeVar, runtime_checkable
 
 __all__ = [
     "JSON",
@@ -12,10 +13,10 @@ __all__ = [
 ]
 
 #: Recursive JSON type alias.
-JSON: TypeAlias = "dict[str, Any] | list[Any] | str | int | float | bool | None"
+type JSON = dict[str, JSON] | list[JSON] | str | int | float | bool | None
 
 #: HTTP headers mapping.
-Headers: TypeAlias = dict[str, str]
+type Headers = dict[str, str]
 
 #: Generic entity identifier.
 EntityId = TypeVar("EntityId", str, int)
@@ -25,10 +26,10 @@ EntityId = TypeVar("EntityId", str, int)
 class Comparable(Protocol):
     """Protocol for objects that support ordering."""
 
-    def __lt__(self, other: Any) -> bool: ...
-    def __le__(self, other: Any) -> bool: ...
-    def __gt__(self, other: Any) -> bool: ...
-    def __ge__(self, other: Any) -> bool: ...
+    def __lt__(self, other: object) -> bool: ...
+    def __le__(self, other: object) -> bool: ...
+    def __gt__(self, other: object) -> bool: ...
+    def __ge__(self, other: object) -> bool: ...
 
 
 @runtime_checkable

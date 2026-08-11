@@ -1,8 +1,12 @@
 """Category DTOs."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Optional, Sequence
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 __all__ = ["CategoryDTO", "LoadCategoriesRequest", "LoadCategoriesResponse"]
 
@@ -12,7 +16,7 @@ class CategoryDTO:
     id: str
     name: str
     provider_id: str
-    parent_id: Optional[str] = None
+    parent_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -23,4 +27,4 @@ class LoadCategoriesRequest:
 @dataclass(frozen=True)
 class LoadCategoriesResponse:
     categories: Sequence[CategoryDTO] = field(default_factory=list)
-    error: Optional[str] = None
+    error: str | None = None

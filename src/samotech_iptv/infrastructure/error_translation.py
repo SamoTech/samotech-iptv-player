@@ -15,20 +15,19 @@ Translation table::
     StorageError         →  StorageError   (pass-through, already domain)
     Exception (other)    →  ProviderError  ("unexpected error")
 """
+
 from __future__ import annotations
 
 from samotech_iptv.core.exceptions import (
     AuthenticationError,
     NetworkError,
     ProviderError,
-    StorageError,
     SamotechError,
 )
 from samotech_iptv.core.logging import get_logger
 from samotech_iptv.infrastructure.network.exceptions import (
     HttpClientError,
     HttpConnectionError,
-    HttpError,
     HttpServerError,
     HttpTimeoutError,
 )
@@ -68,8 +67,7 @@ def translate_error(exc: Exception) -> SamotechError:
         return ProviderError(f"Provider client error (HTTP {status}): {exc}")
 
     if isinstance(exc, HttpServerError):
-        _log.debug("Translating HttpServerError %d -> ProviderError",
-                   exc.status_code)
+        _log.debug("Translating HttpServerError %d -> ProviderError", exc.status_code)
         return ProviderError(f"Provider server error (HTTP {exc.status_code}): {exc}")
 
     _log.warning("Translating unexpected %s -> ProviderError", type(exc).__name__)

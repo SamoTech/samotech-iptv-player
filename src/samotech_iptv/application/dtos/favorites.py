@@ -1,10 +1,14 @@
 """Favorites and search DTOs."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Optional, Sequence
+from typing import TYPE_CHECKING
 
-from samotech_iptv.application.dtos.channels import ChannelDTO
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from samotech_iptv.application.dtos.channels import ChannelDTO
 
 __all__ = [
     "SaveFavoriteRequest",
@@ -23,7 +27,7 @@ class SaveFavoriteRequest:
 @dataclass(frozen=True)
 class SaveFavoriteResponse:
     success: bool
-    error: Optional[str] = None
+    error: str | None = None
 
 
 @dataclass(frozen=True)

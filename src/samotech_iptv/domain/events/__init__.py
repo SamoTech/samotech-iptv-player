@@ -8,17 +8,18 @@ Or directly::
 
     from samotech_iptv.domain.events.provider_events import ProviderAuthenticatedEvent
 """
-from samotech_iptv.domain.events.provider_events import (
-    ProviderAuthenticatedEvent,
-    ProviderRefreshFailedEvent,
-)
-from samotech_iptv.domain.events.playback_events import (
-    StreamResolvedEvent,
-    HistoryRecordedEvent,
-)
+
 from samotech_iptv.domain.events.library_events import (
     ChannelsLoadedEvent,
     FavoriteSavedEvent,
+)
+from samotech_iptv.domain.events.playback_events import (
+    HistoryRecordedEvent,
+    StreamResolvedEvent,
+)
+from samotech_iptv.domain.events.provider_events import (
+    ProviderAuthenticatedEvent,
+    ProviderRefreshFailedEvent,
 )
 
 __all__ = [

@@ -3,23 +3,29 @@ Stalker portal session management.
 
 Handles the Stalker handshake, token issuance and automatic refresh.
 """
+
 from __future__ import annotations
 
 import asyncio
 import logging
 import time
-from typing import Optional
+from collections.abc import Mapping
+from typing import TYPE_CHECKING
 
+from ..base.errors import AuthError, NetworkError
 from .constants import (
     DEFAULT_TOKEN_TTL_S,
+    ENDPOINT_HANDSHAKE,
     MAX_RECONNECT_TRIES,
     RECONNECT_BASE_DELAY,
     RECONNECT_MAX_DELAY,
-    ENDPOINT_HANDSHAKE,
 )
-from .credentials import MAGCredentials
-from .connection import MAGConnection
-from ..base.errors import AuthError, NetworkError
+
+if TYPE_CHECKING:
+    from samotech_iptv.core.typing import JSON
+
+    from .connection import MAGConnection
+    from .credentials import MAGCredentials
 
 log = logging.getLogger(__name__)
 
@@ -29,7 +35,7 @@ class MAGSession:
         self._conn = connection
         self._creds = credentials
         self._token_expires_at: float = 0.0
-        self._refresh_task: Optional[asyncio.Task] = None
+        self._refresh_task: asyncio.Task[None] | None = None
 
     @property
     def token(self) -> str:
@@ -74,9 +80,7 @@ class MAGSession:
         ttl = max(self._token_expires_at - time.monotonic() - 60, 30)
         if self._refresh_task and not self._refresh_task.done():
             self._refresh_task.cancel()
-        self._refresh_task = asyncio.get_event_loop().create_task(
-            self._refresh_loop(ttl)
-        )
+        self._refresh_task = asyncio.get_event_loop().create_task(self._refresh_loop(ttl))
 
     async def _refresh_loop(self, initial_delay: float) -> None:
         await asyncio.sleep(initial_delay)
@@ -107,8 +111,11 @@ class MAGSession:
             headers["X-Device-ID2"] = self._creds.device_id2
         return {k: v for k, v in headers.items() if v}
 
-    def _store_token(self, payload: dict) -> None:
-        js = payload.get("js", {})
+    def _store_token(self, payload: JSON) -> None:
+        if not isinstance(payload, Mapping):
+            raise AuthError("Portal handshake response did not contain a JSON object")
+        raw_js = payload.get("js", {})
+        js = raw_js if isinstance(raw_js, Mapping) else {}
         token = js.get("token") or payload.get("token")
         if not token:
             raise AuthError(
@@ -117,7 +124,11 @@ class MAGSession:
                 "authorised to access this portal."
             )
         self._creds.token = str(token)
-        ttl = int(js.get("token_TTL") or DEFAULT_TOKEN_TTL_S)
+        raw_ttl = js.get("token_TTL")
+        try:
+            ttl = int(str(raw_ttl)) if raw_ttl else DEFAULT_TOKEN_TTL_S
+        except ValueError as exc:
+            raise AuthError("Portal handshake response contained an invalid token TTL") from exc
         self._token_expires_at = time.monotonic() + ttl
         log.debug("Token stored (TTL=%ds)", ttl)
 

@@ -5,19 +5,20 @@ Secrets are never persisted in plaintext.  The OS credential manager
 (keyring) is used when available; callers must supply secrets explicitly
 when running in a headless / CI environment.
 """
+
 from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import Optional
 
 log = logging.getLogger(__name__)
 
 try:
     import keyring as _keyring
+
     _KEYRING_AVAILABLE = True
 except ImportError:
-    _keyring = None  # type: ignore[assignment]
+    _keyring = None
     _KEYRING_AVAILABLE = False
 
 SERVICE_NAME = "samotech-iptv-player"
@@ -31,20 +32,19 @@ class MAGCredentials:
     All fields whose names end in *_secret* are write-only when retrieved
     from the OS keyring and are *never* logged.
     """
+
     portal_url: str
-    mac_address: str              # Authorised MAC address for this subscription
+    mac_address: str  # Authorised MAC address for this subscription
     serial_number: str = ""
     device_id: str = ""
     device_id2: str = ""
     _token: str = field(default="", repr=False, compare=False)
 
     @classmethod
-    def from_keyring(cls, portal_url: str) -> "MAGCredentials":
+    def from_keyring(cls, portal_url: str) -> MAGCredentials:
         """Load credentials from the OS keyring for *portal_url*."""
         if not _KEYRING_AVAILABLE:
-            raise RuntimeError(
-                "keyring is not installed. Install it with: pip install keyring"
-            )
+            raise RuntimeError("keyring is not installed. Install it with: pip install keyring")
         mac = _keyring.get_password(SERVICE_NAME, f"{portal_url}:mac")
         if not mac:
             raise ValueError(
@@ -69,8 +69,8 @@ class MAGCredentials:
         try:
             _keyring.delete_password(SERVICE_NAME, f"{self.portal_url}:mac")
             _keyring.delete_password(SERVICE_NAME, f"{self.portal_url}:serial")
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            log.warning("Unable to delete MAG credentials from keyring: %s", exc)
 
     @property
     def token(self) -> str:

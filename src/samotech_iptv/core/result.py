@@ -11,10 +11,14 @@ Usage::
         case Ok(value):  print(f"got {value}")
         case Err(error): print(f"error: {error}")
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Callable, Generic, Iterator, TypeVar, Union
+from typing import TYPE_CHECKING, TypeVar
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterator
 
 __all__ = ["Result", "Ok", "Err"]
 
@@ -24,7 +28,7 @@ U = TypeVar("U")
 
 
 @dataclass(frozen=True)
-class Ok(Generic[T]):
+class Ok[T]:
     """Successful result carrying a value."""
 
     value: T
@@ -41,7 +45,7 @@ class Ok(Generic[T]):
     def unwrap_or(self, default: T) -> T:  # noqa: ARG002
         return self.value
 
-    def map(self, fn: Callable[[T], U]) -> "Ok[U]":
+    def map(self, fn: Callable[[T], U]) -> Ok[U]:
         return Ok(fn(self.value))
 
     def __iter__(self) -> Iterator[T]:
@@ -49,7 +53,7 @@ class Ok(Generic[T]):
 
 
 @dataclass(frozen=True)
-class Err(Generic[E]):
+class Err[E]:
     """Failed result carrying an error."""
 
     error: E
@@ -66,7 +70,7 @@ class Err(Generic[E]):
     def unwrap_or(self, default: T) -> T:
         return default
 
-    def map(self, fn: Callable) -> "Err[E]":  # type: ignore[override]
+    def map[U](self, fn: Callable[[object], U]) -> Err[E]:
         return self
 
     def __iter__(self) -> Iterator[E]:
@@ -74,4 +78,4 @@ class Err(Generic[E]):
 
 
 #: Union alias for type annotations: ``Result[T, E]``
-Result = Union[Ok[T], Err[E]]
+type Result[T, E] = Ok[T] | Err[E]

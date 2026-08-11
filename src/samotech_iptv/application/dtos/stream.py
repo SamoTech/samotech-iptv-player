@@ -1,8 +1,8 @@
 """Stream resolution DTOs."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 __all__ = ["ResolveStreamRequest", "ResolveStreamResponse"]
 
@@ -15,5 +15,5 @@ class ResolveStreamRequest:
 
 @dataclass(frozen=True)
 class ResolveStreamResponse:
-    url: Optional[str] = None
-    error: Optional[str] = None
+    url: str | None = None
+    error: str | None = None

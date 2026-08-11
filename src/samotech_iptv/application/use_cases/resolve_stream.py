@@ -1,10 +1,15 @@
 """ResolveStream use-case."""
+
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from samotech_iptv.application.dtos import ResolveStreamRequest, ResolveStreamResponse
-from samotech_iptv.application.ports import ProviderPort
 from samotech_iptv.core.logging import get_logger
 from samotech_iptv.domain.value_objects import ChannelId
+
+if TYPE_CHECKING:
+    from samotech_iptv.application.ports import ProviderPort
 
 _log = get_logger("use_cases.resolve_stream")
 

@@ -1,6 +1,7 @@
 """
 MAGProvider — top-level facade registered as "mag".
 """
+
 from __future__ import annotations
 
 import logging
@@ -8,13 +9,13 @@ from typing import Any
 
 from ..base.provider import BaseProvider
 from ..registry import register
+from .catalogue import MAGCatalogue
 from .connection import MAGConnection
-from .session import MAGSession
+from .constants import DEFAULT_MAX_RETRIES, DEFAULT_TIMEOUT_S
 from .credentials import MAGCredentials
 from .profile import MAGProfile
-from .catalogue import MAGCatalogue
+from .session import MAGSession
 from .stream import MAGStream
-from .constants import DEFAULT_TIMEOUT_S, DEFAULT_MAX_RETRIES
 
 log = logging.getLogger(__name__)
 
@@ -88,7 +89,9 @@ class MAGProvider(BaseProvider):
     async def get_vod(self, page: int = 0, category_id: int | None = None) -> list[dict[str, Any]]:
         return await self._catalogue.get_vod(page=page, category_id=category_id)
 
-    async def get_series(self, page: int = 0, category_id: int | None = None) -> list[dict[str, Any]]:
+    async def get_series(
+        self, page: int = 0, category_id: int | None = None
+    ) -> list[dict[str, Any]]:
         return await self._catalogue.get_series(page=page, category_id=category_id)
 
     async def get_epg(

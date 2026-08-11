@@ -1,11 +1,15 @@
 """EPGRepository — abstract CRUD contract for EPGEntry aggregates."""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Sequence
+from typing import TYPE_CHECKING
 
-from samotech_iptv.domain.entities.epg_entry import EPGEntry
-from samotech_iptv.domain.value_objects.channel_id import ChannelId
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from samotech_iptv.domain.entities.epg_entry import EPGEntry
+    from samotech_iptv.domain.value_objects.channel_id import ChannelId
 
 __all__ = ["EPGRepository"]
 

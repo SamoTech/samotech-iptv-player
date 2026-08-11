@@ -2,29 +2,31 @@
 
 All aiohttp calls are mocked — no real network access.
 """
+
 from __future__ import annotations
 
-import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from samotech_iptv.infrastructure.network.retry_policy import RetryPolicy
-from samotech_iptv.infrastructure.network.timeouts import TimeoutConfig
-from samotech_iptv.infrastructure.network.headers import HeadersBuilder
-from samotech_iptv.infrastructure.network.exceptions import (
-    HttpClientError,
-    HttpServerError,
-    HttpTimeoutError,
-    HttpConnectionError,
+from samotech_iptv.core.exceptions import (
+    AuthenticationError,
+    NetworkError,
+    ProviderError,
 )
 from samotech_iptv.infrastructure.error_translation import translate_error
-from samotech_iptv.core.exceptions import (
-    NetworkError, ProviderError, AuthenticationError,
+from samotech_iptv.infrastructure.network.exceptions import (
+    HttpClientError,
+    HttpConnectionError,
+    HttpServerError,
+    HttpTimeoutError,
 )
-
+from samotech_iptv.infrastructure.network.headers import HeadersBuilder
+from samotech_iptv.infrastructure.network.retry_policy import RetryPolicy
+from samotech_iptv.infrastructure.network.timeouts import TimeoutConfig
 
 # ── RetryPolicy ──────────────────────────────────────────────────────────────────
+
 
 class TestRetryPolicy:
     def test_default_should_retry_on_first_attempt_503(self) -> None:
@@ -75,6 +77,7 @@ class TestRetryPolicy:
 
 # ── TimeoutConfig ──────────────────────────────────────────────────────────────
 
+
 class TestTimeoutConfig:
     def test_defaults_are_valid(self) -> None:
         cfg = TimeoutConfig()
@@ -92,6 +95,7 @@ class TestTimeoutConfig:
 
 
 # ── HeadersBuilder ─────────────────────────────────────────────────────────────
+
 
 class TestHeadersBuilder:
     def test_default_has_user_agent(self) -> None:
@@ -111,12 +115,7 @@ class TestHeadersBuilder:
         assert headers["Authorization"] == "Bearer tok123"
 
     def test_multiple_cookies(self) -> None:
-        headers = (
-            HeadersBuilder()
-            .cookie("session", "abc")
-            .cookie("token", "xyz")
-            .build()
-        )
+        headers = HeadersBuilder().cookie("session", "abc").cookie("token", "xyz").build()
         assert "session=abc" in headers["Cookie"]
         assert "token=xyz" in headers["Cookie"]
 
@@ -130,6 +129,7 @@ class TestHeadersBuilder:
 
 
 # ── Error translation ────────────────────────────────────────────────────────────
+
 
 class TestErrorTranslation:
     def test_timeout_becomes_network_error(self) -> None:

@@ -12,11 +12,16 @@ Immutability strategy
 - ``ProviderContext`` is not a dataclass to allow deferred construction
   of the ``HttpSession`` inside ``AsyncHttpClient``.
 """
+
 from __future__ import annotations
 
-from typing import Optional
+from typing import TYPE_CHECKING
 
 from samotech_iptv.core.logging import get_logger
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+    from logging import Logger
 from samotech_iptv.infrastructure.configuration.configuration_provider import (
     ConfigurationProvider,
 )
@@ -57,8 +62,8 @@ class ProviderContext:
         credential_store: KeyringCredentialStore,
         config: ConfigurationProvider,
         registry: ProviderRegistry,
-        retry_policy: Optional[RetryPolicy] = None,
-        timeout: Optional[TimeoutConfig] = None,
+        retry_policy: RetryPolicy | None = None,
+        timeout: TimeoutConfig | None = None,
     ) -> None:
         self._http_client = http_client
         self._credential_store = credential_store
@@ -95,7 +100,7 @@ class ProviderContext:
         return self._timeout
 
     @property
-    def logger(self):
+    def logger(self) -> Logger:
         return self._log
 
     # ------------------------------------------------------------------ factory
@@ -103,9 +108,9 @@ class ProviderContext:
     @classmethod
     def build(
         cls,
-        overrides: Optional[dict] = None,
-        registry: Optional[ProviderRegistry] = None,
-    ) -> "ProviderContext":
+        overrides: Mapping[str, object] | None = None,
+        registry: ProviderRegistry | None = None,
+    ) -> ProviderContext:
         """Construct a fully wired ``ProviderContext`` from env / overrides.
 
         This is the standard factory for production use.
