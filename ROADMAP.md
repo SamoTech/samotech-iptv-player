@@ -5,14 +5,14 @@
 The repository scaffold and the core recovery are complete. The recovered core is installable, has a single configuration boundary, uses domain-oriented provider ports, includes a tested MAG/Stalker adapter, and passes the configured test, type, and lint checks.
 
 > **Current phase:** Phase 2 — Domain completion and M3U parsing.
-> **Completed milestone:** Core recovery, MAG provider integration, an initial domain-oriented M3U parser, validated VOD movie/series metadata, hardened user-library records, and validated Stream playback metadata.
+> **Completed milestone:** Core recovery, MAG provider integration, an initial domain-oriented M3U parser, validated VOD movie/series metadata, hardened user-library records, validated Stream playback metadata, and hardened catalogue grouping/provider records.
 > **Next product milestone:** Complete the remaining domain/value-object coverage and integrate the parser through a future M3U provider adapter.
 
 | Phase | Scope | Status |
 |---:|---|---|
 | **Recovery** | Packaging repair; configuration composition; canonical provider ports; MAG adapter/credential/session ownership; integration coverage; strict quality gate; truthful documentation | **Completed** |
 | **1** | Repository scaffold, baseline architecture, CI configuration, module placeholders | **Completed** |
-| **2** | Complete domain entities and value objects; M3U parser; parser and domain unit tests | **In progress** — extended-M3U parser, VOD movie/series validation, Favorite/History invariants, and Stream playback validation with focused tests delivered; remaining domain coverage continues |
+| **2** | Complete domain entities and value objects; M3U parser; parser and domain unit tests | **In progress** — extended-M3U parser, VOD movie/series validation, Favorite/History invariants, Stream playback validation, and catalogue grouping/provider validation with focused tests delivered; remaining domain coverage continues |
 | **3** | VLC/player adapter, SQLite repositories, dependency-injection composition root, and basic window | Planned |
 | **4** | Channel browser UI, search, favorites, and watch history | Planned |
 | **5** | Xtream Codes and Stalker provider clients; playlist manager UI | Partially advanced by the recovered MAG/Stalker core; application integration remains planned |
