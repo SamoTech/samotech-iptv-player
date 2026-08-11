@@ -9,6 +9,7 @@ Or via ISP capability interfaces::
     from samotech_iptv.application.ports import (
         AuthenticationProvider,
         CatalogProvider,
+        VodProvider,
         EPGProvider,
     )
 """
@@ -27,6 +28,7 @@ from samotech_iptv.application.ports.provider_capabilities import (
     PlaybackProvider,
     SearchProvider,
     SessionProvider,
+    VodProvider,
 )
 from samotech_iptv.application.ports.provider_port import ProviderPort
 from samotech_iptv.application.ports.storage_port import StoragePort
@@ -41,6 +43,7 @@ __all__ = [
     # ISP capability interfaces
     "AuthenticationProvider",
     "CatalogProvider",
+    "VodProvider",
     "EPGProvider",
     "SearchProvider",
     "PlaybackProvider",

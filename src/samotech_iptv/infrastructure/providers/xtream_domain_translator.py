@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 from samotech_iptv.core.exceptions import ValidationError
 from samotech_iptv.domain.entities.channel import Channel
+from samotech_iptv.domain.entities.movie import Movie
 from samotech_iptv.domain.value_objects.channel_id import ChannelId
 from samotech_iptv.domain.value_objects.stream_id import StreamId
 from samotech_iptv.domain.value_objects.url import URL
@@ -39,6 +40,22 @@ class XtreamDomainTranslator:
             logo_url=URL(logo) if logo else None,
             epg_channel_id=epg_channel_id,
             number=number,
+        )
+
+    @staticmethod
+    def movie(raw: Mapping[str, object], provider_id: ProviderId) -> Movie:
+        """Map a VOD record returned by ``get_vod_streams`` to a canonical movie."""
+        stream_id = XtreamDomainTranslator._required_text(raw, "stream_id")
+        title = XtreamDomainTranslator._required_text(raw, "name")
+        poster = str(raw.get("stream_icon") or "").strip()
+        return Movie(
+            id=f"{provider_id.value}:{stream_id}",
+            title=title,
+            provider_id=provider_id,
+            stream_id=StreamId(stream_id),
+            category_id=str(raw.get("category_id") or "").strip() or None,
+            poster_url=URL(poster) if poster else None,
+            plot=str(raw.get("plot") or "").strip() or None,
         )
 
     @staticmethod

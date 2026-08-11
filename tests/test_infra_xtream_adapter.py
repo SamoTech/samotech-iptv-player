@@ -26,6 +26,8 @@ class FakeHttpClient:
     async def get_json(self, url: str) -> object:
         if "get_live_streams" in url:
             return [{"stream_id": 1, "name": "News"}, {"stream_id": 2, "name": "Sports"}]
+        if "get_vod_streams" in url:
+            return [{"stream_id": 42, "name": "Example Movie"}]
         return {"user_info": {"auth": 1}}
 
 
@@ -76,6 +78,7 @@ async def test_adapter_authenticates_stores_credentials_and_translates_live_chan
     assert adapter.is_authenticated is True
     assert [channel.name for channel in await adapter.load_channels()] == ["News", "Sports"]
     assert [channel.name for channel in await adapter.search_channels("sport")] == ["Sports"]
+    assert [movie.title for movie in await adapter.load_movies()] == ["Example Movie"]
 
 
 def test_adapter_advertises_only_implemented_capabilities_and_registers_with_factory() -> None:
@@ -86,6 +89,7 @@ def test_adapter_advertises_only_implemented_capabilities_and_registers_with_fac
     assert adapter.supported_capabilities() == {
         ProviderCapability.AUTHENTICATION,
         ProviderCapability.LIVE,
+        ProviderCapability.VOD,
         ProviderCapability.SEARCH,
     }
     assert factory.is_registered("xtream")

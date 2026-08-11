@@ -25,6 +25,7 @@ if TYPE_CHECKING:
 
     from samotech_iptv.domain.entities.channel import Channel
     from samotech_iptv.domain.entities.epg_entry import EPGEntry
+    from samotech_iptv.domain.entities.movie import Movie
     from samotech_iptv.domain.value_objects.channel_id import ChannelId
     from samotech_iptv.domain.value_objects.credential import Credential
     from samotech_iptv.domain.value_objects.provider_capability import ProviderCapability
@@ -34,6 +35,7 @@ if TYPE_CHECKING:
 __all__ = [
     "AuthenticationProvider",
     "CatalogProvider",
+    "VodProvider",
     "EPGProvider",
     "SearchProvider",
     "PlaybackProvider",
@@ -78,6 +80,15 @@ class CatalogProvider(ABC):
     @abstractmethod
     async def load_channels(self) -> Sequence[Channel]:
         """Return the full channel list."""
+        ...
+
+
+class VodProvider(ABC):
+    """Capability: load a provider's VOD movie catalogue."""
+
+    @abstractmethod
+    async def load_movies(self) -> Sequence[Movie]:
+        """Return the full movie catalogue available to this provider."""
         ...
 
 

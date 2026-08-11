@@ -39,9 +39,14 @@ class XtreamApiClient:
 
     async def live_streams(self) -> Sequence[Mapping[str, object]]:
         """Return raw live-stream records for canonical adapter translation."""
-        payload = await self._http_client.get_json(
-            str(self._request_builder.player_api("get_live_streams"))
-        )
+        return await self._stream_records("get_live_streams", "live-stream")
+
+    async def vod_streams(self) -> Sequence[Mapping[str, object]]:
+        """Return raw VOD records for canonical movie translation."""
+        return await self._stream_records("get_vod_streams", "VOD")
+
+    async def _stream_records(self, action: str, label: str) -> Sequence[Mapping[str, object]]:
+        payload = await self._http_client.get_json(str(self._request_builder.player_api(action)))
         if not isinstance(payload, list) or not all(isinstance(item, Mapping) for item in payload):
-            raise ProviderError("Xtream live-stream response must be a list of objects")
+            raise ProviderError(f"Xtream {label} response must be a list of objects")
         return cast("Sequence[Mapping[str, object]]", payload)

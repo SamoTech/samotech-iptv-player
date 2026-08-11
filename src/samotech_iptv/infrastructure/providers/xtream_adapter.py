@@ -9,6 +9,7 @@ from samotech_iptv.application.ports.provider_capabilities import (
     CapabilityProvider,
     CatalogProvider,
     SearchProvider,
+    VodProvider,
 )
 from samotech_iptv.core.exceptions import AuthenticationError
 from samotech_iptv.domain.value_objects.provider_capability import ProviderCapability
@@ -22,6 +23,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from samotech_iptv.domain.entities.channel import Channel
+    from samotech_iptv.domain.entities.movie import Movie
     from samotech_iptv.domain.value_objects.credential import Credential
     from samotech_iptv.infrastructure.providers.provider_context import ProviderContext
     from samotech_iptv.infrastructure.providers.provider_factory import ProviderFactory
@@ -30,12 +32,17 @@ if TYPE_CHECKING:
 __all__ = ["XtreamProviderAdapter", "register_xtream_with_factory"]
 
 _CAPABILITIES = frozenset(
-    {ProviderCapability.AUTHENTICATION, ProviderCapability.LIVE, ProviderCapability.SEARCH}
+    {
+        ProviderCapability.AUTHENTICATION,
+        ProviderCapability.LIVE,
+        ProviderCapability.VOD,
+        ProviderCapability.SEARCH,
+    }
 )
 
 
 class XtreamProviderAdapter(
-    AuthenticationProvider, CatalogProvider, SearchProvider, CapabilityProvider
+    AuthenticationProvider, CatalogProvider, VodProvider, SearchProvider, CapabilityProvider
 ):
     """Retrieve and translate Xtream live channels through canonical boundaries."""
 
@@ -72,6 +79,14 @@ class XtreamProviderAdapter(
         return [
             XtreamDomainTranslator.channel(record, self.provider_id)
             for record in await client.live_streams()
+        ]
+
+    async def load_movies(self) -> Sequence[Movie]:
+        """Retrieve stored credentials then translate Xtream VOD DTOs into movies."""
+        client = await self._stored_client()
+        return [
+            XtreamDomainTranslator.movie(record, self.provider_id)
+            for record in await client.vod_streams()
         ]
 
     async def search_channels(self, query: str, limit: int = 100) -> Sequence[Channel]:
