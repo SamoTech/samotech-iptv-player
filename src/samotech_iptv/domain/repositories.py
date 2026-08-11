@@ -8,11 +8,11 @@ All public names re-exported from the new ``repositories/`` package.
 """
 from samotech_iptv.domain.repositories import (  # noqa: F401
     ChannelRepository,
+    EPGRepository,
+    FavoriteRepository,
+    HistoryRepository,
     PlaylistRepository,
     ProviderRepository,
-    EPGRepository,
-    HistoryRepository,
-    FavoriteRepository,
 )
 
 __all__ = [

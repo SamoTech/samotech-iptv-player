@@ -4,7 +4,10 @@ src = ["src"]
 
 [lint]
 select = ["E", "W", "F", "I", "B", "C4", "UP", "N", "ANN", "S", "TCH"]
-ignore = ["ANN101", "ANN102"]
+
+[lint.per-file-ignores]
+# Pytest assertions are executable specifications, not production security checks.
+"tests/**/*.py" = ["S101"]
 
 [lint.isort]
 known-first-party = ["samotech_iptv"]

@@ -33,33 +33,33 @@ class HeadersBuilder:
             "User-Agent": _DEFAULT_USER_AGENT,
         }
 
-    def user_agent(self, value: str) -> "HeadersBuilder":
+    def user_agent(self, value: str) -> HeadersBuilder:
         self._headers["User-Agent"] = value
         return self
 
-    def accept_json(self) -> "HeadersBuilder":
+    def accept_json(self) -> HeadersBuilder:
         self._headers["Accept"] = "application/json"
         return self
 
-    def content_type_json(self) -> "HeadersBuilder":
+    def content_type_json(self) -> HeadersBuilder:
         self._headers["Content-Type"] = "application/json"
         return self
 
-    def content_type_form(self) -> "HeadersBuilder":
+    def content_type_form(self) -> HeadersBuilder:
         self._headers["Content-Type"] = "application/x-www-form-urlencoded"
         return self
 
-    def authorization_bearer(self, token: str) -> "HeadersBuilder":
+    def authorization_bearer(self, token: str) -> HeadersBuilder:
         self._headers["Authorization"] = f"Bearer {token}"
         return self
 
-    def cookie(self, name: str, value: str) -> "HeadersBuilder":
+    def cookie(self, name: str, value: str) -> HeadersBuilder:
         existing = self._headers.get("Cookie", "")
         pair = f"{name}={value}"
         self._headers["Cookie"] = f"{existing}; {pair}" if existing else pair
         return self
 
-    def custom(self, name: str, value: str) -> "HeadersBuilder":
+    def custom(self, name: str, value: str) -> HeadersBuilder:
         self._headers[name] = value
         return self
 

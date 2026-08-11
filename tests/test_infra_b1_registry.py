@@ -4,9 +4,9 @@ from __future__ import annotations
 import pytest
 
 from samotech_iptv.core.exceptions import NotFoundError
+from samotech_iptv.infrastructure.providers.provider_factory import ProviderFactory
 from samotech_iptv.infrastructure.providers.provider_metadata import InfraProviderMetadata
 from samotech_iptv.infrastructure.providers.provider_registry import ProviderRegistry
-from samotech_iptv.infrastructure.providers.provider_factory import ProviderFactory
 
 
 @pytest.fixture

@@ -8,7 +8,6 @@ through the domain layer.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Optional
 
 __all__ = ["InfraProviderMetadata"]
 
@@ -35,4 +34,4 @@ class InfraProviderMetadata:
     capabilities: frozenset[str] = field(
         default_factory=lambda: frozenset()
     )
-    last_error: Optional[str] = None
+    last_error: str | None = None

@@ -3,14 +3,19 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from .base import BaseProvider
 
 _REGISTRY: dict[str, type["BaseProvider"]] = {}
 
 
-def register(key: str):
+def register(
+    key: str,
+) -> Callable[[type[BaseProvider]], type[BaseProvider]]:
     """Class decorator that registers a provider under *key*."""
-    def decorator(cls: type["BaseProvider"]):
+
+    def decorator(cls: type[BaseProvider]) -> type[BaseProvider]:
         _REGISTRY[key] = cls
         return cls
     return decorator

@@ -52,16 +52,16 @@ def test_no_use_cases_import(module: str) -> None:
 
 
 def test_mag_adapter_implements_all_capability_interfaces() -> None:
-    from samotech_iptv.infrastructure.providers.mag_adapter import MagProviderAdapter
     from samotech_iptv.application.ports.provider_capabilities import (
         AuthenticationProvider,
+        CapabilityProvider,
         CatalogProvider,
         EPGProvider,
-        SearchProvider,
         PlaybackProvider,
+        SearchProvider,
         SessionProvider,
-        CapabilityProvider,
     )
+    from samotech_iptv.infrastructure.providers.mag_adapter import MagProviderAdapter
     for iface in (
         AuthenticationProvider, CatalogProvider, EPGProvider,
         SearchProvider, PlaybackProvider, SessionProvider, CapabilityProvider,
@@ -101,8 +101,8 @@ def test_factory_does_not_auto_register() -> None:
 
 
 def test_register_with_factory_idempotent() -> None:
-    from samotech_iptv.infrastructure.providers.provider_factory import ProviderFactory
     from samotech_iptv.infrastructure.providers.mag_adapter import register_with_factory
+    from samotech_iptv.infrastructure.providers.provider_factory import ProviderFactory
     factory = ProviderFactory()
     register_with_factory(factory)
     register_with_factory(factory)  # second call must not raise

@@ -7,18 +7,18 @@ All public names re-exported from the new ``ports/`` package.
     or from ``samotech_iptv.application.ports`` (the package).
 """
 from samotech_iptv.application.ports import (  # noqa: F401
-    ProviderPort,
-    PlayerPort,
-    StoragePort,
-    CredentialStorePort,
-    NotificationPort,
     AuthenticationProvider,
-    CatalogProvider,
-    EPGProvider,
-    SearchProvider,
-    PlaybackProvider,
-    SessionProvider,
     CapabilityProvider,
+    CatalogProvider,
+    CredentialStorePort,
+    EPGProvider,
+    NotificationPort,
+    PlaybackProvider,
+    PlayerPort,
+    ProviderPort,
+    SearchProvider,
+    SessionProvider,
+    StoragePort,
 )
 
 __all__ = [

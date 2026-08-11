@@ -2,10 +2,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 from samotech_iptv.core.exceptions import ValidationError
-from samotech_iptv.domain.value_objects.channel_id import ChannelId
-from samotech_iptv.domain.value_objects.provider_id import ProviderId
+
+if TYPE_CHECKING:
+    from samotech_iptv.domain.value_objects.channel_id import ChannelId
+    from samotech_iptv.domain.value_objects.provider_id import ProviderId
 
 __all__ = ["Playlist"]
 

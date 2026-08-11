@@ -2,11 +2,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
-from typing import Optional
+from typing import TYPE_CHECKING
 
 from samotech_iptv.core.exceptions import ValidationError
-from samotech_iptv.domain.value_objects.channel_id import ChannelId
+
+if TYPE_CHECKING:
+    from datetime import datetime
+
+    from samotech_iptv.domain.value_objects.channel_id import ChannelId
 
 __all__ = ["EPGEntry"]
 
@@ -20,8 +23,8 @@ class EPGEntry:
     title: str
     start: datetime
     end: datetime
-    description: Optional[str] = None
-    category: Optional[str] = None
+    description: str | None = None
+    category: str | None = None
 
     def __post_init__(self) -> None:
         if self.end <= self.start:

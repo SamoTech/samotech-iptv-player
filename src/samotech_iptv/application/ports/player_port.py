@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
 
-from samotech_iptv.domain.value_objects.url import URL
+if TYPE_CHECKING:
+    from samotech_iptv.domain.value_objects.url import URL
 
 __all__ = ["PlayerPort"]
 

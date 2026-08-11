@@ -2,10 +2,11 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import TYPE_CHECKING
 
-from samotech_iptv.domain.value_objects.credential import Credential
-from samotech_iptv.domain.value_objects.provider_id import ProviderId
+if TYPE_CHECKING:
+    from samotech_iptv.domain.value_objects.credential import Credential
+    from samotech_iptv.domain.value_objects.provider_id import ProviderId
 
 __all__ = ["CredentialStorePort"]
 
@@ -17,7 +18,7 @@ class CredentialStorePort(ABC):
     async def store(self, provider_id: ProviderId, credential: Credential) -> None: ...
 
     @abstractmethod
-    async def retrieve(self, provider_id: ProviderId) -> Optional[Credential]: ...
+    async def retrieve(self, provider_id: ProviderId) -> Credential | None: ...
 
     @abstractmethod
     async def delete(self, provider_id: ProviderId) -> bool: ...

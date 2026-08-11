@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
-from typing import Any
+from typing import TYPE_CHECKING, cast
 
 import pytest
 
@@ -16,7 +16,6 @@ from samotech_iptv.application.use_cases.authenticate_provider import Authentica
 from samotech_iptv.application.use_cases.load_channels import LoadChannels
 from samotech_iptv.application.use_cases.load_epg import LoadEPG
 from samotech_iptv.application.use_cases.resolve_stream import ResolveStream
-from samotech_iptv.domain.value_objects.credential import Credential
 from samotech_iptv.domain.value_objects.provider_id import ProviderId
 from samotech_iptv.infrastructure.configuration.configuration_provider import ConfigurationProvider
 from samotech_iptv.infrastructure.providers.mag_adapter import register_with_factory
@@ -24,6 +23,14 @@ from samotech_iptv.infrastructure.providers.provider_context import ProviderCont
 from samotech_iptv.infrastructure.providers.provider_factory import ProviderFactory
 from samotech_iptv.infrastructure.providers.provider_metadata import InfraProviderMetadata
 from samotech_iptv.infrastructure.providers.provider_registry import ProviderRegistry
+
+if TYPE_CHECKING:
+    from samotech_iptv.application.ports.provider_port import ProviderPort
+    from samotech_iptv.domain.value_objects.credential import Credential
+
+_AUTH_VALUE = "test-auth-value"
+_SESSION_VALUE = "initial-session-value"
+_REFRESHED_VALUE = "refreshed-session-value"
 
 
 class InMemoryCredentialStore:
@@ -57,15 +64,15 @@ class ScenarioMagProvider:
 
             raise AuthError("test subscription rejected")
         self.connected = True
-        self._session.token = "test-session-token"
+        self._session.token = _SESSION_VALUE
 
     async def close(self) -> None:
         self.connected = False
 
     async def refresh_token(self) -> None:
-        self._session.token = "refreshed-test-session-token"
+        self._session.token = _REFRESHED_VALUE
 
-    async def get_channels(self) -> list[dict[str, Any]]:
+    async def get_channels(self) -> list[dict[str, object]]:
         return [
             {
                 "id": 7,
@@ -78,7 +85,7 @@ class ScenarioMagProvider:
 
     async def get_epg(
         self, channel_ids: list[int] | None = None, period: int = 3
-    ) -> dict[int, list[dict[str, Any]]]:
+    ) -> dict[int, list[dict[str, object]]]:
         self.received_epg_ids = channel_ids
         return {
             7: [
@@ -96,7 +103,7 @@ class ScenarioMagProvider:
 
 
 @pytest.fixture
-def provider_path() -> tuple[object, ScenarioMagProvider, InMemoryCredentialStore]:
+def provider_path() -> tuple[ProviderPort, ScenarioMagProvider, InMemoryCredentialStore]:
     registry = ProviderRegistry()
     metadata = InfraProviderMetadata(
         provider_id="mag-integration",
@@ -110,27 +117,34 @@ def provider_path() -> tuple[object, ScenarioMagProvider, InMemoryCredentialStor
     factory = ProviderFactory()
     register_with_factory(factory)
     legacy = ScenarioMagProvider()
-    adapter = factory.create(registry.get(metadata.provider_id), context=context, legacy_provider=legacy)
+    adapter = cast(
+        "ProviderPort",
+        factory.create(
+            registry.get(metadata.provider_id), context=context, legacy_provider=legacy
+        ),
+    )
     return adapter, legacy, InMemoryCredentialStore()
 
 
 @pytest.mark.asyncio
 async def test_factory_to_use_case_path_translates_mag_to_application_dtos(
-    provider_path: tuple[object, ScenarioMagProvider, InMemoryCredentialStore],
+    provider_path: tuple[ProviderPort, ScenarioMagProvider, InMemoryCredentialStore],
 ) -> None:
     adapter, legacy, credential_store = provider_path
     auth = await AuthenticateProvider(adapter, credential_store).execute(
         AuthenticateRequest(
             provider_id="mag-integration",
             username="00:11:22:33:44:55",
-            password="test-only-secret",
+            password=_AUTH_VALUE,
         )
     )
     assert auth.success is True
     assert legacy.connected is True
     assert (await credential_store.retrieve(ProviderId("mag-integration"))) is not None
 
-    channels = await LoadChannels(adapter).execute(LoadChannelsRequest(provider_id="mag-integration"))
+    channels = await LoadChannels(adapter).execute(
+        LoadChannelsRequest(provider_id="mag-integration")
+    )
     assert channels.error is None
     assert channels.total == 1
     assert channels.channels[0].provider_id == "mag-integration"
@@ -156,12 +170,17 @@ async def test_authentication_failure_stays_at_application_boundary() -> None:
     context = ProviderContext.build()
     factory = ProviderFactory()
     register_with_factory(factory)
-    adapter = factory.create(metadata, context=context, legacy_provider=ScenarioMagProvider(True))
+    adapter = cast(
+        "ProviderPort",
+        factory.create(
+            metadata, context=context, legacy_provider=ScenarioMagProvider(True)
+        ),
+    )
     response = await AuthenticateProvider(adapter, InMemoryCredentialStore()).execute(
         AuthenticateRequest(
             provider_id="mag-failing",
             username="00:11:22:33:44:55",
-            password="test-only-secret",
+            password=_AUTH_VALUE,
         )
     )
     assert response.success is False
@@ -170,11 +189,13 @@ async def test_authentication_failure_stays_at_application_boundary() -> None:
 
 @pytest.mark.asyncio
 async def test_invalid_application_credential_returns_a_failed_auth_response(
-    provider_path: tuple[object, ScenarioMagProvider, InMemoryCredentialStore],
+    provider_path: tuple[ProviderPort, ScenarioMagProvider, InMemoryCredentialStore],
 ) -> None:
     adapter, _, credential_store = provider_path
     response = await AuthenticateProvider(adapter, credential_store).execute(
-        AuthenticateRequest(provider_id="mag-integration", username="", password="test-only-secret")
+        AuthenticateRequest(
+            provider_id="mag-integration", username="", password=_AUTH_VALUE
+        )
     )
     assert response.success is False
     assert response.error is not None

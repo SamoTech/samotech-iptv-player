@@ -4,6 +4,7 @@ Stream URL resolution for the MAG provider.
 from __future__ import annotations
 
 import logging
+from collections.abc import Mapping
 from urllib.parse import urlparse
 
 from .constants import ENDPOINT_CREATE_LINK, ENDPOINT_VOD_LINK
@@ -30,7 +31,11 @@ class MAGStream:
         }
         data = await self._conn.get(endpoint, params=params, headers=self._sess.get_headers())
 
-        cmd = (data.get("js") or {}).get("cmd", "")
+        envelope = data if isinstance(data, Mapping) else {}
+        raw_js = envelope.get("js", {})
+        js = raw_js if isinstance(raw_js, Mapping) else {}
+        raw_cmd = js.get("cmd", "")
+        cmd = raw_cmd if isinstance(raw_cmd, str) else ""
         if not cmd:
             raise StreamError(
                 f"Portal returned no stream command for stream_id={stream_id}. "

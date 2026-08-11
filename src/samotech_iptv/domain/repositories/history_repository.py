@@ -2,9 +2,12 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Sequence
+from typing import TYPE_CHECKING
 
-from samotech_iptv.domain.entities.history import History
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from samotech_iptv.domain.entities.history import History
 
 __all__ = ["HistoryRepository"]
 

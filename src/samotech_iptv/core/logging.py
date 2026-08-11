@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import logging
 import sys
-from typing import Optional
 
 __all__ = ["get_logger", "configure_logging"]
 
@@ -27,7 +26,7 @@ def configure_logging(level: str = "INFO", *, stream: bool = True) -> None:
         root.addHandler(handler)
 
 
-def get_logger(name: Optional[str] = None) -> logging.Logger:
+def get_logger(name: str | None = None) -> logging.Logger:
     """Return a named logger under the ``samotech_iptv`` hierarchy."""
     qualified = f"samotech_iptv.{name}" if name else "samotech_iptv"
     return logging.getLogger(qualified)

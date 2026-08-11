@@ -6,8 +6,7 @@ from typing import Any
 
 import pytest
 
-from samotech_iptv.infrastructure.providers.provider_factory import ProviderFactory
-from samotech_iptv.core.exceptions import AuthenticationError, ProviderError, ValidationError
+from samotech_iptv.core.exceptions import AuthenticationError, ValidationError
 from samotech_iptv.domain.value_objects.channel_id import ChannelId
 from samotech_iptv.domain.value_objects.credential import Credential
 from samotech_iptv.infrastructure.providers.mag_adapter import (
@@ -17,7 +16,12 @@ from samotech_iptv.infrastructure.providers.mag_adapter import (
 from samotech_iptv.infrastructure.providers.mag_credential import MagCredential
 from samotech_iptv.infrastructure.providers.mag_domain_translator import MagDomainTranslator
 from samotech_iptv.infrastructure.providers.provider_context import ProviderContext
+from samotech_iptv.infrastructure.providers.provider_factory import ProviderFactory
 from samotech_iptv.infrastructure.providers.provider_metadata import InfraProviderMetadata
+
+_AUTH_VALUE = "test-auth-value"
+_SESSION_VALUE = "initial-session-value"
+_REFRESHED_VALUE = "refreshed-session-value"
 
 
 class FakeMagProvider:
@@ -54,14 +58,14 @@ class FakeMagProvider:
 
     async def connect(self) -> None:
         self.connect_calls += 1
-        self._session.token = "session-token-for-test-only"
+        self._session.token = _SESSION_VALUE
 
     async def close(self) -> None:
         self.close_calls += 1
 
     async def refresh_token(self) -> None:
         self.refresh_calls += 1
-        self._session.token = "refreshed-session-token-for-test-only"
+        self._session.token = _REFRESHED_VALUE
 
     async def get_channels(self) -> list[dict[str, Any]]:
         return self.channels
@@ -107,7 +111,7 @@ def adapter(
 
 @pytest.fixture
 def credential() -> Credential:
-    return Credential(username="00:11:22:33:44:55", _password="test-only-secret")
+    return Credential(username="00:11:22:33:44:55", _password=_AUTH_VALUE)
 
 
 class TestAuthentication:
@@ -130,7 +134,7 @@ class TestAuthentication:
         metadata: InfraProviderMetadata,
     ) -> None:
         await adapter.authenticate(credential)
-        assert adapter._session_token == "session-token-for-test-only"
+        assert adapter._session_token == _SESSION_VALUE
         assert not hasattr(metadata, "auth_token")
 
     @pytest.mark.asyncio
@@ -227,7 +231,7 @@ class TestSessionLifecycle:
         await adapter.authenticate(credential)
         assert await adapter.refresh_session() is True
         assert legacy.refresh_calls == 1
-        assert adapter._session_token == "refreshed-session-token-for-test-only"
+        assert adapter._session_token == _REFRESHED_VALUE
         await adapter.close_session()
         assert legacy.close_calls == 1
         assert adapter.is_authenticated is False
@@ -235,7 +239,9 @@ class TestSessionLifecycle:
 
 
 class TestDomainTranslation:
-    def test_channel_translation_requires_canonical_domain_fields(self, adapter: MagProviderAdapter) -> None:
+    def test_channel_translation_requires_canonical_domain_fields(
+        self, adapter: MagProviderAdapter
+    ) -> None:
         channel = MagDomainTranslator.channel(
             {"id": 42, "name": "Sky News", "number": "100"}, adapter.provider_id
         )

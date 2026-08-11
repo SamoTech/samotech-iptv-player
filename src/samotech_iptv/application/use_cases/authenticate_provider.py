@@ -1,10 +1,14 @@
 """AuthenticateProvider use-case."""
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from samotech_iptv.application.dtos import AuthenticateRequest, AuthenticateResponse
-from samotech_iptv.application.ports import CredentialStorePort, ProviderPort
 from samotech_iptv.core.logging import get_logger
 from samotech_iptv.domain.value_objects import Credential
+
+if TYPE_CHECKING:
+    from samotech_iptv.application.ports import CredentialStorePort, ProviderPort
 
 _log = get_logger("use_cases.authenticate_provider")
 

@@ -2,10 +2,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import TYPE_CHECKING
 
 from samotech_iptv.core.exceptions import ValidationError
-from samotech_iptv.domain.value_objects.provider_id import ProviderId
+
+if TYPE_CHECKING:
+    from samotech_iptv.domain.value_objects.provider_id import ProviderId
 
 __all__ = ["Category"]
 
@@ -17,7 +19,7 @@ class Category:
     id: str
     name: str
     provider_id: ProviderId
-    parent_id: Optional[str] = None
+    parent_id: str | None = None
 
     def __post_init__(self) -> None:
         if not self.name.strip():

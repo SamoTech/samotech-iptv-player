@@ -44,3 +44,7 @@ src = ["src", "tests"]
 [tool.mypy]
 mypy_path = "src"
 packages = ["samotech_iptv"]
+
+[[tool.mypy.overrides]]
+module = ["keyring", "keyring.*"]
+ignore_missing_imports = true

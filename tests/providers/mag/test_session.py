@@ -1,40 +1,47 @@
 """Unit tests for MAGSession authentication logic."""
+from unittest.mock import AsyncMock
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock
-
-from providers.mag.session import MAGSession
-from providers.mag.credentials import MAGCredentials
 from providers.base.errors import AuthError
+from providers.mag.credentials import MAGCredentials
+from providers.mag.session import MAGSession
+
+_FIRST_SESSION_VALUE = "initial-session-value"
+_REFRESHED_SESSION_VALUE = "refreshed-session-value"
 
 
-def _make_session(token_in_response=True):
+def _make_session(token_in_response: bool = True) -> tuple[MAGSession, AsyncMock, MAGCredentials]:
     creds = MAGCredentials(portal_url="https://portal.example.com", mac_address="AA:BB:CC:DD:EE:FF")
     conn = AsyncMock()
-    payload = {"js": {"token": "tok123", "token_TTL": 3600}} if token_in_response else {"js": {}}
+    payload = (
+        {"js": {"token": _FIRST_SESSION_VALUE, "token_TTL": 3600}}
+        if token_in_response
+        else {"js": {}}
+    )
     conn.get = AsyncMock(return_value=payload)
     sess = MAGSession(conn, creds)
     return sess, conn, creds
 
 
 @pytest.mark.asyncio
-async def test_authenticate_stores_token():
+async def test_authenticate_stores_token() -> None:
     sess, _, creds = _make_session()
     await sess.authenticate()
-    assert creds.token == "tok123"
+    assert creds.token == _FIRST_SESSION_VALUE
     assert sess.is_authenticated
 
 
 @pytest.mark.asyncio
-async def test_authenticate_raises_on_missing_token():
+async def test_authenticate_raises_on_missing_token() -> None:
     sess, _, _ = _make_session(token_in_response=False)
     with pytest.raises(AuthError):
         await sess.authenticate()
 
 
 @pytest.mark.asyncio
-async def test_refresh_updates_token():
+async def test_refresh_updates_token() -> None:
     sess, conn, creds = _make_session()
     await sess.authenticate()
-    conn.get.return_value = {"js": {"token": "tok456", "token_TTL": 3600}}
+    conn.get.return_value = {"js": {"token": _REFRESHED_SESSION_VALUE, "token_TTL": 3600}}
     await sess.refresh()
-    assert creds.token == "tok456"
+    assert creds.token == _REFRESHED_SESSION_VALUE

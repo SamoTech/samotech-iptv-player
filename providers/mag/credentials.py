@@ -17,7 +17,7 @@ try:
     import keyring as _keyring
     _KEYRING_AVAILABLE = True
 except ImportError:
-    _keyring = None  # type: ignore[assignment]
+    _keyring = None
     _KEYRING_AVAILABLE = False
 
 SERVICE_NAME = "samotech-iptv-player"

@@ -2,10 +2,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import TYPE_CHECKING
 
-from samotech_iptv.application.ports import ProviderPort
 from samotech_iptv.core.logging import get_logger
+
+if TYPE_CHECKING:
+    from samotech_iptv.application.ports import ProviderPort
 
 _log = get_logger("use_cases.refresh_provider")
 
@@ -18,7 +20,7 @@ class RefreshProviderRequest:
 @dataclass(frozen=True)
 class RefreshProviderResponse:
     success: bool
-    error: Optional[str] = None
+    error: str | None = None
 
 
 class RefreshProvider:

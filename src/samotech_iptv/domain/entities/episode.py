@@ -2,10 +2,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import TYPE_CHECKING
 
 from samotech_iptv.core.exceptions import ValidationError
-from samotech_iptv.domain.value_objects.stream_id import StreamId
+
+if TYPE_CHECKING:
+    from samotech_iptv.domain.value_objects.stream_id import StreamId
 
 __all__ = ["Episode"]
 
@@ -20,8 +22,8 @@ class Episode:
     stream_id: StreamId
     season: int
     episode_number: int
-    duration_seconds: Optional[int] = None
-    plot: Optional[str] = None
+    duration_seconds: int | None = None
+    plot: str | None = None
 
     def __post_init__(self) -> None:
         if self.season < 1:

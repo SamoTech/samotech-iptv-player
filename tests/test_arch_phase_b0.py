@@ -16,11 +16,15 @@ from __future__ import annotations
 
 import importlib
 import inspect
-import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 
+if TYPE_CHECKING:
+    from samotech_iptv.domain.entities.channel import Channel
+    from samotech_iptv.domain.entities.epg_entry import EPGEntry
+    from samotech_iptv.domain.value_objects.channel_id import ChannelId
 
 # ── Helper ───────────────────────────────────────────────────────────────────
 
@@ -121,12 +125,12 @@ def test_phase_a_domain_events_import_still_works() -> None:
 
 
 def test_phase_a_application_ports_import_still_works() -> None:
-    from samotech_iptv.application.ports import ProviderPort, PlayerPort
+    from samotech_iptv.application.ports import PlayerPort, ProviderPort
     assert ProviderPort and PlayerPort
 
 
 def test_phase_a_application_dtos_import_still_works() -> None:
-    from samotech_iptv.application.dtos import ChannelDTO, AuthenticateRequest
+    from samotech_iptv.application.dtos import AuthenticateRequest, ChannelDTO
     assert ChannelDTO and AuthenticateRequest
 
 
@@ -150,10 +154,9 @@ def test_capability_interface_is_abstract(iface: str) -> None:
 def test_catalog_provider_independent_of_auth() -> None:
     """A class can implement CatalogProvider without AuthenticationProvider."""
     from samotech_iptv.application.ports.provider_capabilities import CatalogProvider
-    from samotech_iptv.domain.entities.channel import Channel
 
     class MinimalCatalog(CatalogProvider):
-        async def load_channels(self):
+        async def load_channels(self) -> list[Channel]:
             return []
 
     catalog = MinimalCatalog()
@@ -164,7 +167,7 @@ def test_epg_provider_independent_of_auth() -> None:
     from samotech_iptv.application.ports.provider_capabilities import EPGProvider
 
     class MinimalEPG(EPGProvider):
-        async def load_epg(self, channel_id):
+        async def load_epg(self, channel_id: ChannelId) -> list[EPGEntry]:
             return []
 
     epg = MinimalEPG()
@@ -252,7 +255,6 @@ def test_direct_entity_import() -> None:
 
 def test_direct_value_object_import() -> None:
     from samotech_iptv.domain.value_objects.url import URL
-    from samotech_iptv.domain.value_objects.credential import Credential
     u = URL("http://example.com")
     assert str(u) == "http://example.com"
 
@@ -264,7 +266,9 @@ def test_direct_repository_import() -> None:
 
 def test_direct_capability_import() -> None:
     from samotech_iptv.application.ports.provider_capabilities import (
-        AuthenticationProvider, CatalogProvider, EPGProvider,
+        AuthenticationProvider,
+        CatalogProvider,
+        EPGProvider,
     )
     assert all(inspect.isabstract(c) for c in [
         AuthenticationProvider, CatalogProvider, EPGProvider
@@ -273,6 +277,5 @@ def test_direct_capability_import() -> None:
 
 def test_direct_dto_import() -> None:
     from samotech_iptv.application.dtos.channels import ChannelDTO
-    from samotech_iptv.application.dtos.auth import AuthenticateRequest
     dto = ChannelDTO(id="1", name="BBC", provider_id="p", stream_id="s")
     assert dto.name == "BBC"

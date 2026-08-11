@@ -10,10 +10,6 @@ Contains:
 - ``MagDomainTranslator``  — translates MAG dicts to canonical domain objects
 - ``translate_mag_error``  — maps legacy errors to core domain errors
 """
-from samotech_iptv.infrastructure.providers.provider_registry import ProviderRegistry
-from samotech_iptv.infrastructure.providers.provider_factory import ProviderFactory
-from samotech_iptv.infrastructure.providers.provider_metadata import InfraProviderMetadata
-from samotech_iptv.infrastructure.providers.provider_context import ProviderContext
 from samotech_iptv.infrastructure.providers.mag_adapter import (
     MagProviderAdapter,
     register_with_factory,
@@ -21,9 +17,13 @@ from samotech_iptv.infrastructure.providers.mag_adapter import (
 from samotech_iptv.infrastructure.providers.mag_credential import MagCredential
 from samotech_iptv.infrastructure.providers.mag_domain_translator import MagDomainTranslator
 from samotech_iptv.infrastructure.providers.mag_error_translator import (
-    translate_mag_error,
     translate_mag_and_raise,
+    translate_mag_error,
 )
+from samotech_iptv.infrastructure.providers.provider_context import ProviderContext
+from samotech_iptv.infrastructure.providers.provider_factory import ProviderFactory
+from samotech_iptv.infrastructure.providers.provider_metadata import InfraProviderMetadata
+from samotech_iptv.infrastructure.providers.provider_registry import ProviderRegistry
 
 __all__ = [
     "ProviderRegistry",

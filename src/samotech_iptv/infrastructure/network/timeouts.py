@@ -2,6 +2,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import aiohttp
 
 __all__ = ["TimeoutConfig"]
 
@@ -33,7 +37,7 @@ class TimeoutConfig:
                 f"({self.connect + self.read}), got {self.total}"
             )
 
-    def to_aiohttp(self) -> "aiohttp.ClientTimeout":  # type: ignore[name-defined]
+    def to_aiohttp(self) -> aiohttp.ClientTimeout:
         """Convert to ``aiohttp.ClientTimeout``.
 
         Import is deferred to avoid a hard dependency at module level when

@@ -7,11 +7,15 @@ The registry is intentionally thin:
 """
 from __future__ import annotations
 
-from typing import Optional, Sequence
+from typing import TYPE_CHECKING
 
 from samotech_iptv.core.exceptions import NotFoundError
 from samotech_iptv.core.logging import get_logger
-from samotech_iptv.infrastructure.providers.provider_metadata import InfraProviderMetadata
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from samotech_iptv.infrastructure.providers.provider_metadata import InfraProviderMetadata
 
 __all__ = ["ProviderRegistry"]
 
@@ -58,7 +62,7 @@ class ProviderRegistry:
         except KeyError:
             raise NotFoundError("Provider", provider_id) from None
 
-    def find(self, provider_id: str) -> Optional[InfraProviderMetadata]:
+    def find(self, provider_id: str) -> InfraProviderMetadata | None:
         """Return metadata or None (never raises)."""
         return self._providers.get(provider_id)
 

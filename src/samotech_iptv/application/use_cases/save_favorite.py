@@ -2,12 +2,15 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 from samotech_iptv.application.dtos import SaveFavoriteRequest, SaveFavoriteResponse
-from samotech_iptv.domain.entities import Favorite
-from samotech_iptv.domain.repositories import FavoriteRepository
 from samotech_iptv.core.logging import get_logger
+from samotech_iptv.domain.entities import Favorite
+
+if TYPE_CHECKING:
+    from samotech_iptv.domain.repositories import FavoriteRepository
 
 _log = get_logger("use_cases.save_favorite")
 
@@ -24,7 +27,7 @@ class SaveFavorite:
             id=str(uuid.uuid4()),
             item_id=request.item_id,
             item_type=request.item_type,
-            added_at=datetime.now(timezone.utc),
+            added_at=datetime.now(UTC),
         )
         try:
             await self._repo.save(favorite)

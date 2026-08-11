@@ -4,25 +4,25 @@ All aiohttp calls are mocked — no real network access.
 """
 from __future__ import annotations
 
-import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from samotech_iptv.infrastructure.network.retry_policy import RetryPolicy
-from samotech_iptv.infrastructure.network.timeouts import TimeoutConfig
-from samotech_iptv.infrastructure.network.headers import HeadersBuilder
-from samotech_iptv.infrastructure.network.exceptions import (
-    HttpClientError,
-    HttpServerError,
-    HttpTimeoutError,
-    HttpConnectionError,
+from samotech_iptv.core.exceptions import (
+    AuthenticationError,
+    NetworkError,
+    ProviderError,
 )
 from samotech_iptv.infrastructure.error_translation import translate_error
-from samotech_iptv.core.exceptions import (
-    NetworkError, ProviderError, AuthenticationError,
+from samotech_iptv.infrastructure.network.exceptions import (
+    HttpClientError,
+    HttpConnectionError,
+    HttpServerError,
+    HttpTimeoutError,
 )
-
+from samotech_iptv.infrastructure.network.headers import HeadersBuilder
+from samotech_iptv.infrastructure.network.retry_policy import RetryPolicy
+from samotech_iptv.infrastructure.network.timeouts import TimeoutConfig
 
 # ── RetryPolicy ──────────────────────────────────────────────────────────────────
 

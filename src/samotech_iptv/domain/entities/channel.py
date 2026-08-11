@@ -2,13 +2,15 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import TYPE_CHECKING
 
 from samotech_iptv.core.exceptions import ValidationError
-from samotech_iptv.domain.value_objects.channel_id import ChannelId
-from samotech_iptv.domain.value_objects.provider_id import ProviderId
-from samotech_iptv.domain.value_objects.stream_id import StreamId
-from samotech_iptv.domain.value_objects.url import URL
+
+if TYPE_CHECKING:
+    from samotech_iptv.domain.value_objects.channel_id import ChannelId
+    from samotech_iptv.domain.value_objects.provider_id import ProviderId
+    from samotech_iptv.domain.value_objects.stream_id import StreamId
+    from samotech_iptv.domain.value_objects.url import URL
 
 __all__ = ["Channel"]
 
@@ -21,10 +23,10 @@ class Channel:
     name: str
     provider_id: ProviderId
     stream_id: StreamId
-    category_id: Optional[str] = None
-    logo_url: Optional[URL] = None
-    epg_channel_id: Optional[str] = None
-    number: Optional[int] = None
+    category_id: str | None = None
+    logo_url: URL | None = None
+    epg_channel_id: str | None = None
+    number: int | None = None
 
     def __post_init__(self) -> None:
         if not self.name.strip():

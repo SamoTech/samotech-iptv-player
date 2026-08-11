@@ -13,6 +13,8 @@ Translation table::
 """
 from __future__ import annotations
 
+from typing import NoReturn
+
 from samotech_iptv.core.exceptions import (
     AuthenticationError,
     NetworkError,
@@ -41,7 +43,11 @@ def translate_mag_error(exc: Exception) -> SamotechError:
     try:
         from providers.base.errors import (
             AuthError as LegacyAuthError,
+        )
+        from providers.base.errors import (
             NetworkError as LegacyNetworkError,
+        )
+        from providers.base.errors import (
             ProviderError as LegacyProviderError,
         )
     except ImportError:
@@ -65,6 +71,6 @@ def translate_mag_error(exc: Exception) -> SamotechError:
     return ProviderError(f"Unexpected MAG error: {exc}")
 
 
-def translate_mag_and_raise(exc: Exception) -> None:
+def translate_mag_and_raise(exc: Exception) -> NoReturn:
     """Translate and immediately raise.  Convenience for ``except`` blocks."""
     raise translate_mag_error(exc) from exc

@@ -8,10 +8,14 @@ and is never exposed through the application provider ports.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Mapping
+from typing import TYPE_CHECKING
 
 from samotech_iptv.core.exceptions import ValidationError
-from samotech_iptv.domain.value_objects.credential import Credential
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+    from samotech_iptv.domain.value_objects.credential import Credential
 
 __all__ = ["MagCredential"]
 
@@ -44,7 +48,7 @@ class MagCredential:
         credential: Credential,
         portal_url: str,
         device_identity: Mapping[str, str] | None = None,
-    ) -> "MagCredential":
+    ) -> MagCredential:
         """Build MAG credentials from the canonical application credential.
 
         ``device_identity`` is optional provider configuration and contains

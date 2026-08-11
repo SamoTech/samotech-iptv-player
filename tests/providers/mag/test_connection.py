@@ -1,35 +1,34 @@
 """Unit tests for MAGConnection."""
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from providers.mag.connection import MAGConnection, _sanitise_url
-from providers.base.errors import NetworkError
 
 
-def test_sanitise_url_basic():
+def test_sanitise_url_basic() -> None:
     result = _sanitise_url("https://portal.example.com", "/server/load.php")
     assert result == "https://portal.example.com/server/load.php"
 
 
-def test_sanitise_url_rejects_non_http():
+def test_sanitise_url_rejects_non_http() -> None:
     with pytest.raises(ValueError, match="http or https"):
         _sanitise_url("ftp://example.com", "/path")
 
 
 @pytest.mark.asyncio
-async def test_open_creates_session():
+async def test_open_creates_session() -> None:
     conn = MAGConnection("https://example.com")
-    with patch("aiohttp.ClientSession") as MockSession, \
+    with patch("aiohttp.ClientSession") as mock_session, \
          patch("aiohttp.TCPConnector"):
         mock_sess = MagicMock()
         mock_sess.closed = False
-        MockSession.return_value = mock_sess
+        mock_session.return_value = mock_sess
         await conn.open()
         assert conn._session is mock_sess
 
 
 @pytest.mark.asyncio
-async def test_close_calls_session_close():
+async def test_close_calls_session_close() -> None:
     conn = MAGConnection("https://example.com")
     mock_sess = AsyncMock()
     mock_sess.closed = False

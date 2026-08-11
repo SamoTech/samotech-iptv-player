@@ -8,11 +8,14 @@ No MAG, Xtream, or M3U adapters are created here.
 """
 from __future__ import annotations
 
-from typing import Any, Callable, Optional
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from samotech_iptv.core.exceptions import NotFoundError
 from samotech_iptv.core.logging import get_logger
-from samotech_iptv.infrastructure.providers.provider_metadata import InfraProviderMetadata
+
+if TYPE_CHECKING:
+    from samotech_iptv.infrastructure.providers.provider_metadata import InfraProviderMetadata
 
 __all__ = ["ProviderFactory"]
 
@@ -20,7 +23,7 @@ _log = get_logger(__name__)
 
 # Type alias: a callable that takes InfraProviderMetadata + kwargs and returns
 # an object implementing one or more capability interfaces.
-ProviderConstructor = Callable[..., Any]
+ProviderConstructor = Callable[..., object]
 
 
 class ProviderFactory:
@@ -49,7 +52,7 @@ class ProviderFactory:
 
         Args:
             type_name:   Lowercase discriminator (e.g. ``"mag"``).
-            constructor: Callable ``(metadata: InfraProviderMetadata, **kwargs) -> Any``.
+            constructor: Callable ``(metadata: InfraProviderMetadata, **kwargs) -> object``.
         """
         self._constructors[type_name] = constructor
         _log.info("ProviderFactory registered type=%s", type_name)
@@ -57,8 +60,8 @@ class ProviderFactory:
     def create(
         self,
         metadata: InfraProviderMetadata,
-        **kwargs: Any,
-    ) -> Any:
+        **kwargs: object,
+    ) -> object:
         """Instantiate a provider from its metadata.
 
         Args:

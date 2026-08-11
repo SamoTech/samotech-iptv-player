@@ -2,7 +2,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Optional, Sequence
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 __all__ = ["EPGEntryDTO", "LoadEPGRequest", "LoadEPGResponse"]
 
@@ -14,7 +17,7 @@ class EPGEntryDTO:
     title: str
     start: str  # ISO-8601
     end: str    # ISO-8601
-    description: Optional[str] = None
+    description: str | None = None
 
 
 @dataclass(frozen=True)
@@ -26,4 +29,4 @@ class LoadEPGRequest:
 @dataclass(frozen=True)
 class LoadEPGResponse:
     entries: Sequence[EPGEntryDTO] = field(default_factory=list)
-    error: Optional[str] = None
+    error: str | None = None

@@ -7,8 +7,7 @@ objects and entities.
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Awaitable, Callable, Mapping, Sequence
-from typing import Any, Protocol, TypeVar, cast
+from typing import TYPE_CHECKING, Protocol, TypeVar, cast
 
 from samotech_iptv.application.ports.provider_capabilities import (
     AuthenticationProvider,
@@ -22,17 +21,22 @@ from samotech_iptv.application.ports.provider_capabilities import (
 from samotech_iptv.application.ports.provider_port import ProviderPort
 from samotech_iptv.core.exceptions import ProviderError, ValidationError
 from samotech_iptv.core.logging import get_logger
-from samotech_iptv.domain.entities.channel import Channel
-from samotech_iptv.domain.entities.epg_entry import EPGEntry
-from samotech_iptv.domain.value_objects.channel_id import ChannelId
-from samotech_iptv.domain.value_objects.credential import Credential
 from samotech_iptv.domain.value_objects.provider_id import ProviderId
-from samotech_iptv.domain.value_objects.url import URL
 from samotech_iptv.infrastructure.providers.mag_credential import MagCredential
 from samotech_iptv.infrastructure.providers.mag_domain_translator import MagDomainTranslator
 from samotech_iptv.infrastructure.providers.mag_error_translator import translate_mag_and_raise
-from samotech_iptv.infrastructure.providers.provider_context import ProviderContext
-from samotech_iptv.infrastructure.providers.provider_metadata import InfraProviderMetadata
+
+if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable, Mapping, Sequence
+
+    from samotech_iptv.domain.entities.channel import Channel
+    from samotech_iptv.domain.entities.epg_entry import EPGEntry
+    from samotech_iptv.domain.value_objects.channel_id import ChannelId
+    from samotech_iptv.domain.value_objects.credential import Credential
+    from samotech_iptv.domain.value_objects.url import URL
+    from samotech_iptv.infrastructure.providers.provider_context import ProviderContext
+    from samotech_iptv.infrastructure.providers.provider_factory import ProviderFactory
+    from samotech_iptv.infrastructure.providers.provider_metadata import InfraProviderMetadata
 
 __all__ = ["MagProviderAdapter", "register_with_factory"]
 
@@ -49,11 +53,11 @@ class _LegacyMagProvider(Protocol):
 
     async def refresh_token(self) -> None: ...
 
-    async def get_channels(self) -> list[dict[str, Any]]: ...
+    async def get_channels(self) -> list[dict[str, object]]: ...
 
     async def get_epg(
         self, channel_ids: list[int] | None = None, period: int = 3
-    ) -> dict[int, list[dict[str, Any]]]: ...
+    ) -> dict[int | str, list[dict[str, object]]]: ...
 
     async def get_stream_url(self, stream_id: int, stream_type: str = "live") -> str: ...
 
@@ -214,7 +218,7 @@ class MagProviderAdapter(
             timeout_s=network.connect_timeout + network.read_timeout,
             max_retries=network.max_retries,
         )
-        self._legacy = cast(_LegacyMagProvider, MAGProvider(config=legacy_config))
+        self._legacy = cast("_LegacyMagProvider", MAGProvider(config=legacy_config))
         return self._legacy
 
     async def _call(self, operation: Callable[[_LegacyMagProvider], Awaitable[_T]]) -> _T:
@@ -235,12 +239,9 @@ class MagProviderAdapter(
 
     @staticmethod
     def _epg_records_for_channel(
-        raw: Mapping[int, list[dict[str, Any]]], channel_id: int
-    ) -> list[dict[str, Any]]:
-        records = raw.get(channel_id)
-        if records is None:
-            records = raw.get(str(channel_id), [])  # type: ignore[arg-type]
-        return records
+        raw: Mapping[int | str, list[dict[str, object]]], channel_id: int
+    ) -> list[dict[str, object]]:
+        return raw.get(channel_id) or raw.get(str(channel_id), [])
 
     @staticmethod
     def _read_session_token(provider: _LegacyMagProvider) -> str | None:
@@ -262,7 +263,7 @@ def _build_mag_adapter(
     )
 
 
-def register_with_factory(factory: Any) -> None:
+def register_with_factory(factory: ProviderFactory) -> None:
     """Register MAG adapter construction with an application-owned factory."""
     factory.register_type("mag", _build_mag_adapter)
     _LOG.info("MAG provider adapter registered with ProviderFactory")

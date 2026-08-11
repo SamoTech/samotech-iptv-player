@@ -8,9 +8,11 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from samotech_iptv.core.exceptions import StorageError
 from samotech_iptv.domain.value_objects.credential import Credential
 from samotech_iptv.domain.value_objects.provider_id import ProviderId
-from samotech_iptv.core.exceptions import StorageError
+
+_AUTH_VALUE = "test-auth-value"
 
 
 @pytest.fixture
@@ -20,7 +22,7 @@ def provider_id() -> ProviderId:
 
 @pytest.fixture
 def credential() -> Credential:
-    return Credential(username="user1", _password="s3cr3t")
+    return Credential(username="user1", _password=_AUTH_VALUE)
 
 
 class TestKeyringCredentialStore:
@@ -40,7 +42,7 @@ class TestKeyringCredentialStore:
             mock_keyring.set_password.assert_called_once_with(
                 "samotech_iptv:test-provider",
                 "user1",
-                "s3cr3t",
+                _AUTH_VALUE,
             )
 
     @pytest.mark.asyncio
@@ -50,12 +52,12 @@ class TestKeyringCredentialStore:
         mock_keyring = MagicMock()
         mock_entry = MagicMock()
         mock_entry.username = "user1"
-        mock_entry.password = "s3cr3t"
+        mock_entry.password = _AUTH_VALUE
         mock_keyring.get_credential.return_value = mock_entry
 
         with patch.dict("sys.modules", {"keyring": mock_keyring}):
-            from importlib import import_module
             import sys
+            from importlib import import_module
             # Force reimport with mocked keyring
             sys.modules.pop(
                 "samotech_iptv.infrastructure.security.keyring_credential_store", None
@@ -67,7 +69,7 @@ class TestKeyringCredentialStore:
             result = await store.retrieve(provider_id)
             assert result is not None
             assert result.username == "user1"
-            assert result.password == "s3cr3t"
+            assert result.password == _AUTH_VALUE
 
     @pytest.mark.asyncio
     async def test_retrieve_returns_none_when_not_found(

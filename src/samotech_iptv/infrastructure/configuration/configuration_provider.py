@@ -7,11 +7,14 @@ Core and domain code never read process environment variables directly.
 from __future__ import annotations
 
 import os
-from collections.abc import Mapping
+from typing import TYPE_CHECKING
 
 from samotech_iptv.core.config import AppConfig, NetworkConfig, PlayerConfig
 from samotech_iptv.core.exceptions import ConfigurationError
 from samotech_iptv.core.logging import get_logger
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 __all__ = ["ConfigurationProvider"]
 
@@ -41,7 +44,11 @@ class ConfigurationProvider:
             network=self.network_config(),
             player=self.player_config(),
         )
-        _LOG.debug("Application configuration resolved: debug=%s log_level=%s", config.debug, config.log_level)
+        _LOG.debug(
+            "Application configuration resolved: debug=%s log_level=%s",
+            config.debug,
+            config.log_level,
+        )
         return config
 
     def network_config(self) -> NetworkConfig:

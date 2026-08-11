@@ -21,14 +21,12 @@ from samotech_iptv.core.exceptions import (
     AuthenticationError,
     NetworkError,
     ProviderError,
-    StorageError,
     SamotechError,
 )
 from samotech_iptv.core.logging import get_logger
 from samotech_iptv.infrastructure.network.exceptions import (
     HttpClientError,
     HttpConnectionError,
-    HttpError,
     HttpServerError,
     HttpTimeoutError,
 )

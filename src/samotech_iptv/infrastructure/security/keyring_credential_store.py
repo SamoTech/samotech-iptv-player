@@ -8,13 +8,15 @@ delegates to the platform-native secret store:
 """
 from __future__ import annotations
 
-from typing import Optional
+from typing import TYPE_CHECKING
 
 from samotech_iptv.application.ports.credential_store_port import CredentialStorePort
-from samotech_iptv.core.exceptions import AuthenticationError, StorageError
+from samotech_iptv.core.exceptions import StorageError
 from samotech_iptv.core.logging import get_logger
 from samotech_iptv.domain.value_objects.credential import Credential
-from samotech_iptv.domain.value_objects.provider_id import ProviderId
+
+if TYPE_CHECKING:
+    from samotech_iptv.domain.value_objects.provider_id import ProviderId
 
 __all__ = ["KeyringCredentialStore"]
 
@@ -53,7 +55,7 @@ class KeyringCredentialStore(CredentialStorePort):
 
     async def retrieve(
         self, provider_id: ProviderId
-    ) -> Optional[Credential]:
+    ) -> Credential | None:
         """Retrieve credentials from the OS keyring, or None if not found."""
         try:
             import keyring  # noqa: PLC0415

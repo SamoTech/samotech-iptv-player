@@ -7,12 +7,12 @@ All public names re-exported from the new ``events/`` package.
     or from ``samotech_iptv.domain.events`` (the package).
 """
 from samotech_iptv.domain.events import (  # noqa: F401
-    ProviderAuthenticatedEvent,
-    ProviderRefreshFailedEvent,
     ChannelsLoadedEvent,
-    StreamResolvedEvent,
     FavoriteSavedEvent,
     HistoryRecordedEvent,
+    ProviderAuthenticatedEvent,
+    ProviderRefreshFailedEvent,
+    StreamResolvedEvent,
 )
 
 __all__ = [

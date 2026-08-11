@@ -8,7 +8,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from typing import Optional
+from collections.abc import Mapping
 
 from .constants import (
     DEFAULT_TOKEN_TTL_S,
@@ -29,7 +29,7 @@ class MAGSession:
         self._conn = connection
         self._creds = credentials
         self._token_expires_at: float = 0.0
-        self._refresh_task: Optional[asyncio.Task] = None
+        self._refresh_task: asyncio.Task[None] | None = None
 
     @property
     def token(self) -> str:
@@ -107,8 +107,9 @@ class MAGSession:
             headers["X-Device-ID2"] = self._creds.device_id2
         return {k: v for k, v in headers.items() if v}
 
-    def _store_token(self, payload: dict) -> None:
-        js = payload.get("js", {})
+    def _store_token(self, payload: Mapping[str, object]) -> None:
+        raw_js = payload.get("js", {})
+        js = raw_js if isinstance(raw_js, Mapping) else {}
         token = js.get("token") or payload.get("token")
         if not token:
             raise AuthError(

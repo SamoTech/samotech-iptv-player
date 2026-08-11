@@ -13,11 +13,11 @@ from __future__ import annotations
 
 import inspect
 import sys
-from dataclasses import fields
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
+_AUTH_VALUE = "test-auth-value"
 
 # ── Layer importability ───────────────────────────────────────────────────────
 
@@ -44,7 +44,7 @@ def test_presentation_importable() -> None:
 # ── Core ─────────────────────────────────────────────────────────────────────
 
 def test_core_result_ok() -> None:
-    from samotech_iptv.core.result import Ok, Err, Result
+    from samotech_iptv.core.result import Ok, Result
     r: Result[int, str] = Ok(42)
     assert r.is_ok()
     assert r.unwrap() == 42
@@ -62,8 +62,11 @@ def test_core_result_err() -> None:
 
 def test_core_exceptions_hierarchy() -> None:
     from samotech_iptv.core.exceptions import (
-        SamotechError, ValidationError, NotFoundError,
-        AuthenticationError, ProviderError,
+        AuthenticationError,
+        NotFoundError,
+        ProviderError,
+        SamotechError,
+        ValidationError,
     )
     assert issubclass(ValidationError, SamotechError)
     assert issubclass(NotFoundError, SamotechError)
@@ -93,9 +96,9 @@ def test_channel_entity_creation() -> None:
 
 
 def test_channel_blank_name_raises() -> None:
+    from samotech_iptv.core.exceptions import ValidationError
     from samotech_iptv.domain.entities import Channel
     from samotech_iptv.domain.value_objects import ChannelId, ProviderId, StreamId
-    from samotech_iptv.core.exceptions import ValidationError
     with pytest.raises(ValidationError):
         Channel(
             id=ChannelId("ch-1"),
@@ -106,10 +109,10 @@ def test_channel_blank_name_raises() -> None:
 
 
 def test_epg_entry_invalid_time_range() -> None:
+    from samotech_iptv.core.exceptions import ValidationError
     from samotech_iptv.domain.entities import EPGEntry
     from samotech_iptv.domain.value_objects import ChannelId
-    from samotech_iptv.core.exceptions import ValidationError
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     with pytest.raises(ValidationError):
         EPGEntry(
             id="epg-1",
@@ -121,9 +124,9 @@ def test_epg_entry_invalid_time_range() -> None:
 
 
 def test_episode_invalid_season() -> None:
+    from samotech_iptv.core.exceptions import ValidationError
     from samotech_iptv.domain.entities import Episode
     from samotech_iptv.domain.value_objects import StreamId
-    from samotech_iptv.core.exceptions import ValidationError
     with pytest.raises(ValidationError):
         Episode(
             id="ep-1", series_id="s-1", title="Pilot",
@@ -140,23 +143,23 @@ def test_url_valid() -> None:
 
 
 def test_url_invalid_raises() -> None:
-    from samotech_iptv.domain.value_objects import URL
     from samotech_iptv.core.exceptions import ValidationError
+    from samotech_iptv.domain.value_objects import URL
     with pytest.raises(ValidationError):
         URL("not-a-url")
 
 
 def test_credential_repr_hides_password() -> None:
     from samotech_iptv.domain.value_objects import Credential
-    c = Credential(username="user", _password="s3cr3t")
-    assert "s3cr3t" not in repr(c)
-    assert "s3cr3t" not in str(c)
-    assert c.password == "s3cr3t"
+    c = Credential(username="user", _password=_AUTH_VALUE)
+    assert _AUTH_VALUE not in repr(c)
+    assert _AUTH_VALUE not in str(c)
+    assert c.password == _AUTH_VALUE
 
 
 def test_provider_id_blank_raises() -> None:
-    from samotech_iptv.domain.value_objects import ProviderId
     from samotech_iptv.core.exceptions import ValidationError
+    from samotech_iptv.domain.value_objects import ProviderId
     with pytest.raises(ValidationError):
         ProviderId("  ")
 
@@ -185,7 +188,6 @@ def test_channel_dto_is_frozen() -> None:
 # ── Dependency graph: domain must NOT import infra/application ────────────────
 
 def test_domain_does_not_import_infrastructure() -> None:
-    import samotech_iptv.domain.entities as mod
     for name, submod in sys.modules.items():
         if "infrastructure" in name and "samotech_iptv" in name:
             # If infrastructure was imported by domain module, that's a violation
