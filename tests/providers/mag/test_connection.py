@@ -1,4 +1,5 @@
 """Unit tests for MAGConnection."""
+
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -18,8 +19,7 @@ def test_sanitise_url_rejects_non_http() -> None:
 @pytest.mark.asyncio
 async def test_open_creates_session() -> None:
     conn = MAGConnection("https://example.com")
-    with patch("aiohttp.ClientSession") as mock_session, \
-         patch("aiohttp.TCPConnector"):
+    with patch("aiohttp.ClientSession") as mock_session, patch("aiohttp.TCPConnector"):
         mock_sess = MagicMock()
         mock_sess.closed = False
         mock_session.return_value = mock_sess

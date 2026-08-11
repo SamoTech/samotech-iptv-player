@@ -1,4 +1,5 @@
 """Timeout configuration for HTTP requests."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -28,7 +29,11 @@ class TimeoutConfig:
     total: float = 60.0
 
     def __post_init__(self) -> None:
-        for field, val in (("connect", self.connect), ("read", self.read), ("total", self.total)):
+        for field, val in (
+            ("connect", self.connect),
+            ("read", self.read),
+            ("total", self.total),
+        ):
             if val <= 0:
                 raise ValueError(f"TimeoutConfig.{field} must be > 0, got {val}")
         if self.total < self.connect + self.read:

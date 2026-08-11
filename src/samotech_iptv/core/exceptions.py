@@ -3,6 +3,7 @@
 All application exceptions inherit from ``SamotechError`` so callers
 can catch the entire family with a single ``except SamotechError``.
 """
+
 from __future__ import annotations
 
 __all__ = [

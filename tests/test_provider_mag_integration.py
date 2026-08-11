@@ -1,4 +1,5 @@
 """Integration coverage for the canonical MAG provider execution path."""
+
 from __future__ import annotations
 
 from types import SimpleNamespace
@@ -12,16 +13,22 @@ from samotech_iptv.application.dtos import (
     LoadEPGRequest,
     ResolveStreamRequest,
 )
-from samotech_iptv.application.use_cases.authenticate_provider import AuthenticateProvider
+from samotech_iptv.application.use_cases.authenticate_provider import (
+    AuthenticateProvider,
+)
 from samotech_iptv.application.use_cases.load_channels import LoadChannels
 from samotech_iptv.application.use_cases.load_epg import LoadEPG
 from samotech_iptv.application.use_cases.resolve_stream import ResolveStream
 from samotech_iptv.domain.value_objects.provider_id import ProviderId
-from samotech_iptv.infrastructure.configuration.configuration_provider import ConfigurationProvider
+from samotech_iptv.infrastructure.configuration.configuration_provider import (
+    ConfigurationProvider,
+)
 from samotech_iptv.infrastructure.providers.mag_adapter import register_with_factory
 from samotech_iptv.infrastructure.providers.provider_context import ProviderContext
 from samotech_iptv.infrastructure.providers.provider_factory import ProviderFactory
-from samotech_iptv.infrastructure.providers.provider_metadata import InfraProviderMetadata
+from samotech_iptv.infrastructure.providers.provider_metadata import (
+    InfraProviderMetadata,
+)
 from samotech_iptv.infrastructure.providers.provider_registry import ProviderRegistry
 
 if TYPE_CHECKING:
@@ -119,9 +126,7 @@ def provider_path() -> tuple[ProviderPort, ScenarioMagProvider, InMemoryCredenti
     legacy = ScenarioMagProvider()
     adapter = cast(
         "ProviderPort",
-        factory.create(
-            registry.get(metadata.provider_id), context=context, legacy_provider=legacy
-        ),
+        factory.create(registry.get(metadata.provider_id), context=context, legacy_provider=legacy),
     )
     return adapter, legacy, InMemoryCredentialStore()
 
@@ -165,16 +170,16 @@ async def test_factory_to_use_case_path_translates_mag_to_application_dtos(
 @pytest.mark.asyncio
 async def test_authentication_failure_stays_at_application_boundary() -> None:
     metadata = InfraProviderMetadata(
-        provider_id="mag-failing", provider_type="mag", base_url="https://portal.example.test"
+        provider_id="mag-failing",
+        provider_type="mag",
+        base_url="https://portal.example.test",
     )
     context = ProviderContext.build()
     factory = ProviderFactory()
     register_with_factory(factory)
     adapter = cast(
         "ProviderPort",
-        factory.create(
-            metadata, context=context, legacy_provider=ScenarioMagProvider(True)
-        ),
+        factory.create(metadata, context=context, legacy_provider=ScenarioMagProvider(True)),
     )
     response = await AuthenticateProvider(adapter, InMemoryCredentialStore()).execute(
         AuthenticateRequest(
@@ -193,9 +198,7 @@ async def test_invalid_application_credential_returns_a_failed_auth_response(
 ) -> None:
     adapter, _, credential_store = provider_path
     response = await AuthenticateProvider(adapter, credential_store).execute(
-        AuthenticateRequest(
-            provider_id="mag-integration", username="", password=_AUTH_VALUE
-        )
+        AuthenticateRequest(provider_id="mag-integration", username="", password=_AUTH_VALUE)
     )
     assert response.success is False
     assert response.error is not None

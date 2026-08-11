@@ -11,6 +11,7 @@ Usage::
         case Ok(value):  print(f"got {value}")
         case Err(error): print(f"error: {error}")
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass

@@ -8,6 +8,7 @@ Import convention::
 Do NOT import from ``providers.*`` in new code; that namespace is
 kept for backward-compatibility during the migration period only.
 """
+
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _version
 

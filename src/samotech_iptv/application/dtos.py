@@ -6,6 +6,7 @@ All public names re-exported from the new ``dtos/`` package.
     Import directly from ``samotech_iptv.application.dtos.<module>``
     or from ``samotech_iptv.application.dtos`` (the package).
 """
+
 from samotech_iptv.application.dtos import (  # noqa: F401
     AuthenticateRequest,
     AuthenticateResponse,
@@ -32,13 +33,26 @@ from samotech_iptv.application.dtos import (  # noqa: F401
 )
 
 __all__ = [
-    "ProviderMetadata", "ProviderCapabilities",
-    "AuthenticateRequest", "AuthenticateResponse",
-    "ChannelDTO", "LoadChannelsRequest", "LoadChannelsResponse",
-    "CategoryDTO", "LoadCategoriesRequest", "LoadCategoriesResponse",
-    "EPGEntryDTO", "LoadEPGRequest", "LoadEPGResponse",
-    "ResolveStreamRequest", "ResolveStreamResponse",
-    "HistoryItemDTO", "LoadHistoryRequest", "LoadHistoryResponse",
-    "SaveFavoriteRequest", "SaveFavoriteResponse",
-    "SearchChannelsRequest", "SearchChannelsResponse",
+    "ProviderMetadata",
+    "ProviderCapabilities",
+    "AuthenticateRequest",
+    "AuthenticateResponse",
+    "ChannelDTO",
+    "LoadChannelsRequest",
+    "LoadChannelsResponse",
+    "CategoryDTO",
+    "LoadCategoriesRequest",
+    "LoadCategoriesResponse",
+    "EPGEntryDTO",
+    "LoadEPGRequest",
+    "LoadEPGResponse",
+    "ResolveStreamRequest",
+    "ResolveStreamResponse",
+    "HistoryItemDTO",
+    "LoadHistoryRequest",
+    "LoadHistoryResponse",
+    "SaveFavoriteRequest",
+    "SaveFavoriteResponse",
+    "SearchChannelsRequest",
+    "SearchChannelsResponse",
 ]

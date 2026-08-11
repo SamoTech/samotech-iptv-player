@@ -1,4 +1,5 @@
 """EPGRepository — abstract CRUD contract for EPGEntry aggregates."""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod

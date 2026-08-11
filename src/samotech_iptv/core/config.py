@@ -4,6 +4,7 @@ Configuration is composed once by the infrastructure ``ConfigurationProvider``
 and injected into downstream code.  Core models are deliberately free of
 process-environment reads so that they remain deterministic and testable.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field

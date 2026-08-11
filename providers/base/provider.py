@@ -10,10 +10,14 @@ Example
     async with ProviderRegistry.get("mag")(config) as prov:
         channels = await prov.get_channels()
 """
+
 from __future__ import annotations
 
 import abc
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from types import TracebackType
 
 
 class BaseProvider(abc.ABC):
@@ -32,11 +36,16 @@ class BaseProvider(abc.ABC):
     async def close(self) -> None:
         """Release all resources cleanly."""
 
-    async def __aenter__(self) -> "BaseProvider":
+    async def __aenter__(self) -> BaseProvider:
         await self.connect()
         return self
 
-    async def __aexit__(self, *_: Any) -> None:
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
         await self.close()
 
     # ── authentication ───────────────────────────────────────────────────────
@@ -66,7 +75,9 @@ class BaseProvider(abc.ABC):
         """Return VOD movie catalogue, optionally filtered by category."""
 
     @abc.abstractmethod
-    async def get_series(self, page: int = 0, category_id: int | None = None) -> list[dict[str, Any]]:
+    async def get_series(
+        self, page: int = 0, category_id: int | None = None
+    ) -> list[dict[str, Any]]:
         """Return series catalogue, optionally filtered by category."""
 
     # ── EPG ──────────────────────────────────────────────────────────────────

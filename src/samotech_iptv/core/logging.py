@@ -3,6 +3,7 @@
 Wraps stdlib ``logging`` so all layers obtain loggers through a single
 entry-point.  Format and level are controlled by ``AppConfig.log_level``.
 """
+
 from __future__ import annotations
 
 import logging

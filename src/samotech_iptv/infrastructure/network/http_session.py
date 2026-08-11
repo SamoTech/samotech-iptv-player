@@ -3,6 +3,7 @@
 Wraps an ``aiohttp.ClientSession`` and owns its lifecycle.  Provider adapters
 obtain a session from ``AsyncHttpClient`` rather than creating one directly.
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING

@@ -4,6 +4,7 @@ All exceptions in this module are infrastructure-internal.
 Callers should catch ``samotech_iptv.core.exceptions.NetworkError``
 or ``ProviderError`` which are produced by the error translation layer.
 """
+
 from __future__ import annotations
 
 __all__ = [

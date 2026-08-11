@@ -1,4 +1,5 @@
 """CredentialStorePort — secure credential storage contract."""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod

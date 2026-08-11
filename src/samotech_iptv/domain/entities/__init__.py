@@ -8,6 +8,7 @@ Or directly from the sub-module::
 
     from samotech_iptv.domain.entities.channel import Channel
 """
+
 from samotech_iptv.domain.entities.category import Category
 from samotech_iptv.domain.entities.channel import Channel
 from samotech_iptv.domain.entities.epg_entry import EPGEntry

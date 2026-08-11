@@ -1,4 +1,5 @@
 """Playlist entity — ordered collection of channels."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field

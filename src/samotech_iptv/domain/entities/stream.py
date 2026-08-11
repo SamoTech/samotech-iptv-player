@@ -1,4 +1,5 @@
 """Stream entity — a playable media stream URI with metadata."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

@@ -1,16 +1,20 @@
 """
 Stream URL resolution for the MAG provider.
 """
+
 from __future__ import annotations
 
 import logging
 from collections.abc import Mapping
+from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 
-from .constants import ENDPOINT_CREATE_LINK, ENDPOINT_VOD_LINK
-from .connection import MAGConnection
-from .session import MAGSession
 from ..base.errors import StreamError
+from .constants import ENDPOINT_CREATE_LINK, ENDPOINT_VOD_LINK
+
+if TYPE_CHECKING:
+    from .connection import MAGConnection
+    from .session import MAGSession
 
 log = logging.getLogger(__name__)
 

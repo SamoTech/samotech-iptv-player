@@ -5,6 +5,7 @@ MAC address.  That identity is distinct from the short-lived session token
 returned by the portal.  This model is intentionally infrastructure-specific
 and is never exposed through the application provider ports.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass

@@ -8,6 +8,7 @@ Or directly::
 
     from samotech_iptv.domain.repositories.channel_repository import ChannelRepository
 """
+
 from samotech_iptv.domain.repositories.channel_repository import ChannelRepository
 from samotech_iptv.domain.repositories.epg_repository import EPGRepository
 from samotech_iptv.domain.repositories.favorite_repository import FavoriteRepository

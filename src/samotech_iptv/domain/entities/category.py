@@ -1,4 +1,5 @@
 """Category entity — a grouping of channels or VOD content."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

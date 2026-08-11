@@ -6,6 +6,7 @@ All public names re-exported from the new ``repositories/`` package.
     Import directly from ``samotech_iptv.domain.repositories.<module>``
     or from ``samotech_iptv.domain.repositories`` (the package).
 """
+
 from samotech_iptv.domain.repositories import (  # noqa: F401
     ChannelRepository,
     EPGRepository,
@@ -16,6 +17,10 @@ from samotech_iptv.domain.repositories import (  # noqa: F401
 )
 
 __all__ = [
-    "ChannelRepository", "PlaylistRepository", "ProviderRepository",
-    "EPGRepository", "HistoryRepository", "FavoriteRepository",
+    "ChannelRepository",
+    "PlaylistRepository",
+    "ProviderRepository",
+    "EPGRepository",
+    "HistoryRepository",
+    "FavoriteRepository",
 ]

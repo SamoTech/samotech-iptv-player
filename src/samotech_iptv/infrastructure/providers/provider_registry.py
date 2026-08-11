@@ -5,6 +5,7 @@ The registry is intentionally thin:
   - Instantiation is delegated to ``ProviderFactory``.
   - It is in-memory only; persistence comes in Phase B.3 (SQLite).
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -15,7 +16,9 @@ from samotech_iptv.core.logging import get_logger
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from samotech_iptv.infrastructure.providers.provider_metadata import InfraProviderMetadata
+    from samotech_iptv.infrastructure.providers.provider_metadata import (
+        InfraProviderMetadata,
+    )
 
 __all__ = ["ProviderRegistry"]
 
@@ -44,8 +47,11 @@ class ProviderRegistry:
     def register(self, metadata: InfraProviderMetadata) -> None:
         """Add or replace a provider entry."""
         self._providers[metadata.provider_id] = metadata
-        _log.info("Registered provider id=%s type=%s",
-                  metadata.provider_id, metadata.provider_type)
+        _log.info(
+            "Registered provider id=%s type=%s",
+            metadata.provider_id,
+            metadata.provider_type,
+        )
 
     def deregister(self, provider_id: str) -> bool:
         """Remove a provider entry.  Returns True if it existed."""
@@ -72,10 +78,7 @@ class ProviderRegistry:
 
     def list_by_type(self, provider_type: str) -> Sequence[InfraProviderMetadata]:
         """Return all providers of a given type."""
-        return [
-            m for m in self._providers.values()
-            if m.provider_type == provider_type
-        ]
+        return [m for m in self._providers.values() if m.provider_type == provider_type]
 
     def list_active(self) -> Sequence[InfraProviderMetadata]:
         """Return only active providers."""

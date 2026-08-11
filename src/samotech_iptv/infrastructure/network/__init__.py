@@ -18,6 +18,7 @@ Public surface::
         HttpServerError,
     )
 """
+
 from samotech_iptv.infrastructure.network.exceptions import (
     HttpClientError,
     HttpConnectionError,

@@ -1,4 +1,5 @@
 """Channel entity — a live-TV channel available through a provider."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

@@ -1,4 +1,5 @@
 """ChannelRepository — abstract CRUD contract for Channel aggregates."""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod

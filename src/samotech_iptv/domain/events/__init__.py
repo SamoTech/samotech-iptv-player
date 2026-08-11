@@ -8,6 +8,7 @@ Or directly::
 
     from samotech_iptv.domain.events.provider_events import ProviderAuthenticatedEvent
 """
+
 from samotech_iptv.domain.events.library_events import (
     ChannelsLoadedEvent,
     FavoriteSavedEvent,

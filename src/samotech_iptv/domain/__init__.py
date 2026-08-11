@@ -9,6 +9,7 @@ Contains:
 Allowed dependencies: ``samotech_iptv.core`` and stdlib only.
 Forbidden: application, infrastructure, presentation, providers.
 """
+
 from samotech_iptv.domain.entities import (
     Category,
     Channel,
@@ -31,7 +32,20 @@ from samotech_iptv.domain.value_objects import (
 )
 
 __all__ = [
-    "Channel", "Category", "Playlist", "Movie", "Series",
-    "Episode", "Stream", "Provider", "EPGEntry", "Favorite", "History",
-    "ProviderId", "ChannelId", "StreamId", "Credential", "URL",
+    "Channel",
+    "Category",
+    "Playlist",
+    "Movie",
+    "Series",
+    "Episode",
+    "Stream",
+    "Provider",
+    "EPGEntry",
+    "Favorite",
+    "History",
+    "ProviderId",
+    "ChannelId",
+    "StreamId",
+    "Credential",
+    "URL",
 ]

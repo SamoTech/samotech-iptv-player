@@ -1,4 +1,5 @@
 """Credential value object — username/password pair, never logged."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

@@ -1,4 +1,5 @@
 """Translate MAG protocol records into canonical domain objects."""
+
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -32,9 +33,7 @@ class MagDomainTranslator:
 
         logo = str(raw.get("logo") or raw.get("logo_small") or "").strip()
         number = MagDomainTranslator._optional_int(raw.get("number") or raw.get("ch_num"))
-        category_id = (
-            str(raw.get("tv_genre_id") or raw.get("category_id") or "").strip() or None
-        )
+        category_id = str(raw.get("tv_genre_id") or raw.get("category_id") or "").strip() or None
         epg_channel_id = str(raw.get("xmltv_id") or raw.get("epg_id") or "").strip() or None
 
         return Channel(

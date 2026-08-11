@@ -1,4 +1,5 @@
 """Contract and behaviour tests for the MAG provider adapter."""
+
 from __future__ import annotations
 
 from types import SimpleNamespace
@@ -14,10 +15,14 @@ from samotech_iptv.infrastructure.providers.mag_adapter import (
     register_with_factory,
 )
 from samotech_iptv.infrastructure.providers.mag_credential import MagCredential
-from samotech_iptv.infrastructure.providers.mag_domain_translator import MagDomainTranslator
+from samotech_iptv.infrastructure.providers.mag_domain_translator import (
+    MagDomainTranslator,
+)
 from samotech_iptv.infrastructure.providers.provider_context import ProviderContext
 from samotech_iptv.infrastructure.providers.provider_factory import ProviderFactory
-from samotech_iptv.infrastructure.providers.provider_metadata import InfraProviderMetadata
+from samotech_iptv.infrastructure.providers.provider_metadata import (
+    InfraProviderMetadata,
+)
 
 _AUTH_VALUE = "test-auth-value"
 _SESSION_VALUE = "initial-session-value"
@@ -117,7 +122,10 @@ def credential() -> Credential:
 class TestAuthentication:
     @pytest.mark.asyncio
     async def test_authentication_consumes_mac_identity(
-        self, adapter: MagProviderAdapter, credential: Credential, legacy: FakeMagProvider
+        self,
+        adapter: MagProviderAdapter,
+        credential: Credential,
+        legacy: FakeMagProvider,
     ) -> None:
         assert await adapter.authenticate(credential) is True
         assert legacy.connect_calls == 1
@@ -139,7 +147,10 @@ class TestAuthentication:
 
     @pytest.mark.asyncio
     async def test_authentication_translates_legacy_failure(
-        self, metadata: InfraProviderMetadata, context: ProviderContext, credential: Credential
+        self,
+        metadata: InfraProviderMetadata,
+        context: ProviderContext,
+        credential: Credential,
     ) -> None:
         from providers.base.errors import AuthError
 
@@ -159,11 +170,19 @@ class TestProviderCapabilities:
     ) -> None:
         assert adapter.provider_id.value == "mag-test"
         assert adapter.supported_capabilities() == {
-            "authentication", "catalog", "epg", "search", "playback", "session"
+            "authentication",
+            "catalog",
+            "epg",
+            "search",
+            "playback",
+            "session",
         }
 
     def test_factory_creates_a_concrete_adapter(
-        self, metadata: InfraProviderMetadata, context: ProviderContext, legacy: FakeMagProvider
+        self,
+        metadata: InfraProviderMetadata,
+        context: ProviderContext,
+        legacy: FakeMagProvider,
     ) -> None:
         factory = ProviderFactory()
         register_with_factory(factory)
@@ -196,7 +215,10 @@ class TestCatalogAndSearch:
 class TestEpgAndPlayback:
     @pytest.mark.asyncio
     async def test_load_epg_returns_domain_entries(
-        self, adapter: MagProviderAdapter, credential: Credential, legacy: FakeMagProvider
+        self,
+        adapter: MagProviderAdapter,
+        credential: Credential,
+        legacy: FakeMagProvider,
     ) -> None:
         await adapter.authenticate(credential)
         entries = await adapter.load_epg(ChannelId("1"))
@@ -207,7 +229,10 @@ class TestEpgAndPlayback:
 
     @pytest.mark.asyncio
     async def test_resolve_stream_returns_validated_url(
-        self, adapter: MagProviderAdapter, credential: Credential, legacy: FakeMagProvider
+        self,
+        adapter: MagProviderAdapter,
+        credential: Credential,
+        legacy: FakeMagProvider,
     ) -> None:
         await adapter.authenticate(credential)
         url = await adapter.resolve_stream(ChannelId("1"))
@@ -226,7 +251,10 @@ class TestEpgAndPlayback:
 class TestSessionLifecycle:
     @pytest.mark.asyncio
     async def test_refresh_and_close_manage_volatile_session_state(
-        self, adapter: MagProviderAdapter, credential: Credential, legacy: FakeMagProvider
+        self,
+        adapter: MagProviderAdapter,
+        credential: Credential,
+        legacy: FakeMagProvider,
     ) -> None:
         await adapter.authenticate(credential)
         assert await adapter.refresh_session() is True
@@ -272,7 +300,10 @@ class TestDomainTranslation:
 
 class TestRealLegacyConstruction:
     def test_real_legacy_provider_receives_mag_identity(
-        self, metadata: InfraProviderMetadata, context: ProviderContext, credential: Credential
+        self,
+        metadata: InfraProviderMetadata,
+        context: ProviderContext,
+        credential: Credential,
     ) -> None:
         factory = ProviderFactory()
         register_with_factory(factory)

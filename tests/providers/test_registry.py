@@ -1,4 +1,5 @@
 """Tests for the ProviderRegistry."""
+
 import providers.m3u  # noqa: F401
 import providers.mag  # noqa: F401
 import pytest

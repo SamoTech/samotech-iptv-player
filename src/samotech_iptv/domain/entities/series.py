@@ -1,4 +1,5 @@
 """Series entity — a VOD series (seasons + episodes)."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

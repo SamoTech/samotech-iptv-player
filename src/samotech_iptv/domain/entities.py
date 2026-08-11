@@ -7,6 +7,7 @@ This module will be removed in a future major version.
     Import directly from ``samotech_iptv.domain.entities.<module>``
     or from ``samotech_iptv.domain.entities`` (the package).
 """
+
 from samotech_iptv.domain.entities import (  # noqa: F401
     Category,
     Channel,
@@ -22,6 +23,15 @@ from samotech_iptv.domain.entities import (  # noqa: F401
 )
 
 __all__ = [
-    "Channel", "Category", "Playlist", "Movie", "Series",
-    "Episode", "Stream", "Provider", "EPGEntry", "Favorite", "History",
+    "Channel",
+    "Category",
+    "Playlist",
+    "Movie",
+    "Series",
+    "Episode",
+    "Stream",
+    "Provider",
+    "EPGEntry",
+    "Favorite",
+    "History",
 ]

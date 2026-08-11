@@ -1,9 +1,14 @@
 """LoadHistory use-case."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from samotech_iptv.application.dtos import HistoryItemDTO, LoadHistoryRequest, LoadHistoryResponse
+from samotech_iptv.application.dtos import (
+    HistoryItemDTO,
+    LoadHistoryRequest,
+    LoadHistoryResponse,
+)
 from samotech_iptv.core.logging import get_logger
 
 if TYPE_CHECKING:

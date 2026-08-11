@@ -1,4 +1,5 @@
 """LoadEPG use-case."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -22,9 +23,7 @@ class LoadEPG:
     async def execute(self, request: LoadEPGRequest) -> LoadEPGResponse:
         _log.info("Loading EPG for channel %s", request.channel_id)
         try:
-            entries = await self._provider.load_epg(
-                ChannelId(request.channel_id)
-            )
+            entries = await self._provider.load_epg(ChannelId(request.channel_id))
         except Exception as exc:  # noqa: BLE001
             _log.error("LoadEPG error: %s", exc)
             return LoadEPGResponse(error=str(exc))

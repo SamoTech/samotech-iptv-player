@@ -1,4 +1,5 @@
 """Unit tests for MAGStream.get_stream_url."""
+
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest

@@ -2,6 +2,7 @@
 
 Only primitive values (str, int, float).  No imports from other layers.
 """
+
 from __future__ import annotations
 
 __all__ = [

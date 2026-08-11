@@ -1,4 +1,5 @@
 """EPG DTOs."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -16,7 +17,7 @@ class EPGEntryDTO:
     channel_id: str
     title: str
     start: str  # ISO-8601
-    end: str    # ISO-8601
+    end: str  # ISO-8601
     description: str | None = None
 
 

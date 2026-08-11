@@ -4,6 +4,7 @@ This is the primary entry point for all outbound HTTP traffic.
 Provider adapters must use this class instead of creating their own
 aiohttp sessions.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -124,9 +125,7 @@ class AsyncHttpClient:
         headers: dict[str, str] | None = None,
     ) -> JSON:
         """Perform a POST request and return parsed JSON."""
-        return await self._request_with_retry(
-            "POST", url, json=json, data=data, headers=headers
-        )
+        return await self._request_with_retry("POST", url, json=json, data=data, headers=headers)
 
     async def get_text(
         self,
@@ -161,9 +160,12 @@ class AsyncHttpClient:
         for attempt in range(self._retry.max_attempts):
             try:
                 result = await self._single_request(
-                    method, url,
-                    params=params, headers=headers,
-                    json=json, data=data,
+                    method,
+                    url,
+                    params=params,
+                    headers=headers,
+                    json=json,
+                    data=data,
                     as_text=as_text,
                 )
                 if attempt > 0:
@@ -175,22 +177,39 @@ class AsyncHttpClient:
 
             except HttpTimeoutError as exc:
                 last_exc = exc
-                _log.warning("%s %s timed out (attempt %d/%d)",
-                             method, url, attempt + 1, self._retry.max_attempts)
+                _log.warning(
+                    "%s %s timed out (attempt %d/%d)",
+                    method,
+                    url,
+                    attempt + 1,
+                    self._retry.max_attempts,
+                )
                 if not self._retry.should_retry(attempt, None):
                     raise
 
             except HttpConnectionError as exc:
                 last_exc = exc
-                _log.warning("%s %s connection error (attempt %d/%d): %s",
-                             method, url, attempt + 1, self._retry.max_attempts, exc)
+                _log.warning(
+                    "%s %s connection error (attempt %d/%d): %s",
+                    method,
+                    url,
+                    attempt + 1,
+                    self._retry.max_attempts,
+                    exc,
+                )
                 if not self._retry.should_retry(attempt, None):
                     raise
 
             except HttpServerError as exc:
                 last_exc = exc
-                _log.warning("%s %s server error %s (attempt %d/%d)",
-                             method, url, exc.status_code, attempt + 1, self._retry.max_attempts)
+                _log.warning(
+                    "%s %s server error %s (attempt %d/%d)",
+                    method,
+                    url,
+                    exc.status_code,
+                    attempt + 1,
+                    self._retry.max_attempts,
+                )
                 if not self._retry.should_retry(attempt, exc.status_code):
                     raise
 
@@ -217,7 +236,8 @@ class AsyncHttpClient:
 
             _log.debug("%s %s params=%s", method, url, params)
             async with self._session.raw.request(
-                method, url,
+                method,
+                url,
                 params=params,
                 headers=headers,
                 json=json,

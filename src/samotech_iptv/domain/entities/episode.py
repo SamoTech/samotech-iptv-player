@@ -1,4 +1,5 @@
 """Episode entity — a single episode within a Series."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

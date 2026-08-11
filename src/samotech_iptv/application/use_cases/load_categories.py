@@ -1,4 +1,5 @@
 """LoadCategories use-case (stub — implemented in Phase B)."""
+
 from __future__ import annotations
 
 from samotech_iptv.application.dtos import LoadCategoriesRequest, LoadCategoriesResponse
@@ -13,6 +14,4 @@ class LoadCategories:
     """
 
     async def execute(self, request: LoadCategoriesRequest) -> LoadCategoriesResponse:
-        return LoadCategoriesResponse(
-            error="LoadCategories not yet implemented — Phase B"
-        )
+        return LoadCategoriesResponse(error="LoadCategories not yet implemented — Phase B")

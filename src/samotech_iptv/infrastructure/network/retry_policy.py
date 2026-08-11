@@ -3,6 +3,7 @@
 No networking code lives here — this module is pure logic and is fully
 testable without aiohttp or any I/O.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -33,9 +34,7 @@ class RetryPolicy:
     max_delay: float = 30.0
     exponential_base: float = 2.0
     jitter: bool = True
-    retryable_statuses: frozenset[int] = field(
-        default_factory=lambda: _DEFAULT_RETRYABLE_STATUSES
-    )
+    retryable_statuses: frozenset[int] = field(default_factory=lambda: _DEFAULT_RETRYABLE_STATUSES)
 
     def __post_init__(self) -> None:
         if self.max_attempts < 1:
@@ -66,7 +65,7 @@ class RetryPolicy:
             attempt: 0-based index of the attempt that just *failed*.
         """
         delay = min(
-            self.base_delay * (self.exponential_base ** attempt),
+            self.base_delay * (self.exponential_base**attempt),
             self.max_delay,
         )
         if self.jitter:

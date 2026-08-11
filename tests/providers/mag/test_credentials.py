@@ -1,4 +1,5 @@
 """Unit tests for MAGCredentials."""
+
 from unittest.mock import MagicMock
 
 import pytest
@@ -24,6 +25,7 @@ def test_token_setter_and_getter() -> None:
 
 def test_from_keyring_raises_when_not_installed() -> None:
     import providers.mag.credentials as creds_mod
+
     original = creds_mod._KEYRING_AVAILABLE
     creds_mod._KEYRING_AVAILABLE = False
     try:
@@ -35,6 +37,7 @@ def test_from_keyring_raises_when_not_installed() -> None:
 
 def test_from_keyring_happy(monkeypatch: MonkeyPatch) -> None:
     import providers.mag.credentials as creds_mod
+
     mock_kr = MagicMock()
     mock_kr.get_password.side_effect = lambda svc, key: (
         "AA:BB:CC:DD:EE:FF" if "mac" in key else ""

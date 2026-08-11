@@ -1,4 +1,5 @@
 """ProviderRepository — abstract CRUD contract for Provider aggregates."""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod

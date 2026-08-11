@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "SamoTech IPTV Player with pluggable provider architecture"
 readme = "README.md"
 license = { text = "MIT" }
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dependencies = [
     "aiohttp>=3.9",
 ]
@@ -39,6 +39,11 @@ include = ["samotech_iptv*", "providers*"]
 # ── Ruff ──────────────────────────────────────────────────────────────────────
 [tool.ruff]
 src = ["src", "tests"]
+
+# ── Black ────────────────────────────────────────────────────────────────────
+[tool.black]
+line-length = 100
+target-version = ["py312"]
 
 # ── MyPy ─────────────────────────────────────────────────────────────────────
 [tool.mypy]

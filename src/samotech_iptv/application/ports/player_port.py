@@ -1,4 +1,5 @@
 """PlayerPort — media player backend contract."""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod

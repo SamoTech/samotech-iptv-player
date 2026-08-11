@@ -1,4 +1,5 @@
 """Shared type aliases and protocols used across all layers."""
+
 from __future__ import annotations
 
 from typing import Protocol, TypeVar, runtime_checkable

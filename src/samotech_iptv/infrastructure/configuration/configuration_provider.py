@@ -4,6 +4,7 @@ Precedence is explicit constructor overrides, then ``IPTV_*`` environment
 variables, then the defaults declared in the core configuration data models.
 Core and domain code never read process environment variables directly.
 """
+
 from __future__ import annotations
 
 import os

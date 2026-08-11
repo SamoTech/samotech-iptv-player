@@ -8,7 +8,11 @@ Or directly::
 
     from samotech_iptv.application.dtos.channels import ChannelDTO
 """
-from samotech_iptv.application.dtos.auth import AuthenticateRequest, AuthenticateResponse
+
+from samotech_iptv.application.dtos.auth import (
+    AuthenticateRequest,
+    AuthenticateResponse,
+)
 from samotech_iptv.application.dtos.categories import (
     CategoryDTO,
     LoadCategoriesRequest,
@@ -35,20 +39,36 @@ from samotech_iptv.application.dtos.history import (
     LoadHistoryRequest,
     LoadHistoryResponse,
 )
-from samotech_iptv.application.dtos.provider import ProviderCapabilities, ProviderMetadata
+from samotech_iptv.application.dtos.provider import (
+    ProviderCapabilities,
+    ProviderMetadata,
+)
 from samotech_iptv.application.dtos.stream import (
     ResolveStreamRequest,
     ResolveStreamResponse,
 )
 
 __all__ = [
-    "ProviderMetadata", "ProviderCapabilities",
-    "AuthenticateRequest", "AuthenticateResponse",
-    "ChannelDTO", "LoadChannelsRequest", "LoadChannelsResponse",
-    "CategoryDTO", "LoadCategoriesRequest", "LoadCategoriesResponse",
-    "EPGEntryDTO", "LoadEPGRequest", "LoadEPGResponse",
-    "ResolveStreamRequest", "ResolveStreamResponse",
-    "HistoryItemDTO", "LoadHistoryRequest", "LoadHistoryResponse",
-    "SaveFavoriteRequest", "SaveFavoriteResponse",
-    "SearchChannelsRequest", "SearchChannelsResponse",
+    "ProviderMetadata",
+    "ProviderCapabilities",
+    "AuthenticateRequest",
+    "AuthenticateResponse",
+    "ChannelDTO",
+    "LoadChannelsRequest",
+    "LoadChannelsResponse",
+    "CategoryDTO",
+    "LoadCategoriesRequest",
+    "LoadCategoriesResponse",
+    "EPGEntryDTO",
+    "LoadEPGRequest",
+    "LoadEPGResponse",
+    "ResolveStreamRequest",
+    "ResolveStreamResponse",
+    "HistoryItemDTO",
+    "LoadHistoryRequest",
+    "LoadHistoryResponse",
+    "SaveFavoriteRequest",
+    "SaveFavoriteResponse",
+    "SearchChannelsRequest",
+    "SearchChannelsResponse",
 ]

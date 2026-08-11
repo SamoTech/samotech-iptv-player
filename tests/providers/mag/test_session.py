@@ -1,4 +1,5 @@
 """Unit tests for MAGSession authentication logic."""
+
 from unittest.mock import AsyncMock
 
 import pytest
@@ -10,7 +11,9 @@ _FIRST_SESSION_VALUE = "initial-session-value"
 _REFRESHED_SESSION_VALUE = "refreshed-session-value"
 
 
-def _make_session(token_in_response: bool = True) -> tuple[MAGSession, AsyncMock, MAGCredentials]:
+def _make_session(
+    token_in_response: bool = True,
+) -> tuple[MAGSession, AsyncMock, MAGCredentials]:
     creds = MAGCredentials(portal_url="https://portal.example.com", mac_address="AA:BB:CC:DD:EE:FF")
     conn = AsyncMock()
     payload = (

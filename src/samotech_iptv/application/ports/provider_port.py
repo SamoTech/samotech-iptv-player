@@ -4,6 +4,7 @@ New code should prefer the fine-grained capability interfaces in
 ``provider_capabilities.py``.  ``ProviderPort`` remains for the
 migration window and for providers that implement all capabilities.
 """
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod

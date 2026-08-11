@@ -4,6 +4,7 @@ The adapter owns protocol translation and keeps MAG-specific credentials and
 session state inside infrastructure.  Application code sees only domain value
 objects and entities.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -23,8 +24,12 @@ from samotech_iptv.core.exceptions import ProviderError, ValidationError
 from samotech_iptv.core.logging import get_logger
 from samotech_iptv.domain.value_objects.provider_id import ProviderId
 from samotech_iptv.infrastructure.providers.mag_credential import MagCredential
-from samotech_iptv.infrastructure.providers.mag_domain_translator import MagDomainTranslator
-from samotech_iptv.infrastructure.providers.mag_error_translator import translate_mag_and_raise
+from samotech_iptv.infrastructure.providers.mag_domain_translator import (
+    MagDomainTranslator,
+)
+from samotech_iptv.infrastructure.providers.mag_error_translator import (
+    translate_mag_and_raise,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable, Mapping, Sequence
@@ -36,7 +41,9 @@ if TYPE_CHECKING:
     from samotech_iptv.domain.value_objects.url import URL
     from samotech_iptv.infrastructure.providers.provider_context import ProviderContext
     from samotech_iptv.infrastructure.providers.provider_factory import ProviderFactory
-    from samotech_iptv.infrastructure.providers.provider_metadata import InfraProviderMetadata
+    from samotech_iptv.infrastructure.providers.provider_metadata import (
+        InfraProviderMetadata,
+    )
 
 __all__ = ["MagProviderAdapter", "register_with_factory"]
 
@@ -105,9 +112,7 @@ class MagProviderAdapter(
 
     def supported_capabilities(self) -> frozenset[str]:
         """Return the canonical capability names supported by MAG."""
-        return frozenset(
-            {"authentication", "catalog", "epg", "search", "playback", "session"}
-        )
+        return frozenset({"authentication", "catalog", "epg", "search", "playback", "session"})
 
     async def authenticate(self, credential: Credential) -> bool:
         """Authenticate using the MAG MAC address supplied by the application.
@@ -116,9 +121,7 @@ class MagProviderAdapter(
         The legacy protocol does not submit its password field; no session
         token is persisted or copied into registration metadata.
         """
-        mag_credential = MagCredential.from_application_credential(
-            credential, self._meta.base_url
-        )
+        mag_credential = MagCredential.from_application_credential(credential, self._meta.base_url)
         self._set_credential(mag_credential)
         _LOG.info("[%s] Authenticating MAG provider", self._meta.provider_id)
         try:
@@ -163,9 +166,7 @@ class MagProviderAdapter(
     async def load_epg(self, channel_id: ChannelId) -> Sequence[EPGEntry]:
         """Fetch and translate EPG records for a single channel."""
         numeric_channel_id = self._as_mag_numeric_id(channel_id)
-        raw = await self._call(
-            lambda provider: provider.get_epg(channel_ids=[numeric_channel_id])
-        )
+        raw = await self._call(lambda provider: provider.get_epg(channel_ids=[numeric_channel_id]))
         records = self._epg_records_for_channel(raw, numeric_channel_id)
         return MagDomainTranslator.epg_entries(records, channel_id)
 

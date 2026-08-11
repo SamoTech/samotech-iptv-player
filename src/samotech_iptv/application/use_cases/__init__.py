@@ -4,7 +4,9 @@ Each use-case class has a single ``async def execute(request)`` method.
 Use-cases depend only on port interfaces and domain objects.
 """
 
-from samotech_iptv.application.use_cases.authenticate_provider import AuthenticateProvider
+from samotech_iptv.application.use_cases.authenticate_provider import (
+    AuthenticateProvider,
+)
 from samotech_iptv.application.use_cases.load_categories import LoadCategories
 from samotech_iptv.application.use_cases.load_channels import LoadChannels
 from samotech_iptv.application.use_cases.load_epg import LoadEPG

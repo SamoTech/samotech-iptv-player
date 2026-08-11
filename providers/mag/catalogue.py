@@ -1,12 +1,16 @@
 """Catalogue retrieval helpers for the MAG provider."""
+
 from __future__ import annotations
 
 import logging
 from collections.abc import Mapping
+from typing import TYPE_CHECKING
 
-from .connection import MAGConnection
 from .constants import ENDPOINT_CHANNELS, ENDPOINT_EPG, ENDPOINT_SERIES, ENDPOINT_VOD
-from .session import MAGSession
+
+if TYPE_CHECKING:
+    from .connection import MAGConnection
+    from .session import MAGSession
 
 log = logging.getLogger(__name__)
 
@@ -26,9 +30,7 @@ class MAGCatalogue:
         log.info("Retrieved %d channels", len(items))
         return items
 
-    async def get_vod(
-        self, page: int = 0, category_id: int | None = None
-    ) -> list[MagRecord]:
+    async def get_vod(self, page: int = 0, category_id: int | None = None) -> list[MagRecord]:
         """Return a page of MAG VOD records."""
         log.info("Fetching VOD catalogue (page=%d, category=%s)", page, category_id)
         params: dict[str, str | int] = {"p": page, "items_num": 100, "sortby": "added"}
@@ -39,15 +41,15 @@ class MAGCatalogue:
         log.info("Retrieved %d VOD items", len(items))
         return items
 
-    async def get_series(
-        self, page: int = 0, category_id: int | None = None
-    ) -> list[MagRecord]:
+    async def get_series(self, page: int = 0, category_id: int | None = None) -> list[MagRecord]:
         """Return a page of MAG series records."""
         log.info("Fetching series catalogue (page=%d, category=%s)", page, category_id)
         params: dict[str, str | int] = {"p": page, "items_num": 100, "sortby": "added"}
         if category_id is not None:
             params["category"] = category_id
-        data = await self._conn.get(ENDPOINT_SERIES, params=params, headers=self._sess.get_headers())
+        data = await self._conn.get(
+            ENDPOINT_SERIES, params=params, headers=self._sess.get_headers()
+        )
         items = self._records_from_response(data)
         log.info("Retrieved %d series", len(items))
         return items

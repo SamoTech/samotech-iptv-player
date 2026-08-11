@@ -1,4 +1,5 @@
 """Movie entity — a VOD movie."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

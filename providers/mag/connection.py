@@ -1,24 +1,21 @@
-"""
-Low-level HTTP connection manager for the MAG provider.
+"""Low-level asynchronous HTTP transport for the MAG provider."""
 
-All I/O is fully asynchronous (asyncio + aiohttp).
-Implements:
-  - configurable timeouts
-  - retries with exponential backoff
-  - structured logging
-  - TLS verification (never disabled except in explicit dev mode)
-  - sanitised request construction
-"""
 from __future__ import annotations
 
 import asyncio
 import logging
 import ssl
-from typing import Any, Optional
+from typing import TYPE_CHECKING, cast
 from urllib.parse import urljoin, urlparse
 
 import aiohttp
 
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+    from samotech_iptv.core.typing import JSON
+
+from ..base.errors import NetworkError
 from .constants import (
     DEFAULT_MAX_RETRIES,
     DEFAULT_TIMEOUT_S,
@@ -26,13 +23,12 @@ from .constants import (
     RETRY_MAX_DELAY,
     USER_AGENT,
 )
-from ..base.errors import NetworkError
 
 log = logging.getLogger(__name__)
 
 
 def _sanitise_url(base: str, path: str) -> str:
-    """Join base portal URL with an endpoint path safely."""
+    """Join a portal base URL and endpoint path with a valid HTTP scheme."""
     parsed = urlparse(base)
     if parsed.scheme not in ("http", "https"):
         raise ValueError(f"Portal URL must use http or https, got: {parsed.scheme!r}")
@@ -40,21 +36,7 @@ def _sanitise_url(base: str, path: str) -> str:
 
 
 class MAGConnection:
-    """
-    Manages a persistent aiohttp ClientSession for portal communication.
-
-    Parameters
-    ----------
-    portal_url:
-        Authorised portal base URL (must be http or https).
-    timeout_s:
-        Per-request timeout in seconds.
-    max_retries:
-        Number of times to retry a failed request before raising.
-    dev_mode:
-        When *True*, TLS certificate verification is relaxed.
-        **Only for local development / self-signed test servers.**
-    """
+    """Manage a persistent aiohttp session for MAG portal communication."""
 
     def __init__(
         self,
@@ -67,9 +49,10 @@ class MAGConnection:
         self._timeout = aiohttp.ClientTimeout(total=timeout_s)
         self._max_retries = max_retries
         self._dev_mode = dev_mode
-        self._session: Optional[aiohttp.ClientSession] = None
+        self._session: aiohttp.ClientSession | None = None
 
     async def open(self) -> None:
+        """Open the underlying HTTP session if it is not already active."""
         if self._session and not self._session.closed:
             return
         if self._dev_mode:
@@ -90,6 +73,7 @@ class MAGConnection:
         log.debug("HTTP session opened for %s", self._portal_url)
 
     async def close(self) -> None:
+        """Close the active HTTP session."""
         if self._session and not self._session.closed:
             await self._session.close()
             log.debug("HTTP session closed")
@@ -98,9 +82,10 @@ class MAGConnection:
         self,
         path: str,
         *,
-        params: dict[str, Any] | None = None,
+        params: Mapping[str, str | int] | None = None,
         headers: dict[str, str] | None = None,
-    ) -> Any:
+    ) -> JSON:
+        """Issue a GET request relative to the registered portal URL."""
         url = _sanitise_url(self._portal_url, path)
         return await self._request_with_retry("GET", url, params=params, headers=headers)
 
@@ -109,34 +94,35 @@ class MAGConnection:
         method: str,
         url: str,
         *,
-        params: dict[str, Any] | None = None,
+        params: Mapping[str, str | int] | None = None,
         headers: dict[str, str] | None = None,
-    ) -> Any:
-        assert self._session, "Call open() before making requests"
+    ) -> JSON:
+        session = self._session
+        if session is None or session.closed:
+            raise RuntimeError("Call open() before making requests")
+
         delay = RETRY_BASE_DELAY
         last_exc: Exception | None = None
         for attempt in range(1, self._max_retries + 1):
             try:
                 log.debug("%s %s (attempt %d/%d)", method, url, attempt, self._max_retries)
-                async with self._session.request(
+                async with session.request(
                     method,
                     url,
                     params=params,
                     headers=headers,
                     allow_redirects=True,
-                ) as resp:
-                    resp.raise_for_status()
-                    data = await resp.json(content_type=None)
-                    log.debug("Response %d from %s", resp.status, url)
-                    return data
+                ) as response:
+                    response.raise_for_status()
+                    data = await response.json(content_type=None)
+                    log.debug("Response %d from %s", response.status, url)
+                    return cast("JSON", data)
             except aiohttp.ClientResponseError as exc:
                 if 400 <= exc.status < 500:
-                    raise NetworkError(
-                        f"HTTP {exc.status} from {url}: {exc.message}"
-                    ) from exc
+                    raise NetworkError(f"HTTP {exc.status} from {url}: {exc.message}") from exc
                 log.warning("HTTP %d on attempt %d — %s", exc.status, attempt, exc.message)
                 last_exc = exc
-            except (aiohttp.ClientError, asyncio.TimeoutError) as exc:
+            except (TimeoutError, aiohttp.ClientError) as exc:
                 log.warning("Network error on attempt %d: %s", attempt, exc)
                 last_exc = exc
 

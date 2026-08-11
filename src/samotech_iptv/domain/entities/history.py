@@ -1,4 +1,5 @@
 """History entity — a single playback history record."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

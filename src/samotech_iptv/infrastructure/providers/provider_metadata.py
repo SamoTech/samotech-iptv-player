@@ -5,6 +5,7 @@ read-only DTO for the presentation layer).  This dataclass is mutable so
 the registry can update last-seen / error state without round-tripping
 through the domain layer.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -31,7 +32,5 @@ class InfraProviderMetadata:
     provider_type: str
     base_url: str
     is_active: bool = True
-    capabilities: frozenset[str] = field(
-        default_factory=lambda: frozenset()
-    )
+    capabilities: frozenset[str] = field(default_factory=lambda: frozenset())
     last_error: str | None = None

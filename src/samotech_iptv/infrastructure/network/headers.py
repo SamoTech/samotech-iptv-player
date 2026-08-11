@@ -3,6 +3,7 @@
 Provides a fluent builder for constructing request headers.
 No networking code here.
 """
+
 from __future__ import annotations
 
 from samotech_iptv.core.constants import APP_NAME

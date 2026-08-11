@@ -6,6 +6,7 @@ calling ``ProviderFactory.register_type()``.
 
 No MAG, Xtream, or M3U adapters are created here.
 """
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -15,7 +16,9 @@ from samotech_iptv.core.exceptions import NotFoundError
 from samotech_iptv.core.logging import get_logger
 
 if TYPE_CHECKING:
-    from samotech_iptv.infrastructure.providers.provider_metadata import InfraProviderMetadata
+    from samotech_iptv.infrastructure.providers.provider_metadata import (
+        InfraProviderMetadata,
+    )
 
 __all__ = ["ProviderFactory"]
 
@@ -75,8 +78,11 @@ class ProviderFactory:
         constructor = self._constructors.get(metadata.provider_type)
         if constructor is None:
             raise NotFoundError("ProviderType", metadata.provider_type)
-        _log.debug("Creating provider id=%s type=%s",
-                   metadata.provider_id, metadata.provider_type)
+        _log.debug(
+            "Creating provider id=%s type=%s",
+            metadata.provider_id,
+            metadata.provider_type,
+        )
         return constructor(metadata, **kwargs)
 
     def supported_types(self) -> frozenset[str]:

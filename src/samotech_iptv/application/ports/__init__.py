@@ -12,6 +12,7 @@ Or via ISP capability interfaces::
         EPGProvider,
     )
 """
+
 # Original coarse-grained ports (backward compatibility)
 from samotech_iptv.application.ports.credential_store_port import CredentialStorePort
 from samotech_iptv.application.ports.notification_port import NotificationPort

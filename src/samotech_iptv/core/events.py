@@ -4,6 +4,7 @@ All domain events inherit from ``DomainEvent``.  The application layer
 publishes events; the infrastructure layer (message bus / callbacks)
 subscribes to them.  Core defines only the contract — no dispatch logic.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -31,6 +32,4 @@ class DomainEvent:
     event_name: ClassVar[str] = "DomainEvent"
 
     event_id: EventId = field(default_factory=lambda: str(uuid.uuid4()))
-    occurred_at: datetime = field(
-        default_factory=lambda: datetime.now(UTC)
-    )
+    occurred_at: datetime = field(default_factory=lambda: datetime.now(UTC))

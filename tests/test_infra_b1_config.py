@@ -1,4 +1,5 @@
 """Unit tests for the single configuration composition boundary."""
+
 from __future__ import annotations
 
 import os

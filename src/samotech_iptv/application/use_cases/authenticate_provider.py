@@ -1,4 +1,5 @@
 """AuthenticateProvider use-case."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -27,9 +28,7 @@ class AuthenticateProvider:
     async def execute(self, request: AuthenticateRequest) -> AuthenticateResponse:
         _log.info("Authenticating provider %s", request.provider_id)
         try:
-            credential = Credential(
-                username=request.username, _password=request.password
-            )
+            credential = Credential(username=request.username, _password=request.password)
             success = await self._provider.authenticate(credential)
         except Exception as exc:  # noqa: BLE001
             _log.error("Authentication error: %s", exc)

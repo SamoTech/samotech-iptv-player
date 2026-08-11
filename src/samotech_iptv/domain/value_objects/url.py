@@ -1,4 +1,5 @@
 """URL value object — a validated HTTP/HTTPS URL."""
+
 from __future__ import annotations
 
 import re

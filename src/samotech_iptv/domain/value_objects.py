@@ -6,6 +6,7 @@ All public names re-exported from the new ``value_objects/`` package.
     Import directly from ``samotech_iptv.domain.value_objects.<module>``
     or from ``samotech_iptv.domain.value_objects`` (the package).
 """
+
 from samotech_iptv.domain.value_objects import (  # noqa: F401
     URL,
     ChannelId,

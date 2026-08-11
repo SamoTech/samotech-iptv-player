@@ -14,6 +14,7 @@ Capability matrix (planned):
   PlaybackProvider        ✓      ✓       ✓      ?
   CapabilityProvider      ✓      ✓       ✓      ?
 """
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod

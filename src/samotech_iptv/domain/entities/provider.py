@@ -1,4 +1,5 @@
 """Provider entity — metadata describing a registered content provider."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field

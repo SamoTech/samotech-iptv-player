@@ -1,4 +1,5 @@
 """Favorite entity — a user-marked favourite item."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
