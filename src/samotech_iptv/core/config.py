@@ -1,46 +1,40 @@
-"""Application configuration dataclasses.
+"""Application configuration data structures.
 
-Configuration is read once at startup.  Downstream layers receive a
-``AppConfig`` instance through dependency injection — they never read
-environment variables directly.
+Configuration is composed once by the infrastructure ``ConfigurationProvider``
+and injected into downstream code.  Core models are deliberately free of
+process-environment reads so that they remain deterministic and testable.
 """
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass, field
 
-__all__ = ["AppConfig", "PlayerConfig", "NetworkConfig"]
+__all__ = ["AppConfig", "NetworkConfig", "PlayerConfig"]
 
 
 @dataclass(frozen=True)
 class NetworkConfig:
-    """HTTP / network-level tunables."""
+    """HTTP and network-level tunables."""
 
-    connect_timeout: float = float(os.getenv("IPTV_CONNECT_TIMEOUT", "10"))
-    read_timeout: float = float(os.getenv("IPTV_READ_TIMEOUT", "30"))
-    max_retries: int = int(os.getenv("IPTV_MAX_RETRIES", "3"))
-    tls_verify: bool = os.getenv("IPTV_TLS_VERIFY", "true").lower() != "false"
+    connect_timeout: float = 10.0
+    read_timeout: float = 30.0
+    max_retries: int = 3
+    tls_verify: bool = True
 
 
 @dataclass(frozen=True)
 class PlayerConfig:
-    """Media-player tunables (player abstraction wired in Phase C)."""
+    """Media-player tunables for the future player adapter."""
 
-    buffer_size_mb: int = int(os.getenv("IPTV_BUFFER_MB", "16"))
-    hardware_decode: bool = os.getenv("IPTV_HW_DECODE", "true").lower() != "false"
+    buffer_size_mb: int = 16
+    hardware_decode: bool = True
 
 
 @dataclass(frozen=True)
 class AppConfig:
-    """Root application configuration."""
+    """Root configuration assembled by the infrastructure composition boundary."""
 
-    debug: bool = os.getenv("IPTV_DEBUG", "false").lower() == "true"
-    log_level: str = os.getenv("IPTV_LOG_LEVEL", "INFO").upper()
-    data_dir: str = os.getenv("IPTV_DATA_DIR", "~/.samotech_iptv")
+    debug: bool = False
+    log_level: str = "INFO"
+    data_dir: str = "~/.samotech_iptv"
     network: NetworkConfig = field(default_factory=NetworkConfig)
     player: PlayerConfig = field(default_factory=PlayerConfig)
-
-    @classmethod
-    def from_env(cls) -> "AppConfig":
-        """Construct configuration from environment variables."""
-        return cls()

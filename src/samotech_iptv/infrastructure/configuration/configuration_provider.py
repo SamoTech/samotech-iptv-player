@@ -1,101 +1,117 @@
-"""Environment-variable and override-dict backed configuration provider.
+"""Infrastructure configuration composition boundary.
 
-Priority order (highest wins):
-  1. Explicit overrides passed at construction
-  2. OS environment variables
-  3. Hardcoded defaults in ``core.config.AppConfig``
+Precedence is explicit constructor overrides, then ``IPTV_*`` environment
+variables, then the defaults declared in the core configuration data models.
+Core and domain code never read process environment variables directly.
 """
 from __future__ import annotations
 
 import os
-from typing import Any, Optional
+from collections.abc import Mapping
 
 from samotech_iptv.core.config import AppConfig, NetworkConfig, PlayerConfig
+from samotech_iptv.core.exceptions import ConfigurationError
 from samotech_iptv.core.logging import get_logger
 
 __all__ = ["ConfigurationProvider"]
 
-_log = get_logger(__name__)
+_LOG = get_logger(__name__)
 
 
 class ConfigurationProvider:
-    """Reads configuration from environment variables and/or a dict of overrides.
+    """Compose immutable application configuration from overrides and environment.
 
-    Usage::
-
-        provider = ConfigurationProvider(overrides={"debug": True})
-        cfg = provider.app_config()
-        net = provider.network_config()
-
-    Environment variables (uppercase, prefix ``SAMOTECH_``)::
-
-        SAMOTECH_DEBUG=true
-        SAMOTECH_LOG_LEVEL=DEBUG
-        SAMOTECH_CONNECT_TIMEOUT=15.0
-        SAMOTECH_READ_TIMEOUT=60.0
-        SAMOTECH_MAX_RETRIES=5
-        SAMOTECH_PAGE_SIZE=200
+    Recognised environment variables are ``IPTV_DEBUG``, ``IPTV_LOG_LEVEL``,
+    ``IPTV_DATA_DIR``, ``IPTV_CONNECT_TIMEOUT``, ``IPTV_READ_TIMEOUT``,
+    ``IPTV_MAX_RETRIES``, ``IPTV_TLS_VERIFY``, ``IPTV_BUFFER_MB`` and
+    ``IPTV_HW_DECODE``.
     """
 
-    _ENV_PREFIX = "SAMOTECH_"
+    _ENV_PREFIX = "IPTV_"
 
-    def __init__(self, overrides: Optional[dict[str, Any]] = None) -> None:
-        self._overrides: dict[str, Any] = overrides or {}
-
-    # ------------------------------------------------------------------ public API
+    def __init__(self, overrides: Mapping[str, object] | None = None) -> None:
+        self._overrides = dict(overrides or {})
 
     def app_config(self) -> AppConfig:
-        """Return a fully resolved ``AppConfig``."""
-        debug = self._get_bool("debug", False)
-        log_level = self._get_str("log_level", "INFO")
-        page_size = self._get_int("page_size", 100)
-        _log.debug("AppConfig resolved: debug=%s log_level=%s page_size=%d",
-                   debug, log_level, page_size)
-        return AppConfig(debug=debug, log_level=log_level, page_size=page_size)
+        """Return a fully composed root configuration object."""
+        config = AppConfig(
+            debug=self._get_bool("debug", AppConfig.debug),
+            log_level=self._get_str("log_level", AppConfig.log_level).upper(),
+            data_dir=self._get_str("data_dir", AppConfig.data_dir),
+            network=self.network_config(),
+            player=self.player_config(),
+        )
+        _LOG.debug("Application configuration resolved: debug=%s log_level=%s", config.debug, config.log_level)
+        return config
 
     def network_config(self) -> NetworkConfig:
-        """Return a fully resolved ``NetworkConfig``."""
-        connect_timeout = self._get_float("connect_timeout", 10.0)
-        read_timeout = self._get_float("read_timeout", 30.0)
-        max_retries = self._get_int("max_retries", 3)
-        _log.debug("NetworkConfig: connect=%.1f read=%.1f retries=%d",
-                   connect_timeout, read_timeout, max_retries)
+        """Return validated HTTP and retry configuration."""
+        connect_timeout = self._get_float("connect_timeout", NetworkConfig.connect_timeout)
+        read_timeout = self._get_float("read_timeout", NetworkConfig.read_timeout)
+        max_retries = self._get_int("max_retries", NetworkConfig.max_retries)
+        tls_verify = self._get_bool("tls_verify", NetworkConfig.tls_verify)
+
+        if connect_timeout <= 0:
+            raise ConfigurationError("connect_timeout must be greater than zero")
+        if read_timeout <= 0:
+            raise ConfigurationError("read_timeout must be greater than zero")
+        if max_retries < 1:
+            raise ConfigurationError("max_retries must be at least one")
+
         return NetworkConfig(
             connect_timeout=connect_timeout,
             read_timeout=read_timeout,
             max_retries=max_retries,
+            tls_verify=tls_verify,
         )
 
     def player_config(self) -> PlayerConfig:
-        """Return a fully resolved ``PlayerConfig``."""
-        return PlayerConfig()
+        """Return validated media-player configuration."""
+        buffer_size_mb = self._get_int("buffer_mb", PlayerConfig.buffer_size_mb)
+        if buffer_size_mb <= 0:
+            raise ConfigurationError("buffer_mb must be greater than zero")
+        return PlayerConfig(
+            buffer_size_mb=buffer_size_mb,
+            hardware_decode=self._get_bool("hw_decode", PlayerConfig.hardware_decode),
+        )
 
-    def get(self, key: str, default: Any = None) -> Any:
-        """Generic typed getter: override > env > default."""
+    def get(self, key: str, default: object | None = None) -> object | None:
+        """Return an unresolved value using the standard precedence order."""
         return self._resolve(key, default)
 
-    # ------------------------------------------------------------------ internals
-
-    def _resolve(self, key: str, default: Any) -> Any:
+    def _resolve(self, key: str, default: object | None) -> object | None:
         if key in self._overrides:
             return self._overrides[key]
-        env_key = self._ENV_PREFIX + key.upper()
-        env_val = os.environ.get(env_key)
-        if env_val is not None:
-            return env_val
-        return default
+        return os.environ.get(f"{self._ENV_PREFIX}{key.upper()}", default)
 
     def _get_bool(self, key: str, default: bool) -> bool:
         raw = self._resolve(key, default)
         if isinstance(raw, bool):
             return raw
-        return str(raw).lower() in ("true", "1", "yes")
+        normalized = str(raw).strip().casefold()
+        if normalized in {"true", "1", "yes", "on"}:
+            return True
+        if normalized in {"false", "0", "no", "off"}:
+            return False
+        raise ConfigurationError(f"{key} must be a boolean value")
 
     def _get_str(self, key: str, default: str) -> str:
-        return str(self._resolve(key, default))
+        raw = self._resolve(key, default)
+        value = str(raw).strip()
+        if not value:
+            raise ConfigurationError(f"{key} must not be blank")
+        return value
 
     def _get_int(self, key: str, default: int) -> int:
-        return int(self._resolve(key, default))
+        raw = self._resolve(key, default)
+        try:
+            return int(str(raw))
+        except (TypeError, ValueError) as exc:
+            raise ConfigurationError(f"{key} must be an integer") from exc
 
     def _get_float(self, key: str, default: float) -> float:
-        return float(self._resolve(key, default))
+        raw = self._resolve(key, default)
+        try:
+            return float(str(raw))
+        except (TypeError, ValueError) as exc:
+            raise ConfigurationError(f"{key} must be a number") from exc
