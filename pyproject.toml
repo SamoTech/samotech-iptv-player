@@ -11,6 +11,7 @@ license = { text = "MIT" }
 requires-python = ">=3.12"
 dependencies = [
     "aiohttp>=3.9",
+    "defusedxml>=0.7",
 ]
 
 [project.optional-dependencies]
@@ -23,6 +24,7 @@ dev = [
     "black>=24",
     "mypy>=1.10",
     "ruff>=0.6",
+    "types-defusedxml>=0.7",
 ]
 
 [tool.pytest.ini_options]

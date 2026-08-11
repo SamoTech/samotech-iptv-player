@@ -35,7 +35,7 @@ The repository scaffold and the core recovery are complete. The recovered core i
 | Xtream Codes | Provider integration pending | No API client | None | None | None | Planned |
 | Stalker/MAG | Capability-oriented provider adapter with volatile session state | MAG/Stalker client adapter | `Channel`, `EPGEntry`, and resolved `URL` | Unit and integration tests | None | **Partially implemented** |
 | Ministra | Platform-specific compatibility assessment pending | No Ministra client | None | None | None | Planned |
-| MPEG-DASH | URI classification foundation | DASH URI indicator only; no MPD parser | `StreamURI` plus `StreamManifest.DASH` classification | Focused URI-classification tests | None | **Partially implemented** |
+| MPEG-DASH | URI classification and MPD parser | Bounded MPD parser for live/VOD type and representations; no adaptive playback backend | `StreamURI`, `StreamManifest.DASH`, and canonical MPD representations | Focused URI-classification and DASH parser tests | None | **Partially implemented** |
 | RTMP | URI classification foundation | RTMP(S) transport detection | Protocol-classified `StreamURI` and `Stream` | Focused URI-classification tests | None | **Partially implemented** |
 
 ## Ordering rationale
