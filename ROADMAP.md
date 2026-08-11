@@ -4,8 +4,8 @@
 
 The repository scaffold and the core recovery are complete. The recovered core is installable, has a single configuration boundary, uses domain-oriented provider ports, includes a tested MAG/Stalker adapter, and passes the configured test, type, and lint checks.
 
-> **Current phase:** Phase 2 — Domain completion and M3U parsing.  
-> **Completed milestone:** Core recovery, MAG provider integration, and an initial domain-oriented M3U parser.  
+> **Current phase:** Phase 2 — Domain completion and M3U parsing.
+> **Completed milestone:** Core recovery, MAG provider integration, and an initial domain-oriented M3U parser.
 > **Next product milestone:** Complete the remaining domain/value-object coverage and integrate the parser through a future M3U provider adapter.
 
 | Phase | Scope | Status |
