@@ -9,6 +9,7 @@ from samotech_iptv.application.ports.provider_capabilities import (
     CapabilityProvider,
     CatalogProvider,
     EPGProvider,
+    PlaybackProvider,
     SearchProvider,
     SeriesProvider,
     VodProvider,
@@ -22,7 +23,7 @@ from samotech_iptv.infrastructure.providers.xtream_domain_translator import Xtre
 from samotech_iptv.infrastructure.providers.xtream_request_builder import XtreamRequestBuilder
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Mapping, Sequence
 
     from samotech_iptv.domain.entities.channel import Channel
     from samotech_iptv.domain.entities.epg_entry import EPGEntry
@@ -41,6 +42,7 @@ _CAPABILITIES = frozenset(
         ProviderCapability.AUTHENTICATION,
         ProviderCapability.LIVE,
         ProviderCapability.EPG,
+        ProviderCapability.STREAM_RESOLUTION,
         ProviderCapability.VOD,
         ProviderCapability.SERIES,
         ProviderCapability.SEARCH,
@@ -52,6 +54,7 @@ class XtreamProviderAdapter(
     AuthenticationProvider,
     CatalogProvider,
     EPGProvider,
+    PlaybackProvider,
     VodProvider,
     SeriesProvider,
     SearchProvider,
@@ -93,6 +96,15 @@ class XtreamProviderAdapter(
             XtreamDomainTranslator.channel(record, self.provider_id)
             for record in await client.live_streams()
         ]
+
+    async def resolve_stream(self, channel_id: ChannelId) -> URL:
+        """Resolve an owned live channel to its validated Xtream playback URL."""
+        client = await self._stored_client()
+        stream_id = self._stream_id_for(channel_id)
+        for record in await client.live_streams():
+            if str(record.get("stream_id") or "").strip() == stream_id:
+                return client.live_stream_url(stream_id, self._live_extension(record))
+        raise ValidationError("channel_id", "Xtream live channel is not available")
 
     async def load_epg(self, channel_id: ChannelId) -> Sequence[EPGEntry]:
         """Retrieve and translate short-EPG data for an owned Xtream live channel."""
@@ -139,6 +151,13 @@ class XtreamProviderAdapter(
         if not channel_id.value.startswith(prefix) or channel_id.value == prefix:
             raise ValidationError("channel_id", "channel does not belong to this Xtream provider")
         return channel_id.value.removeprefix(prefix)
+
+    @staticmethod
+    def _live_extension(record: Mapping[str, object]) -> str:
+        extension = str(record.get("container_extension") or "ts").strip().lower()
+        if not extension.isalnum():
+            raise ValidationError("container_extension", "Xtream stream extension is invalid")
+        return extension
 
     def _client_for(self, credential: Credential) -> XtreamApiClient:
         builder = XtreamRequestBuilder(URL(self._metadata.base_url), credential)

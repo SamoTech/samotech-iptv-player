@@ -10,6 +10,7 @@ from samotech_iptv.core.exceptions import ProviderError
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
+    from samotech_iptv.domain.value_objects.url import URL
     from samotech_iptv.infrastructure.network.http_client import AsyncHttpClient
     from samotech_iptv.infrastructure.providers.xtream_request_builder import XtreamRequestBuilder
 
@@ -48,6 +49,10 @@ class XtreamApiClient:
     async def series(self) -> Sequence[Mapping[str, object]]:
         """Return raw series records for canonical series translation."""
         return await self._stream_records("get_series", "series")
+
+    def live_stream_url(self, stream_id: str, extension: str) -> URL:
+        """Build the credential-safe playback URL for one live stream."""
+        return self._request_builder.stream_url("live", stream_id, extension)
 
     async def short_epg(self, stream_id: str) -> Sequence[Mapping[str, object]]:
         """Return validated short-EPG records for one Xtream live stream."""

@@ -26,7 +26,10 @@ class FakeHttpClient:
 
     async def get_json(self, url: str) -> object:
         if "get_live_streams" in url:
-            return [{"stream_id": 1, "name": "News"}, {"stream_id": 2, "name": "Sports"}]
+            return [
+                {"stream_id": 1, "name": "News", "container_extension": "m3u8"},
+                {"stream_id": 2, "name": "Sports"},
+            ]
         if "get_vod_streams" in url:
             return [{"stream_id": 42, "name": "Example Movie"}]
         if "get_series" in url:
@@ -96,6 +99,9 @@ async def test_adapter_authenticates_stores_credentials_and_translates_live_chan
     assert [entry.title for entry in await adapter.load_epg(ChannelId("xtream-demo:1"))] == [
         "Example Programme"
     ]
+    assert (
+        await adapter.resolve_stream(ChannelId("xtream-demo:1"))
+    ).value == "https://portal.example.test/live/user/secret/1.m3u8"
 
 
 def test_adapter_advertises_only_implemented_capabilities_and_registers_with_factory() -> None:
@@ -107,6 +113,7 @@ def test_adapter_advertises_only_implemented_capabilities_and_registers_with_fac
         ProviderCapability.AUTHENTICATION,
         ProviderCapability.LIVE,
         ProviderCapability.EPG,
+        ProviderCapability.STREAM_RESOLUTION,
         ProviderCapability.VOD,
         ProviderCapability.SERIES,
         ProviderCapability.SEARCH,
