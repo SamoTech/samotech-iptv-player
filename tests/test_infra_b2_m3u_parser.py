@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 
 from samotech_iptv.domain.value_objects.provider_id import ProviderId
+from samotech_iptv.domain.value_objects.stream_protocol import StreamTransport
 from samotech_iptv.infrastructure.parsing.m3u_parser import M3UParser, M3UParserError
 
 
@@ -47,6 +48,17 @@ def test_parse_extended_m3u_maps_metadata_and_streams(
     assert parsed.streams[1].container == "ts"
 
 
+def test_parse_preserves_supported_udp_streams(parser: M3UParser, provider_id: ProviderId) -> None:
+    """M3U content entries can carry supported non-HTTP media transports."""
+    parsed = parser.parse(
+        "#EXTM3U\n#EXTINF:-1,Multicast News\nudp://239.0.0.1:1234\n",
+        provider_id,
+    )
+
+    assert str(parsed.streams[0].url) == "udp://239.0.0.1:1234"
+    assert parsed.streams[0].transport is StreamTransport.UDP
+
+
 def test_parse_generates_stable_unique_ids_for_duplicate_titles(
     parser: M3UParser, provider_id: ProviderId
 ) -> None:
@@ -74,7 +86,7 @@ https://stream.example.test/live/local-news-2
         ("#EXTM3U\nhttps://stream.example.test/orphan", "without #EXTINF"),
         ("#EXTM3U\n#EXTINF:-1,Missing stream", "no following stream URL"),
         (
-            "#EXTM3U\n#EXTINF:-1,Unsupported stream\nudp://239.0.0.1:1234",
+            "#EXTM3U\n#EXTINF:-1,Unsupported stream\nftp://stream.example.test/live",
             "invalid stream URL",
         ),
         (

@@ -7,7 +7,8 @@ import pytest
 from samotech_iptv.core.exceptions import ValidationError
 from samotech_iptv.domain.entities.stream import Stream
 from samotech_iptv.domain.value_objects.stream_id import StreamId
-from samotech_iptv.domain.value_objects.url import URL
+from samotech_iptv.domain.value_objects.stream_protocol import StreamManifest, StreamTransport
+from samotech_iptv.domain.value_objects.stream_uri import StreamURI
 
 
 def _stream(
@@ -19,7 +20,7 @@ def _stream(
 ) -> Stream:
     return Stream(
         id=StreamId("stream-1"),
-        url=URL("https://stream.example.test/live/1.m3u8"),
+        url=StreamURI("https://stream.example.test/live/1.m3u8"),
         container=container,
         codec=codec,
         bitrate_kbps=bitrate_kbps,
@@ -34,6 +35,8 @@ def test_stream_accepts_complete_playback_metadata() -> None:
     assert stream.codec == "h264"
     assert stream.bitrate_kbps == 4500
     assert stream.is_encrypted is True
+    assert stream.transport is StreamTransport.HTTPS
+    assert stream.manifest is StreamManifest.HLS
 
 
 def test_stream_is_value_equal_and_hashable() -> None:
