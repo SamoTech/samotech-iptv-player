@@ -11,6 +11,7 @@ from samotech_iptv.application.use_cases.load_categories import LoadCategories
 from samotech_iptv.application.use_cases.load_channels import LoadChannels
 from samotech_iptv.application.use_cases.load_epg import LoadEPG
 from samotech_iptv.application.use_cases.load_history import LoadHistory
+from samotech_iptv.application.use_cases.play_channel import PlayChannel
 from samotech_iptv.application.use_cases.refresh_provider import RefreshProvider
 from samotech_iptv.application.use_cases.resolve_stream import ResolveStream
 from samotech_iptv.application.use_cases.save_favorite import SaveFavorite
@@ -22,6 +23,7 @@ __all__ = [
     "LoadCategories",
     "LoadEPG",
     "ResolveStream",
+    "PlayChannel",
     "SearchChannels",
     "SaveFavorite",
     "LoadHistory",
