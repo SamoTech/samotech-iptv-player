@@ -31,7 +31,7 @@ The repository scaffold and the core recovery are complete. The recovered core i
 | Integration | Architecture | Parser/API | Domain translation | Tests | Player backend | Status |
 |---|---|---|---|---|---|---|
 | M3U playlist | Capability-oriented provider adapter | Local-file and HTTP(S) source loader plus extended-M3U parser | `Channel` and protocol-classified `Stream` entries | Source-loader, adapter, parser, and transport tests | None | **Partially implemented** |
-| M3U8/HLS | URI classification foundation | HLS URI indicator only; no master/media manifest parser | `StreamURI` plus `StreamManifest.HLS` classification | Focused URI-classification tests | None | **Partially implemented** |
+| M3U8/HLS | URI classification and manifest parser | HLS master/media manifest parser; no adaptive playback backend | `StreamURI`, `StreamManifest.HLS`, master variants, and media segments | Focused URI-classification and HLS parser tests | None | **Partially implemented** |
 | Xtream Codes | Provider integration pending | No API client | None | None | None | Planned |
 | Stalker/MAG | Capability-oriented provider adapter with volatile session state | MAG/Stalker client adapter | `Channel`, `EPGEntry`, and resolved `URL` | Unit and integration tests | None | **Partially implemented** |
 | Ministra | Platform-specific compatibility assessment pending | No Ministra client | None | None | None | Planned |
