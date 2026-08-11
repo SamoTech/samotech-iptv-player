@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import cast
+
 import pytest
 
 from samotech_iptv.core.exceptions import ValidationError
@@ -9,6 +11,7 @@ from samotech_iptv.domain.entities.category import Category
 from samotech_iptv.domain.entities.playlist import Playlist
 from samotech_iptv.domain.entities.provider import Provider
 from samotech_iptv.domain.value_objects.channel_id import ChannelId
+from samotech_iptv.domain.value_objects.provider_capability import ProviderCapability
 from samotech_iptv.domain.value_objects.provider_id import ProviderId
 from samotech_iptv.domain.value_objects.url import URL
 
@@ -114,10 +117,22 @@ def test_provider_accepts_complete_valid_metadata(provider_id: ProviderId) -> No
         name="Example provider",
         type="m3u",
         base_url=URL("https://iptv.example.test"),
-        capabilities=("channels", "vod"),
+        capabilities=(ProviderCapability.LIVE, ProviderCapability.VOD),
     )
 
     assert provider.type == "m3u"
+
+
+def test_provider_rejects_loose_capability_strings(provider_id: ProviderId) -> None:
+    """Provider capability metadata must use the canonical capability values."""
+    with pytest.raises(ValidationError, match="Provider capabilities"):
+        Provider(
+            id=provider_id,
+            name="Example provider",
+            type="m3u",
+            base_url=URL("https://iptv.example.test"),
+            capabilities=cast("tuple[ProviderCapability, ...]", ("vod",)),
+        )
 
 
 def test_provider_rejects_blank_type(provider_id: ProviderId) -> None:

@@ -15,7 +15,7 @@ The repository scaffold and the core recovery are complete. The recovered core i
 | **2** | Complete domain entities and value objects; M3U parser; parser and domain unit tests | **Completed** — extended-M3U parser plus focused validation coverage for all current domain records and value objects are delivered; M3U provider-adapter integration is deferred to provider-management work |
 | **3** | VLC/player adapter, SQLite repositories, dependency-injection composition root, and basic window | Planned |
 | **4** | Channel browser UI, search, favorites, and watch history | Planned |
-| **5** | Xtream Codes and Stalker provider clients; playlist manager UI | Partially advanced by the recovered MAG/Stalker core; application integration remains planned |
+| **5** | Xtream Codes and Stalker provider clients; playlist manager UI | Partially advanced by the recovered MAG/Stalker core and explicit capability declarations; M3U, Xtream, Ministra, and player integration remain planned |
 | **6** | XMLTV EPG parser and EPG grid view | Planned |
 | **7** | Stream recording through the player adapter and recording UI | Planned |
 | **8** | Plugin SDK, example provider plugin, and plugin loader | Planned |
@@ -23,6 +23,20 @@ The repository scaffold and the core recovery are complete. The recovered core i
 | **10** | Auto-updater, crash reporting, picture-in-picture, subtitle/audio management | Planned |
 | **11** | Performance pass, memory profiling, and large-playlist stress testing | Planned |
 | **12** | PyInstaller packaging, Windows installer, and release automation | Planned |
+
+## Provider and protocol support matrix
+
+> **Status convention:** An integration is marked **Implemented** only where executable processing through its stated layer and focused tests exist. **Partially implemented** records a functioning subset; **Planned** indicates that no executable support claim is made.
+
+| Integration | Architecture | Parser/API | Domain translation | Tests | Player backend | Status |
+|---|---|---|---|---|---|---|
+| M3U playlist | Parser foundation; provider adapter not yet composed | Extended-M3U text parser | `Channel` and `Stream` for live-style entries | Focused parser tests | None | **Partially implemented** |
+| M3U8/HLS | Stream protocol foundation pending | No HLS manifest parser | Generic `Stream` only; no manifest classification | None | None | Planned |
+| Xtream Codes | Provider integration pending | No API client | None | None | None | Planned |
+| Stalker/MAG | Capability-oriented provider adapter with volatile session state | MAG/Stalker client adapter | `Channel`, `EPGEntry`, and resolved `URL` | Unit and integration tests | None | **Partially implemented** |
+| Ministra | Platform-specific compatibility assessment pending | No Ministra client | None | None | None | Planned |
+| MPEG-DASH | Stream protocol foundation pending | No MPD parser | None | None | None | Planned |
+| RTMP | Stream protocol foundation pending | URL detection pending | None | None | None | Planned |
 
 ## Ordering rationale
 

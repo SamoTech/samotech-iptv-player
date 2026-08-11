@@ -22,6 +22,7 @@ from samotech_iptv.application.ports.provider_capabilities import (
 from samotech_iptv.application.ports.provider_port import ProviderPort
 from samotech_iptv.core.exceptions import ProviderError, ValidationError
 from samotech_iptv.core.logging import get_logger
+from samotech_iptv.domain.value_objects.provider_capability import ProviderCapability
 from samotech_iptv.domain.value_objects.provider_id import ProviderId
 from samotech_iptv.infrastructure.providers.mag_credential import MagCredential
 from samotech_iptv.infrastructure.providers.mag_domain_translator import (
@@ -49,6 +50,16 @@ __all__ = ["MagProviderAdapter", "register_with_factory"]
 
 _LOG = get_logger(__name__)
 _T = TypeVar("_T")
+_MAG_CAPABILITIES = frozenset(
+    {
+        ProviderCapability.AUTHENTICATION,
+        ProviderCapability.SESSION,
+        ProviderCapability.LIVE,
+        ProviderCapability.EPG,
+        ProviderCapability.SEARCH,
+        ProviderCapability.STREAM_RESOLUTION,
+    }
+)
 
 
 class _LegacyMagProvider(Protocol):
@@ -110,9 +121,9 @@ class MagProviderAdapter(
         """Whether this adapter holds a successfully established MAG session."""
         return self._is_authenticated
 
-    def supported_capabilities(self) -> frozenset[str]:
-        """Return the canonical capability names supported by MAG."""
-        return frozenset({"authentication", "catalog", "epg", "search", "playback", "session"})
+    def supported_capabilities(self) -> frozenset[ProviderCapability]:
+        """Return only the capabilities implemented by this MAG adapter."""
+        return _MAG_CAPABILITIES
 
     async def authenticate(self, credential: Credential) -> bool:
         """Authenticate using the MAG MAC address supplied by the application.
