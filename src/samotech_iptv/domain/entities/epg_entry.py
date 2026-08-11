@@ -7,6 +7,8 @@ from typing import TYPE_CHECKING
 
 from samotech_iptv.core.exceptions import ValidationError
 
+from ._catalogue_validation import validate_nonblank_text
+
 if TYPE_CHECKING:
     from datetime import datetime
 
@@ -28,5 +30,7 @@ class EPGEntry:
     category: str | None = None
 
     def __post_init__(self) -> None:
+        validate_nonblank_text(self.id, field="id", label="EPG entry ID")
+        validate_nonblank_text(self.title, field="title", label="EPG entry title")
         if self.end <= self.start:
             raise ValidationError("end", "EPG end time must be after start time")
