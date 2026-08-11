@@ -17,6 +17,7 @@ SamoTech IPTV Player is an in-progress, open-source IPTV project. This revision 
 | **Implemented** | MAG/Stalker provider core | Authentication, channel catalogue loading, local channel search, EPG loading, stream URL resolution, error translation, and session refresh are covered by unit and integration tests using test-only providers. |
 | **Implemented** | Configuration composition | `ConfigurationProvider` owns `IPTV_*` environment parsing with explicit override → environment → default precedence. |
 | **Implemented** | Extended M3U parsing | `M3UParser` translates `#EXTINF` metadata and HTTP(S) stream URLs into canonical `Channel` and `Stream` entities with deterministic IDs and malformed-input errors. |
+| **Implemented** | VOD catalogue validation | `Movie` and `Series` enforce nonblank identity/title metadata, nonblank supplied categories, positive years, and ratings between 0.0 and 10.0. |
 | **Implemented** | Credential/session separation | A MAG connection identity is distinct from the short-lived runtime session token. Tokens are not stored in provider metadata. |
 | **Partially implemented** | Secure credential storage | A keyring-backed credential-store adapter exists. Its deployment and platform integration remain to be exercised by the future application composition root. |
 | **Planned** | M3U/Xtream application adapters and playlist management | Legacy/provider scaffolding exists, but these are not yet integrated through the canonical application provider contract. |
@@ -84,7 +85,7 @@ Do not commit portals, authorized MAC addresses, credentials, or session tokens.
 
 ## Project phases
 
-The initial scaffold and core recovery work are complete. **Phase 2 is in progress**: an extended M3U parser and focused tests are delivered, while remaining domain/value-object coverage and future M3U adapter integration continue. The desktop player and UI remain later phases, after the provider/application core is extended. See [ROADMAP.md](ROADMAP.md) for the complete sequence.
+The initial scaffold and core recovery work are complete. **Phase 2 is in progress**: an extended M3U parser, VOD movie/series validation, and focused tests are delivered, while remaining domain/value-object coverage and future M3U adapter integration continue. The desktop player and UI remain later phases, after the provider/application core is extended. See [ROADMAP.md](ROADMAP.md) for the complete sequence.
 
 ## Contributing and security
 
