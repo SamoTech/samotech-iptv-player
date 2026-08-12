@@ -42,6 +42,9 @@ class FakeResolver(ProviderResolverPort):
     def resolve_search_provider(self, provider_id: str) -> object:
         raise AssertionError(f"Unexpected search resolution for {provider_id}")
 
+    def resolve_epg_provider(self, provider_id: str) -> object:
+        raise AssertionError(f"Unexpected EPG resolution for {provider_id}")
+
 
 class FakePlayer(PlayerPort):
     """Player-port double retaining the resolved playback URL."""

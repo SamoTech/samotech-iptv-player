@@ -50,6 +50,9 @@ class FakeResolver(ProviderResolverPort):
     def resolve_search_provider(self, provider_id: str) -> object:
         raise AssertionError(f"Unexpected search resolution for {provider_id}")
 
+    def resolve_epg_provider(self, provider_id: str) -> object:
+        raise AssertionError(f"Unexpected EPG resolution for {provider_id}")
+
 
 @pytest.mark.asyncio
 async def test_browse_channels_resolves_provider_then_returns_channel_dtos() -> None:

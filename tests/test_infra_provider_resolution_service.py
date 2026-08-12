@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import pytest
 
 from samotech_iptv.application.ports.provider_capabilities import (
     CatalogProvider,
+    EPGProvider,
     PlaybackProvider,
 )
 from samotech_iptv.core.exceptions import ProviderError
@@ -20,6 +23,9 @@ from samotech_iptv.infrastructure.providers.provider_registry import ProviderReg
 from samotech_iptv.infrastructure.providers.provider_resolution_service import (
     ProviderResolutionService,
 )
+
+if TYPE_CHECKING:
+    from samotech_iptv.domain.entities.epg_entry import EPGEntry
 
 
 class FakeCatalogProvider(CatalogProvider):
@@ -41,6 +47,13 @@ class FakePlaybackProvider(PlaybackProvider):
 
     async def resolve_stream(self, _: ChannelId) -> URL:
         return URL("https://example.invalid/live.m3u8")
+
+
+class FakeEPGProvider(EPGProvider):
+    """EPG-capable adapter double returned by the provider factory."""
+
+    async def load_epg(self, _: ChannelId) -> list[EPGEntry]:
+        return []
 
 
 def test_resolver_builds_catalogue_provider_with_shared_context() -> None:
@@ -96,6 +109,29 @@ def test_resolver_builds_playback_provider_with_shared_context() -> None:
     assert result is provider
 
 
+def test_resolver_builds_epg_provider_with_shared_context() -> None:
+    registry = ProviderRegistry()
+    registry.register(
+        InfraProviderMetadata(
+            provider_id="mag-demo",
+            provider_type="mag",
+            base_url="https://example.invalid",
+        )
+    )
+    factory = ProviderFactory()
+    context = object()
+    provider = FakeEPGProvider()
+    factory.register_type("mag", lambda _, **__: provider)
+
+    result = ProviderResolutionService(  # type: ignore[arg-type]
+        registry,
+        factory,
+        context,
+    ).resolve_epg_provider("mag-demo")
+
+    assert result is provider
+
+
 def test_resolver_rejects_provider_without_catalogue_capability() -> None:
     registry = ProviderRegistry()
     registry.register(
@@ -118,3 +154,5 @@ def test_resolver_rejects_provider_without_catalogue_capability() -> None:
         resolver.resolve_catalog_provider("unsupported")
     with pytest.raises(ProviderError, match="does not support playback"):
         resolver.resolve_playback_provider("unsupported")
+    with pytest.raises(ProviderError, match="does not support EPG"):
+        resolver.resolve_epg_provider("unsupported")

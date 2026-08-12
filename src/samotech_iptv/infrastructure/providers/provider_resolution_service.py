@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 from samotech_iptv.application.ports.provider_capabilities import (
     CatalogProvider,
+    EPGProvider,
     PlaybackProvider,
     SearchProvider,
 )
@@ -52,6 +53,13 @@ class ProviderResolutionService(ProviderResolverPort):
         provider = self._resolve(provider_id)
         if not isinstance(provider, SearchProvider):
             raise ProviderError("Provider does not support channel search")
+        return provider
+
+    def resolve_epg_provider(self, provider_id: str) -> EPGProvider:
+        """Build the requested provider and verify EPG support."""
+        provider = self._resolve(provider_id)
+        if not isinstance(provider, EPGProvider):
+            raise ProviderError("Provider does not support EPG")
         return provider
 
     def _resolve(self, provider_id: str) -> object:

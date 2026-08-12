@@ -57,6 +57,9 @@ class FakeResolver(ProviderResolverPort):
         self.provider_ids.append(provider_id)
         return self._provider
 
+    def resolve_epg_provider(self, provider_id: str) -> object:
+        raise AssertionError(f"Unexpected EPG resolution for {provider_id}")
+
 
 @pytest.mark.asyncio
 async def test_search_registered_channels_resolves_provider_and_returns_safe_channel_dtos() -> None:

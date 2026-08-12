@@ -28,6 +28,7 @@ from samotech_iptv.application.dtos.epg import (
     EPGEntryDTO,
     LoadEPGRequest,
     LoadEPGResponse,
+    LoadRegisteredEPGRequest,
 )
 from samotech_iptv.application.dtos.favorites import (
     FavoriteDTO,
@@ -76,6 +77,7 @@ __all__ = [
     "EPGEntryDTO",
     "LoadEPGRequest",
     "LoadEPGResponse",
+    "LoadRegisteredEPGRequest",
     "ResolveStreamRequest",
     "ResolveStreamResponse",
     "ClearHistoryResponse",

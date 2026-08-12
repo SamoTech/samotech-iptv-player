@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from samotech_iptv.application.ports.player_port import PlayerPort
     from samotech_iptv.application.use_cases.browse_channels import BrowseChannels
     from samotech_iptv.application.use_cases.list_providers import ListProviders
+    from samotech_iptv.application.use_cases.load_registered_epg import LoadRegisteredEPG
     from samotech_iptv.application.use_cases.play_channel import PlayChannel
     from samotech_iptv.application.use_cases.play_registered_channel import (
         PlayRegisteredChannel,
@@ -29,6 +30,7 @@ if TYPE_CHECKING:
     from samotech_iptv.presentation.dialogs.channel_browser_dialog import (
         ChannelBrowserDialog,
     )
+    from samotech_iptv.presentation.dialogs.epg_grid_dialog import EPGGridDialog
     from samotech_iptv.presentation.dialogs.m3u_provider_dialog import M3UProviderDialog
     from samotech_iptv.presentation.dialogs.mag_provider_dialog import MAGProviderDialog
     from samotech_iptv.presentation.dialogs.provider_list_dialog import ProviderListDialog
@@ -52,6 +54,7 @@ class MainWindow(QMainWindow):  # type: ignore[misc]
         play_registered_channel: PlayRegisteredChannel,
         search_registered_channels: SearchRegisteredChannels,
         save_favorite: SaveFavorite,
+        load_registered_epg: LoadRegisteredEPG,
     ) -> None:
         super().__init__()
         self._play_channel = play_channel
@@ -63,6 +66,7 @@ class MainWindow(QMainWindow):  # type: ignore[misc]
         self._play_registered_channel = play_registered_channel
         self._search_registered_channels = search_registered_channels
         self._save_favorite = save_favorite
+        self._load_registered_epg = load_registered_epg
         self.video_surface = VlcVideoSurface(player)
         self.setCentralWidget(self.video_surface)
         self.setWindowTitle("SamoTech IPTV Player")
@@ -74,6 +78,8 @@ class MainWindow(QMainWindow):  # type: ignore[misc]
         self.add_mag_provider_action.triggered.connect(self.open_mag_provider_dialog)
         self.browse_channels_action = QAction("Browse Channels", self)
         self.browse_channels_action.triggered.connect(self.open_channel_browser_dialog)
+        self.show_epg_action = QAction("Show EPG…", self)
+        self.show_epg_action.triggered.connect(self.open_epg_grid_dialog)
         self.show_provider_list_action = QAction("Show Registered Providers", self)
         self.show_provider_list_action.triggered.connect(self.open_provider_list_dialog)
         providers_menu = self.menuBar().addMenu("Providers")
@@ -81,11 +87,13 @@ class MainWindow(QMainWindow):  # type: ignore[misc]
         providers_menu.addAction(self.add_m3u_provider_action)
         providers_menu.addAction(self.add_mag_provider_action)
         providers_menu.addAction(self.browse_channels_action)
+        providers_menu.addAction(self.show_epg_action)
         providers_menu.addAction(self.show_provider_list_action)
         self._active_xtream_provider_dialog: XtreamProviderDialog | None = None
         self._active_m3u_provider_dialog: M3UProviderDialog | None = None
         self._active_mag_provider_dialog: MAGProviderDialog | None = None
         self._active_channel_browser_dialog: ChannelBrowserDialog | None = None
+        self._active_epg_grid_dialog: EPGGridDialog | None = None
         self._active_provider_list_dialog: ProviderListDialog | None = None
 
     def open_xtream_provider_dialog(self) -> XtreamProviderDialog:
@@ -129,6 +137,15 @@ class MainWindow(QMainWindow):  # type: ignore[misc]
         )
         dialog.show()
         self._active_channel_browser_dialog = dialog
+        return dialog
+
+    def open_epg_grid_dialog(self) -> EPGGridDialog:
+        """Create and show the credential-safe provider EPG grid."""
+        from samotech_iptv.presentation.dialogs.epg_grid_dialog import EPGGridDialog
+
+        dialog = EPGGridDialog(self._load_registered_epg)
+        dialog.show()
+        self._active_epg_grid_dialog = dialog
         return dialog
 
     def open_provider_list_dialog(self) -> ProviderListDialog:
