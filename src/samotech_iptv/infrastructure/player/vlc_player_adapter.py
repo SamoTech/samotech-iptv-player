@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import sys
 from typing import TYPE_CHECKING, Protocol
 
 import vlc  # type: ignore[import-not-found]
@@ -31,6 +32,12 @@ class _VlcPlayer(Protocol):
     def stop(self) -> None: ...
 
     def pause(self) -> None: ...
+
+    def set_xwindow(self, native_window_id: int) -> None: ...
+
+    def set_hwnd(self, native_window_id: int) -> None: ...
+
+    def set_nsobject(self, native_window_id: int) -> None: ...
 
 
 class VlcPlayerAdapter(PlayerPort):
@@ -63,6 +70,19 @@ class VlcPlayerAdapter(PlayerPort):
     async def resume(self) -> None:
         """Resume libVLC playback."""
         await self._invoke("play")
+
+    def attach_video_output(self, native_window_id: int) -> None:
+        """Attach libVLC rendering to a Qt-owned native video surface."""
+        if native_window_id <= 0:
+            raise ValueError("native_window_id must be positive")
+        if sys.platform.startswith("linux"):
+            self._player.set_xwindow(native_window_id)
+        elif sys.platform == "win32":
+            self._player.set_hwnd(native_window_id)
+        elif sys.platform == "darwin":
+            self._player.set_nsobject(native_window_id)
+        else:
+            raise RuntimeError(f"Unsupported libVLC video-output platform: {sys.platform}")
 
     async def _invoke(self, operation: str) -> None:
         result = await asyncio.to_thread(getattr(self._player, operation))

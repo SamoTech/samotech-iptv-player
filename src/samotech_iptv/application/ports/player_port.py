@@ -26,6 +26,11 @@ class PlayerPort(ABC):
     @abstractmethod
     async def resume(self) -> None: ...
 
+    @abstractmethod
+    def attach_video_output(self, native_window_id: int) -> None:
+        """Attach video rendering to a presentation-owned native window."""
+        ...
+
     @property
     @abstractmethod
     def is_playing(self) -> bool: ...

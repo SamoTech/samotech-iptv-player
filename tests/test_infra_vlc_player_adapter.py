@@ -42,6 +42,15 @@ class FakePlayer:
         self.calls.append("pause")
         self.playing = False
 
+    def set_xwindow(self, native_window_id: int) -> None:
+        self.calls.append(f"xwindow:{native_window_id}")
+
+    def set_hwnd(self, native_window_id: int) -> None:
+        self.calls.append(f"hwnd:{native_window_id}")
+
+    def set_nsobject(self, native_window_id: int) -> None:
+        self.calls.append(f"nsobject:{native_window_id}")
+
 
 class FakeInstance:
     """Deterministic libVLC instance double."""
@@ -77,3 +86,15 @@ async def test_vlc_adapter_controls_libvlc_playback() -> None:
     await adapter.stop()
 
     assert player.calls == ["play", "pause", "play", "stop"]
+
+
+def test_vlc_adapter_attaches_linux_video_output(monkeypatch: pytest.MonkeyPatch) -> None:
+    player = FakePlayer()
+    adapter = _adapter(player)
+    monkeypatch.setattr(
+        "samotech_iptv.infrastructure.player.vlc_player_adapter.sys.platform", "linux"
+    )
+
+    adapter.attach_video_output(1234)
+
+    assert player.calls == ["xwindow:1234"]

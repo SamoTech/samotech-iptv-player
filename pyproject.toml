@@ -13,6 +13,7 @@ dependencies = [
     "aiohttp>=3.9",
     "defusedxml>=0.7",
     "python-vlc>=3.0.21203",
+    "PySide6>=6.7",
 ]
 
 [project.optional-dependencies]
@@ -54,5 +55,5 @@ mypy_path = "src"
 packages = ["samotech_iptv"]
 
 [[tool.mypy.overrides]]
-module = ["keyring", "keyring.*"]
+module = ["keyring", "keyring.*", "PySide6", "PySide6.*"]
 ignore_missing_imports = true
