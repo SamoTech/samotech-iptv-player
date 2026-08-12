@@ -80,3 +80,28 @@ async def test_play_registered_channel_resolves_selected_provider_then_plays_cha
     assert resolver.provider_ids == ["m3u-demo"]
     assert provider.channel_ids == ["channel-1"]
     assert player.urls == [URL("https://example.invalid/live.m3u8")]
+
+
+class FakeRecordHistory:
+    """History use-case double retaining the safe playback record request."""
+
+    def __init__(self) -> None:
+        self.requests: list[tuple[str, str]] = []
+
+    async def execute(self, request: object) -> object:
+        self.requests.append((request.item_id, request.item_type))  # type: ignore[union-attr]
+        return object()
+
+
+@pytest.mark.asyncio
+async def test_play_registered_channel_records_successful_channel_playback() -> None:
+    provider = FakePlaybackProvider()
+    history = FakeRecordHistory()
+
+    await PlayRegisteredChannel(  # type: ignore[arg-type]
+        FakeResolver(provider),
+        FakePlayer(),
+        history,
+    ).execute("m3u-demo", "channel-2")
+
+    assert history.requests == [("channel-2", "channel")]

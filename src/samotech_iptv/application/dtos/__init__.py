@@ -39,9 +39,12 @@ from samotech_iptv.application.dtos.favorites import (
     SearchChannelsResponse,
 )
 from samotech_iptv.application.dtos.history import (
+    ClearHistoryResponse,
     HistoryItemDTO,
     LoadHistoryRequest,
     LoadHistoryResponse,
+    RecordHistoryRequest,
+    RecordHistoryResponse,
 )
 from samotech_iptv.application.dtos.provider import (
     ProviderCapabilities,
@@ -75,9 +78,12 @@ __all__ = [
     "LoadEPGResponse",
     "ResolveStreamRequest",
     "ResolveStreamResponse",
+    "ClearHistoryResponse",
     "HistoryItemDTO",
     "LoadHistoryRequest",
     "LoadHistoryResponse",
+    "RecordHistoryRequest",
+    "RecordHistoryResponse",
     "FavoriteDTO",
     "ListFavoritesResponse",
     "RemoveFavoriteResponse",
