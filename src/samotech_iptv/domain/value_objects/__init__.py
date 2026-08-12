@@ -20,6 +20,7 @@ from samotech_iptv.domain.value_objects.stream_protocol import (
     StreamTransport,
 )
 from samotech_iptv.domain.value_objects.stream_uri import StreamURI
+from samotech_iptv.domain.value_objects.theme_preference import ThemePreference
 from samotech_iptv.domain.value_objects.url import URL
 
 __all__ = [
@@ -32,5 +33,6 @@ __all__ = [
     "StreamManifest",
     "StreamClassification",
     "Credential",
+    "ThemePreference",
     "URL",
 ]

@@ -38,6 +38,7 @@ from samotech_iptv.application.ports.provider_port import ProviderPort
 from samotech_iptv.application.ports.provider_registration_port import ProviderRegistrationPort
 from samotech_iptv.application.ports.provider_resolver_port import ProviderResolverPort
 from samotech_iptv.application.ports.storage_port import StoragePort
+from samotech_iptv.application.ports.theme_preference_repository import ThemePreferenceRepository
 
 __all__ = [
     # Original ports
@@ -48,6 +49,7 @@ __all__ = [
     "StoragePort",
     "CredentialStorePort",
     "NotificationPort",
+    "ThemePreferenceRepository",
     # ISP capability interfaces
     "AuthenticationProvider",
     "CatalogProvider",
