@@ -6,7 +6,9 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from samotech_iptv.core.exceptions import ProviderError
 from samotech_iptv.domain.value_objects.provider_capability import ProviderCapability
+from samotech_iptv.domain.value_objects.url import URL
 from samotech_iptv.infrastructure.parsing.m3u_source_loader import (
     M3USourceError,
     M3USourceLoader,
@@ -20,6 +22,7 @@ if TYPE_CHECKING:
 
 
 _PLAYLIST = "#EXTM3U\n#EXTINF:-1 tvg-id=one,One\nhttps://stream.example.test/live/one.m3u8\n"
+_RTSP_PLAYLIST = "#EXTM3U\n#EXTINF:-1 tvg-id=rtsp,RTSP\nrtsp://stream.example.test/live\n"
 
 
 class FakeHttpClient:
@@ -37,9 +40,12 @@ class FakeHttpClient:
 class FakeSourceLoader:
     """Deterministic source-loader fake for adapter contract tests."""
 
+    def __init__(self, text: str = _PLAYLIST) -> None:
+        self._text = text
+
     async def load(self, source: str) -> str:
         assert source == "https://playlist.example.test/list.m3u"
-        return _PLAYLIST
+        return self._text
 
 
 @pytest.mark.asyncio
@@ -91,6 +97,34 @@ async def test_m3u_adapter_translates_loaded_source_and_declares_capabilities() 
     assert adapter.supported_capabilities() == {
         ProviderCapability.LIVE,
         ProviderCapability.SEARCH,
+        ProviderCapability.STREAM_RESOLUTION,
     }
     assert [channel.name for channel in channels] == ["One"]
     assert [channel.name for channel in await adapter.search_channels("one")] == ["One"]
+    assert await adapter.resolve_stream(channels[0].id) == URL(
+        "https://stream.example.test/live/one.m3u8"
+    )
+
+
+@pytest.mark.asyncio
+async def test_m3u_adapter_rejects_unknown_or_non_http_playback_urls_safely() -> None:
+    """Resolution hides channel and source details when a player-compatible URL is unavailable."""
+    metadata = InfraProviderMetadata(
+        provider_id="m3u-demo",
+        provider_type="m3u",
+        base_url="https://playlist.example.test/list.m3u",
+    )
+    adapter = M3UProviderAdapter(
+        metadata,
+        ProviderContext.build(overrides={"max_retries": 1}),
+        source_loader=FakeSourceLoader(_RTSP_PLAYLIST),
+    )
+    channels = await adapter.load_channels()
+
+    with pytest.raises(ProviderError, match="supported playback URL") as unsupported_error:
+        await adapter.resolve_stream(channels[0].id)
+    with pytest.raises(ProviderError, match="was not found") as unknown_error:
+        await adapter.resolve_stream(type(channels[0].id)("m3u-demo:unknown"))
+
+    assert "rtsp" not in str(unsupported_error.value)
+    assert "unknown" not in str(unknown_error.value)

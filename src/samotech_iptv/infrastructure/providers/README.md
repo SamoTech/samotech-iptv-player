@@ -4,7 +4,7 @@ This package implements the provider boundary: provider-specific credentials, se
 
 | Provider/service | Current status | Verified behavior |
 |---|---|---|
-| `M3UProviderAdapter` | Partially implemented | Secure local/file/HTTP(S) source loading, extended-M3U parsing, canonical live catalogue, and local search. It does not yet implement registered stream resolution. |
+| `M3UProviderAdapter` | Partially implemented | Secure local/file/HTTP(S) source loading, extended-M3U parsing, canonical live catalogue/search, and parsed HTTP(S) stream resolution through `PlaybackProvider`. Non-HTTP(S) transports remain outside the current player URL boundary. |
 | `XtreamProviderAdapter` | Partially implemented | Authentication; live, category-family, VOD/movie, series, short-EPG, local search, and live stream-resolution methods. VOD/series are not yet exposed through registered-provider application/UI workflows. |
 | `MagProviderAdapter` | Partially implemented | Authorized MAC identity handling, private session lifecycle, live catalogue, local search, EPG, and live stream resolution through the legacy MAG provider implementation. |
 | `ProviderRegistrationService` | Implemented | Secure M3U/Xtream/MAG registration, non-secret metadata persistence, and keyring-owned secrets. |

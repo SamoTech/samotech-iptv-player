@@ -86,8 +86,8 @@ The application can now launch from source. The next product milestone completes
 
 | Priority | Candidate | Rationale |
 |---|---|---|
-| P0 | M3U registered-stream resolution | The M3U adapter currently exposes catalogue/search but not the playback capability required by the registered-player path. Completing it enables a primary provider type to play its parsed live streams. |
-| P1 | Playback-state, failure, and stop controls | A user needs clear generic status feedback and direct playback controls around the active libVLC session. |
+| Completed | M3U registered-stream resolution | The M3U adapter now exposes `PlaybackProvider`, resolves parsed HTTP(S) streams from the current playlist, advertises `STREAM_RESOLUTION`, and completes the registered-player path with generic safe failures for unsupported boundaries. |
+| P0 | Playback-state, failure, and stop controls | A user needs clear generic status feedback and direct pause/resume/stop controls around the active libVLC session. |
 | P1 | Provider lifecycle management UI | Users need to remove or update registered sources and understand inactive/invalid profiles without exposing secrets. |
 | P1 | EPG-source binding | XMLTV parser capability must be connected to provider/source configuration before it becomes a user-facing guide source. |
 

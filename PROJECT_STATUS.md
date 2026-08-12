@@ -57,7 +57,7 @@ The domain layer does not depend on Qt, libVLC, SQLite, `aiohttp`, `keyring`, or
 
 | Technology | Category | Current status | Implemented | Tested | Playback | Remaining work |
 |---|---|---:|---|---|---|---|
-| M3U source | Provider/content source | **Partially Implemented** | Local, `file:`, and HTTP(S) source loading; extended-M3U parsing; protected tokenized source storage; canonical live channels; local search. | Source loader, parser, adapter, registration, and transport coverage. | Not through the registered-provider path: the adapter does not implement `PlaybackProvider`. | Add canonical parsed-stream lookup and resolution; bind to registered playback; add source-to-XMLTV mapping and non-live workflows where source metadata supports them. |
+| M3U source | Provider/content source | **Partially Implemented** | Local, `file:`, and HTTP(S) source loading; extended-M3U parsing; protected tokenized source storage; canonical live channels/search; parsed HTTP(S) stream resolution. | Source loader, parser, adapter, registered-playback integration, registration, and transport coverage. | The adapter implements `PlaybackProvider` and resolves parsed HTTP(S) channels through the registered-provider path. | Non-HTTP(S) parsed transports remain classified but cannot cross the current `URL`/player boundary; add XMLTV mapping and non-live workflows where source metadata supports them. |
 | Xtream Codes API | Provider/content source | **Partially Implemented** | Credential validation; live channels; live/VOD/series categories; movies; series; short EPG; local live-channel search; live stream URL construction/resolution. | Request builder, API client, DTO translator, adapter, resolver, registration, and EPG coverage. | Live stream resolution is available to the registered-player use case; no desktop VOD/series workflow. | Add resolver/use-case/UI support for categories, movies, series, episodes, VOD playback, and provider lifecycle UX. |
 | MAG/Stalker | Provider/content source | **Partially Implemented** | Authorized MAC identity handling; private session state; session refresh; live channels; local search; EPG; live link resolution. | Unit, adapter, integration, credential, session, stream, resolver, and EPG coverage. | Live stream resolution is available to the registered-player use case. | Add categories, VOD, series, archive/catch-up only with verified authorized fixtures; complete user-facing management. |
 | Ministra | Provider/content source | **Planned** | Compatibility assessment and separate-adapter design only. | Assessment documentation only; no runtime adapter. | None. | Obtain authorized sanitized portal fixture and approved device identity; build a separate device-facing adapter. |
@@ -67,7 +67,7 @@ The domain layer does not depend on Qt, libVLC, SQLite, `aiohttp`, `keyring`, or
 
 | Technology | Category | Current status | Implemented | Tested | Playback | Remaining work |
 |---|---|---:|---|---|---|---|
-| Extended M3U | Playlist format | **Implemented** | Parses `#EXTINF` metadata, validated stream URIs, categories, logos, EPG identifiers, and deterministic channel/stream IDs. | Parser and M3U adapter tests. | Parsed streams are modeled but M3U provider playback resolution is missing. | Add adapter-level stream lookup/resolution and application exposure. |
+| Extended M3U | Playlist format | **Implemented** | Parses `#EXTINF` metadata, validated stream URIs, categories, logos, EPG identifiers, deterministic channel/stream IDs, and adapter-level parsed-stream lookup. | Parser, M3U adapter, and registered-playback integration tests. | Parsed HTTP(S) streams resolve through the registered-player path; non-HTTP(S) transports return generic safe failures at the current URL boundary. | XMLTV binding and non-live workflows. |
 | M3U8/HLS | Manifest format | **Partially Implemented** | Bounded master/media manifest parser with variants, segments, and live/endlist classification. | Focused HLS parser tests. | Decoding/adaptation is delegated to libVLC; no Python adaptive engine. | Player capability negotiation, manifest-fetch workflow, and user-facing diagnostics if required. |
 | MPEG-DASH MPD | Manifest format | **Partially Implemented** | Bounded safe MPD parser for live/VOD type and advertised representations. | Focused DASH parser tests. | Decoding/adaptation is delegated to libVLC; no Python adaptive engine. | Player capability negotiation, manifest-fetch workflow, and user-facing diagnostics if required. |
 | XMLTV | EPG format | **Partially Implemented** | Bounded `defusedxml` parser with source-channel mapping, size/entry limits, canonical EPG translation, and timezone-aware timestamps. | Focused XMLTV parser tests. | Not a playback concern. | Provider/source configuration, XMLTV fetching, mapping persistence, refresh policy, and UI integration. |
@@ -83,7 +83,7 @@ The domain layer does not depend on Qt, libVLC, SQLite, `aiohttp`, `keyring`, or
 
 | Technology | Category | Current status | Implemented | Tested | Playback | Remaining work |
 |---|---|---:|---|---|---|---|
-| Live TV | Content type | **Partially Implemented** | Canonical channels; M3U/Xtream/MAG catalogues; provider-scoped browse/search; Xtream/MAG resolution; libVLC orchestration. | Domain, provider, use-case, player, and Qt dialog coverage. | Xtream and MAG registered-live paths exist as components; no production launcher. | Composition root/CLI lifecycle; M3U resolver; controls/state UX. |
+| Live TV | Content type | **Partially Implemented** | Canonical channels; M3U/Xtream/MAG catalogues; provider-scoped browse/search; M3U/Xtream/MAG supported HTTP(S) resolution; libVLC orchestration; source-install lifecycle. | Domain, provider, use-case, player, lifecycle, and Qt dialog coverage. | All three current provider types have a registered-live component path for supported URLs. | Playback controls/state UX, broader transport capability negotiation, and release packaging. |
 | Movies/VOD | Content type | **Partially Implemented** | Domain `Movie`; Xtream adapter `load_movies()`. | Domain and Xtream adapter/translator tests. | No registered movie-playback route or UI. | Catalogue resolver/use cases, VOD URL resolution, browse/playback UI. |
 | Series | Content type | **Partially Implemented** | Domain `Series`/`Episode`; Xtream adapter `load_series()`. | Domain and Xtream adapter/translator tests. | No series/episode playback workflow. | Series detail/episode endpoints, resolver/use cases, and UI. |
 | Episodes | Content type | **Partially Implemented** | Canonical domain record and validation. | Domain tests. | None. | Provider translation, catalogue browsing, episode stream resolution, UI. |
@@ -124,7 +124,7 @@ The documentation rebaseline must run the same quality gate before publication. 
 ## Known limitations
 
 1. A production composition root and source-install lifecycle entry point now initialize safe SQLite state, restore provider metadata, wire registered-provider use cases, load the persisted theme, run qasync, report generic startup failures, and close the shared HTTP resource. Packaging, installers, update delivery, crash-reporting policy, and wider operational diagnostics remain incomplete.
-2. M3U parsing/catalogue/search is implemented, but the M3U adapter does not currently resolve parsed streams through the registered-player path.
+2. M3U parsing/catalogue/search and parsed HTTP(S) stream resolution are implemented through the registered-player path. Other classified transports remain outside the current `URL`/player boundary and receive generic safe failures.
 3. Xtream VOD, series, category-family methods are adapter capabilities without registered-provider resolver/use-case/desktop catalogue workflows.
 4. MAG/Stalker supports the documented live-TV subset only; VOD, series, categories, archive, and catch-up are not represented as executable adapter capabilities.
 5. XMLTV parsing is not bound to a provider source, mapping store, refresh job, or desktop workflow.
@@ -147,13 +147,11 @@ The documentation rebaseline must run the same quality gate before publication. 
 
 ### Usable Live-TV Workflow Completion
 
-**Objective:** Complete the highest-value live-TV gaps now that a user can launch the composed desktop application from source.
+**Objective:** Complete the highest-value live-TV usability gaps now that M3U, Xtream, and MAG resolve supported live streams through the registered-player path.
 
-**Why it is next:** M3U is a registered provider type with secure source handling, catalogue loading, and search, but it cannot resolve parsed streams through the registered-player path. Fixing that gives a primary provider type a complete catalogue → selected channel → libVLC workflow and precedes broader VOD, series, or cosmetic work.
+**Delivered increment:** M3U now uses fresh parsed-playlist lookup for the selected canonical channel, advertises `STREAM_RESOLUTION`, converts only supported HTTP(S) stream URIs to the current player `URL` value object, and returns generic failures for unknown channels or unsupported transport boundaries. Adapter and resolver-to-player integration tests confirm the path without source URL disclosure.
 
-**Dependencies:** The delivered production composition/lifecycle, M3U parser/source loader, canonical channel/stream records, `PlaybackProvider`, provider-resolution service, `PlayRegisteredChannel`, libVLC, and Qt channel browser.
-
-**First bounded task:** Add safe M3U parsed-stream lookup and `PlaybackProvider` support, advertise `STREAM_RESOLUTION` only when executable, and add registered M3U playback orchestration tests without exposing secure source URLs.
+**Next bounded task:** Add pause, resume, and stop actions with generic playback-state feedback to the Qt Playback menu by invoking the existing libVLC-only player use cases.
 
 ## Related documents
 

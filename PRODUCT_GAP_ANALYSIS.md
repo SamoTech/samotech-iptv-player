@@ -19,19 +19,18 @@ The repository has a tested Clean Architecture foundation and executable pieces 
 
 | Capability | Evidence of usability today | Boundaries |
 |---|---|---|
-| Xtream live-TV component workflow | Authentication, catalogue, search, short EPG, and live stream resolution are implemented in the adapter; registered-playback use case and Qt channel browser exist. | Production composition now wires safe stores, services, use cases, theme, and one player; no executable lifecycle entry point exists yet. |
-| MAG/Stalker live-TV component workflow | Authorized MAC identity, session lifecycle, live catalogue, search, EPG, and live link resolution exist behind the adapter. | Requires an authorized provider; production composition is present but the lifecycle/launcher remains incomplete. |
-| M3U catalogue component workflow | Local/file/HTTP(S) source loading, extended-M3U parsing, source protection, live catalogue, and search are implemented. | The adapter does not yet provide registered playback resolution. |
+| Xtream live-TV component workflow | Authentication, catalogue, search, short EPG, and live stream resolution are implemented in the adapter; registered-playback use case and Qt channel browser exist. | Production composition and the source-install lifecycle wire safe stores, services, use cases, theme, and one player; VOD/series UI workflows remain incomplete. |
+| MAG/Stalker live-TV component workflow | Authorized MAC identity, session lifecycle, live catalogue, search, EPG, and live link resolution exist behind the adapter. | Requires an authorized provider; source-install lifecycle is present, but only the live-TV subset is implemented. |
+| M3U live-TV component workflow | Local/file/HTTP(S) source loading, extended-M3U parsing, source protection, live catalogue/search, and parsed HTTP(S) resolution through the registered-player path are implemented. | Non-HTTP(S) transports are classified but remain outside the current player URL boundary; XMLTV and non-live workflows are incomplete. |
 | Local recording component workflow | Active libVLC playback can be duplicated to a safe timestamped local `.ts` file. | Requires active playback and lacks a recording-library experience. |
-| Persisted settings component workflow | System/light/dark preference can be persisted, loaded by production composition before bootstrap, and presented in a Qt settings dialog. | An executable lifecycle still must launch the UI and close resources safely. |
+| Persisted settings component workflow | System/light/dark preference can be persisted, loaded by production composition before bootstrap, and presented in a Qt settings dialog. | A source-install lifecycle launches the UI and closes the shared HTTP resource; applying a newly saved preference immediately remains optional work. |
 
 ## Partially usable capabilities
 
 | Priority | Gap | Why it is partial | Recommended completion direction |
 |---|---|---|---|
-| **P0** | M3U cannot resolve a parsed stream through the registered-player path | M3U exposes live catalogue/search but not `PlaybackProvider`; parsed streams are not retained or resolved by the adapter. | Add safe parsed-channel/stream lookup and `PlaybackProvider` implementation, then test registered M3U playback orchestration. |
+| **P0** | Playback UX lacks state and direct controls | The player adapter supports play/pause/resume/stop, but the desktop menu currently exposes recording controls only. | Add generic playback state/status and pause/resume/stop actions without revealing stream URLs. |
 | **P1** | Provider management ends at add/list | Registration and metadata persistence exist, but users cannot edit/remove profiles or observe lifecycle errors safely. | Add delete/update contracts, credential cleanup, registry refresh, safe dialog actions, and tests. |
-| **P1** | Playback UX lacks state and direct controls | The player adapter supports play/pause/resume/stop, but the desktop menu currently exposes recording controls only. | Add generic playback state/status and pause/resume/stop actions without revealing stream URLs. |
 | **P1** | EPG source integration is incomplete | MAG/Xtream EPG and safe grid work; XMLTV parsing has explicit mapping but no provider source binding, fetch, persistence, or refresh. | Define XMLTV source/mapping lifecycle and expose it only after bounded integration tests. |
 | **P1** | Favorites and history lack complete user workflows | Persistence/use cases exist, and a selected channel can be favorited, but no library pages/removal/history/resume UX exists. | Add safe list/remove/history views and separate progress/resume policy. |
 | **P2** | Xtream VOD/series do not reach application/UI workflows | Adapter methods and canonical domain records exist, but no resolver ports/use cases/UI navigate categories, movies, series, or episodes. | Add capability-specific resolver/use cases and first browse-only UI; only then add playback where provider contracts are verified. |
@@ -47,9 +46,9 @@ The dependency-wiring and source-install lifecycle work are complete. `build_pro
 
 Packaging, installers, update delivery, crash-reporting policy, and broader operational diagnostics remain separate production-hardening work; they do not block source-install launch.
 
-### P0 — M3U registered stream resolution
+### Completed — M3U registered stream resolution
 
-M3U is a first-class source type in registration and browsing, but it cannot complete the same registered playback flow as Xtream/MAG because the M3U adapter advertises `LIVE` and `SEARCH`, not `STREAM_RESOLUTION`. This makes it a P0 follow-on after lifecycle composition: it closes a core provider-to-player gap using data the parser already produces.
+M3U now completes the same registered HTTP(S) playback flow as Xtream/MAG. The adapter advertises `LIVE`, `SEARCH`, and `STREAM_RESOLUTION`; it parses the current playlist, matches the canonical channel, converts only supported HTTP(S) stream URIs into the existing player `URL` contract, and returns generic failures for unknown channels or unsupported transports. The resolver-to-player integration is covered without exposing playlist or stream secrets.
 
 ### P1 — Complete live-TV interaction
 
@@ -87,8 +86,8 @@ Guide parsing, favorites, and history exist as component foundations. A usable p
 |---:|---|---|
 | 1 | Production composition root | **Completed.** Existing services, repositories, provider registry/factory/context, use cases, theme, and one player are constructible/testable as one application graph, with safe metadata restoration. |
 | 2 | Startup/shutdown lifecycle and entry point | **Completed.** A user can launch the desktop shell through supported code, receives generic startup failures, and the shared HTTP resource is closed safely. |
-| 3 | M3U playback resolution | **Current P0.** The M3U source type must complete the registered live-TV playback path. |
-| 4 | Playback controls and safe status | The live-TV workflow becomes operable rather than merely invocable by double-click. |
+| 3 | M3U playback resolution | **Completed.** The M3U source type completes the registered HTTP(S) live-TV playback path with safe failure boundaries. |
+| 4 | Playback controls and safe status | **Current P0.** The live-TV workflow needs pause, resume, stop, and generic state feedback. |
 | 5 | Provider lifecycle and EPG/library completion | Users can maintain sources and personal state safely. |
 | 6 | VOD/series, protocol breadth, and hardening | Higher-breadth capabilities build on a viable product lifecycle. |
 

@@ -38,7 +38,7 @@ The current codebase implements tested boundaries for the following capabilities
 
 | Provider or source | Status | What is available now | What remains |
 |---|---|---|---|
-| M3U | **Partially Implemented** | Local/file/HTTP(S) source loading, extended-M3U parsing, secure tokenized-source handling, canonical live channels, and local search. | No canonical M3U playback-provider implementation in the registered-player path; no VOD/series UI or XMLTV source binding. |
+| M3U | **Partially Implemented** | Local/file/HTTP(S) source loading, extended-M3U parsing, secure tokenized-source handling, canonical live channels/search, and parsed HTTP(S) stream resolution through the registered-player path. | Non-HTTP(S) transports remain classified but are outside the current `URL`/player boundary; no VOD/series UI or XMLTV source binding. |
 | Xtream Codes API | **Partially Implemented** | Credential validation, live channels, live/VOD/series categories, movies, series, short EPG, local channel search, and live stream URL resolution. | VOD/series/category capability exposure through registered-provider use cases and desktop catalogue UI; broader playback/track UX. |
 | MAG/Stalker | **Partially Implemented** | Authorized MAC identity handling, session refresh, live channels, EPG, local channel search, and live stream resolution. | Canonical VOD, series, category-family, catch-up/archive, and user-facing catalogue workflows. |
 | Ministra | **Planned** | Compatibility assessment and a separate-adapter design decision. | Authorized sanitized fixture, approved device identity, dedicated device-facing adapter, handshake/profile/catalogue/link-resolution implementation. |
@@ -48,7 +48,7 @@ The current codebase implements tested boundaries for the following capabilities
 
 | Technology | Status | Current behavior |
 |---|---|---|
-| Extended M3U | **Implemented** | Parses channel metadata and stream URIs into canonical `Channel` and `Stream` records. |
+| Extended M3U | **Implemented** | Parses channel metadata and stream URIs into canonical `Channel` and `Stream` records, then resolves parsed HTTP(S) streams through the registered-player path. |
 | M3U8/HLS manifest | **Partially Implemented** | Bounded parser handles HLS master/media manifest metadata; adaptive playback logic is delegated to libVLC rather than implemented in Python. |
 | MPEG-DASH MPD | **Partially Implemented** | Bounded safe parser reads MPD live/VOD type and representation metadata; no adaptive playback logic exists in the application. |
 | XMLTV | **Partially Implemented** | Bounded `defusedxml` parser creates canonical EPG records for explicit source-channel mappings; source discovery/fetching and binding are not composed. |
@@ -59,7 +59,7 @@ The current codebase implements tested boundaries for the following capabilities
 
 | Capability | Status | Current scope |
 |---|---|---|
-| Live TV | **Partially Implemented** | M3U, Xtream, and MAG adapters can model live channels; Xtream and MAG expose live stream resolution through the registered-provider path. |
+| Live TV | **Partially Implemented** | M3U, Xtream, and MAG adapters can model live channels and resolve supported HTTP(S) streams through the registered-provider path. |
 | Movies/VOD | **Partially Implemented** | Canonical domain records and Xtream provider catalogue methods exist. No registered-provider movie browsing/playback UI is present. |
 | Series and episodes | **Partially Implemented** | Canonical domain records and Xtream series catalogue methods exist. No series/episode browse/playback workflow is present. |
 | EPG | **Partially Implemented** | MAG/Stalker and Xtream adapter EPG plus a safe Qt grid are implemented. XMLTV integration and catch-up/archive behavior are not wired. |
@@ -97,7 +97,7 @@ The `domain` package contains framework-independent business records and validat
 
 ## Current implementation status and limitation
 
-The dependency-wiring and launch-lifecycle foundations are now delivered: `build_production_desktop_application()` initializes safe SQLite state, restores provider metadata, constructs provider services and use cases, loads the persisted theme, and shares one libVLC player with the Qt shell; `samotech-iptv` and `python -m samotech_iptv` invoke that graph, run qasync, report startup failure generically, and close the shared HTTP resource. The next P0 product gap is M3U registered-stream resolution, followed by playback and library workflow completion.
+The dependency-wiring, launch-lifecycle, and primary registered live-stream foundations are now delivered: `build_production_desktop_application()` initializes safe SQLite state, restores provider metadata, constructs provider services and use cases, loads the persisted theme, and shares one libVLC player with the Qt shell; `samotech-iptv` and `python -m samotech_iptv` invoke that graph, run qasync, report startup failure generically, and close the shared HTTP resource; M3U, Xtream, and MAG resolve supported HTTP(S) live streams through the registered-provider path. The next focused usability gap is playback-state controls, followed by provider and library workflows.
 
 The detailed prioritization is maintained in [PRODUCT_GAP_ANALYSIS.md](PRODUCT_GAP_ANALYSIS.md).
 
