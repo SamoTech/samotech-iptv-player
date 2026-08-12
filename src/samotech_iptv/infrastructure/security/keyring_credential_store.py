@@ -45,11 +45,7 @@ class KeyringCredentialStore(CredentialStorePort):
 
             service = self._service_name(provider_id)
             keyring.set_password(service, credential.username, credential.password)
-            _log.info(
-                "Stored credential for provider=%s user=%s",
-                provider_id.value,
-                credential.username,
-            )
+            _log.info("Stored credential for provider=%s", provider_id.value)
         except Exception as exc:
             _log.error("Failed to store credential for provider=%s: %s", provider_id.value, exc)
             raise StorageError(f"keyring.set_password failed: {exc}") from exc
@@ -65,11 +61,7 @@ class KeyringCredentialStore(CredentialStorePort):
             if entry is None:
                 _log.debug("No credential found for provider=%s", provider_id.value)
                 return None
-            _log.debug(
-                "Retrieved credential for provider=%s user=%s",
-                provider_id.value,
-                entry.username,
-            )
+            _log.debug("Retrieved credential for provider=%s", provider_id.value)
             return Credential(username=entry.username, _password=entry.password)
         except Exception as exc:
             _log.error(

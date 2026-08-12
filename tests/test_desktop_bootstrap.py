@@ -144,6 +144,7 @@ def test_bootstrap_composes_qt_application_vlc_player_and_main_window() -> None:
             FakePlayChannel(),
             FakeRegistration(),  # type: ignore[arg-type]
             FakeRegistration(),  # type: ignore[arg-type]
+            FakeRegistration(),  # type: ignore[arg-type]
             ["iptv-player"],
         )
 

@@ -15,12 +15,15 @@ from samotech_iptv.infrastructure.providers.provider_metadata import InfraProvid
 if TYPE_CHECKING:
     from samotech_iptv.application.dtos.provider_registration import (
         RegisterM3UProviderRequest,
+        RegisterMAGProviderRequest,
         RegisterXtreamProviderRequest,
     )
     from samotech_iptv.application.ports.credential_store_port import CredentialStorePort
     from samotech_iptv.infrastructure.providers.provider_registry import ProviderRegistry
 
 __all__ = ["ProviderRegistrationService"]
+
+_MAG_DEVICE_IDENTITY_MARKER = "mag-device-identity"
 
 
 class ProviderRegistrationService(ProviderRegistrationPort):
@@ -29,6 +32,23 @@ class ProviderRegistrationService(ProviderRegistrationPort):
     def __init__(self, registry: ProviderRegistry, credential_store: CredentialStorePort) -> None:
         self._registry = registry
         self._credential_store = credential_store
+
+    async def register_mag(self, request: RegisterMAGProviderRequest) -> str:
+        """Register a MAG/Stalker portal while retaining its MAC only in secure storage."""
+        provider_id = ProviderId(request.provider_id)
+        if self._registry.find(provider_id.value) is not None:
+            raise ValidationError("provider_id", "Provider ID is already registered")
+        portal_url = URL(request.portal_url)
+        credential = Credential(username=request.mac_address, _password=_MAG_DEVICE_IDENTITY_MARKER)
+        await self._credential_store.store(provider_id, credential)
+        self._registry.register(
+            InfraProviderMetadata(
+                provider_id=provider_id.value,
+                provider_type="mag",
+                base_url=portal_url.value,
+            )
+        )
+        return provider_id.value
 
     async def register_m3u(self, request: RegisterM3UProviderRequest) -> str:
         """Register an M3U source without retaining tokens in provider metadata."""

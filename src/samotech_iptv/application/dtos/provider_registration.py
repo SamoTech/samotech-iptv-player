@@ -5,10 +5,20 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 __all__ = [
+    "RegisterMAGProviderRequest",
     "RegisterM3UProviderRequest",
     "RegisterXtreamProviderRequest",
     "RegisterXtreamProviderResponse",
 ]
+
+
+@dataclass(frozen=True)
+class RegisterMAGProviderRequest:
+    """Ephemeral MAG portal and device identity input; never serialize or log the MAC address."""
+
+    provider_id: str
+    portal_url: str
+    mac_address: str
 
 
 @dataclass(frozen=True)

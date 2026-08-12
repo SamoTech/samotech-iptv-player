@@ -198,6 +198,7 @@ async def test_main_window_attaches_surface_then_delegates_playback() -> None:
         play_channel,
         FakeRegistration(),
         FakeRegistration(),
+        FakeRegistration(),
     )  # type: ignore[arg-type]
 
     await window.play_channel("xtream-demo:1")
@@ -212,12 +213,14 @@ def test_main_window_exposes_xtream_provider_menu_action() -> None:
         FakePlayChannel(),
         FakeRegistration(),
         FakeRegistration(),
+        FakeRegistration(),
     )  # type: ignore[arg-type]
 
     assert window.menu_bar.menus[0].title == "Providers"
     assert window.menu_bar.menus[0].actions == [
         window.add_xtream_provider_action,
         window.add_m3u_provider_action,
+        window.add_mag_provider_action,
     ]
     assert window.add_xtream_provider_action.text == "Add Xtream Provider…"
     assert window.add_xtream_provider_action.triggered.callbacks == [
@@ -225,3 +228,5 @@ def test_main_window_exposes_xtream_provider_menu_action() -> None:
     ]
     assert window.add_m3u_provider_action.text == "Add M3U Provider…"
     assert window.add_m3u_provider_action.triggered.callbacks == [window.open_m3u_provider_dialog]
+    assert window.add_mag_provider_action.text == "Add MAG/Stalker Provider…"
+    assert window.add_mag_provider_action.triggered.callbacks == [window.open_mag_provider_dialog]

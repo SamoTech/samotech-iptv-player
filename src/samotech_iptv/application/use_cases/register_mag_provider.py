@@ -1,0 +1,32 @@
+"""Secure manual MAG/Stalker provider-profile registration use case."""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+from samotech_iptv.application.dtos.provider_registration import RegisterXtreamProviderResponse
+from samotech_iptv.core.logging import get_logger
+
+if TYPE_CHECKING:
+    from samotech_iptv.application.dtos.provider_registration import RegisterMAGProviderRequest
+    from samotech_iptv.application.ports.provider_registration_port import ProviderRegistrationPort
+
+__all__ = ["RegisterMAGProvider"]
+
+_LOG = get_logger(__name__)
+
+
+class RegisterMAGProvider:
+    """Register one authorized MAG/Stalker profile through the secure registration port."""
+
+    def __init__(self, registration: ProviderRegistrationPort) -> None:
+        self._registration = registration
+
+    async def execute(self, request: RegisterMAGProviderRequest) -> RegisterXtreamProviderResponse:
+        """Register portal metadata and device identity without logging the identity."""
+        try:
+            provider_id = await self._registration.register_mag(request)
+        except Exception as exc:  # noqa: BLE001
+            _LOG.error("MAG provider registration failed: %s", exc)
+            return RegisterXtreamProviderResponse(error=str(exc))
+        return RegisterXtreamProviderResponse(provider_id=provider_id)
