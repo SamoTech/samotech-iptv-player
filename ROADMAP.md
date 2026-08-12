@@ -58,9 +58,9 @@ Historical phase labels are preserved for traceability. The labels below are map
 | Phase 8 | Trusted local provider plugin SDK | Completed constrained extensibility feature. |
 | Phase 9 | Theme engine and settings UI | Completed persisted settings/theme foundation. |
 
-## Current milestone — Runnable Desktop Composition and Provider Lifecycle
+## Completed milestone — Runnable Desktop Composition and Provider Lifecycle
 
-The current project milestone is **Runnable Desktop Composition and Provider Lifecycle**.
+This milestone is **completed** for source installs. The project now constructs, launches, and closes the supported desktop application lifecycle without exposing provider secrets in startup feedback.
 
 ### Objective
 
@@ -68,7 +68,7 @@ Make the existing, tested provider → application → libVLC → Qt capabilitie
 
 ### Why this is next
 
-The repository now has a production composition root that initializes safe SQLite state, restores non-secret provider metadata, registers M3U/Xtream/MAG constructors, constructs the provider graph and application use cases, loads the persisted theme, and injects one libVLC player into the Qt shell. However, no executable entry point or lifecycle owner starts the root, runs qasync, surfaces generic startup errors, and closes resources. Therefore a user still cannot launch the complete registered-provider live-TV workflow from the repository as a supported application.
+The repository now has a production composition root and supported source-install lifecycle. `samotech-iptv` and `python -m samotech_iptv` invoke composition, run qasync, provide generic startup failure feedback, and close the shared HTTP resource after the window loop exits. This makes the existing registered-provider desktop workflow launchable from a source installation.
 
 This product blocker has higher value and lower dependency risk than auto-updating, crash reporting, picture-in-picture, or cosmetic work. Those capabilities should build on a stable application lifecycle rather than precede it.
 
@@ -77,12 +77,12 @@ This product blocker has higher value and lower dependency risk than auto-updati
 | Increment | Scope | Exit criteria |
 |---|---|---|
 | 1. Composition root | **Completed.** `build_production_desktop_application()` constructs configuration, SQLite repositories, keyring/context/registry/factory/services, use cases, one player, and the initial theme; it restores safe metadata. | Fake-backed integration coverage verifies construction, metadata restoration, M3U/Xtream/MAG factory registration, persisted-theme loading, and shared-player wiring without accessing real providers or secrets. |
-| 2. Startup, shutdown, and CLI lifecycle | Add a lifecycle owner and documented module/CLI entry point that invokes production composition, runs the qasync desktop loop, emits only generic startup failures, and closes managed resources safely. | Focused lifecycle and smoke tests cover success, generic startup failure, composition delegation, and safe close behavior. |
+| 2. Startup, shutdown, and CLI lifecycle | **Completed.** `samotech-iptv` and `python -m samotech_iptv` invoke composition, run qasync, return generic startup failure feedback, and close the shared HTTP resource. | Focused lifecycle and entry-point tests cover success, generic startup failure, composition delegation, and safe close behavior. |
 | 4. Provider management completion | Add user-facing provider removal/edit behavior and predictable persisted-registry refresh. | Provider metadata and credential cleanup are tested, with no secret leakage. |
 
-## Next milestone — Usable live-TV workflow completion
+## Current milestone — Usable live-TV workflow completion
 
-After the application can be launched, the next product milestone should complete the live-TV workflow rather than start broad VOD or polish work.
+The application can now launch from source. The next product milestone completes the primary live-TV workflow rather than starting broad VOD or cosmetic work.
 
 | Priority | Candidate | Rationale |
 |---|---|---|

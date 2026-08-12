@@ -19,6 +19,7 @@ class FakeEventLoop:
     def __init__(self, application: object) -> None:
         self.application = application
         self.ran_forever = False
+        self.cleanup_calls = 0
         type(self).instances.append(self)
 
     def __enter__(self) -> FakeEventLoop:
@@ -29,6 +30,10 @@ class FakeEventLoop:
 
     def run_forever(self) -> None:
         self.ran_forever = True
+
+    def run_until_complete(self, awaitable: object) -> None:
+        self.cleanup_calls += 1
+        asyncio.run(awaitable)  # type: ignore[arg-type]
 
 
 class FakeMainWindow:
@@ -59,3 +64,29 @@ def test_runtime_shows_window_and_runs_qasync_loop(monkeypatch: MonkeyPatch) -> 
     assert FakeEventLoop.instances[0].application is application
     assert FakeEventLoop.instances[0].ran_forever is True
     assert registered_loops == [FakeEventLoop.instances[0]]
+    assert FakeEventLoop.instances[0].cleanup_calls == 0
+
+
+def test_runtime_closes_production_resources_after_qasync_exit(monkeypatch: MonkeyPatch) -> None:
+    """The lifecycle owner closes composition-owned resources after the UI loop exits."""
+    FakeEventLoop.instances.clear()
+    qasync = ModuleType("qasync")
+    qasync.QEventLoop = FakeEventLoop
+    monkeypatch.setitem(sys.modules, "qasync", qasync)
+    monkeypatch.setattr(asyncio, "set_event_loop", lambda _: None)
+    close_calls = 0
+
+    async def close() -> None:
+        nonlocal close_calls
+        close_calls += 1
+
+    desktop = SimpleNamespace(
+        application=object(),
+        main_window=FakeMainWindow(),
+        close=close,
+    )
+
+    assert run_desktop_application(desktop) == 0  # type: ignore[arg-type]
+
+    assert close_calls == 1
+    assert FakeEventLoop.instances[0].cleanup_calls == 1

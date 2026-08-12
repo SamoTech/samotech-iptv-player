@@ -7,7 +7,8 @@ This file records concise historical delivery milestones. It is **not** the curr
 ### Added
 
 - Production desktop composition root that initializes non-secret SQLite repositories, restores safe provider metadata, registers M3U/Xtream/MAG provider constructors, constructs existing provider services/use cases, loads the persisted theme, and injects one shared libVLC player into the Qt shell.
-- Fake-backed integration coverage for safe metadata restoration, factory registration, persisted-theme loading, and shared-player wiring.
+- Supported `samotech-iptv` console command and `python -m samotech_iptv` module entry point that invoke production composition, run the qasync desktop loop, report generic startup failures, and close the shared HTTP resource after the window loop exits.
+- Fake-backed integration coverage for safe metadata restoration, factory registration, persisted-theme loading, shared-player wiring, lifecycle cleanup, and entry-point error safety.
 
 ### Changed
 

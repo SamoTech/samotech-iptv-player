@@ -8,6 +8,7 @@ lifecycle increment.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -104,7 +105,7 @@ async def build_production_desktop_application(
     load_theme_preference = LoadThemePreference(theme_preference_repository)
     initial_theme = await load_theme_preference.execute()
 
-    return build_desktop_application(
+    desktop = build_desktop_application(
         RegisterXtreamProvider(registration_service),
         RegisterM3UProvider(registration_service),
         RegisterMAGProvider(registration_service),
@@ -122,3 +123,4 @@ async def build_production_desktop_application(
         argv=argv,
         player=player,
     )
+    return replace(desktop, close=context.http_client.close)

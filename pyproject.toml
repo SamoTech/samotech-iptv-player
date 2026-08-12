@@ -18,6 +18,9 @@ dependencies = [
     "qasync>=0.27",
 ]
 
+[project.scripts]
+samotech-iptv = "samotech_iptv.desktop_entrypoint:main"
+
 [project.optional-dependencies]
 dev = [
     "pytest>=8",

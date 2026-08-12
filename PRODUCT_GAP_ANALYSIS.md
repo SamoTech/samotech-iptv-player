@@ -29,7 +29,6 @@ The repository has a tested Clean Architecture foundation and executable pieces 
 
 | Priority | Gap | Why it is partial | Recommended completion direction |
 |---|---|---|---|
-| **P0** | No runnable application lifecycle or entry point | Production composition now initializes repositories, restores metadata, creates provider services/context/use cases, loads theme, and shares one player. No lifecycle owner invokes it, runs qasync, reports generic startup failures, or closes resources. | Add a CLI/module entry point and graceful startup/shutdown lifecycle around the production root. |
 | **P0** | M3U cannot resolve a parsed stream through the registered-player path | M3U exposes live catalogue/search but not `PlaybackProvider`; parsed streams are not retained or resolved by the adapter. | Add safe parsed-channel/stream lookup and `PlaybackProvider` implementation, then test registered M3U playback orchestration. |
 | **P1** | Provider management ends at add/list | Registration and metadata persistence exist, but users cannot edit/remove profiles or observe lifecycle errors safely. | Add delete/update contracts, credential cleanup, registry refresh, safe dialog actions, and tests. |
 | **P1** | Playback UX lacks state and direct controls | The player adapter supports play/pause/resume/stop, but the desktop menu currently exposes recording controls only. | Add generic playback state/status and pause/resume/stop actions without revealing stream URLs. |
@@ -42,19 +41,11 @@ The repository has a tested Clean Architecture foundation and executable pieces 
 
 ## Missing core functionality
 
-### P0 — Runnable Desktop Composition and Provider Lifecycle
+### Completed — Runnable Desktop Composition and Provider Lifecycle
 
-The dependency-wiring portion of this gap is complete: `build_production_desktop_application()` now performs configuration, safe-store initialization, metadata restoration, provider-service/use-case construction, initial-theme loading, player construction, and Qt shell composition. The remaining P0 gap is lifecycle ownership and an executable entry point; the project cannot yet act as a complete IPTV desktop application because no supported path performs the final lifecycle steps:
+The dependency-wiring and source-install lifecycle work are complete. `build_production_desktop_application()` performs configuration, safe-store initialization, metadata restoration, provider-service/use-case construction, initial-theme loading, player construction, and Qt shell composition. `samotech-iptv` and `python -m samotech_iptv` invoke that root, run qasync, return generic startup failures, and close the shared HTTP resource after the window loop exits.
 
-```text
-production composition root
-  → invoke from an executable entry point
-  → run qasync event loop
-  → report only generic startup failures
-  → close managed resources safely
-```
-
-This remains the correct current milestone because lifecycle ownership turns the delivered composition graph into a usable user workflow without changing provider protocols or adding product polish ahead of functionality.
+Packaging, installers, update delivery, crash-reporting policy, and broader operational diagnostics remain separate production-hardening work; they do not block source-install launch.
 
 ### P0 — M3U registered stream resolution
 
@@ -95,8 +86,8 @@ Guide parsing, favorites, and history exist as component foundations. A usable p
 | Sequence | Bounded increment | Outcome |
 |---:|---|---|
 | 1 | Production composition root | **Completed.** Existing services, repositories, provider registry/factory/context, use cases, theme, and one player are constructible/testable as one application graph, with safe metadata restoration. |
-| 2 | Startup/shutdown lifecycle and entry point | A user can launch the desktop shell through supported code, receives generic startup failures, and managed state is closed safely. |
-| 3 | M3U playback resolution | The M3U source type can complete the registered live-TV playback path. |
+| 2 | Startup/shutdown lifecycle and entry point | **Completed.** A user can launch the desktop shell through supported code, receives generic startup failures, and the shared HTTP resource is closed safely. |
+| 3 | M3U playback resolution | **Current P0.** The M3U source type must complete the registered live-TV playback path. |
 | 4 | Playback controls and safe status | The live-TV workflow becomes operable rather than merely invocable by double-click. |
 | 5 | Provider lifecycle and EPG/library completion | Users can maintain sources and personal state safely. |
 | 6 | VOD/series, protocol breadth, and hardening | Higher-breadth capabilities build on a viable product lifecycle. |

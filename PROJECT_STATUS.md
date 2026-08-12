@@ -96,8 +96,8 @@ The domain layer does not depend on Qt, libVLC, SQLite, `aiohttp`, `keyring`, or
 
 | Technology | Category | Current status | Implemented | Tested | Playback | Remaining work |
 |---|---|---:|---|---|---|---|
-| PySide6/Qt desktop shell | Desktop UI | **Partially Implemented** | Main window, native video surface, provider-entry dialogs, provider list, channel browser, EPG dialog, recording actions, settings action, and a production composition root that wires the existing application graph. | Fake-backed presentation, bootstrap, and composition-root tests. | One shared libVLC player is injected into registered-provider playback, recording, and the native video surface. | Executable launcher, startup/shutdown lifecycle ownership, user-facing playback controls/state. |
-| qasync runtime | Desktop lifecycle | **Partially Implemented** | Qt-aware asyncio event loop and main-window show/run boundary. | Focused runtime test. | Supports asynchronous UI orchestration. | Production entry point, startup error handling, initialization/close lifecycle. |
+| PySide6/Qt desktop shell | Desktop UI | **Partially Implemented** | Main window, native video surface, provider-entry dialogs, provider list, channel browser, EPG dialog, recording actions, settings action, production composition, and supported source-install entry points. | Fake-backed presentation, bootstrap, composition-root, lifecycle, and entry-point tests. | One shared libVLC player is injected into registered-provider playback, recording, and the native video surface. | User-facing playback controls/state and release packaging. |
+| qasync runtime | Desktop lifecycle | **Implemented** | Qt-aware asyncio event loop, lifecycle entry point, generic startup failures, and shared HTTP cleanup after the window loop exits. | Focused runtime and entry-point tests. | Supports asynchronous UI orchestration. | Broader diagnostics and release packaging. |
 | libVLC through `python-vlc` | Player backend | **Implemented** | Play, pause, resume, stop, active playback, Qt native output, active `.ts` recording. | Fake-backed adapter and composition tests. | Sole supported player backend. | Track/subtitle controls, capability/error UX, packaging and runtime-discovery validation. |
 | Provider registration | Source management | **Partially Implemented** | Secure M3U/Xtream/MAG registration; metadata persistence/restoration through the production composition root; safe provider list. | Registration, repository, dialog, and composition-root tests. | Provider resolution is now composed for registered profiles. | Edit/remove flows, credential cleanup, and user diagnostics. |
 | SQLite provider metadata | Persistence | **Implemented** | Non-secret provider ID/type/base URL/active/capability/source-security metadata; repository initialization and registry restoration in production composition. | Focused repository and composition-root tests. | Not applicable. | Lifecycle-owned shutdown and provider management UI. |
@@ -123,7 +123,7 @@ The documentation rebaseline must run the same quality gate before publication. 
 
 ## Known limitations
 
-1. A production composition root now initializes safe SQLite state, restores provider metadata, wires registered-provider use cases, loads the persisted theme, and shares one libVLC player. There is still no CLI entry point or complete startup/shutdown lifecycle, so this is not yet a supported runnable product path.
+1. A production composition root and source-install lifecycle entry point now initialize safe SQLite state, restore provider metadata, wire registered-provider use cases, load the persisted theme, run qasync, report generic startup failures, and close the shared HTTP resource. Packaging, installers, update delivery, crash-reporting policy, and wider operational diagnostics remain incomplete.
 2. M3U parsing/catalogue/search is implemented, but the M3U adapter does not currently resolve parsed streams through the registered-player path.
 3. Xtream VOD, series, category-family methods are adapter capabilities without registered-provider resolver/use-case/desktop catalogue workflows.
 4. MAG/Stalker supports the documented live-TV subset only; VOD, series, categories, archive, and catch-up are not represented as executable adapter capabilities.
@@ -145,17 +145,15 @@ The documentation rebaseline must run the same quality gate before publication. 
 
 ## Next milestone
 
-### Runnable Desktop Composition and Provider Lifecycle
+### Usable Live-TV Workflow Completion
 
-**Objective:** Compose the existing tested components into a safe, launchable application lifecycle.
+**Objective:** Complete the highest-value live-TV gaps now that a user can launch the composed desktop application from source.
 
-**Why it is next:** It makes the provider → stream → libVLC → Qt live-TV workflow usable by real users. It is a P0 product blocker and a prerequisite for reliable provider management, packaging, diagnostics, updates, and production hardening.
+**Why it is next:** M3U is a registered provider type with secure source handling, catalogue loading, and search, but it cannot resolve parsed streams through the registered-player path. Fixing that gives a primary provider type a complete catalogue → selected channel → libVLC workflow and precedes broader VOD, series, or cosmetic work.
 
-**Dependencies:** Existing configuration provider; SQLite metadata/favorite/history/theme repositories; OS keyring; provider registry/factory/context; M3U/Xtream/MAG registrations; application use cases; `build_desktop_application()`; `run_desktop_application()`; qasync and libVLC runtime availability.
+**Dependencies:** The delivered production composition/lifecycle, M3U parser/source loader, canonical channel/stream records, `PlaybackProvider`, provider-resolution service, `PlayRegisteredChannel`, libVLC, and Qt channel browser.
 
-**Delivered increment:** `build_production_desktop_application()` now initializes non-secret SQLite repositories, restores metadata into the registry, registers M3U/Xtream/MAG factories, constructs provider services and existing use cases, loads the persisted initial theme, builds one libVLC player, and returns the existing `DesktopApplication`. Fake-backed integration coverage verifies safe metadata restoration, provider registrations, theme loading, and shared-player wiring.
-
-**Next bounded task:** Add a production module/CLI entry point and lifecycle owner that invokes this composition root, runs the qasync desktop loop, emits only generic startup failures, and closes lifecycle-managed resources safely.
+**First bounded task:** Add safe M3U parsed-stream lookup and `PlaybackProvider` support, advertise `STREAM_RESOLUTION` only when executable, and add registered M3U playback orchestration tests without exposing secure source URLs.
 
 ## Related documents
 

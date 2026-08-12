@@ -4,7 +4,7 @@
 
 SamoTech IPTV Player is a Python project for connecting authorized IPTV sources through provider-specific adapters, translating their records into a canonical domain model, resolving eligible media streams, and presenting the supported workflow in a PySide6/Qt desktop shell backed exclusively by libVLC. It is designed to grow across provider ecosystems without coupling the application domain, use cases, or desktop UI to a provider protocol.
 
-The repository currently contains substantial, tested foundations for M3U, Xtream Codes, and MAG/Stalker live-TV workflows, SQLite-backed non-secret user state, OS-keyring credential ownership, a Qt/libVLC presentation shell, recording controls, persisted theme settings, and a production composition root that safely wires those components. It is **not yet a packaged, one-command end-user application**: the remaining current work is the lifecycle owner and executable entry point that start and close the composed desktop application safely.
+The repository currently contains substantial, tested foundations for M3U, Xtream Codes, and MAG/Stalker live-TV workflows, SQLite-backed non-secret user state, OS-keyring credential ownership, a Qt/libVLC presentation shell, recording controls, persisted theme settings, and a production lifecycle that safely wires, starts, and closes those components. It exposes a supported source-install entry point, although release packaging, installers, updates, and production diagnostics remain future work.
 
 For the authoritative current-state matrices, known limitations, verification baseline, and next milestone, read [PROJECT_STATUS.md](PROJECT_STATUS.md). The delivery sequence is maintained in [ROADMAP.md](ROADMAP.md).
 
@@ -97,7 +97,7 @@ The `domain` package contains framework-independent business records and validat
 
 ## Current implementation status and limitation
 
-The principal product gap is no longer dependency wiring: `build_production_desktop_application()` initializes safe SQLite state, restores provider metadata, constructs provider services and use cases, loads the persisted theme, and shares one libVLC player with the Qt shell. The remaining blocker is a lifecycle owner and application entry point that start the qasync runtime, handle startup failures generically, and close resources predictably. Consequently, the repository still does not provide a complete, supported command for a user to launch and operate the player end-to-end.
+The dependency-wiring and launch-lifecycle foundations are now delivered: `build_production_desktop_application()` initializes safe SQLite state, restores provider metadata, constructs provider services and use cases, loads the persisted theme, and shares one libVLC player with the Qt shell; `samotech-iptv` and `python -m samotech_iptv` invoke that graph, run qasync, report startup failure generically, and close the shared HTTP resource. The next P0 product gap is M3U registered-stream resolution, followed by playback and library workflow completion.
 
 The detailed prioritization is maintained in [PRODUCT_GAP_ANALYSIS.md](PRODUCT_GAP_ANALYSIS.md).
 
@@ -137,7 +137,15 @@ The GitHub CI workflow also verifies the project on Python 3.13 and runs a best-
 
 ## Running the application
 
-A supported production launcher is **not yet available**. The repository now supplies `build_production_desktop_application()` to initialize and wire the application graph, as well as `build_desktop_application()` and `run_desktop_application()` boundaries. A lifecycle owner and executable module/CLI entry point still need to invoke that root, run qasync, report generic startup failures, and close resources safely before packaging, auto-updating, or telemetry work.
+After installing from source, run the desktop application with either supported entry point:
+
+```bash
+samotech-iptv
+# equivalent:
+python -m samotech_iptv
+```
+
+The entry point composes safe local state, restores registered provider metadata, loads the theme, starts the qasync runtime, and closes the shared HTTP resource when the window loop exits. Startup failures are reported generically so exception details do not expose provider information. A standalone installer, auto-updater, crash-reporting policy, and release distribution remain future work.
 
 ## Project structure
 

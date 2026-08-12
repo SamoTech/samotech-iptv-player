@@ -13,7 +13,7 @@ from samotech_iptv.presentation.theme import apply_theme
 from samotech_iptv.presentation.views.main_window import MainWindow
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Awaitable, Callable, Sequence
 
     from samotech_iptv.application.ports.player_port import PlayerPort
     from samotech_iptv.application.use_cases.browse_channels import BrowseChannels
@@ -41,10 +41,11 @@ __all__ = ["DesktopApplication", "build_desktop_application"]
 
 @dataclass(frozen=True)
 class DesktopApplication:
-    """Composed Qt application and its top-level playback window."""
+    """Composed Qt application, its top-level window, and optional cleanup callback."""
 
     application: QApplication
     main_window: MainWindow
+    close: Callable[[], Awaitable[None]] | None = None
 
 
 def build_desktop_application(

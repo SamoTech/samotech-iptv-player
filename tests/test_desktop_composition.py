@@ -151,6 +151,7 @@ def _install_fake_pyside6() -> None:
 
 _install_fake_pyside6()
 
+from samotech_iptv.desktop_bootstrap import DesktopApplication  # noqa: E402
 from samotech_iptv.desktop_composition import (  # noqa: E402
     build_production_desktop_application,
 )
@@ -177,7 +178,7 @@ async def test_production_composition_initialises_state_restores_metadata_and_wi
     await theme_repository.save(ThemePreference.DARK)
 
     player = object()
-    desktop = object()
+    desktop = DesktopApplication(application=object(), main_window=object())
     with (
         patch(
             "samotech_iptv.desktop_composition.build_player", return_value=player
@@ -192,7 +193,9 @@ async def test_production_composition_initialises_state_restores_metadata_and_wi
             config_overrides={"data_dir": str(data_directory)},
         )
 
-    assert result is desktop
+    assert result.application is desktop.application
+    assert result.main_window is desktop.main_window
+    assert result.close is not None
     player_factory.assert_called_once_with()
     arguments = desktop_factory.call_args.args
     keywords = desktop_factory.call_args.kwargs

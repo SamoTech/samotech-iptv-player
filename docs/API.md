@@ -13,6 +13,6 @@ SamoTech IPTV Player does not currently expose a stable public HTTP, plugin-mark
 | Presentation contracts | PySide6 dialogs/views that invoke use cases and render safe DTOs. |
 | Plugin SDK API v1 | Trusted explicitly selected local provider-plugin API; see [PLUGIN_SDK.md](PLUGIN_SDK.md). |
 
-The executable status of these boundaries is maintained in [PROJECT_STATUS.md](../PROJECT_STATUS.md). `build_production_desktop_application()` now composes the existing safe state, provider, use-case, theme, and shared-player graph. The current product still has no supported command-line launcher or lifecycle owner; do not treat the composition, bootstrap, and runtime modules as a complete external API until startup/shutdown delivery is complete.
+The executable status of these boundaries is maintained in [PROJECT_STATUS.md](../PROJECT_STATUS.md). `build_production_desktop_application()` composes the existing safe state, provider, use-case, theme, and shared-player graph. The supported source-install entry points are `samotech-iptv` and `python -m samotech_iptv`; they run qasync, return generic startup failures, and close the shared HTTP resource after exit. Packaging and a stable external integration API remain future work.
 
 For architecture terminology and dependency direction, read [ARCHITECTURE.md](../ARCHITECTURE.md). For provider-specific and media support claims, use the authoritative capability matrices in [PROJECT_STATUS.md](../PROJECT_STATUS.md).

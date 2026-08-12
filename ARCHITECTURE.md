@@ -75,7 +75,7 @@ The application’s `PlayChannel` use case resolves an authorized canonical URL 
 
 `desktop_composition.build_production_desktop_application()` is the production dependency-wiring root. It builds the provider context/registry/factory, initializes non-secret SQLite repositories, restores provider metadata, constructs registration/catalogue/resolution services and presentation use cases, loads the persisted theme, builds one libVLC player, and injects that same player into registered playback, recording, and the Qt video surface. It neither starts the qasync loop nor closes runtime resources.
 
-The remaining lifecycle gap is an executable module/CLI entry point and lifecycle owner that invokes production composition, runs the UI, reports only generic startup failures, and closes managed resources safely.
+The executable lifecycle is now delivered through the `samotech-iptv` console command and `python -m samotech_iptv`. The entry point invokes production composition, runs the qasync UI loop, emits only a generic startup failure message, and closes the shared HTTP resource after the event loop exits. Packaging, installer, update, and broader diagnostic concerns remain separate production-hardening work.
 
 ## Persistence and security boundaries
 
@@ -95,4 +95,4 @@ Plugin API version 1 is for **trusted, explicitly selected local Python files** 
 
 ## Current architectural gaps
 
-The primary current gap is lifecycle ownership and an executable entry point, not another provider protocol abstraction. The next implementation increment should invoke the delivered composition root, manage qasync startup/shutdown and generic failures, and close resources safely. Other gaps—including M3U stream resolution, VOD/series workflows, XMLTV source binding, playback controls, and production hardening—are tracked in [PRODUCT_GAP_ANALYSIS.md](PRODUCT_GAP_ANALYSIS.md).
+The primary current gap is M3U registered stream resolution, not lifecycle ownership or another player abstraction. The next implementation increment should retain parsed M3U stream mappings safely, implement `PlaybackProvider`, advertise `STREAM_RESOLUTION` only when executable, and verify the registered-provider route to libVLC. Other gaps—including VOD/series workflows, XMLTV source binding, playback controls, and production hardening—are tracked in [PRODUCT_GAP_ANALYSIS.md](PRODUCT_GAP_ANALYSIS.md).
