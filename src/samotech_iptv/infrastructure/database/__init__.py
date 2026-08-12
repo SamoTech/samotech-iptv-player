@@ -1,6 +1,7 @@
-"""Database repositories — Phase B.
+"""SQLite-backed infrastructure repositories."""
 
-Concrete implementations of domain repository interfaces using `aiosqlite`.
+from samotech_iptv.infrastructure.database.sqlite_provider_metadata_repository import (
+    SQLiteProviderMetadataRepository,
+)
 
-Phase A: empty.
-"""
+__all__ = ["SQLiteProviderMetadataRepository"]

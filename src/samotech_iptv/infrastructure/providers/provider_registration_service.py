@@ -19,6 +19,9 @@ if TYPE_CHECKING:
         RegisterXtreamProviderRequest,
     )
     from samotech_iptv.application.ports.credential_store_port import CredentialStorePort
+    from samotech_iptv.infrastructure.database.sqlite_provider_metadata_repository import (
+        SQLiteProviderMetadataRepository,
+    )
     from samotech_iptv.infrastructure.providers.provider_registry import ProviderRegistry
 
 __all__ = ["ProviderRegistrationService"]
@@ -29,9 +32,15 @@ _MAG_DEVICE_IDENTITY_MARKER = "mag-device-identity"
 class ProviderRegistrationService(ProviderRegistrationPort):
     """Register non-secret provider metadata and delegate secrets to secure storage."""
 
-    def __init__(self, registry: ProviderRegistry, credential_store: CredentialStorePort) -> None:
+    def __init__(
+        self,
+        registry: ProviderRegistry,
+        credential_store: CredentialStorePort,
+        metadata_repository: SQLiteProviderMetadataRepository | None = None,
+    ) -> None:
         self._registry = registry
         self._credential_store = credential_store
+        self._metadata_repository = metadata_repository
 
     async def register_mag(self, request: RegisterMAGProviderRequest) -> str:
         """Register a MAG/Stalker portal while retaining its MAC only in secure storage."""
@@ -41,7 +50,7 @@ class ProviderRegistrationService(ProviderRegistrationPort):
         portal_url = URL(request.portal_url)
         credential = Credential(username=request.mac_address, _password=_MAG_DEVICE_IDENTITY_MARKER)
         await self._credential_store.store(provider_id, credential)
-        self._registry.register(
+        await self._persist_metadata(
             InfraProviderMetadata(
                 provider_id=provider_id.value,
                 provider_type="mag",
@@ -62,7 +71,7 @@ class ProviderRegistrationService(ProviderRegistrationPort):
         source_is_secure = credential is not None
         if credential is not None:
             await self._credential_store.store(provider_id, credential)
-        self._registry.register(
+        await self._persist_metadata(
             InfraProviderMetadata(
                 provider_id=provider_id.value,
                 provider_type="m3u",
@@ -97,7 +106,7 @@ class ProviderRegistrationService(ProviderRegistrationPort):
         base_url = URL(request.base_url)
         credential = Credential(request.username, request.password)
         await self._credential_store.store(provider_id, credential)
-        self._registry.register(
+        await self._persist_metadata(
             InfraProviderMetadata(
                 provider_id=provider_id.value,
                 provider_type="xtream",
@@ -105,3 +114,9 @@ class ProviderRegistrationService(ProviderRegistrationPort):
             )
         )
         return provider_id.value
+
+    async def _persist_metadata(self, metadata: InfraProviderMetadata) -> None:
+        """Persist non-secret metadata before exposing the provider to runtime resolution."""
+        if self._metadata_repository is not None:
+            await self._metadata_repository.save(metadata)
+        self._registry.register(metadata)
