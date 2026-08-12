@@ -1,14 +1,8 @@
-"""OS keyring-backed credential store.
-
-Implements ``CredentialStorePort`` using the ``keyring`` library which
-delegates to the platform-native secret store:
-  - Windows: Windows Credential Manager
-  - macOS:   Keychain
-  - Linux:   SecretService / KWallet
-"""
+"""OS keyring-backed credential storage with secret-safe error handling."""
 
 from __future__ import annotations
 
+import asyncio
 from typing import TYPE_CHECKING
 
 from samotech_iptv.application.ports.credential_store_port import CredentialStorePort
@@ -21,90 +15,79 @@ if TYPE_CHECKING:
 
 __all__ = ["KeyringCredentialStore"]
 
-_log = get_logger(__name__)
+_LOG = get_logger(__name__)
 _SERVICE_PREFIX = "samotech_iptv"
 
 
 class KeyringCredentialStore(CredentialStorePort):
-    """OS keyring-backed implementation of ``CredentialStorePort``.
-
-    Each provider's credentials are stored under a namespaced key::
-
-        service  = "samotech_iptv:<provider_id>"
-        username = <credential.username>
-        password = <credential.password>  # stored as the secret
-    """
+    """Store provider credentials through the operating system's native keyring."""
 
     def _service_name(self, provider_id: ProviderId) -> str:
         return f"{_SERVICE_PREFIX}:{provider_id.value}"
 
     async def store(self, provider_id: ProviderId, credential: Credential) -> None:
-        """Persist credentials to the OS keyring."""
+        """Persist one provider credential without blocking the application event loop."""
         try:
             import keyring  # noqa: PLC0415
 
-            service = self._service_name(provider_id)
-            keyring.set_password(service, credential.username, credential.password)
-            _log.info("Stored credential for provider=%s", provider_id.value)
+            await asyncio.to_thread(
+                keyring.set_password,
+                self._service_name(provider_id),
+                credential.username,
+                credential.password,
+            )
+            _LOG.info("Stored provider credential")
         except Exception as exc:
-            _log.error("Failed to store credential for provider=%s: %s", provider_id.value, exc)
-            raise StorageError(f"keyring.set_password failed: {exc}") from exc
+            _LOG.error("Unable to store provider credential")
+            raise StorageError("Credential storage is unavailable") from exc
 
     async def retrieve(self, provider_id: ProviderId) -> Credential | None:
-        """Retrieve credentials from the OS keyring, or None if not found."""
+        """Retrieve one provider credential, returning ``None`` when it is absent."""
         try:
             import keyring  # noqa: PLC0415
 
-            service = self._service_name(provider_id)
-            # keyring.get_credential returns (username, password) or None
-            entry = keyring.get_credential(service, None)
+            entry = await asyncio.to_thread(
+                keyring.get_credential,
+                self._service_name(provider_id),
+                None,
+            )
             if entry is None:
-                _log.debug("No credential found for provider=%s", provider_id.value)
+                _LOG.debug("No provider credential found")
                 return None
-            _log.debug("Retrieved credential for provider=%s", provider_id.value)
+            _LOG.debug("Retrieved provider credential")
             return Credential(username=entry.username, _password=entry.password)
         except Exception as exc:
-            _log.error(
-                "Failed to retrieve credential for provider=%s: %s",
-                provider_id.value,
-                exc,
-            )
-            raise StorageError(f"keyring.get_credential failed: {exc}") from exc
+            _LOG.error("Unable to retrieve provider credential")
+            raise StorageError("Credential storage is unavailable") from exc
 
     async def delete(self, provider_id: ProviderId) -> bool:
-        """Delete credentials from the OS keyring.  Returns True if deleted."""
+        """Delete one provider credential and report whether an entry existed."""
         try:
             import keyring  # noqa: PLC0415
-            import keyring.errors  # noqa: PLC0415
 
             service = self._service_name(provider_id)
-            entry = keyring.get_credential(service, None)
+            entry = await asyncio.to_thread(keyring.get_credential, service, None)
             if entry is None:
                 return False
-            keyring.delete_password(service, entry.username)
-            _log.info("Deleted credential for provider=%s", provider_id.value)
+            await asyncio.to_thread(keyring.delete_password, service, entry.username)
+            _LOG.info("Deleted provider credential")
             return True
-        except keyring.errors.PasswordDeleteError:
-            return False
         except Exception as exc:
-            _log.error(
-                "Failed to delete credential for provider=%s: %s",
-                provider_id.value,
-                exc,
-            )
-            raise StorageError(f"keyring.delete_password failed: {exc}") from exc
+            _LOG.error("Unable to delete provider credential")
+            raise StorageError("Credential storage is unavailable") from exc
 
     async def exists(self, provider_id: ProviderId) -> bool:
-        """Return True if credentials exist for this provider."""
+        """Return whether a provider credential is available without exposing its value."""
         try:
             import keyring  # noqa: PLC0415
 
-            service = self._service_name(provider_id)
-            return keyring.get_credential(service, None) is not None
-        except Exception as exc:
-            _log.warning(
-                "keyring.get_credential check failed for provider=%s: %s",
-                provider_id.value,
-                exc,
-            )
+            return (
+                await asyncio.to_thread(
+                    keyring.get_credential,
+                    self._service_name(provider_id),
+                    None,
+                )
+            ) is not None
+        except Exception:
+            _LOG.warning("Provider credential availability check failed")
             return False
