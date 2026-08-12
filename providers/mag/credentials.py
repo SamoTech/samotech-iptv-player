@@ -10,9 +10,11 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
+from typing import Any
 
 log = logging.getLogger(__name__)
 
+_keyring: Any | None
 try:
     import keyring as _keyring
 
@@ -43,7 +45,7 @@ class MAGCredentials:
     @classmethod
     def from_keyring(cls, portal_url: str) -> MAGCredentials:
         """Load credentials from the OS keyring for *portal_url*."""
-        if not _KEYRING_AVAILABLE:
+        if not _KEYRING_AVAILABLE or _keyring is None:
             raise RuntimeError("keyring is not installed. Install it with: pip install keyring")
         mac = _keyring.get_password(SERVICE_NAME, f"{portal_url}:mac")
         if not mac:
@@ -56,15 +58,15 @@ class MAGCredentials:
 
     def save_to_keyring(self) -> None:
         """Persist credentials to the OS keyring (never plaintext on disk)."""
-        if not _KEYRING_AVAILABLE:
+        if not _KEYRING_AVAILABLE or _keyring is None:
             raise RuntimeError("keyring is not installed.")
         _keyring.set_password(SERVICE_NAME, f"{self.portal_url}:mac", self.mac_address)
         if self.serial_number:
             _keyring.set_password(SERVICE_NAME, f"{self.portal_url}:serial", self.serial_number)
-        log.info("Credentials saved to OS keyring for %s", self.portal_url)
+        log.info("Credentials saved to OS keyring")
 
     def delete_from_keyring(self) -> None:
-        if not _KEYRING_AVAILABLE:
+        if not _KEYRING_AVAILABLE or _keyring is None:
             raise RuntimeError("keyring is not installed.")
         try:
             _keyring.delete_password(SERVICE_NAME, f"{self.portal_url}:mac")
