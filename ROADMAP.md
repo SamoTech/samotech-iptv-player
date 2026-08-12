@@ -4,9 +4,9 @@
 
 The repository scaffold and the core recovery are complete. The recovered core is installable, has a single configuration boundary, uses domain-oriented provider ports, includes a tested MAG/Stalker adapter, and passes the configured test, type, and lint checks.
 
-> **Current phase:** Phase 6 — EPG grid delivery — **partially completed**.
-> **Completed milestone:** Core recovery; validated domain/provider contracts; VLC and Qt desktop composition; registered-provider channel browsing, search, favorites, and watch history; and a provider-resolved EPG grid that renders titles and schedule times only.
-> **Next product milestone:** XMLTV parser support, followed by stream recording through the VLC player adapter.
+> **Current phase:** Phase 6 — XMLTV EPG parser and EPG grid — **completed**.
+> **Completed milestone:** Core recovery; validated domain/provider contracts; VLC and Qt desktop composition; registered-provider channel browsing, search, favorites, and watch history; a provider-resolved EPG grid that renders titles and schedule times only; and bounded, secure XMLTV parsing into canonical programme entries.
+> **Next product milestone:** Stream recording through the VLC player adapter.
 
 | Phase | Scope | Status |
 |---:|---|---|
@@ -16,8 +16,8 @@ The repository scaffold and the core recovery are complete. The recovered core i
 | **3** | VLC/player adapter, SQLite repositories, dependency-injection composition root, and basic window | **Completed** |
 | **4** | Channel browser UI, search, favorites, and watch history | **Completed** |
 | **5** | Xtream Codes and Stalker provider clients; playlist manager UI | Partially advanced by recovered MAG/Stalker core, M3U/Xtream capability increments, and a Ministra separate-provider assessment; Ministra implementation remains gated on an authorized fixture and approved device identity |
-| **6** | XMLTV EPG parser and EPG grid view | **Partially completed** — registered-provider EPG capability resolution, safe application DTOs, and a Qt EPG grid are delivered; XMLTV parser work remains |
-| **7** | Stream recording through the player adapter and recording UI | Planned |
+| **6** | XMLTV EPG parser and EPG grid view | **Completed** — registered-provider EPG capability resolution, safe application DTOs, a Qt grid that displays title/start/end only, and a bounded `defusedxml` parser with explicit source-channel mapping and canonical `EPGEntry` translation are delivered; source fetching and provider-specific XMLTV binding remain future integration work |
+| **7** | Stream recording through the player adapter and recording UI | Planned — next milestone |
 | **8** | Plugin SDK, example provider plugin, and plugin loader | Planned |
 | **9** | Theme engine, dark/light styles, and settings UI | Planned |
 | **10** | Auto-updater, crash reporting, picture-in-picture, subtitle/audio management | Planned |
@@ -30,7 +30,7 @@ The repository scaffold and the core recovery are complete. The recovered core i
 
 | Integration | Architecture | Parser/API | Domain translation | Tests | Player backend | Status |
 |---|---|---|---|---|---|---|
-| M3U playlist | Capability-oriented provider adapter | Local-file and HTTP(S) source loader plus extended-M3U parser | `Channel` and protocol-classified `Stream` entries | Source-loader, adapter, parser, and transport tests | None | **Partially implemented** |
+| M3U playlist | Capability-oriented provider adapter | Local-file and HTTP(S) source loader plus extended-M3U parser; XMLTV source-to-channel binding is not yet configured | `Channel` and protocol-classified `Stream` entries | Source-loader, adapter, parser, transport, and XMLTV parser tests | Direct live URL resolution through the VLC desktop player | **Partially implemented** |
 | M3U8/HLS | URI classification and manifest parser | HLS master/media manifest parser; no adaptive playback backend | `StreamURI`, `StreamManifest.HLS`, master variants, and media segments | Focused URI-classification and HLS parser tests | None | **Partially implemented** |
 | Xtream Codes | Capability-oriented live, category-family, EPG, stream-resolution, VOD, and series provider adapter with secure credential retrieval | Encoded `player_api.php`, authentication response validation, live/VOD/series category and catalogue retrieval, short-EPG retrieval, factory registration, and validated live playback URL construction | Canonical `Category`, `Channel`, `EPGEntry`, `Movie`, and `Series` translation with local channel search; EPG is available to the safe Qt grid through registered-provider capability resolution | Focused request-builder, API-client, DTO translation, adapter, registration, resolver, and EPG grid tests | Direct live URL resolution through the VLC desktop player | **Partially implemented** |
 | Stalker/MAG | Capability-oriented provider adapter with volatile session state | MAG/Stalker client adapter | `Channel`, `EPGEntry`, and resolved `URL`; EPG is available to the safe Qt grid through registered-provider capability resolution | Unit, integration, resolver, and EPG grid tests | Direct live URL resolution through the VLC desktop player | **Partially implemented** |

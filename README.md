@@ -1,8 +1,8 @@
 # SamoTech IPTV Player
 
-> **Project status: core architecture recovery complete; desktop client not yet implemented.**
+> **Project status: core recovery and the first Qt/libVLC desktop client capabilities are implemented.**
 
-SamoTech IPTV Player is an in-progress, open-source IPTV project. This revision provides a **tested Python core** with Clean Architecture boundaries, configuration composition, provider registration, and a MAG/Stalker provider adapter. It does **not** yet include a runnable PySide6/WinUI desktop application, VLC playback integration, database persistence, or an end-user playlist-management interface.
+SamoTech IPTV Player is an in-progress, open-source IPTV project. This revision provides a **tested Python client foundation** with Clean Architecture boundaries, secure provider registration, capability-oriented M3U/Xtream/MAG adapters, SQLite user-library persistence, libVLC playback, and a PySide6/qasync desktop shell. It does not yet include stream recording, a plugin SDK, themes/settings, updater support, or release packaging.
 
 [![CI](https://github.com/SamoTech/samotech-iptv-player/actions/workflows/ci.yml/badge.svg)](https://github.com/SamoTech/samotech-iptv-player/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
@@ -17,24 +17,26 @@ SamoTech IPTV Player is an in-progress, open-source IPTV project. This revision 
 | **Implemented** | MAG/Stalker provider core | Authentication, channel catalogue loading, local channel search, EPG loading, stream URL resolution, error translation, and session refresh are covered by unit and integration tests using test-only providers. |
 | **Implemented** | Configuration composition | `ConfigurationProvider` owns `IPTV_*` environment parsing with explicit override → environment → default precedence. |
 | **Implemented** | Extended M3U parsing | `M3UParser` translates `#EXTINF` metadata and supported stream URIs into canonical `Channel` and `Stream` entities with deterministic IDs and malformed-input errors. |
+| **Implemented** | Bounded XMLTV parsing | `XMLTVParser` uses `defusedxml`, explicit source-channel mappings, document/result limits, canonical `EPGEntry` translation, timezone-aware timestamps, and malformed/unsafe-input rejection. XMLTV source fetching and provider binding remain explicit future integration work. |
 | **Implemented** | VOD catalogue validation | `Movie` and `Series` enforce nonblank identity/title metadata, nonblank supplied categories, positive years, and ratings between 0.0 and 10.0. |
 | **Implemented** | User-library validation | `Favorite` and `History` reject blank identifiers and unsupported item types; history also rejects negative playback values and positions beyond a known duration. |
 | **Implemented** | Stream metadata validation | `Stream` rejects blank containers/codecs and non-positive supplied bitrates while preserving optional codec and bitrate metadata. |
-| **Implemented** | Stream protocol classification | `StreamURI` and `Stream` represent HTTP(S), RTMP(S), RTSP, UDP, RTP, and SRT transports, with deterministic M3U, HLS, and DASH URI-indicator classification. This does not yet fetch manifests or provide player-backend playback. |
+| **Implemented** | Stream protocol classification | `StreamURI` and `Stream` represent HTTP(S), RTMP(S), RTSP, UDP, RTP, and SRT transports, with deterministic M3U, HLS, and DASH URI-indicator classification. HLS and DASH parsers are bounded metadata parsers; media playback is delegated exclusively to libVLC. |
 | **Implemented** | Catalogue grouping and provider validation | `Category` and `Playlist` reject blank identifiers and names; supplied category parents must be nonblank. `Provider` also rejects a blank factory discriminator. |
 | **Implemented** | Programme-record validation | `Channel` rejects blank supplied category/EPG references, while `Episode` and `EPGEntry` enforce required identity/title metadata and safe numeric or temporal boundaries. |
 | **Implemented** | Value-object validation | Identifier, credential, and URL value objects have focused validation, redaction, and immutable value-semantics coverage. URLs require complete whitespace-free HTTP(S) authorities. |
 | **Implemented** | Credential/session separation | A MAG connection identity is distinct from the short-lived runtime session token. Tokens are not stored in provider metadata. |
-| **Partially implemented** | Secure credential storage | A keyring-backed credential-store adapter exists. Its deployment and platform integration remain to be exercised by the future application composition root. |
-| **Partially implemented** | M3U and Xtream provider foundations | M3U local/HTTP(S) source loading and canonical catalogue translation are available through a capability-oriented adapter. Xtream has credential-safe request construction; its API client and DTO translation remain future work. |
-| **Planned** | Playback, persistence, desktop UI, EPG grid, recording, plugins, settings, updater, packaging | See [ROADMAP.md](ROADMAP.md). |
+| **Implemented** | Secure provider registration and user-library persistence | Keyring-backed secret ownership is kept separate from non-secret SQLite metadata, favorites, and watch history. Passwords, MAC addresses, tokens, and resolved stream URLs are not persisted in provider metadata. |
+| **Partially implemented** | M3U, Xtream, and MAG provider capability adapters | M3U local/HTTP(S) loading and canonical translation, Xtream catalogue/search/EPG/playback URL resolution, and MAG/Stalker session/catalogue/EPG/link resolution are available behind capabilities. Provider-specific source-to-XMLTV channel mapping is not yet wired. |
+| **Implemented** | Qt/libVLC desktop foundation | A PySide6/qasync window uses libVLC as the sole player backend and offers manual provider registration, provider listing, channel browsing/search/playback, favorites, watch history, and a safe EPG grid that renders title/start/end only. |
+| **Planned** | Recording, plugins, settings/themes, updater, performance work, and packaging | See [ROADMAP.md](ROADMAP.md). |
 
 ## Architecture
 
 The project follows Clean Architecture. Dependencies point inward; the domain does not depend on provider protocols, UI frameworks, HTTP clients, or persistence libraries.
 
 ```text
-Presentation (planned) → Application → Domain
+PySide6/Qt Presentation → Application → Domain
                          ↑
               Infrastructure adapters
                          ↑
