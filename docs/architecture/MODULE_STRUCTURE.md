@@ -1,4 +1,7 @@
-# Module Structure
+# Module Structure — Historical Phase B.0 Note
+
+> **Historical scope:** This document records an earlier package-refactoring rationale and may not reflect the present file inventory, compatibility shims, or provider/application boundaries. Use the source tree, [ARCHITECTURE.md](../../ARCHITECTURE.md), and [PROJECT_STATUS.md](../../PROJECT_STATUS.md) for current information.
+
 
 ## Why Packages Replaced Monolithic Modules
 

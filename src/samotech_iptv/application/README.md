@@ -2,49 +2,35 @@
 
 ## Responsibility
 
-The `application` package orchestrates use-cases.  It translates
-incoming requests (from the presentation layer or external callers)
-into domain operations and delegates I/O to infrastructure through
-port interfaces.
+The `application` package orchestrates IPTV workflows through use cases, canonical domain records, presentation-safe DTOs, and abstract ports. It translates requests from presentation or an eventual application entry point into domain operations while delegating all I/O—including providers, SQLite, keyring, networking, and libVLC—to infrastructure implementations.
 
-## Rules
+## Dependency rules
 
-- **Depends only on interfaces** — never on concrete infrastructure.
-- **No I/O** — all I/O is delegated through ports.
-- **DTOs cross the boundary** — domain entities never leave this layer;
-  DTOs (Request/Response) are what the presentation layer receives.
-
-## Modules
-
-| Module | Contents |
-|--------|----------|
-| `ports.py` | `ProviderPort`, `PlayerPort`, `StoragePort`, `CredentialStorePort`, `NotificationPort` |
-| `use_cases/` | One class per use-case |
-| `dtos.py` | `ProviderMetadata`, `ProviderCapabilities`, request/response DTOs |
-
-## Allowed Dependencies
-
-```
-application  →  domain
-application  →  core
-application  →  stdlib
+```text
+application → domain
+application → core
+application → standard library
 ```
 
-## Forbidden
+The package must not import infrastructure or presentation modules, instantiate concrete repositories/adapters, or perform direct HTTP/SQLite/keyring/libVLC I/O. Presentation receives DTOs or safe response objects; provider protocol payloads, credentials, tokens, and sessions must not cross this boundary.
 
-- `infrastructure`, `presentation`
-- Direct instantiation of repository implementations
-- `aiohttp`, `SQLite`, `keyring`
+## Current ports and use-case groups
 
-## Future Guidance
-
-- Each use-case should be a class with a single `async def execute(request)` method.
-- Raise `core.exceptions.*` on validation failures; let infrastructure
-  exceptions propagate wrapped in `core.exceptions.ProviderError`.
-- Emit `domain.events.*` after successful state changes.
+| Area | Current role |
+|---|---|
+| Provider capabilities | Fine-grained authentication, session, catalogue, category, VOD, series, EPG, search, playback-resolution, and advertised-capability contracts. |
+| Provider lifecycle | Registration, cataloguing, and resolver ports permit secure provider profile registration and capability-specific construction without exposing secrets. |
+| Playback | `PlayerPort` supports the application’s provider-to-player boundary. `PlayChannel` and `PlayRegisteredChannel` resolve authorized streams before invoking the sole infrastructure backend, libVLC. |
+| Provider browsing | Registered-provider channel browse/search/EPG use cases return safe DTOs for Qt dialogs. |
+| User library | Favorite, history, and recording use cases operate on canonical identifiers and local repositories rather than stream URLs or credentials. |
+| Theme settings | Load/save use cases depend on a non-secret theme-preference repository. |
 
 ## Playback orchestration
 
-`PlayChannel` is the application boundary for playback. It depends on the fine-grained `PlaybackProvider` interface and the abstract `PlayerPort`: it first resolves an authorized canonical stream URL through the provider, then passes only that URL to the player. Provider credentials, tokens, protocol DTOs, and sessions must never cross into the player port or presentation layer.
+`PlayChannel` receives a `PlaybackProvider` and `PlayerPort`, resolves an authorized canonical URL, and passes only that URL to the player. `PlayRegisteredChannel` resolves a registered provider’s playback capability and can record safe history after successful playback start. Provider credentials, MAC identities, tokens, protocol DTOs, and sessions remain inside infrastructure.
 
-The concrete player is deliberately chosen outside this package. Infrastructure currently composes the sole supported backend, libVLC, through `samotech_iptv.infrastructure.player.composition.build_player()`.
+**libVLC through `python-vlc` is the sole supported player and recording backend.** The application layer does not choose or import concrete player implementations.
+
+## Current lifecycle limitation
+
+These use cases are implemented and tested as independently composed components. The repository does not yet provide a production composition root that initializes persistent stores, restores provider metadata, creates the provider graph/use cases, loads the persisted theme, and starts the Qt runtime. That is the current milestone; see [../../../PROJECT_STATUS.md](../../../PROJECT_STATUS.md) and [../../../ROADMAP.md](../../../ROADMAP.md).

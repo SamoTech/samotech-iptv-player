@@ -1,4 +1,7 @@
-# Domain Model
+# Domain Model — Historical Phase B.0 Note
+
+> **Historical scope:** This inventory is preserved as a Phase B.0 design record and may not list later value objects, capabilities, or repository evolution. Read [ARCHITECTURE.md](../../ARCHITECTURE.md) for the current domain boundary and [PROJECT_STATUS.md](../../PROJECT_STATUS.md) for verified support.
+
 
 ## Overview
 

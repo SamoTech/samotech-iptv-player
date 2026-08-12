@@ -1,4 +1,7 @@
-# Application Layer
+# Application Layer — Historical Design Note
+
+> **Historical scope:** This Phase B-era design note is preserved for architectural history. It is not the current source of truth for ports, use cases, providers, or support status. For current boundaries, read [ARCHITECTURE.md](../../ARCHITECTURE.md); for current capabilities, read [PROJECT_STATUS.md](../../PROJECT_STATUS.md).
+
 
 ## Overview
 

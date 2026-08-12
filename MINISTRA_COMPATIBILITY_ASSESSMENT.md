@@ -1,6 +1,8 @@
-# Ministra Compatibility Assessment
+# Ministra Compatibility Assessment — Historical Decision Record
 
-**Status:** Assessed on 2026-08-11
+> **Historical scope:** Assessed on 2026-08-11 and added at commit `600876a`. This record explains the Ministra design gate; it is not a claim that Ministra runtime support exists. The current project capability matrix is [PROJECT_STATUS.md](PROJECT_STATUS.md).
+
+**Status:** Assessed on 2026-08-11; **current runtime status: Planned**.
 
 **Decision:** Design Ministra as a **separate provider adapter**. Do not implement it as an Xtream variant and do not reuse administrative REST credentials for subscriber playback.
 

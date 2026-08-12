@@ -1,13 +1,17 @@
 # Infrastructure / Providers
 
-## Phase A Status
+This package implements the provider boundary: provider-specific credentials, sessions, payloads, and remote operations stay in infrastructure and are translated into canonical domain records before application use cases see them.
 
-Empty scaffold.  The legacy `providers/` package at the repository root
-remains untouched.
+| Provider/service | Current status | Verified behavior |
+|---|---|---|
+| `M3UProviderAdapter` | Partially implemented | Secure local/file/HTTP(S) source loading, extended-M3U parsing, canonical live catalogue, and local search. It does not yet implement registered stream resolution. |
+| `XtreamProviderAdapter` | Partially implemented | Authentication; live, category-family, VOD/movie, series, short-EPG, local search, and live stream-resolution methods. VOD/series are not yet exposed through registered-provider application/UI workflows. |
+| `MagProviderAdapter` | Partially implemented | Authorized MAC identity handling, private session lifecycle, live catalogue, local search, EPG, and live stream resolution through the legacy MAG provider implementation. |
+| `ProviderRegistrationService` | Implemented | Secure M3U/Xtream/MAG registration, non-secret metadata persistence, and keyring-owned secrets. |
+| `ProviderCatalogService` / `ProviderResolutionService` | Implemented | Credential-safe listing and capability-specific construction of registered providers. |
+| `ProviderFactory` / `ProviderRegistry` / `ProviderContext` | Implemented | Explicit adapter registration, safe metadata registry, and host-owned construction context. |
+| Ministra | Planned | A separate-adapter design is assessed but no runtime client exists; implementation is gated on authorized sanitized fixtures and approved device identity. |
 
-## Phase B Plan
+Provider capabilities must be advertised only when executable. Categories, VOD, series, EPG, catch-up, and playback are independent capabilities—not generic provider promises. Never expose provider DTOs, credentials, MAC addresses, session tokens, secure source URLs, or resolved playback URLs outside the infrastructure boundary.
 
-1. Implement `MagProviderAdapter(ProviderPort)` that wraps the existing
-   `MAGProvider` from `providers/mag_provider.py`.
-2. Register via the application-layer `ProviderRegistry`.
-3. Keep `providers/` importable for the migration window.
+The repository-root `providers/` package remains the legacy MAG protocol implementation used behind `MagProviderAdapter`. See [../../../../PROJECT_STATUS.md](../../../../PROJECT_STATUS.md), [../../../../ARCHITECTURE.md](../../../../ARCHITECTURE.md), and [../../../../MINISTRA_COMPATIBILITY_ASSESSMENT.md](../../../../MINISTRA_COMPATIBILITY_ASSESSMENT.md).

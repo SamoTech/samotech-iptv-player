@@ -1,4 +1,7 @@
-# Ministra Compatibility Research Notes
+# Ministra Compatibility Research Notes — Historical Evidence
+
+> **Historical scope:** These notes informed the 2026-08-11 Ministra assessment and do not indicate an implemented client. Ministra remains **Planned** pending an authorized sanitized portal fixture and approved device identity. See [PROJECT_STATUS.md](PROJECT_STATUS.md) and [MINISTRA_COMPATIBILITY_ASSESSMENT.md](MINISTRA_COMPATIBILITY_ASSESSMENT.md).
+
 
 ## Official platform framing
 

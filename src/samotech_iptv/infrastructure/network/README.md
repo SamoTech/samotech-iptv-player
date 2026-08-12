@@ -1,12 +1,7 @@
 # Infrastructure / Network
 
-## Phase A Status
+The network package provides the shared asynchronous HTTP boundary used by provider adapters and secure remote M3U source loading. It supplies the `AsyncHttpClient` abstraction and safe network error translation used by infrastructure code; application and presentation layers do not perform provider HTTP requests directly.
 
-Empty scaffold.
+Configuration determines supported network settings such as timeouts, retry limits, and TLS verification. Provider adapters remain responsible for their own protocol request construction, credentials, session ownership, payload translation, and capability advertisement.
 
-## Phase B Plan
-
-- `HttpClientFactory` — creates `aiohttp.ClientSession` with configured
-  timeouts, TLS settings, and retry middleware.
-- `RetryMiddleware` — exponential backoff (already in MAG provider, to be
-  extracted here for reuse).
+Network diagnostics must not log credentials, MAC identities, session tokens, tokenized source URLs, or resolved playback URLs. See [../../../../SECURITY.md](../../../../SECURITY.md) and [../../../../ARCHITECTURE.md](../../../../ARCHITECTURE.md).

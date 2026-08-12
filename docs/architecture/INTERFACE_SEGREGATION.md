@@ -1,4 +1,7 @@
-# Interface Segregation
+# Interface Segregation — Historical Phase B.0 Note
+
+> **Historical scope:** This Phase B.0 design note is retained to explain the move toward capability-oriented provider ports. Its capability examples and migration statements are not the current support matrix; notably, the current M3U adapter does not implement `PlaybackProvider`. Use [PROJECT_STATUS.md](../../PROJECT_STATUS.md) for verified capability claims and [ARCHITECTURE.md](../../ARCHITECTURE.md) for current boundaries.
+
 
 ## Problem: The Monolithic ProviderPort
 

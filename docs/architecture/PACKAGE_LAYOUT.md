@@ -1,4 +1,7 @@
-# Package Layout
+# Package Layout — Historical Phase B.0 Note
+
+> **Historical scope:** This Phase B.0 source-tree inventory is preserved for refactoring history and does not describe the complete current package or supported capability set. Use the tracked source tree, [ARCHITECTURE.md](../../ARCHITECTURE.md), and [PROJECT_STATUS.md](../../PROJECT_STATUS.md) for current information.
+
 
 ## Source Tree (Phase B.0)
 

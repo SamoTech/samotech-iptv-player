@@ -2,44 +2,28 @@
 
 ## Responsibility
 
-The `domain` package is the heart of the application.  It models the
-business reality of an IPTV player: channels, categories, playlists,
-streams, EPG entries, providers, favourites, and history.
+The `domain` package models provider-independent IPTV business records and validation. It contains canonical channels, categories, playlists, streams, providers, EPG entries, movies, series, episodes, favorites, history, stable IDs, credentials, validated URLs, stream transports/manifests, provider capabilities, and theme preference. It does not represent raw provider payloads, HTTP responses, Qt widgets, player objects, database rows, or session state.
 
-## Rules
+## Dependency rules
 
-- **Immutable entities** — all entities use `@dataclass(frozen=True)` or
-  `@dataclass(eq=True)` with explicit `__hash__`.
-- **No I/O** — no network calls, no file reads, no database access.
-- **No framework dependencies** — stdlib + `samotech_iptv.core` only.
-- **Repository interfaces** are abstract base classes (`ABC`) defined here;
-  concrete implementations live in `infrastructure`.
-
-## Modules
-
-| Module | Contents |
-|--------|----------|
-| `entities.py` | `Channel`, `Category`, `Playlist`, `Movie`, `Series`, `Episode`, `Stream`, `Provider`, `EPGEntry`, `Favorite`, `History` |
-| `value_objects.py` | `ProviderId`, `ChannelId`, `StreamId`, `Credential`, `URL` |
-| `repositories.py` | Abstract repository interfaces |
-| `events.py` | Domain-specific event types |
-
-## Allowed Dependencies
-
-```
-domain  →  core
-domain  →  stdlib
+```text
+domain → core
+domain → standard library
 ```
 
-## Forbidden
+The domain must not import infrastructure, application, presentation, Qt, libVLC, SQLite, `aiohttp`, keyring, or provider-specific libraries. It performs no network, filesystem, database, keyring, or player I/O.
 
-- `infrastructure`, `application`, `presentation`
-- `aiohttp`, `SQLite`, `keyring`, any third-party library
+## Current package structure
 
-## Future Guidance
+| Package | Current contents |
+|---|---|
+| `entities/` | Canonical `Channel`, `Category`, `Playlist`, `Stream`, `Provider`, `EPGEntry`, `Movie`, `Series`, `Episode`, `Favorite`, and `History` records. |
+| `value_objects/` | Stable IDs, safe `URL`, credential value object, provider capabilities, stream URI/transports/manifests, and non-secret theme preference. |
+| `repositories/` | Domain repository interfaces for favorites and history. |
+| `services/` | Provider-independent stream classification. |
 
-- Validation belongs in entity `__post_init__` using `core.exceptions.ValidationError`.
-- Domain events (`core.events.DomainEvent` subclasses) should be raised by
-  entity factory methods, not by setters.
-- Repository interfaces must be `async` to allow both in-memory and async
-  database implementations.
+Provider adapters translate external records into these types before the application layer sees them. A provider capability or a stream transport classification is descriptive; it does not by itself promise end-to-end player support. Verified support status is maintained in [../../../PROJECT_STATUS.md](../../../PROJECT_STATUS.md).
+
+## Security boundary
+
+Credentials, MAC/device identities, session tokens, tokenized source URLs, and resolved playback URLs must not be added to domain records unless a value object explicitly models safe validation/redaction behavior. Long-lived storage and volatile session ownership belong outside the domain. See [../../../ARCHITECTURE.md](../../../ARCHITECTURE.md) and [../../../SECURITY.md](../../../SECURITY.md).

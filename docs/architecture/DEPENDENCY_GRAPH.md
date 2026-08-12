@@ -1,4 +1,7 @@
-# Dependency Graph (Phase B.0)
+# Dependency Graph — Historical Phase B.0 Note
+
+> **Historical scope:** This diagram records the Phase B.0 architecture snapshot. The current dependency rule, provider terminology, player policy, and lifecycle limitation are defined in [ARCHITECTURE.md](../../ARCHITECTURE.md). Current implementation status is in [PROJECT_STATUS.md](../../PROJECT_STATUS.md).
+
 
 ## Allowed Direction
 

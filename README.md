@@ -1,106 +1,174 @@
 # SamoTech IPTV Player
 
-> **Project status: core recovery and the first Qt/libVLC desktop client capabilities are implemented.**
+> **An extensible, provider-agnostic IPTV desktop player and media-platform foundation.**
 
-SamoTech IPTV Player is an in-progress, open-source IPTV project. This revision provides a **tested Python client foundation** with Clean Architecture boundaries, secure provider registration, capability-oriented M3U/Xtream/MAG adapters, SQLite user-library persistence, libVLC playback and recording, a PySide6/qasync desktop shell with persisted system/light/dark settings, and an explicitly enabled trusted local provider-plugin SDK. It does not yet include recording-library metadata management, updater support, or release packaging.
+SamoTech IPTV Player is a Python project for connecting authorized IPTV sources through provider-specific adapters, translating their records into a canonical domain model, resolving eligible media streams, and presenting the supported workflow in a PySide6/Qt desktop shell backed exclusively by libVLC. It is designed to grow across provider ecosystems without coupling the application domain, use cases, or desktop UI to a provider protocol.
+
+The repository currently contains substantial, tested foundations for M3U, Xtream Codes, and MAG/Stalker live-TV workflows, SQLite-backed non-secret user state, OS-keyring credential ownership, a Qt/libVLC presentation shell, recording controls, and persisted theme settings. It is **not yet a packaged, one-command end-user application**: the next milestone is the production composition and lifecycle that connects the existing components into a runnable desktop application.
+
+For the authoritative current-state matrices, known limitations, verification baseline, and next milestone, read [PROJECT_STATUS.md](PROJECT_STATUS.md). The delivery sequence is maintained in [ROADMAP.md](ROADMAP.md).
 
 [![CI](https://github.com/SamoTech/samotech-iptv-player/actions/workflows/ci.yml/badge.svg)](https://github.com/SamoTech/samotech-iptv-player/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue.svg)](https://www.python.org/)
 
-## Capability status
+## Product purpose
 
-| Status | Capability | Notes |
+The project provides an architecture for a desktop IPTV experience that can connect to multiple authorized content sources while preserving a stable internal model for channels, categories, streams, movies, series, episodes, programme guide entries, favorites, history, and settings. Each provider adapter owns its provider protocol, credential interpretation, and volatile session behavior. The rest of the application works with canonical domain records and application ports rather than raw provider payloads.
+
+> **Important distinction:** a provider ecosystem, a playlist or manifest format, a stream transport, and a player backend are separate concepts. M3U, Xtream Codes, and MAG/Stalker are source/provider concerns; M3U/M3U8, HLS, and MPD are playlist or manifest concerns; HTTP(S), RTMP(S), RTSP, UDP, RTP, and SRT are transport classifications; and libVLC is the sole supported decoding and playback backend.
+
+## What the project can do today
+
+The current codebase implements tested boundaries for the following capabilities. “Implemented” means executable through the stated layer and covered by focused tests; it does not imply that all capabilities have already been wired into a packaged end-user launcher.
+
+| Area | Current capability |
+|---|---|
+| Provider registration | Credential-safe manual registration flows for M3U, Xtream Codes, and MAG/Stalker profiles. |
+| Provider isolation | Provider adapters translate protocol data to canonical domain records and keep credentials/session state in infrastructure. |
+| Live-TV workflow | Registered-provider browsing, channel search, provider-specific live stream resolution where supported, libVLC playback orchestration, and Qt native video-surface attachment. |
+| Library state | SQLite persistence foundations for provider metadata, favorites, history, and non-secret theme preferences. |
+| Programme guide | Provider EPG grid for MAG/Stalker and Xtream short EPG; bounded secure XMLTV parsing with explicit source-channel mappings. |
+| Player controls | libVLC play, pause, resume, stop, native video output, and local MPEG transport-stream recording. |
+| Desktop shell | PySide6 dialogs for provider entry, provider listing, channel browsing, EPG display, recording actions, and theme settings; qasync runtime support. |
+| Theme settings | Persisted system/light/dark preference, deterministic Qt stylesheet application, startup initial-theme support, and a Settings menu/dialog. |
+| Extensibility | Explicitly selected trusted local Python provider-plugin SDK with API-version and namespace validation. |
+
+## Supported providers and content sources
+
+| Provider or source | Status | What is available now | What remains |
+|---|---|---|---|
+| M3U | **Partially Implemented** | Local/file/HTTP(S) source loading, extended-M3U parsing, secure tokenized-source handling, canonical live channels, and local search. | No canonical M3U playback-provider implementation in the registered-player path; no VOD/series UI or XMLTV source binding. |
+| Xtream Codes API | **Partially Implemented** | Credential validation, live channels, live/VOD/series categories, movies, series, short EPG, local channel search, and live stream URL resolution. | VOD/series/category capability exposure through registered-provider use cases and desktop catalogue UI; broader playback/track UX. |
+| MAG/Stalker | **Partially Implemented** | Authorized MAC identity handling, session refresh, live channels, EPG, local channel search, and live stream resolution. | Canonical VOD, series, category-family, catch-up/archive, and user-facing catalogue workflows. |
+| Ministra | **Planned** | Compatibility assessment and a separate-adapter design decision. | Authorized sanitized fixture, approved device identity, dedicated device-facing adapter, handshake/profile/catalogue/link-resolution implementation. |
+| Trusted local provider plugins | **Implemented** | Explicit local-file loading, API version/identity/namespace validation, transactional registration, and a tested reference plugin. | Sandbox, signing, marketplace, automatic discovery, remote installation, and plugin updating are deliberately out of scope. |
+
+## Playlist, manifest, and stream-protocol status
+
+| Technology | Status | Current behavior |
 |---|---|---|
-| **Implemented** | Core, domain, application, and infrastructure boundaries | Application provider ports are domain-oriented; infrastructure adapters translate external protocol data into domain entities and value objects. |
-| **Implemented** | Provider registry and explicit factory registration | Adapters are registered by the composition root rather than import-time global state. |
-| **Implemented** | MAG/Stalker provider core | Authentication, channel catalogue loading, local channel search, EPG loading, stream URL resolution, error translation, and session refresh are covered by unit and integration tests using test-only providers. |
-| **Implemented** | Configuration composition | `ConfigurationProvider` owns `IPTV_*` environment parsing with explicit override → environment → default precedence. |
-| **Implemented** | Extended M3U parsing | `M3UParser` translates `#EXTINF` metadata and supported stream URIs into canonical `Channel` and `Stream` entities with deterministic IDs and malformed-input errors. |
-| **Implemented** | Bounded XMLTV parsing | `XMLTVParser` uses `defusedxml`, explicit source-channel mappings, document/result limits, canonical `EPGEntry` translation, timezone-aware timestamps, and malformed/unsafe-input rejection. XMLTV source fetching and provider binding remain explicit future integration work. |
-| **Implemented** | VOD catalogue validation | `Movie` and `Series` enforce nonblank identity/title metadata, nonblank supplied categories, positive years, and ratings between 0.0 and 10.0. |
-| **Implemented** | User-library validation | `Favorite` and `History` reject blank identifiers and unsupported item types; history also rejects negative playback values and positions beyond a known duration. |
-| **Implemented** | Stream metadata validation | `Stream` rejects blank containers/codecs and non-positive supplied bitrates while preserving optional codec and bitrate metadata. |
-| **Implemented** | Stream protocol classification | `StreamURI` and `Stream` represent HTTP(S), RTMP(S), RTSP, UDP, RTP, and SRT transports, with deterministic M3U, HLS, and DASH URI-indicator classification. HLS and DASH parsers are bounded metadata parsers; media playback is delegated exclusively to libVLC. |
-| **Implemented** | Catalogue grouping and provider validation | `Category` and `Playlist` reject blank identifiers and names; supplied category parents must be nonblank. `Provider` also rejects a blank factory discriminator. |
-| **Implemented** | Programme-record validation | `Channel` rejects blank supplied category/EPG references, while `Episode` and `EPGEntry` enforce required identity/title metadata and safe numeric or temporal boundaries. |
-| **Implemented** | Value-object validation | Identifier, credential, and URL value objects have focused validation, redaction, and immutable value-semantics coverage. URLs require complete whitespace-free HTTP(S) authorities. |
-| **Implemented** | Credential/session separation | A MAG connection identity is distinct from the short-lived runtime session token. Tokens are not stored in provider metadata. |
-| **Implemented** | Secure provider registration and user-library persistence | Keyring-backed secret ownership is kept separate from non-secret SQLite metadata, favorites, and watch history. Passwords, MAC addresses, tokens, and resolved stream URLs are not persisted in provider metadata. |
-| **Partially implemented** | M3U, Xtream, and MAG provider capability adapters | M3U local/HTTP(S) loading and canonical translation, Xtream catalogue/search/EPG/playback URL resolution, and MAG/Stalker session/catalogue/EPG/link resolution are available behind capabilities. Provider-specific source-to-XMLTV channel mapping is not yet wired. |
-| **Implemented** | Qt/libVLC desktop foundation | A PySide6/qasync window uses libVLC as the sole player backend and offers manual provider registration, provider listing, channel browsing/search/playback, favorites, watch history, a safe EPG grid that renders title/start/end only, and Playback-menu recording controls. |
-| **Implemented** | libVLC stream recording | The active player uses libVLC duplicate display/file stream output to write timestamped local `.ts` recordings while preserving display on the same player instance. Recording status feedback is generic and never exposes stream URLs, credentials, or local paths. |
-| **Implemented** | Trusted local provider-plugin SDK | API version 1 loads only explicitly selected trusted local `.py` files, validates plugin identity/API compatibility and provider-type namespaces, commits registrations transactionally, isolates failures, and includes a reference plugin. It is intentionally not sandboxed, signed, remotely installed, updated, or auto-discovered. See [PLUGIN_SDK.md](docs/PLUGIN_SDK.md). |
-| **Implemented** | Persisted Qt theme settings | A non-secret SQLite-backed preference stores system, light, or dark selection. The desktop composition applies the saved initial style, and the Settings menu exposes a validated dialog with generic failure feedback. |
-| **Planned** | Updater, performance work, and packaging | See [ROADMAP.md](ROADMAP.md). |
+| Extended M3U | **Implemented** | Parses channel metadata and stream URIs into canonical `Channel` and `Stream` records. |
+| M3U8/HLS manifest | **Partially Implemented** | Bounded parser handles HLS master/media manifest metadata; adaptive playback logic is delegated to libVLC rather than implemented in Python. |
+| MPEG-DASH MPD | **Partially Implemented** | Bounded safe parser reads MPD live/VOD type and representation metadata; no adaptive playback logic exists in the application. |
+| XMLTV | **Partially Implemented** | Bounded `defusedxml` parser creates canonical EPG records for explicit source-channel mappings; source discovery/fetching and binding are not composed. |
+| HTTP and HTTPS | **Partially Implemented** | Canonical stream-URI validation/classification; actual playback relies on libVLC and provider-resolved URLs. |
+| RTMP, RTMPS, RTSP, UDP, RTP, SRT | **Partially Implemented** | Canonical URI validation/classification exists; no application-level transport capability negotiation or dedicated user experience exists. |
 
-## Architecture
+## Supported content and desktop features
 
-The project follows Clean Architecture. Dependencies point inward; the domain does not depend on provider protocols, UI frameworks, HTTP clients, or persistence libraries.
+| Capability | Status | Current scope |
+|---|---|---|
+| Live TV | **Partially Implemented** | M3U, Xtream, and MAG adapters can model live channels; Xtream and MAG expose live stream resolution through the registered-provider path. |
+| Movies/VOD | **Partially Implemented** | Canonical domain records and Xtream provider catalogue methods exist. No registered-provider movie browsing/playback UI is present. |
+| Series and episodes | **Partially Implemented** | Canonical domain records and Xtream series catalogue methods exist. No series/episode browse/playback workflow is present. |
+| EPG | **Partially Implemented** | MAG/Stalker and Xtream adapter EPG plus a safe Qt grid are implemented. XMLTV integration and catch-up/archive behavior are not wired. |
+| Catch-up/archive | **Planned** | Capability vocabulary exists, but no executable provider or UI workflow exists. |
+| Favorites | **Partially Implemented** | SQLite persistence and adding a selected channel from the browser are implemented. Listing/removal UI is absent. |
+| History | **Partially Implemented** | SQLite persistence and playback-time recording use case are implemented. History UI and resume workflow are absent. |
+| Provider management | **Partially Implemented** | Add and list flows are implemented. Restore/lifecycle composition, edit/remove UI, and operational diagnostics are absent. |
+| Search | **Implemented** | Provider-scoped live-channel search is available through M3U, Xtream, and MAG adapters and the channel browser. |
+| Recording | **Implemented** | libVLC duplicate-output recording to a timestamped local `.ts` file with generic UI feedback. |
+| Settings and theme | **Implemented** | Persisted system/light/dark preference, application stylesheets, and Settings dialog. |
+
+## Architecture overview
+
+The architecture keeps dependencies pointed inward and keeps provider protocols separate from desktop UI and player code.
 
 ```text
-PySide6/Qt Presentation → Application → Domain
-                         ↑
-              Infrastructure adapters
-                         ↑
-              MAG/Stalker protocol
-
-Core supports all layers.
+Authorized IPTV provider or source
+        ↓
+Provider adapter and protocol DTOs
+        ↓
+Infrastructure translator
+        ↓
+Canonical domain entities and value objects
+        ↓
+Application use cases and ports
+        ↓
+Authorized stream resolution
+        ↓
+PlayerPort → libVLC
+        ↓
+PySide6/Qt desktop UI
 ```
 
-The provider boundary is domain-oriented. For example, MAG protocol records are translated into `Channel`, `EPGEntry`, and `URL` domain objects before application use cases map them to presentation-facing DTOs. See [ARCHITECTURE.md](ARCHITECTURE.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the broader design.
+The `domain` package contains framework-independent business records and validation. The `application` package orchestrates use cases through abstract ports. The `infrastructure` package owns provider clients, parsing, SQLite persistence, OS keyring storage, and the libVLC adapter. The `presentation` package owns PySide6 views, dialogs, the native video surface, and theme styling. The architecture is described in detail in [ARCHITECTURE.md](ARCHITECTURE.md).
 
-## Verified developer setup
+## Current implementation status and limitation
 
-The project currently supports development and core verification—not launching a desktop player.
+The principal product gap is not a missing theme or a lack of abstract provider APIs. It is the absence of a production composition root and application entry point that initializes repositories, restores safe provider metadata, constructs provider services and use cases, loads the theme, starts the desktop runtime, and shuts resources down predictably. Consequently, the repository offers tested application components but does not yet provide a complete, supported command for a user to launch and operate the player end-to-end.
+
+The detailed prioritization is maintained in [PRODUCT_GAP_ANALYSIS.md](PRODUCT_GAP_ANALYSIS.md).
+
+## Installation
+
+The project requires **Python 3.12 or newer**. Runtime dependencies include `aiohttp`, `defusedxml`, `keyring`, `python-vlc`, `PySide6`, and `qasync`.
 
 ```bash
-# Clone and enter the repository
 git clone https://github.com/SamoTech/samotech-iptv-player.git
 cd samotech-iptv-player
-
-# Create an isolated environment and install all development tooling
 python -m venv .venv
-. .venv/bin/activate                    # Windows PowerShell: .venv\Scripts\Activate.ps1
+. .venv/bin/activate             # Windows PowerShell: .venv\Scripts\Activate.ps1
 pip install -e '.[dev]'
+```
 
-# Run the full quality gate
+A normal library installation is supported with:
+
+```bash
+pip install .
+```
+
+On a real desktop system, libVLC itself must also be available to the operating system; `python-vlc` is a Python binding, not a bundled VLC runtime.
+
+## Development setup and testing
+
+Run the project’s quality gate before every commit:
+
+```bash
+black --check src tests
 ruff check src tests
 mypy src
 pytest -q
+git diff --check
 ```
 
-A clean normal installation is also supported with `pip install .`. Python **3.12 or newer** is required; CI verifies Python 3.13.
+The GitHub CI workflow also verifies the project on Python 3.13 and runs a best-effort Windows PyInstaller build. See [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
-## Configuration
+## Running the application
 
-`ConfigurationProvider` is the single process-environment composition boundary. Explicit constructor overrides take precedence over `IPTV_*` variables, which take precedence over defaults.
+A supported production launcher is **not yet available**. The repository currently supplies the tested `build_desktop_application()` composition factory and `run_desktop_application()` qasync runtime boundary, but no executable production composition root invokes them. The next roadmap milestone addresses this gap before packaging, auto-updating, or telemetry work.
 
-| Variable | Default | Purpose |
-|---|---:|---|
-| `IPTV_DEBUG` | `false` | Enable debug configuration. |
-| `IPTV_LOG_LEVEL` | `INFO` | Logging level. |
-| `IPTV_DATA_DIR` | `~/.samotech_iptv` | Future application data directory. |
-| `IPTV_CONNECT_TIMEOUT` | `10.0` | TCP connection timeout in seconds. |
-| `IPTV_READ_TIMEOUT` | `30.0` | Read timeout in seconds. |
-| `IPTV_MAX_RETRIES` | `3` | HTTP retry attempts. |
-| `IPTV_TLS_VERIFY` | `true` | TLS certificate verification. |
-| `IPTV_BUFFER_MB` | `16` | Future player buffer size. |
-| `IPTV_HW_DECODE` | `true` | Future hardware-decoding preference. |
+## Project structure
 
-## MAG provider integration
+```text
+src/samotech_iptv/
+├── domain/          Canonical IPTV records, value objects, and repository interfaces
+├── application/     Use cases, DTOs, and abstract provider/player/storage ports
+├── infrastructure/  Provider adapters, parsers, SQLite, keyring, networking, libVLC, plugins
+├── presentation/    PySide6 dialogs, views, widgets, theme engine
+├── desktop_bootstrap.py
+└── desktop_runtime.py
 
-The MAG/Stalker adapter requires a registered portal URL and a MAG connection identity. At the application boundary, the credential username represents the authorized MAC address; the generic password is stored through the credential-store contract but is not sent by the current MAG handshake protocol. Short-lived portal tokens stay within the live adapter/session and are never copied to provider metadata or logs.
+providers/           Legacy MAG provider implementation used behind the MAG adapter
+plugins/             Reference trusted local provider plugin
+```
 
-Do not commit portals, authorized MAC addresses, credentials, or session tokens. Use only test data in local test fixtures.
+## Security model
 
-## Project phases
+Provider credentials, MAC addresses, session tokens, and resolved playback URLs can be sensitive. The project keeps credentials in the OS keyring; persists only non-secret provider metadata in SQLite; keeps tokens/session state inside runtime adapters; and directs Qt dialogs to display only credential-safe summaries and generic failure messages. Tokenized M3U sources are treated as secrets and are not stored in provider metadata.
 
-The initial scaffold, core recovery, and **Phase 9 theme/settings completion** are complete. The desktop client provides persisted system/light/dark preferences, applies the configured initial Qt style at startup, and exposes a Settings menu for safe preference updates. See [ROADMAP.md](ROADMAP.md) for completed and planned phases.
+Do not commit credentials, tokens, personal portal URLs, authorized MAC addresses, or captured provider payloads. Tests must use fake values. See [SECURITY.md](SECURITY.md), [docs/m3u_secure_source_design.md](docs/m3u_secure_source_design.md), and [docs/PLUGIN_SDK.md](docs/PLUGIN_SDK.md).
 
-## Contributing and security
+## Roadmap and contribution model
 
-Please read [CONTRIBUTING.md](CONTRIBUTING.md) before submitting changes. Report vulnerabilities according to [SECURITY.md](SECURITY.md); do not open public issues containing sensitive IPTV credentials or tokens.
+[ROADMAP.md](ROADMAP.md) maps completed work to product milestones and defines the next delivery sequence. Development uses a permanent direct-to-`main` workflow:
+
+```text
+Inspect → Implement → Test → Quality gate → Commit → Push main → Verify remote → Continue
+```
+
+No feature branches or pull requests are used unless explicitly requested. Every change must pass the quality gate and must not include secrets or knowingly broken code. Contribution guidance is in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
