@@ -4,9 +4,9 @@
 
 The repository scaffold and the core recovery are complete. The recovered core is installable, has a single configuration boundary, uses domain-oriented provider ports, includes a tested MAG/Stalker adapter, and passes the configured test, type, and lint checks.
 
-> **Current phase:** Phase 8 — trusted provider-plugin SDK — **completed**.
-> **Completed milestone:** Core recovery; validated domain/provider contracts; VLC and Qt desktop composition; registered-provider channel browsing, search, favorites, watch history, EPG, and recording; bounded secure XMLTV parsing; and an explicitly enabled trusted local provider-plugin SDK with a reference plugin and transactional factory registration.
-> **Next product milestone:** Theme engine, dark/light styles, and settings UI.
+> **Current phase:** Phase 9 — theme engine, dark/light styles, and settings UI — **completed**.
+> **Completed milestone:** Core recovery; validated domain/provider contracts; VLC and Qt desktop composition; registered-provider channel browsing, search, favorites, watch history, EPG, and recording; bounded secure XMLTV parsing; an explicitly enabled trusted local provider-plugin SDK with a reference plugin and transactional factory registration; and persisted system/light/dark theme preferences with Qt startup application and a Settings menu.
+> **Next product milestone:** Auto-updater, crash reporting, picture-in-picture, and subtitle/audio management.
 
 | Phase | Scope | Status |
 |---:|---|---|
@@ -19,7 +19,7 @@ The repository scaffold and the core recovery are complete. The recovered core i
 | **6** | XMLTV EPG parser and EPG grid view | **Completed** — registered-provider EPG capability resolution, safe application DTOs, a Qt grid that displays title/start/end only, and a bounded `defusedxml` parser with explicit source-channel mapping and canonical `EPGEntry` translation are delivered; source fetching and provider-specific XMLTV binding remain future integration work |
 | **7** | Stream recording through the player adapter and recording UI | **Completed** — libVLC duplicate display/file stream output, safe timestamped `.ts` destinations, start/stop application use cases, and Qt Playback-menu controls are delivered; recording-library metadata management remains future work |
 | **8** | Plugin SDK, example provider plugin, and plugin loader | **Completed** — API version 1 defines trusted local plugins selected explicitly by path and ID, a narrow host-owned factory-registration context, namespace/API validation, transactional activation, generic failure isolation, loader tests, and a reference plugin; sandboxing, signing, remote install, and automatic discovery remain deliberately out of scope |
-| **9** | Theme engine, dark/light styles, and settings UI | Planned — next milestone |
+| **9** | Theme engine, dark/light styles, and settings UI | **Completed** — a non-secret SQLite-backed `ThemePreference` supports system, light, and dark choices; deterministic Qt application styles are applied at desktop startup; and the Qt Settings menu opens a safely validated, persisted preference dialog. |
 | **10** | Auto-updater, crash reporting, picture-in-picture, subtitle/audio management | Planned |
 | **11** | Performance pass, memory profiling, and large-playlist stress testing | Planned |
 | **12** | PyInstaller packaging, Windows installer, and release automation | Planned |

@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import asyncio
 import sys
 from types import ModuleType, SimpleNamespace
 
 import pytest
+
+from samotech_iptv.domain.value_objects.theme_preference import ThemePreference
 
 
 class FakeFrame:
@@ -35,6 +38,9 @@ class FakeDialog:
 
     def setWindowTitle(self, title: str) -> None:  # noqa: N802
         self.title = title
+
+    def show(self) -> None:
+        return None
 
 
 class FakeFormLayout:
@@ -75,8 +81,18 @@ class FakeLineEdit:
     def setEchoMode(self, echo_mode: object) -> None:  # noqa: N802
         self.echo_mode = echo_mode
 
+    def setText(self, value: str) -> None:  # noqa: N802
+        self.value = value
+
     def text(self) -> str:
         return self.value
+
+
+class FakeButton:
+    """Minimal QPushButton double retaining its signal contract."""
+
+    def __init__(self, _: str) -> None:
+        self.clicked = FakeSignal()
 
 
 class FakeSignal:
@@ -192,6 +208,28 @@ class FakeRecording:
             raise RuntimeError("local recording output failed")
 
 
+class FakeThemeLoad:
+    """Theme-load double that returns a deterministic persisted preference."""
+
+    def __init__(self, preference: ThemePreference = ThemePreference.SYSTEM) -> None:
+        self.preference = preference
+        self.calls = 0
+
+    async def execute(self) -> ThemePreference:
+        self.calls += 1
+        return self.preference
+
+
+class FakeThemeSave:
+    """Theme-save double that records the selected desktop preference."""
+
+    def __init__(self) -> None:
+        self.preferences: list[ThemePreference] = []
+
+    async def execute(self, preference: ThemePreference) -> None:
+        self.preferences.append(preference)
+
+
 def _install_fake_pyside6() -> None:
     qtcore = ModuleType("PySide6.QtCore")
     qtcore.Qt = SimpleNamespace(WidgetAttribute=SimpleNamespace(WA_NativeWindow=object()))
@@ -205,10 +243,11 @@ def _install_fake_pyside6() -> None:
     qtwidgets.QFormLayout = FakeFormLayout
     qtwidgets.QLabel = FakeLabel
     qtwidgets.QLineEdit = FakeLineEdit
-    sys.modules.setdefault("PySide6", ModuleType("PySide6"))
-    sys.modules.setdefault("PySide6.QtCore", qtcore)
-    sys.modules.setdefault("PySide6.QtGui", qtgui)
-    sys.modules.setdefault("PySide6.QtWidgets", qtwidgets)
+    qtwidgets.QPushButton = FakeButton
+    sys.modules["PySide6"] = ModuleType("PySide6")
+    sys.modules["PySide6.QtCore"] = qtcore
+    sys.modules["PySide6.QtGui"] = qtgui
+    sys.modules["PySide6.QtWidgets"] = qtwidgets
 
 
 _install_fake_pyside6()
@@ -232,6 +271,8 @@ async def test_main_window_attaches_surface_then_delegates_playback() -> None:
         FakeRegistration(),
         FakeRegistration(),
         FakeRegistration(),
+        FakeThemeLoad(),
+        FakeThemeSave(),
         FakeRegistration(),
         FakeRegistration(),
     )  # type: ignore[arg-type]
@@ -258,6 +299,8 @@ async def test_main_window_reports_safe_recording_status() -> None:
         FakeRegistration(),
         FakeRegistration(),
         FakeRegistration(),
+        FakeThemeLoad(),
+        FakeThemeSave(),
         start_recording,
         stop_recording,
     )  # type: ignore[arg-type]
@@ -284,6 +327,8 @@ async def test_main_window_hides_recording_failure_details() -> None:
         FakeRegistration(),
         FakeRegistration(),
         FakeRegistration(),
+        FakeThemeLoad(),
+        FakeThemeSave(),
         FakeRecording(should_fail=True),
         FakeRecording(should_fail=True),
     )  # type: ignore[arg-type]
@@ -308,6 +353,8 @@ def test_main_window_exposes_xtream_provider_menu_action() -> None:
         FakeRegistration(),
         FakeRegistration(),
         FakeRegistration(),
+        FakeThemeLoad(),
+        FakeThemeSave(),
         FakeRegistration(),
         FakeRegistration(),
     )  # type: ignore[arg-type]
@@ -346,3 +393,37 @@ def test_main_window_exposes_xtream_provider_menu_action() -> None:
     assert window.start_recording_action.triggered.callbacks == [window._schedule_start_recording]
     assert window.stop_recording_action.text == "Stop Recording"
     assert window.stop_recording_action.triggered.callbacks == [window._schedule_stop_recording]
+    assert window.menu_bar.menus[2].title == "Settings"
+    assert window.menu_bar.menus[2].actions == [window.settings_action]
+    assert window.settings_action.text == "Settings…"
+    assert window.settings_action.triggered.callbacks == [window.open_settings_dialog]
+
+
+@pytest.mark.asyncio
+async def test_main_window_opens_and_loads_theme_settings_dialog() -> None:
+    load_theme_preference = FakeThemeLoad(ThemePreference.DARK)
+    save_theme_preference = FakeThemeSave()
+    window = MainWindow(
+        FakePlayer(),
+        FakePlayChannel(),
+        FakeRegistration(),
+        FakeRegistration(),
+        FakeRegistration(),
+        FakeRegistration(),
+        FakeRegistration(),
+        FakePlayChannel(),
+        FakeRegistration(),
+        FakeRegistration(),
+        FakeRegistration(),
+        load_theme_preference,
+        save_theme_preference,
+        FakeRegistration(),
+        FakeRegistration(),
+    )  # type: ignore[arg-type]
+
+    dialog = window.open_settings_dialog()
+    await asyncio.sleep(0)
+
+    assert window._active_settings_dialog is dialog
+    assert load_theme_preference.calls == 1
+    assert dialog.preference_input.text() == ThemePreference.DARK.value

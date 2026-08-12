@@ -2,7 +2,7 @@
 
 > **Project status: core recovery and the first Qt/libVLC desktop client capabilities are implemented.**
 
-SamoTech IPTV Player is an in-progress, open-source IPTV project. This revision provides a **tested Python client foundation** with Clean Architecture boundaries, secure provider registration, capability-oriented M3U/Xtream/MAG adapters, SQLite user-library persistence, libVLC playback and recording, a PySide6/qasync desktop shell, and an explicitly enabled trusted local provider-plugin SDK. It does not yet include recording-library metadata management, themes/settings, updater support, or release packaging.
+SamoTech IPTV Player is an in-progress, open-source IPTV project. This revision provides a **tested Python client foundation** with Clean Architecture boundaries, secure provider registration, capability-oriented M3U/Xtream/MAG adapters, SQLite user-library persistence, libVLC playback and recording, a PySide6/qasync desktop shell with persisted system/light/dark settings, and an explicitly enabled trusted local provider-plugin SDK. It does not yet include recording-library metadata management, updater support, or release packaging.
 
 [![CI](https://github.com/SamoTech/samotech-iptv-player/actions/workflows/ci.yml/badge.svg)](https://github.com/SamoTech/samotech-iptv-player/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
@@ -31,7 +31,8 @@ SamoTech IPTV Player is an in-progress, open-source IPTV project. This revision 
 | **Implemented** | Qt/libVLC desktop foundation | A PySide6/qasync window uses libVLC as the sole player backend and offers manual provider registration, provider listing, channel browsing/search/playback, favorites, watch history, a safe EPG grid that renders title/start/end only, and Playback-menu recording controls. |
 | **Implemented** | libVLC stream recording | The active player uses libVLC duplicate display/file stream output to write timestamped local `.ts` recordings while preserving display on the same player instance. Recording status feedback is generic and never exposes stream URLs, credentials, or local paths. |
 | **Implemented** | Trusted local provider-plugin SDK | API version 1 loads only explicitly selected trusted local `.py` files, validates plugin identity/API compatibility and provider-type namespaces, commits registrations transactionally, isolates failures, and includes a reference plugin. It is intentionally not sandboxed, signed, remotely installed, updated, or auto-discovered. See [PLUGIN_SDK.md](docs/PLUGIN_SDK.md). |
-| **Planned** | Settings/themes, updater, performance work, and packaging | See [ROADMAP.md](ROADMAP.md). |
+| **Implemented** | Persisted Qt theme settings | A non-secret SQLite-backed preference stores system, light, or dark selection. The desktop composition applies the saved initial style, and the Settings menu exposes a validated dialog with generic failure feedback. |
+| **Planned** | Updater, performance work, and packaging | See [ROADMAP.md](ROADMAP.md). |
 
 ## Architecture
 
@@ -95,7 +96,7 @@ Do not commit portals, authorized MAC addresses, credentials, or session tokens.
 
 ## Project phases
 
-The initial scaffold, core recovery, and **Phase 2 domain/parser completion** are complete: an extended M3U parser plus validated catalogue, library, stream, programme-record, and value-object contracts are delivered with focused tests. M3U provider-adapter integration remains deliberately deferred to future provider-management work. The desktop player and UI remain later phases, after the provider/application core is extended. See [ROADMAP.md](ROADMAP.md) for the complete sequence.
+The initial scaffold, core recovery, and **Phase 9 theme/settings completion** are complete. The desktop client provides persisted system/light/dark preferences, applies the configured initial Qt style at startup, and exposes a Settings menu for safe preference updates. See [ROADMAP.md](ROADMAP.md) for completed and planned phases.
 
 ## Contributing and security
 

@@ -7,7 +7,9 @@ from typing import TYPE_CHECKING
 
 from PySide6.QtWidgets import QApplication  # type: ignore[import-not-found]
 
+from samotech_iptv.domain.value_objects.theme_preference import ThemePreference
 from samotech_iptv.infrastructure.player.composition import build_player
+from samotech_iptv.presentation.theme import apply_theme
 from samotech_iptv.presentation.views.main_window import MainWindow
 
 if TYPE_CHECKING:
@@ -16,6 +18,7 @@ if TYPE_CHECKING:
     from samotech_iptv.application.use_cases.browse_channels import BrowseChannels
     from samotech_iptv.application.use_cases.list_providers import ListProviders
     from samotech_iptv.application.use_cases.load_registered_epg import LoadRegisteredEPG
+    from samotech_iptv.application.use_cases.load_theme_preference import LoadThemePreference
     from samotech_iptv.application.use_cases.play_channel import PlayChannel
     from samotech_iptv.application.use_cases.play_registered_channel import (
         PlayRegisteredChannel,
@@ -26,6 +29,7 @@ if TYPE_CHECKING:
         RegisterXtreamProvider,
     )
     from samotech_iptv.application.use_cases.save_favorite import SaveFavorite
+    from samotech_iptv.application.use_cases.save_theme_preference import SaveThemePreference
     from samotech_iptv.application.use_cases.search_registered_channels import (
         SearchRegisteredChannels,
     )
@@ -54,12 +58,16 @@ def build_desktop_application(
     search_registered_channels: SearchRegisteredChannels,
     save_favorite: SaveFavorite,
     load_registered_epg: LoadRegisteredEPG,
+    load_theme_preference: LoadThemePreference,
+    save_theme_preference: SaveThemePreference,
     start_recording: StartRecording,
     stop_recording: StopRecording,
+    initial_theme: ThemePreference = ThemePreference.SYSTEM,
     argv: Sequence[str] | None = None,
 ) -> DesktopApplication:
     """Compose the Qt shell around externally configured provider playback logic."""
     application = QApplication.instance() or QApplication(list(argv or []))
+    apply_theme(application, initial_theme)
     player = build_player()
     main_window = MainWindow(
         player,
@@ -73,6 +81,8 @@ def build_desktop_application(
         search_registered_channels,
         save_favorite,
         load_registered_epg,
+        load_theme_preference,
+        save_theme_preference,
         start_recording,
         stop_recording,
     )

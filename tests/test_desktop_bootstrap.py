@@ -6,6 +6,8 @@ import sys
 from types import ModuleType, SimpleNamespace
 from unittest.mock import patch
 
+from samotech_iptv.domain.value_objects.theme_preference import ThemePreference
+
 
 class FakeApplication:
     """Minimal QApplication double with process-wide instance behavior."""
@@ -14,11 +16,15 @@ class FakeApplication:
 
     def __init__(self, argv: list[str]) -> None:
         self.argv = argv
+        self.styles: list[str] = []
         type(self).current = self
 
     @classmethod
     def instance(cls) -> FakeApplication | None:
         return cls.current
+
+    def setStyleSheet(self, style: str) -> None:  # noqa: N802
+        self.styles.append(style)
 
 
 class FakeFrame:
@@ -125,10 +131,10 @@ def _install_fake_runtime() -> None:
     qtwidgets.QFormLayout = object
     qtwidgets.QLabel = object
     qtwidgets.QLineEdit = object
-    sys.modules.setdefault("PySide6", ModuleType("PySide6"))
-    sys.modules.setdefault("PySide6.QtCore", qtcore)
-    sys.modules.setdefault("PySide6.QtGui", qtgui)
-    sys.modules.setdefault("PySide6.QtWidgets", qtwidgets)
+    sys.modules["PySide6"] = ModuleType("PySide6")
+    sys.modules["PySide6.QtCore"] = qtcore
+    sys.modules["PySide6.QtGui"] = qtgui
+    sys.modules["PySide6.QtWidgets"] = qtwidgets
     sys.modules.setdefault("vlc", SimpleNamespace(Instance=lambda: None))
 
 
@@ -167,9 +173,13 @@ def test_bootstrap_composes_qt_application_vlc_player_and_main_window() -> None:
             FakeRegistration(),  # type: ignore[arg-type]
             FakeRegistration(),  # type: ignore[arg-type]
             FakeRegistration(),  # type: ignore[arg-type]
-            ["iptv-player"],
+            FakeRegistration(),  # type: ignore[arg-type]
+            FakeRegistration(),  # type: ignore[arg-type]
+            initial_theme=ThemePreference.DARK,
+            argv=["iptv-player"],
         )
 
     factory.assert_called_once_with()
     assert desktop.application.argv == ["iptv-player"]
+    assert desktop.application.styles == ["QWidget { background-color: #202124; color: #f1f3f4; }"]
     assert desktop.main_window.video_surface._player is player

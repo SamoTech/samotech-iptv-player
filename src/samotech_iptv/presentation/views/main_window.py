@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from samotech_iptv.application.use_cases.browse_channels import BrowseChannels
     from samotech_iptv.application.use_cases.list_providers import ListProviders
     from samotech_iptv.application.use_cases.load_registered_epg import LoadRegisteredEPG
+    from samotech_iptv.application.use_cases.load_theme_preference import LoadThemePreference
     from samotech_iptv.application.use_cases.play_channel import PlayChannel
     from samotech_iptv.application.use_cases.play_registered_channel import (
         PlayRegisteredChannel,
@@ -25,6 +26,7 @@ if TYPE_CHECKING:
         RegisterXtreamProvider,
     )
     from samotech_iptv.application.use_cases.save_favorite import SaveFavorite
+    from samotech_iptv.application.use_cases.save_theme_preference import SaveThemePreference
     from samotech_iptv.application.use_cases.search_registered_channels import (
         SearchRegisteredChannels,
     )
@@ -37,6 +39,7 @@ if TYPE_CHECKING:
     from samotech_iptv.presentation.dialogs.m3u_provider_dialog import M3UProviderDialog
     from samotech_iptv.presentation.dialogs.mag_provider_dialog import MAGProviderDialog
     from samotech_iptv.presentation.dialogs.provider_list_dialog import ProviderListDialog
+    from samotech_iptv.presentation.dialogs.theme_settings_dialog import ThemeSettingsDialog
     from samotech_iptv.presentation.dialogs.xtream_provider_dialog import XtreamProviderDialog
 
 __all__ = ["MainWindow"]
@@ -58,6 +61,8 @@ class MainWindow(QMainWindow):  # type: ignore[misc]
         search_registered_channels: SearchRegisteredChannels,
         save_favorite: SaveFavorite,
         load_registered_epg: LoadRegisteredEPG,
+        load_theme_preference: LoadThemePreference,
+        save_theme_preference: SaveThemePreference,
         start_recording: StartRecording,
         stop_recording: StopRecording,
     ) -> None:
@@ -72,6 +77,8 @@ class MainWindow(QMainWindow):  # type: ignore[misc]
         self._search_registered_channels = search_registered_channels
         self._save_favorite = save_favorite
         self._load_registered_epg = load_registered_epg
+        self._load_theme_preference = load_theme_preference
+        self._save_theme_preference = save_theme_preference
         self._start_recording = start_recording
         self._stop_recording = stop_recording
         self.video_surface = VlcVideoSurface(player)
@@ -89,6 +96,8 @@ class MainWindow(QMainWindow):  # type: ignore[misc]
         self.show_epg_action.triggered.connect(self.open_epg_grid_dialog)
         self.show_provider_list_action = QAction("Show Registered Providers", self)
         self.show_provider_list_action.triggered.connect(self.open_provider_list_dialog)
+        self.settings_action = QAction("Settings…", self)
+        self.settings_action.triggered.connect(self.open_settings_dialog)
         self.start_recording_action = QAction("Start Recording", self)
         self.start_recording_action.triggered.connect(self._schedule_start_recording)
         self.stop_recording_action = QAction("Stop Recording", self)
@@ -103,12 +112,15 @@ class MainWindow(QMainWindow):  # type: ignore[misc]
         playback_menu = self.menuBar().addMenu("Playback")
         playback_menu.addAction(self.start_recording_action)
         playback_menu.addAction(self.stop_recording_action)
+        settings_menu = self.menuBar().addMenu("Settings")
+        settings_menu.addAction(self.settings_action)
         self._active_xtream_provider_dialog: XtreamProviderDialog | None = None
         self._active_m3u_provider_dialog: M3UProviderDialog | None = None
         self._active_mag_provider_dialog: MAGProviderDialog | None = None
         self._active_channel_browser_dialog: ChannelBrowserDialog | None = None
         self._active_epg_grid_dialog: EPGGridDialog | None = None
         self._active_provider_list_dialog: ProviderListDialog | None = None
+        self._active_settings_dialog: ThemeSettingsDialog | None = None
 
     def open_xtream_provider_dialog(self) -> XtreamProviderDialog:
         """Create and show the secure manual Xtream-entry dialog."""
@@ -169,6 +181,16 @@ class MainWindow(QMainWindow):  # type: ignore[misc]
         dialog = ProviderListDialog(self._list_providers)
         dialog.show()
         self._active_provider_list_dialog = dialog
+        return dialog
+
+    def open_settings_dialog(self) -> ThemeSettingsDialog:
+        """Create, load, and show the non-secret desktop theme settings dialog."""
+        from samotech_iptv.presentation.dialogs.theme_settings_dialog import ThemeSettingsDialog
+
+        dialog = ThemeSettingsDialog(self._load_theme_preference, self._save_theme_preference)
+        dialog.show()
+        asyncio.create_task(dialog.load())
+        self._active_settings_dialog = dialog
         return dialog
 
     def _schedule_start_recording(self) -> None:
