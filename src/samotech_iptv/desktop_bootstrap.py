@@ -23,6 +23,11 @@ if TYPE_CHECKING:
     from samotech_iptv.application.use_cases.play_registered_channel import (
         PlayRegisteredChannel,
     )
+    from samotech_iptv.application.use_cases.playback_controls import (
+        PausePlayback,
+        ResumePlayback,
+        StopPlayback,
+    )
     from samotech_iptv.application.use_cases.register_m3u_provider import RegisterM3UProvider
     from samotech_iptv.application.use_cases.register_mag_provider import RegisterMAGProvider
     from samotech_iptv.application.use_cases.register_xtream_provider import (
@@ -62,6 +67,9 @@ def build_desktop_application(
     save_theme_preference: SaveThemePreference,
     start_recording: StartRecording,
     stop_recording: StopRecording,
+    pause_playback: PausePlayback,
+    resume_playback: ResumePlayback,
+    stop_playback: StopPlayback,
     initial_theme: ThemePreference = ThemePreference.SYSTEM,
     argv: Sequence[str] | None = None,
     player: PlayerPort | None = None,
@@ -85,5 +93,8 @@ def build_desktop_application(
         save_theme_preference,
         start_recording,
         stop_recording,
+        pause_playback,
+        resume_playback,
+        stop_playback,
     )
     return DesktopApplication(application=application, main_window=main_window)

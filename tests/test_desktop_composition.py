@@ -66,6 +66,53 @@ class FakeSignal:
         self.callbacks.append(callback)
 
 
+class FakeDialog:
+    """Minimal QDialog double for lazy dialog imports."""
+
+    def setWindowTitle(self, _: str) -> None:  # noqa: N802
+        return None
+
+    def show(self) -> None:
+        return None
+
+
+class FakeFormLayout:
+    """Minimal QFormLayout double for lazy dialog imports."""
+
+    def __init__(self, _: object) -> None:
+        return None
+
+    def addRow(self, *_: object) -> None:  # noqa: N802
+        return None
+
+
+class FakeLabel:
+    """Minimal QLabel double for lazy dialog imports."""
+
+    def setText(self, _: str) -> None:  # noqa: N802
+        return None
+
+
+class FakeLineEdit:
+    """Minimal QLineEdit double for lazy dialog imports."""
+
+    def __init__(self) -> None:
+        self.value = ""
+
+    def setText(self, value: str) -> None:  # noqa: N802
+        self.value = value
+
+    def text(self) -> str:
+        return self.value
+
+
+class FakeButton:
+    """Minimal QPushButton double for lazy dialog imports."""
+
+    def __init__(self, _: str) -> None:
+        self.clicked = FakeSignal()
+
+
 class FakeAction:
     """Minimal QAction double for main-window construction."""
 
@@ -137,11 +184,11 @@ def _install_fake_pyside6() -> None:
     qtwidgets.QApplication = FakeApplication
     qtwidgets.QFrame = FakeFrame
     qtwidgets.QMainWindow = FakeMainWindow
-    qtwidgets.QDialog = object
-    qtwidgets.QFormLayout = object
-    qtwidgets.QLabel = object
-    qtwidgets.QLineEdit = object
-    qtwidgets.QPushButton = object
+    qtwidgets.QDialog = FakeDialog
+    qtwidgets.QFormLayout = FakeFormLayout
+    qtwidgets.QLabel = FakeLabel
+    qtwidgets.QLineEdit = FakeLineEdit
+    qtwidgets.QPushButton = FakeButton
     sys.modules["PySide6"] = ModuleType("PySide6")
     sys.modules["PySide6.QtCore"] = qtcore
     sys.modules["PySide6.QtGui"] = qtgui
@@ -217,3 +264,6 @@ async def test_production_composition_initialises_state_restores_metadata_and_wi
     assert arguments[5]._player is player  # noqa: SLF001
     assert arguments[11]._player is player  # noqa: SLF001
     assert arguments[12]._player is player  # noqa: SLF001
+    assert arguments[13]._player is player  # noqa: SLF001
+    assert arguments[14]._player is player  # noqa: SLF001
+    assert arguments[15]._player is player  # noqa: SLF001

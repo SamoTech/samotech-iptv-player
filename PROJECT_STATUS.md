@@ -83,7 +83,7 @@ The domain layer does not depend on Qt, libVLC, SQLite, `aiohttp`, `keyring`, or
 
 | Technology | Category | Current status | Implemented | Tested | Playback | Remaining work |
 |---|---|---:|---|---|---|---|
-| Live TV | Content type | **Partially Implemented** | Canonical channels; M3U/Xtream/MAG catalogues; provider-scoped browse/search; M3U/Xtream/MAG supported HTTP(S) resolution; libVLC orchestration; source-install lifecycle. | Domain, provider, use-case, player, lifecycle, and Qt dialog coverage. | All three current provider types have a registered-live component path for supported URLs. | Playback controls/state UX, broader transport capability negotiation, and release packaging. |
+| Live TV | Content type | **Partially Implemented** | Canonical channels; M3U/Xtream/MAG catalogues; provider-scoped browse/search; M3U/Xtream/MAG supported HTTP(S) resolution; libVLC orchestration; source-install lifecycle; generic pause/resume/stop controls. | Domain, provider, use-case, player, lifecycle, and Qt dialog coverage. | All three current provider types have a registered-live component path for supported URLs, with generic playback control feedback. | Broader transport capability negotiation, active-item/state detail, and release packaging. |
 | Movies/VOD | Content type | **Partially Implemented** | Domain `Movie`; Xtream adapter `load_movies()`. | Domain and Xtream adapter/translator tests. | No registered movie-playback route or UI. | Catalogue resolver/use cases, VOD URL resolution, browse/playback UI. |
 | Series | Content type | **Partially Implemented** | Domain `Series`/`Episode`; Xtream adapter `load_series()`. | Domain and Xtream adapter/translator tests. | No series/episode playback workflow. | Series detail/episode endpoints, resolver/use cases, and UI. |
 | Episodes | Content type | **Partially Implemented** | Canonical domain record and validation. | Domain tests. | None. | Provider translation, catalogue browsing, episode stream resolution, UI. |
@@ -96,7 +96,7 @@ The domain layer does not depend on Qt, libVLC, SQLite, `aiohttp`, `keyring`, or
 
 | Technology | Category | Current status | Implemented | Tested | Playback | Remaining work |
 |---|---|---:|---|---|---|---|
-| PySide6/Qt desktop shell | Desktop UI | **Partially Implemented** | Main window, native video surface, provider-entry dialogs, provider list, channel browser, EPG dialog, recording actions, settings action, production composition, and supported source-install entry points. | Fake-backed presentation, bootstrap, composition-root, lifecycle, and entry-point tests. | One shared libVLC player is injected into registered-provider playback, recording, and the native video surface. | User-facing playback controls/state and release packaging. |
+| PySide6/Qt desktop shell | Desktop UI | **Partially Implemented** | Main window, native video surface, provider-entry dialogs, provider list, channel browser, EPG dialog, generic pause/resume/stop and recording actions, settings action, production composition, and supported source-install entry points. | Fake-backed presentation, bootstrap, composition-root, lifecycle, and entry-point tests. | One shared libVLC player is injected into registered-provider playback, playback controls, recording, and the native video surface. | Active-item/state detail and release packaging. |
 | qasync runtime | Desktop lifecycle | **Implemented** | Qt-aware asyncio event loop, lifecycle entry point, generic startup failures, and shared HTTP cleanup after the window loop exits. | Focused runtime and entry-point tests. | Supports asynchronous UI orchestration. | Broader diagnostics and release packaging. |
 | libVLC through `python-vlc` | Player backend | **Implemented** | Play, pause, resume, stop, active playback, Qt native output, active `.ts` recording. | Fake-backed adapter and composition tests. | Sole supported player backend. | Track/subtitle controls, capability/error UX, packaging and runtime-discovery validation. |
 | Provider registration | Source management | **Partially Implemented** | Secure M3U/Xtream/MAG registration; metadata persistence/restoration through the production composition root; safe provider list. | Registration, repository, dialog, and composition-root tests. | Provider resolution is now composed for registered profiles. | Edit/remove flows, credential cleanup, and user diagnostics. |
@@ -129,7 +129,7 @@ The documentation rebaseline must run the same quality gate before publication. 
 4. MAG/Stalker supports the documented live-TV subset only; VOD, series, categories, archive, and catch-up are not represented as executable adapter capabilities.
 5. XMLTV parsing is not bound to a provider source, mapping store, refresh job, or desktop workflow.
 6. Favorites/history persistence exists, but full library management UI and resume behavior do not.
-7. Player capability negotiation, tracks/subtitles, player-state UX, packaging, update delivery, crash reporting, diagnostics, performance profiling, and release automation are not complete.
+7. Generic pause, resume, and stop actions are available through the existing player port with safe status feedback. Detailed player-state semantics, capability negotiation, tracks/subtitles, packaging, update delivery, crash reporting, diagnostics, performance profiling, and release automation are not complete.
 8. Ministra requires authorized fixtures and an approved device identity before client code may begin.
 
 ## Security model
@@ -151,7 +151,9 @@ The documentation rebaseline must run the same quality gate before publication. 
 
 **Delivered increment:** M3U now uses fresh parsed-playlist lookup for the selected canonical channel, advertises `STREAM_RESOLUTION`, converts only supported HTTP(S) stream URIs to the current player `URL` value object, and returns generic failures for unknown channels or unsupported transport boundaries. Adapter and resolver-to-player integration tests confirm the path without source URL disclosure.
 
-**Next bounded task:** Add pause, resume, and stop actions with generic playback-state feedback to the Qt Playback menu by invoking the existing libVLC-only player use cases.
+**Delivered increment:** Pause, resume, and stop now use dedicated application use cases that delegate only through `PlayerPort`. The Qt Playback menu invokes them on qasync, emits generic success/failure status text, and shares the same libVLC player used by registered playback and recording. Detailed state semantics are not inferred in the UI because the current player port exposes only `is_playing` rather than a full paused/stopped state model.
+
+**Next bounded task:** Add safe provider edit and removal workflows that update non-secret metadata, preserve credentials when edit fields are empty, delete credentials only when a provider is removed, and keep the registry synchronized.
 
 ## Related documents
 

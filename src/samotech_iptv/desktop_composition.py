@@ -17,6 +17,11 @@ from samotech_iptv.application.use_cases.list_providers import ListProviders
 from samotech_iptv.application.use_cases.load_registered_epg import LoadRegisteredEPG
 from samotech_iptv.application.use_cases.load_theme_preference import LoadThemePreference
 from samotech_iptv.application.use_cases.play_registered_channel import PlayRegisteredChannel
+from samotech_iptv.application.use_cases.playback_controls import (
+    PausePlayback,
+    ResumePlayback,
+    StopPlayback,
+)
 from samotech_iptv.application.use_cases.record_history import RecordHistory
 from samotech_iptv.application.use_cases.register_m3u_provider import RegisterM3UProvider
 from samotech_iptv.application.use_cases.register_mag_provider import RegisterMAGProvider
@@ -119,6 +124,9 @@ async def build_production_desktop_application(
         SaveThemePreference(theme_preference_repository),
         StartRecording(player, data_directory / _RECORDINGS_DIRECTORY),
         StopRecording(player),
+        PausePlayback(player),
+        ResumePlayback(player),
+        StopPlayback(player),
         initial_theme=initial_theme,
         argv=argv,
         player=player,

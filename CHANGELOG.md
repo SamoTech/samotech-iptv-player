@@ -11,6 +11,8 @@ This file records concise historical delivery milestones. It is **not** the curr
 - Fake-backed integration coverage for safe metadata restoration, factory registration, persisted-theme loading, shared-player wiring, lifecycle cleanup, and entry-point error safety.
 - M3U `PlaybackProvider` support that resolves a selected canonical channel from the current parsed playlist through the registered-player path when its stream is HTTP(S).
 - Adapter and resolver-to-player M3U playback coverage, including generic failures that do not expose unknown channel IDs or unsupported transport URLs.
+- Generic desktop pause, resume, and stop controls: dedicated application use cases delegate only through `PlayerPort`; the Qt Playback menu schedules them on qasync and emits safe generic success/failure feedback.
+- Focused playback-control application, presentation, bootstrap, and composition coverage, including proof that the controls share the existing libVLC player rather than constructing a second backend.
 
 ### Changed
 
@@ -20,7 +22,7 @@ This file records concise historical delivery milestones. It is **not** the curr
 ### Documentation
 
 - Rebaselined product purpose, architecture terminology, support matrices, roadmap, gap analysis, security model, and direct-to-main development guidance against the repository’s verified implementation.
-- Recorded the delivered composition-root increment and the remaining executable lifecycle/entry-point blocker.
+- Recorded the delivered composition-root, lifecycle, M3U registered-playback, and generic desktop playback-control increments; prioritized secure provider edit/removal and credential-cleanup workflows next.
 
 ## [0.1.0] — 2026-08-12
 

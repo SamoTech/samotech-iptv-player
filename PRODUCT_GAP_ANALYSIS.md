@@ -29,8 +29,8 @@ The repository has a tested Clean Architecture foundation and executable pieces 
 
 | Priority | Gap | Why it is partial | Recommended completion direction |
 |---|---|---|---|
-| **P0** | Playback UX lacks state and direct controls | The player adapter supports play/pause/resume/stop, but the desktop menu currently exposes recording controls only. | Add generic playback state/status and pause/resume/stop actions without revealing stream URLs. |
-| **P1** | Provider management ends at add/list | Registration and metadata persistence exist, but users cannot edit/remove profiles or observe lifecycle errors safely. | Add delete/update contracts, credential cleanup, registry refresh, safe dialog actions, and tests. |
+| **P0** | Provider management ends at add/list | Registration and metadata persistence exist, but users cannot edit/remove profiles or observe lifecycle errors safely. | Add delete/update contracts, credential cleanup, registry refresh, safe dialog actions, and tests. |
+| **P1** | Detailed player-state and active-item UX is absent | The desktop menu now has generic pause/resume/stop actions, but `PlayerPort` does not expose a full paused/stopped state model or active-item context. | Add state/capability contracts only when they are proven necessary by a bounded workflow; do not inspect libVLC from the UI. |
 | **P1** | EPG source integration is incomplete | MAG/Xtream EPG and safe grid work; XMLTV parsing has explicit mapping but no provider source binding, fetch, persistence, or refresh. | Define XMLTV source/mapping lifecycle and expose it only after bounded integration tests. |
 | **P1** | Favorites and history lack complete user workflows | Persistence/use cases exist, and a selected channel can be favorited, but no library pages/removal/history/resume UX exists. | Add safe list/remove/history views and separate progress/resume policy. |
 | **P2** | Xtream VOD/series do not reach application/UI workflows | Adapter methods and canonical domain records exist, but no resolver ports/use cases/UI navigate categories, movies, series, or episodes. | Add capability-specific resolver/use cases and first browse-only UI; only then add playback where provider contracts are verified. |
@@ -50,9 +50,13 @@ Packaging, installers, update delivery, crash-reporting policy, and broader oper
 
 M3U now completes the same registered HTTP(S) playback flow as Xtream/MAG. The adapter advertises `LIVE`, `SEARCH`, and `STREAM_RESOLUTION`; it parses the current playlist, matches the canonical channel, converts only supported HTTP(S) stream URIs into the existing player `URL` contract, and returns generic failures for unknown channels or unsupported transports. The resolver-to-player integration is covered without exposing playlist or stream secrets.
 
-### P1 — Complete live-TV interaction
+### Completed — Generic desktop playback controls
 
-A viable live-TV player needs pause/resume/stop, safe load/play error presentation, active-item context, and a coherent provider lifecycle. Those controls should be implemented against the existing `PlayerPort` and libVLC only. The work must not introduce another player backend.
+The Qt Playback menu now invokes dedicated pause, resume, and stop application use cases against the existing `PlayerPort` and shared libVLC adapter. Success and failure feedback is intentionally generic, so presentation status never carries stream URLs, credentials, or provider secrets. The current port exposes `is_playing` but no complete paused/stopped state model; the UI deliberately does not infer state from libVLC internals.
+
+### P0 — Complete safe provider lifecycle management
+
+A viable live-TV product needs a coherent source lifecycle after registration. The next increment must add safe edit/remove workflows that synchronize persisted non-secret metadata and the provider registry, preserve existing credentials when optional edit values are blank, and remove associated keyring credentials upon confirmed provider deletion. The work must remain behind the existing OS-keyring boundary and must not expose credentials in status text or logs.
 
 ### P1 — Complete EPG and personal library workflows
 
@@ -87,9 +91,10 @@ Guide parsing, favorites, and history exist as component foundations. A usable p
 | 1 | Production composition root | **Completed.** Existing services, repositories, provider registry/factory/context, use cases, theme, and one player are constructible/testable as one application graph, with safe metadata restoration. |
 | 2 | Startup/shutdown lifecycle and entry point | **Completed.** A user can launch the desktop shell through supported code, receives generic startup failures, and the shared HTTP resource is closed safely. |
 | 3 | M3U playback resolution | **Completed.** The M3U source type completes the registered HTTP(S) live-TV playback path with safe failure boundaries. |
-| 4 | Playback controls and safe status | **Current P0.** The live-TV workflow needs pause, resume, stop, and generic state feedback. |
-| 5 | Provider lifecycle and EPG/library completion | Users can maintain sources and personal state safely. |
-| 6 | VOD/series, protocol breadth, and hardening | Higher-breadth capabilities build on a viable product lifecycle. |
+| 4 | Playback controls and safe status | **Completed.** Pause, resume, and stop actions delegate through `PlayerPort` with generic Qt feedback and one shared libVLC player. |
+| 5 | Provider lifecycle management | **Current P0.** Users must be able to edit and remove sources safely while preserving or cleaning keyring credentials correctly. |
+| 6 | EPG/library completion | Users can configure guide sources and maintain personal state safely. |
+| 7 | VOD/series, protocol breadth, and hardening | Higher-breadth capabilities build on a viable product lifecycle. |
 
 ## Non-negotiable constraints for future work
 

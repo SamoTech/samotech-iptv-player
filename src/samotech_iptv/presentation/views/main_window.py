@@ -19,6 +19,11 @@ if TYPE_CHECKING:
     from samotech_iptv.application.use_cases.play_registered_channel import (
         PlayRegisteredChannel,
     )
+    from samotech_iptv.application.use_cases.playback_controls import (
+        PausePlayback,
+        ResumePlayback,
+        StopPlayback,
+    )
     from samotech_iptv.application.use_cases.register_m3u_provider import RegisterM3UProvider
     from samotech_iptv.application.use_cases.register_mag_provider import RegisterMAGProvider
     from samotech_iptv.application.use_cases.register_xtream_provider import (
@@ -63,6 +68,9 @@ class MainWindow(QMainWindow):  # type: ignore[misc]
         save_theme_preference: SaveThemePreference,
         start_recording: StartRecording,
         stop_recording: StopRecording,
+        pause_playback: PausePlayback,
+        resume_playback: ResumePlayback,
+        stop_playback: StopPlayback,
     ) -> None:
         super().__init__()
         self._register_xtream_provider = register_xtream_provider
@@ -78,6 +86,9 @@ class MainWindow(QMainWindow):  # type: ignore[misc]
         self._save_theme_preference = save_theme_preference
         self._start_recording = start_recording
         self._stop_recording = stop_recording
+        self._pause_playback = pause_playback
+        self._resume_playback = resume_playback
+        self._stop_playback = stop_playback
         self.video_surface = VlcVideoSurface(player)
         self.setCentralWidget(self.video_surface)
         self.setWindowTitle("SamoTech IPTV Player")
@@ -95,6 +106,12 @@ class MainWindow(QMainWindow):  # type: ignore[misc]
         self.show_provider_list_action.triggered.connect(self.open_provider_list_dialog)
         self.settings_action = QAction("Settings…", self)
         self.settings_action.triggered.connect(self.open_settings_dialog)
+        self.pause_playback_action = QAction("Pause", self)
+        self.pause_playback_action.triggered.connect(self._schedule_pause_playback)
+        self.resume_playback_action = QAction("Resume", self)
+        self.resume_playback_action.triggered.connect(self._schedule_resume_playback)
+        self.stop_playback_action = QAction("Stop", self)
+        self.stop_playback_action.triggered.connect(self._schedule_stop_playback)
         self.start_recording_action = QAction("Start Recording", self)
         self.start_recording_action.triggered.connect(self._schedule_start_recording)
         self.stop_recording_action = QAction("Stop Recording", self)
@@ -107,6 +124,9 @@ class MainWindow(QMainWindow):  # type: ignore[misc]
         providers_menu.addAction(self.show_epg_action)
         providers_menu.addAction(self.show_provider_list_action)
         playback_menu = self.menuBar().addMenu("Playback")
+        playback_menu.addAction(self.pause_playback_action)
+        playback_menu.addAction(self.resume_playback_action)
+        playback_menu.addAction(self.stop_playback_action)
         playback_menu.addAction(self.start_recording_action)
         playback_menu.addAction(self.stop_recording_action)
         settings_menu = self.menuBar().addMenu("Settings")
@@ -190,6 +210,18 @@ class MainWindow(QMainWindow):  # type: ignore[misc]
         self._active_settings_dialog = dialog
         return dialog
 
+    def _schedule_pause_playback(self) -> None:
+        """Queue playback pause on the supported Qt-aware event loop."""
+        asyncio.create_task(self.pause_playback())
+
+    def _schedule_resume_playback(self) -> None:
+        """Queue playback resume on the supported Qt-aware event loop."""
+        asyncio.create_task(self.resume_playback())
+
+    def _schedule_stop_playback(self) -> None:
+        """Queue playback stop on the supported Qt-aware event loop."""
+        asyncio.create_task(self.stop_playback())
+
     def _schedule_start_recording(self) -> None:
         """Queue local stream recording on the supported Qt-aware event loop."""
         asyncio.create_task(self.start_recording())
@@ -197,6 +229,33 @@ class MainWindow(QMainWindow):  # type: ignore[misc]
     def _schedule_stop_recording(self) -> None:
         """Queue recording shutdown on the supported Qt-aware event loop."""
         asyncio.create_task(self.stop_recording())
+
+    async def pause_playback(self) -> None:
+        """Pause playback with generic, credential-safe feedback."""
+        try:
+            await self._pause_playback.execute()
+        except Exception:  # noqa: BLE001
+            self.statusBar().showMessage("Unable to pause playback")
+            return
+        self.statusBar().showMessage("Playback paused")
+
+    async def resume_playback(self) -> None:
+        """Resume playback with generic, credential-safe feedback."""
+        try:
+            await self._resume_playback.execute()
+        except Exception:  # noqa: BLE001
+            self.statusBar().showMessage("Unable to resume playback")
+            return
+        self.statusBar().showMessage("Playback resumed")
+
+    async def stop_playback(self) -> None:
+        """Stop playback with generic, credential-safe feedback."""
+        try:
+            await self._stop_playback.execute()
+        except Exception:  # noqa: BLE001
+            self.statusBar().showMessage("Unable to stop playback")
+            return
+        self.statusBar().showMessage("Playback stopped")
 
     async def start_recording(self) -> None:
         """Start recording active playback with generic, credential-safe feedback."""

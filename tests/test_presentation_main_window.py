@@ -208,6 +208,19 @@ class FakeRecording:
             raise RuntimeError("local recording output failed")
 
 
+class FakePlaybackControl:
+    """Generic playback-control double with configurable safe failure behavior."""
+
+    def __init__(self, should_fail: bool = False) -> None:
+        self.should_fail = should_fail
+        self.calls = 0
+
+    async def execute(self) -> None:
+        self.calls += 1
+        if self.should_fail:
+            raise RuntimeError("resolved stream URL rejected")
+
+
 class FakeThemeLoad:
     """Theme-load double that returns a deterministic persisted preference."""
 
@@ -259,6 +272,9 @@ from samotech_iptv.presentation.views.main_window import MainWindow  # noqa: E40
 async def test_main_window_reports_safe_recording_status() -> None:
     start_recording = FakeRecording()
     stop_recording = FakeRecording()
+    pause_playback = FakePlaybackControl()
+    resume_playback = FakePlaybackControl()
+    stop_playback = FakePlaybackControl()
     window = MainWindow(
         FakePlayer(),
         FakeRegistration(),
@@ -274,14 +290,29 @@ async def test_main_window_reports_safe_recording_status() -> None:
         FakeThemeSave(),
         start_recording,
         stop_recording,
+        pause_playback,
+        resume_playback,
+        stop_playback,
     )  # type: ignore[arg-type]
 
+    await window.pause_playback()
+    await window.resume_playback()
+    await window.stop_playback()
     await window.start_recording()
     await window.stop_recording()
 
+    assert pause_playback.calls == 1
+    assert resume_playback.calls == 1
+    assert stop_playback.calls == 1
     assert start_recording.calls == 1
     assert stop_recording.calls == 1
-    assert window.status_bar.messages == ["Recording started", "Recording stopped"]
+    assert window.status_bar.messages == [
+        "Playback paused",
+        "Playback resumed",
+        "Playback stopped",
+        "Recording started",
+        "Recording stopped",
+    ]
 
 
 @pytest.mark.asyncio
@@ -301,13 +332,26 @@ async def test_main_window_hides_recording_failure_details() -> None:
         FakeThemeSave(),
         FakeRecording(should_fail=True),
         FakeRecording(should_fail=True),
+        FakePlaybackControl(should_fail=True),
+        FakePlaybackControl(should_fail=True),
+        FakePlaybackControl(should_fail=True),
     )  # type: ignore[arg-type]
 
+    await window.pause_playback()
+    await window.resume_playback()
+    await window.stop_playback()
     await window.start_recording()
     await window.stop_recording()
 
-    assert window.status_bar.messages == ["Unable to start recording", "Unable to stop recording"]
+    assert window.status_bar.messages == [
+        "Unable to pause playback",
+        "Unable to resume playback",
+        "Unable to stop playback",
+        "Unable to start recording",
+        "Unable to stop recording",
+    ]
     assert all("output" not in message for message in window.status_bar.messages)
+    assert all("URL" not in message for message in window.status_bar.messages)
 
 
 def test_main_window_exposes_xtream_provider_menu_action() -> None:
@@ -326,6 +370,9 @@ def test_main_window_exposes_xtream_provider_menu_action() -> None:
         FakeThemeSave(),
         FakeRegistration(),
         FakeRegistration(),
+        FakePlaybackControl(),
+        FakePlaybackControl(),
+        FakePlaybackControl(),
     )  # type: ignore[arg-type]
 
     assert window.menu_bar.menus[0].title == "Providers"
@@ -355,9 +402,18 @@ def test_main_window_exposes_xtream_provider_menu_action() -> None:
     ]
     assert window.menu_bar.menus[1].title == "Playback"
     assert window.menu_bar.menus[1].actions == [
+        window.pause_playback_action,
+        window.resume_playback_action,
+        window.stop_playback_action,
         window.start_recording_action,
         window.stop_recording_action,
     ]
+    assert window.pause_playback_action.text == "Pause"
+    assert window.pause_playback_action.triggered.callbacks == [window._schedule_pause_playback]
+    assert window.resume_playback_action.text == "Resume"
+    assert window.resume_playback_action.triggered.callbacks == [window._schedule_resume_playback]
+    assert window.stop_playback_action.text == "Stop"
+    assert window.stop_playback_action.triggered.callbacks == [window._schedule_stop_playback]
     assert window.start_recording_action.text == "Start Recording"
     assert window.start_recording_action.triggered.callbacks == [window._schedule_start_recording]
     assert window.stop_recording_action.text == "Stop Recording"
@@ -387,6 +443,9 @@ async def test_main_window_opens_and_loads_theme_settings_dialog() -> None:
         save_theme_preference,
         FakeRegistration(),
         FakeRegistration(),
+        FakePlaybackControl(),
+        FakePlaybackControl(),
+        FakePlaybackControl(),
     )  # type: ignore[arg-type]
 
     dialog = window.open_settings_dialog()
