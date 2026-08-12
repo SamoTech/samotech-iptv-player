@@ -36,6 +36,7 @@ from samotech_iptv.application.ports.provider_capabilities import (
 )
 from samotech_iptv.application.ports.provider_port import ProviderPort
 from samotech_iptv.application.ports.provider_registration_port import ProviderRegistrationPort
+from samotech_iptv.application.ports.provider_resolver_port import ProviderResolverPort
 from samotech_iptv.application.ports.storage_port import StoragePort
 
 __all__ = [
@@ -43,6 +44,7 @@ __all__ = [
     "ProviderPort",
     "PlayerPort",
     "ProviderRegistrationPort",
+    "ProviderResolverPort",
     "StoragePort",
     "CredentialStorePort",
     "NotificationPort",

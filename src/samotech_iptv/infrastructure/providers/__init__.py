@@ -29,12 +29,16 @@ from samotech_iptv.infrastructure.providers.provider_metadata import (
     InfraProviderMetadata,
 )
 from samotech_iptv.infrastructure.providers.provider_registry import ProviderRegistry
+from samotech_iptv.infrastructure.providers.provider_resolution_service import (
+    ProviderResolutionService,
+)
 
 __all__ = [
     "ProviderRegistry",
     "ProviderFactory",
     "InfraProviderMetadata",
     "ProviderContext",
+    "ProviderResolutionService",
     "MagProviderAdapter",
     "register_with_factory",
     "MagCredential",

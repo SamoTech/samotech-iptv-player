@@ -12,7 +12,7 @@ from samotech_iptv.application.dtos import (
 from samotech_iptv.core.logging import get_logger
 
 if TYPE_CHECKING:
-    from samotech_iptv.application.ports import ProviderPort
+    from samotech_iptv.application.ports.provider_capabilities import CatalogProvider
 
 _log = get_logger("use_cases.load_channels")
 
@@ -20,7 +20,7 @@ _log = get_logger("use_cases.load_channels")
 class LoadChannels:
     """Fetch all channels for a provider and return DTOs."""
 
-    def __init__(self, provider: ProviderPort) -> None:
+    def __init__(self, provider: CatalogProvider) -> None:
         self._provider = provider
 
     async def execute(self, request: LoadChannelsRequest) -> LoadChannelsResponse:

@@ -1,4 +1,4 @@
-"""PySide6 desktop composition for the VLC-only IPTV player."""
+"""Desktop Qt composition factory for the libVLC player shell."""
 
 from __future__ import annotations
 
@@ -13,6 +13,7 @@ from samotech_iptv.presentation.views.main_window import MainWindow
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
+    from samotech_iptv.application.use_cases.browse_channels import BrowseChannels
     from samotech_iptv.application.use_cases.list_providers import ListProviders
     from samotech_iptv.application.use_cases.play_channel import PlayChannel
     from samotech_iptv.application.use_cases.register_m3u_provider import RegisterM3UProvider
@@ -38,6 +39,7 @@ def build_desktop_application(
     register_m3u_provider: RegisterM3UProvider,
     register_mag_provider: RegisterMAGProvider,
     list_providers: ListProviders,
+    browse_channels: BrowseChannels,
     argv: Sequence[str] | None = None,
 ) -> DesktopApplication:
     """Compose the Qt shell around externally configured provider playback logic."""
@@ -50,5 +52,6 @@ def build_desktop_application(
         register_m3u_provider,
         register_mag_provider,
         list_providers,
+        browse_channels,
     )
     return DesktopApplication(application=application, main_window=main_window)
