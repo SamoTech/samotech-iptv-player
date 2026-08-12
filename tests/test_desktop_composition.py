@@ -256,14 +256,15 @@ async def test_production_composition_initialises_state_restores_metadata_and_wi
             base_url="https://example.test/playlist.m3u",
         )
     ]
-    assert arguments[4]._provider_resolver._factory.supported_types() == {  # noqa: SLF001
+    assert arguments[4]._registration is arguments[5]._registration  # noqa: SLF001
+    assert arguments[6]._provider_resolver._factory.supported_types() == {  # noqa: SLF001
         "m3u",
         "mag",
         "xtream",
     }
-    assert arguments[5]._player is player  # noqa: SLF001
-    assert arguments[11]._player is player  # noqa: SLF001
-    assert arguments[12]._player is player  # noqa: SLF001
+    assert arguments[7]._player is player  # noqa: SLF001
     assert arguments[13]._player is player  # noqa: SLF001
     assert arguments[14]._player is player  # noqa: SLF001
     assert arguments[15]._player is player  # noqa: SLF001
+    assert arguments[16]._player is player  # noqa: SLF001
+    assert arguments[17]._player is player  # noqa: SLF001

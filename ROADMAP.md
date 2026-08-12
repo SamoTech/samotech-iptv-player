@@ -79,7 +79,7 @@ This product blocker has higher value and lower dependency risk than auto-updati
 | 1. Composition root | **Completed.** `build_production_desktop_application()` constructs configuration, SQLite repositories, keyring/context/registry/factory/services, use cases, one player, and the initial theme; it restores safe metadata. | Fake-backed integration coverage verifies construction, metadata restoration, M3U/Xtream/MAG factory registration, persisted-theme loading, and shared-player wiring without accessing real providers or secrets. |
 | 2. Startup, shutdown, and CLI lifecycle | **Completed.** `samotech-iptv` and `python -m samotech_iptv` invoke composition, run qasync, return generic startup failure feedback, and close the shared HTTP resource. | Focused lifecycle and entry-point tests cover success, generic startup failure, composition delegation, and safe close behavior. |
 | 3. Desktop playback controls | **Completed.** The Qt Playback menu invokes pause, resume, and stop application use cases against the one shared libVLC player and shows only generic success/failure text. | Focused application, presentation, bootstrap, and composition tests verify delegation, safe feedback, signal wiring, and shared-player construction. |
-| 4. Provider management completion | Add user-facing provider removal/edit behavior and predictable persisted-registry refresh. | Provider metadata and credential cleanup are tested, with no secret leakage. |
+| 4. Provider management completion | **Completed.** User-facing type-aware provider edit/removal behavior now refreshes persisted metadata and the runtime registry. Blank optional credential inputs retain current keyring values; removal cleans the associated keyring entry. | Focused lifecycle, metadata, presentation, bootstrap, and composition coverage verifies credential preservation, cleanup, generic feedback, and production wiring. |
 
 ## Current milestone — Usable live-TV workflow completion
 
@@ -89,7 +89,8 @@ The application can now launch from source. The next product milestone completes
 |---|---|---|
 | Completed | M3U registered-stream resolution | The M3U adapter now exposes `PlaybackProvider`, resolves parsed HTTP(S) streams from the current playlist, advertises `STREAM_RESOLUTION`, and completes the registered-player path with generic safe failures for unsupported boundaries. |
 | Completed | Playback controls and safe status | The Qt Playback menu provides generic pause, resume, and stop actions through `PlayerPort` and the shared libVLC instance; detailed state is not inferred because the current port has no full paused/stopped state model. |
-| P0 | Provider lifecycle management UI | Users need to remove or update registered sources, preserve credentials during partial edits, clean keyring entries on deletion, and keep persisted metadata and the registry synchronized without exposing secrets. |
+| Completed | Provider lifecycle management UI | Type-aware edit/removal dialogs preserve blank credentials, update safe metadata through the secure boundary, clean keyring entries on deletion, refresh the list, and keep the registry synchronized. |
+| P0 | Verified catalogue discovery | Users need bounded category, VOD, and series discovery workflows where an adapter exposes tested capabilities, without claiming playback before a registered resolver/use-case/UI path exists. |
 | P1 | EPG-source binding | XMLTV parser capability must be connected to provider/source configuration before it becomes a user-facing guide source. |
 
 ## Future milestones

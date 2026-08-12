@@ -166,6 +166,8 @@ def test_bootstrap_composes_qt_application_vlc_player_and_main_window() -> None:
             FakeRegistration(),  # type: ignore[arg-type]
             FakeRegistration(),  # type: ignore[arg-type]
             FakeRegistration(),  # type: ignore[arg-type]
+            FakeRegistration(),  # type: ignore[arg-type]
+            FakeRegistration(),  # type: ignore[arg-type]
             FakePlayChannel(),  # type: ignore[arg-type]
             FakeRegistration(),  # type: ignore[arg-type]
             FakeRegistration(),  # type: ignore[arg-type]

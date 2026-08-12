@@ -28,6 +28,10 @@ if TYPE_CHECKING:
         ResumePlayback,
         StopPlayback,
     )
+    from samotech_iptv.application.use_cases.provider_lifecycle import (
+        RemoveProvider,
+        UpdateProvider,
+    )
     from samotech_iptv.application.use_cases.register_m3u_provider import RegisterM3UProvider
     from samotech_iptv.application.use_cases.register_mag_provider import RegisterMAGProvider
     from samotech_iptv.application.use_cases.register_xtream_provider import (
@@ -58,6 +62,8 @@ def build_desktop_application(
     register_m3u_provider: RegisterM3UProvider,
     register_mag_provider: RegisterMAGProvider,
     list_providers: ListProviders,
+    update_provider: UpdateProvider,
+    remove_provider: RemoveProvider,
     browse_channels: BrowseChannels,
     play_registered_channel: PlayRegisteredChannel,
     search_registered_channels: SearchRegisteredChannels,
@@ -84,6 +90,8 @@ def build_desktop_application(
         register_m3u_provider,
         register_mag_provider,
         list_providers,
+        update_provider,
+        remove_provider,
         browse_channels,
         play_registered_channel,
         search_registered_channels,

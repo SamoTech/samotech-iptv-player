@@ -282,6 +282,8 @@ async def test_main_window_reports_safe_recording_status() -> None:
         FakeRegistration(),
         FakeRegistration(),
         FakeRegistration(),
+        FakeRegistration(),
+        FakeRegistration(),
         FakePlayChannel(),
         FakeRegistration(),
         FakeRegistration(),
@@ -324,6 +326,8 @@ async def test_main_window_hides_recording_failure_details() -> None:
         FakeRegistration(),
         FakeRegistration(),
         FakeRegistration(),
+        FakeRegistration(),
+        FakeRegistration(),
         FakePlayChannel(),
         FakeRegistration(),
         FakeRegistration(),
@@ -357,6 +361,8 @@ async def test_main_window_hides_recording_failure_details() -> None:
 def test_main_window_exposes_xtream_provider_menu_action() -> None:
     window = MainWindow(
         FakePlayer(),
+        FakeRegistration(),
+        FakeRegistration(),
         FakeRegistration(),
         FakeRegistration(),
         FakeRegistration(),
@@ -430,6 +436,8 @@ async def test_main_window_opens_and_loads_theme_settings_dialog() -> None:
     save_theme_preference = FakeThemeSave()
     window = MainWindow(
         FakePlayer(),
+        FakeRegistration(),
+        FakeRegistration(),
         FakeRegistration(),
         FakeRegistration(),
         FakeRegistration(),

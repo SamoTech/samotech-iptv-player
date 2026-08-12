@@ -13,6 +13,9 @@ This file records concise historical delivery milestones. It is **not** the curr
 - Adapter and resolver-to-player M3U playback coverage, including generic failures that do not expose unknown channel IDs or unsupported transport URLs.
 - Generic desktop pause, resume, and stop controls: dedicated application use cases delegate only through `PlayerPort`; the Qt Playback menu schedules them on qasync and emits safe generic success/failure feedback.
 - Focused playback-control application, presentation, bootstrap, and composition coverage, including proof that the controls share the existing libVLC player rather than constructing a second backend.
+- Registered-provider lifecycle management with application update/removal use cases, type-aware Qt edit dialogs, safe provider selection, list refresh after removal, and generic presentation outcomes.
+- Credential-preserving profile edits: optional blank Xtream/MAG/M3U secret fields are never prefilled and retain existing keyring values; removal deletes persisted non-secret metadata, the associated keyring credential when present, and the runtime registry record.
+- Focused lifecycle and presentation coverage for metadata deletion, credential cleanup, blank-field preservation, registry synchronization, safe status copy, and production composition wiring.
 
 ### Changed
 
@@ -22,7 +25,7 @@ This file records concise historical delivery milestones. It is **not** the curr
 ### Documentation
 
 - Rebaselined product purpose, architecture terminology, support matrices, roadmap, gap analysis, security model, and direct-to-main development guidance against the repository’s verified implementation.
-- Recorded the delivered composition-root, lifecycle, M3U registered-playback, and generic desktop playback-control increments; prioritized secure provider edit/removal and credential-cleanup workflows next.
+- Recorded the delivered composition-root, lifecycle, M3U registered-playback, generic desktop playback-control, and secure provider lifecycle increments; prioritized registered catalogue discovery next.
 
 ## [0.1.0] — 2026-08-12
 

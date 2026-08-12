@@ -24,6 +24,10 @@ if TYPE_CHECKING:
         ResumePlayback,
         StopPlayback,
     )
+    from samotech_iptv.application.use_cases.provider_lifecycle import (
+        RemoveProvider,
+        UpdateProvider,
+    )
     from samotech_iptv.application.use_cases.register_m3u_provider import RegisterM3UProvider
     from samotech_iptv.application.use_cases.register_mag_provider import RegisterMAGProvider
     from samotech_iptv.application.use_cases.register_xtream_provider import (
@@ -59,6 +63,8 @@ class MainWindow(QMainWindow):  # type: ignore[misc]
         register_m3u_provider: RegisterM3UProvider,
         register_mag_provider: RegisterMAGProvider,
         list_providers: ListProviders,
+        update_provider: UpdateProvider,
+        remove_provider: RemoveProvider,
         browse_channels: BrowseChannels,
         play_registered_channel: PlayRegisteredChannel,
         search_registered_channels: SearchRegisteredChannels,
@@ -77,6 +83,8 @@ class MainWindow(QMainWindow):  # type: ignore[misc]
         self._register_m3u_provider = register_m3u_provider
         self._register_mag_provider = register_mag_provider
         self._list_providers = list_providers
+        self._update_provider = update_provider
+        self._remove_provider = remove_provider
         self._browse_channels = browse_channels
         self._play_registered_channel = play_registered_channel
         self._search_registered_channels = search_registered_channels
@@ -195,8 +203,13 @@ class MainWindow(QMainWindow):  # type: ignore[misc]
         """Create and show the credential-safe provider summary dialog."""
         from samotech_iptv.presentation.dialogs.provider_list_dialog import ProviderListDialog
 
-        dialog = ProviderListDialog(self._list_providers)
+        dialog = ProviderListDialog(
+            self._list_providers,
+            self._update_provider,
+            self._remove_provider,
+        )
         dialog.show()
+        asyncio.create_task(dialog.refresh())
         self._active_provider_list_dialog = dialog
         return dialog
 

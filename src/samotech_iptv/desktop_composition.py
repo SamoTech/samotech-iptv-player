@@ -22,6 +22,10 @@ from samotech_iptv.application.use_cases.playback_controls import (
     ResumePlayback,
     StopPlayback,
 )
+from samotech_iptv.application.use_cases.provider_lifecycle import (
+    RemoveProvider,
+    UpdateProvider,
+)
 from samotech_iptv.application.use_cases.record_history import RecordHistory
 from samotech_iptv.application.use_cases.register_m3u_provider import RegisterM3UProvider
 from samotech_iptv.application.use_cases.register_mag_provider import RegisterMAGProvider
@@ -115,6 +119,8 @@ async def build_production_desktop_application(
         RegisterM3UProvider(registration_service),
         RegisterMAGProvider(registration_service),
         ListProviders(provider_catalog_service),
+        UpdateProvider(registration_service),
+        RemoveProvider(registration_service),
         BrowseChannels(provider_resolution_service),
         PlayRegisteredChannel(provider_resolution_service, player, record_history),
         SearchRegisteredChannels(provider_resolution_service),

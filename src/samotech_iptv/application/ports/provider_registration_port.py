@@ -10,6 +10,7 @@ if TYPE_CHECKING:
         RegisterM3UProviderRequest,
         RegisterMAGProviderRequest,
         RegisterXtreamProviderRequest,
+        UpdateProviderRequest,
     )
 
 __all__ = ["ProviderRegistrationPort"]
@@ -31,4 +32,14 @@ class ProviderRegistrationPort(ABC):
     @abstractmethod
     async def register_xtream(self, request: RegisterXtreamProviderRequest) -> str:
         """Register an Xtream profile and persist its credential securely."""
+        ...
+
+    @abstractmethod
+    async def update(self, request: UpdateProviderRequest) -> str:
+        """Safely update a registered provider without exposing credentials."""
+        ...
+
+    @abstractmethod
+    async def remove(self, provider_id: str) -> str:
+        """Remove registered metadata, credentials, and runtime registration safely."""
         ...

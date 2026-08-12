@@ -29,7 +29,7 @@ The repository has a tested Clean Architecture foundation and executable pieces 
 
 | Priority | Gap | Why it is partial | Recommended completion direction |
 |---|---|---|---|
-| **P0** | Provider management ends at add/list | Registration and metadata persistence exist, but users cannot edit/remove profiles or observe lifecycle errors safely. | Add delete/update contracts, credential cleanup, registry refresh, safe dialog actions, and tests. |
+| **P0** | Registered catalogue discovery is incomplete | Xtream adapter category/movie/series capabilities and canonical records exist, but no registered-provider resolver/use-case/desktop catalogue flow exposes them safely. | Add one capability-bounded browse-only catalogue workflow with adapter, application, and Qt tests; do not claim playback until stream resolution is proven. |
 | **P1** | Detailed player-state and active-item UX is absent | The desktop menu now has generic pause/resume/stop actions, but `PlayerPort` does not expose a full paused/stopped state model or active-item context. | Add state/capability contracts only when they are proven necessary by a bounded workflow; do not inspect libVLC from the UI. |
 | **P1** | EPG source integration is incomplete | MAG/Xtream EPG and safe grid work; XMLTV parsing has explicit mapping but no provider source binding, fetch, persistence, or refresh. | Define XMLTV source/mapping lifecycle and expose it only after bounded integration tests. |
 | **P1** | Favorites and history lack complete user workflows | Persistence/use cases exist, and a selected channel can be favorited, but no library pages/removal/history/resume UX exists. | Add safe list/remove/history views and separate progress/resume policy. |
@@ -54,9 +54,13 @@ M3U now completes the same registered HTTP(S) playback flow as Xtream/MAG. The a
 
 The Qt Playback menu now invokes dedicated pause, resume, and stop application use cases against the existing `PlayerPort` and shared libVLC adapter. Success and failure feedback is intentionally generic, so presentation status never carries stream URLs, credentials, or provider secrets. The current port exposes `is_playing` but no complete paused/stopped state model; the UI deliberately does not infer state from libVLC internals.
 
-### P0 — Complete safe provider lifecycle management
+### Completed — Safe provider lifecycle management
 
-A viable live-TV product needs a coherent source lifecycle after registration. The next increment must add safe edit/remove workflows that synchronize persisted non-secret metadata and the provider registry, preserve existing credentials when optional edit values are blank, and remove associated keyring credentials upon confirmed provider deletion. The work must remain behind the existing OS-keyring boundary and must not expose credentials in status text or logs.
+Registered providers can now be edited and removed through type-aware Qt dialogs. Edits expose only non-secret base/source metadata and blank credential-replacement inputs; blank optional credential fields retain existing OS-keyring values. Removal deletes persisted non-secret metadata, deletes the associated OS-keyring entry when present, and deregisters the runtime profile. Application and presentation failures remain generic, and focused lifecycle tests prove credential preservation, cleanup, metadata deletion, and registry synchronization.
+
+### P0 — Registered catalogue discovery
+
+The next capability must extend discovery rather than bypass the clean architecture. Xtream exposes adapter-level category, movie, and series methods, but these do not yet have registered-provider resolver ports, application use cases, or desktop browsing. Deliver one browse-only capability at a time through the provider factory/resolution boundary, with authorized fixtures and no premature VOD/series playback claim.
 
 ### P1 — Complete EPG and personal library workflows
 
@@ -92,9 +96,10 @@ Guide parsing, favorites, and history exist as component foundations. A usable p
 | 2 | Startup/shutdown lifecycle and entry point | **Completed.** A user can launch the desktop shell through supported code, receives generic startup failures, and the shared HTTP resource is closed safely. |
 | 3 | M3U playback resolution | **Completed.** The M3U source type completes the registered HTTP(S) live-TV playback path with safe failure boundaries. |
 | 4 | Playback controls and safe status | **Completed.** Pause, resume, and stop actions delegate through `PlayerPort` with generic Qt feedback and one shared libVLC player. |
-| 5 | Provider lifecycle management | **Current P0.** Users must be able to edit and remove sources safely while preserving or cleaning keyring credentials correctly. |
-| 6 | EPG/library completion | Users can configure guide sources and maintain personal state safely. |
-| 7 | VOD/series, protocol breadth, and hardening | Higher-breadth capabilities build on a viable product lifecycle. |
+| 5 | Provider lifecycle management | **Completed.** Type-aware edit/removal safely preserves blank credential fields, cleans keyring entries, updates metadata, and synchronizes the registry. |
+| 6 | Registered catalogue discovery | **Current P0.** Add bounded browse-only category, movie, or series discovery where adapter contracts and fixtures prove the capability. |
+| 7 | EPG/library completion | Users can configure guide sources and maintain personal state safely. |
+| 8 | VOD/series playback, protocol breadth, and hardening | Higher-breadth capabilities build on a viable product lifecycle. |
 
 ## Non-negotiable constraints for future work
 
