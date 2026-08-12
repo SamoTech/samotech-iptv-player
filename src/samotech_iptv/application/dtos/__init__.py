@@ -30,6 +30,9 @@ from samotech_iptv.application.dtos.epg import (
     LoadEPGResponse,
 )
 from samotech_iptv.application.dtos.favorites import (
+    FavoriteDTO,
+    ListFavoritesResponse,
+    RemoveFavoriteResponse,
     SaveFavoriteRequest,
     SaveFavoriteResponse,
     SearchChannelsRequest,
@@ -75,6 +78,9 @@ __all__ = [
     "HistoryItemDTO",
     "LoadHistoryRequest",
     "LoadHistoryResponse",
+    "FavoriteDTO",
+    "ListFavoritesResponse",
+    "RemoveFavoriteResponse",
     "SaveFavoriteRequest",
     "SaveFavoriteResponse",
     "SearchChannelsRequest",

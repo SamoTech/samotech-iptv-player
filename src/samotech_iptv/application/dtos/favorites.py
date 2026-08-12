@@ -13,6 +13,9 @@ if TYPE_CHECKING:
 __all__ = [
     "SaveFavoriteRequest",
     "SaveFavoriteResponse",
+    "FavoriteDTO",
+    "ListFavoritesResponse",
+    "RemoveFavoriteResponse",
     "SearchChannelsRequest",
     "SearchChannelsResponse",
 ]
@@ -27,6 +30,26 @@ class SaveFavoriteRequest:
 @dataclass(frozen=True)
 class SaveFavoriteResponse:
     success: bool
+    error: str | None = None
+
+
+@dataclass(frozen=True)
+class FavoriteDTO:
+    id: str
+    item_id: str
+    item_type: str
+    added_at: str
+
+
+@dataclass(frozen=True)
+class ListFavoritesResponse:
+    favorites: Sequence[FavoriteDTO] = field(default_factory=list)
+    error: str | None = None
+
+
+@dataclass(frozen=True)
+class RemoveFavoriteResponse:
+    removed: bool
     error: str | None = None
 
 

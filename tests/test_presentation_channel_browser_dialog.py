@@ -335,3 +335,42 @@ async def test_channel_browser_search_renders_safe_matching_rows() -> None:
     assert dialog.channel_list.items == ["Sports News · 900"]
     assert dialog.status_label.value == "1 channels found"
     assert "internal-channel-id" not in dialog.channel_list.items[0]
+
+
+class FakeSaveFavorite:
+    """Favorite use-case double recording the safe selected item identifier."""
+
+    def __init__(self) -> None:
+        self.requests: list[tuple[str, str]] = []
+
+    async def execute(self, request: object) -> object:
+        self.requests.append((request.item_id, request.item_type))  # type: ignore[union-attr]
+        return type("Response", (), {"success": True})()
+
+
+@pytest.mark.asyncio
+async def test_channel_browser_saves_selected_channel_as_favorite() -> None:
+    save_favorite = FakeSaveFavorite()
+    dialog = ChannelBrowserDialog(
+        FakeBrowseChannels(
+            LoadChannelsResponse(
+                channels=[
+                    ChannelDTO(
+                        id="channel-9",
+                        name="Documentary HD",
+                        provider_id="provider-one",
+                        stream_id="stream-9",
+                    )
+                ],
+                total=1,
+            )
+        ),
+        save_favorite=save_favorite,  # type: ignore[arg-type]
+    )  # type: ignore[arg-type]
+
+    await dialog.load_channels()
+    await dialog.add_favorite(0)
+
+    assert save_favorite.requests == [("channel-9", "channel")]
+    assert dialog.status_label.value == "Channel added to favorites"
+    assert "stream-9" not in dialog.status_label.value
