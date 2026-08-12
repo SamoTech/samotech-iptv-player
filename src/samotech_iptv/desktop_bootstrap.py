@@ -13,6 +13,7 @@ from samotech_iptv.presentation.views.main_window import MainWindow
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
+    from samotech_iptv.application.use_cases.list_providers import ListProviders
     from samotech_iptv.application.use_cases.play_channel import PlayChannel
     from samotech_iptv.application.use_cases.register_m3u_provider import RegisterM3UProvider
     from samotech_iptv.application.use_cases.register_mag_provider import RegisterMAGProvider
@@ -36,6 +37,7 @@ def build_desktop_application(
     register_xtream_provider: RegisterXtreamProvider,
     register_m3u_provider: RegisterM3UProvider,
     register_mag_provider: RegisterMAGProvider,
+    list_providers: ListProviders,
     argv: Sequence[str] | None = None,
 ) -> DesktopApplication:
     """Compose the Qt shell around externally configured provider playback logic."""
@@ -47,5 +49,6 @@ def build_desktop_application(
         register_xtream_provider,
         register_m3u_provider,
         register_mag_provider,
+        list_providers,
     )
     return DesktopApplication(application=application, main_window=main_window)
