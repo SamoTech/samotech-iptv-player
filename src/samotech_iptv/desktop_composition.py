@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 
 from samotech_iptv.application.use_cases.browse_channels import BrowseChannels
 from samotech_iptv.application.use_cases.list_providers import ListProviders
+from samotech_iptv.application.use_cases.load_categories import LoadCategories
 from samotech_iptv.application.use_cases.load_registered_epg import LoadRegisteredEPG
 from samotech_iptv.application.use_cases.load_theme_preference import LoadThemePreference
 from samotech_iptv.application.use_cases.play_registered_channel import PlayRegisteredChannel
@@ -119,6 +120,7 @@ async def build_production_desktop_application(
         RegisterM3UProvider(registration_service),
         RegisterMAGProvider(registration_service),
         ListProviders(provider_catalog_service),
+        LoadCategories(provider_resolution_service),
         UpdateProvider(registration_service),
         RemoveProvider(registration_service),
         BrowseChannels(provider_resolution_service),

@@ -29,11 +29,10 @@ The repository has a tested Clean Architecture foundation and executable pieces 
 
 | Priority | Gap | Why it is partial | Recommended completion direction |
 |---|---|---|---|
-| **P0** | Registered catalogue discovery is incomplete | Xtream adapter category/movie/series capabilities and canonical records exist, but no registered-provider resolver/use-case/desktop catalogue flow exposes them safely. | Add one capability-bounded browse-only catalogue workflow with adapter, application, and Qt tests; do not claim playback until stream resolution is proven. |
-| **P1** | Detailed player-state and active-item UX is absent | The desktop menu now has generic pause/resume/stop actions, but `PlayerPort` does not expose a full paused/stopped state model or active-item context. | Add state/capability contracts only when they are proven necessary by a bounded workflow; do not inspect libVLC from the UI. |
 | **P1** | EPG source integration is incomplete | MAG/Xtream EPG and safe grid work; XMLTV parsing has explicit mapping but no provider source binding, fetch, persistence, or refresh. | Define XMLTV source/mapping lifecycle and expose it only after bounded integration tests. |
+| **P1** | Detailed player-state and active-item UX is absent | The desktop menu now has generic pause/resume/stop actions, but `PlayerPort` does not expose a full paused/stopped state model or active-item context. | Add state/capability contracts only when they are proven necessary by a bounded workflow; do not inspect libVLC from the UI. |
 | **P1** | Favorites and history lack complete user workflows | Persistence/use cases exist, and a selected channel can be favorited, but no library pages/removal/history/resume UX exists. | Add safe list/remove/history views and separate progress/resume policy. |
-| **P2** | Xtream VOD/series do not reach application/UI workflows | Adapter methods and canonical domain records exist, but no resolver ports/use cases/UI navigate categories, movies, series, or episodes. | Add capability-specific resolver/use cases and first browse-only UI; only then add playback where provider contracts are verified. |
+| **P2** | Xtream VOD/series do not reach application/UI workflows | The tested registered **live-category** flow is browse-only. VOD/series category families, movies, series, and episodes still lack resolver ports, use cases, and UI workflows. | Add capability-specific browse-only workflows one at a time; only then add playback where provider contracts are verified. |
 | **P2** | MAG non-live content is absent | No canonical MAG VOD, series, category, or archive execution path is implemented. | Deliver only against authorized fixtures, one capability at a time. |
 | **P2** | Runtime media capability negotiation is absent | Stream transport/manifest types are classified, but the application cannot state whether the actual libVLC runtime supports a resolved stream or selected tracks. | Add player capability/state contracts once the runnable lifecycle is stable. |
 | **P2** | Recording library management is absent | Recording can start/stop but there is no metadata index, list, retention policy, or safe user destination preference. | Add local recording metadata and UI after core playback lifecycle. |
@@ -58,9 +57,9 @@ The Qt Playback menu now invokes dedicated pause, resume, and stop application u
 
 Registered providers can now be edited and removed through type-aware Qt dialogs. Edits expose only non-secret base/source metadata and blank credential-replacement inputs; blank optional credential fields retain existing OS-keyring values. Removal deletes persisted non-secret metadata, deletes the associated OS-keyring entry when present, and deregisters the runtime profile. Application and presentation failures remain generic, and focused lifecycle tests prove credential preservation, cleanup, metadata deletion, and registry synchronization.
 
-### P0 — Registered catalogue discovery
+### Completed — Registered Xtream live-category discovery
 
-The next capability must extend discovery rather than bypass the clean architecture. Xtream exposes adapter-level category, movie, and series methods, but these do not yet have registered-provider resolver ports, application use cases, or desktop browsing. Deliver one browse-only capability at a time through the provider factory/resolution boundary, with authorized fixtures and no premature VOD/series playback claim.
+Registered Xtream live categories now resolve through the existing provider registry, factory, typed `CategoryProvider`, canonical `Category` translation, registered resolver, `LoadCategories` use case, and a minimal Qt dialog. The deterministic integration test covers registry-to-factory-to-adapter-to-canonical DTO flow. The UI accepts a provider ID, renders category names, and reports empty/error states safely; it does not select a category, resolve a stream, or invoke libVLC. VOD categories, series categories, movies, series, episodes, and every non-live playback workflow remain out of scope.
 
 ### P1 — Complete EPG and personal library workflows
 
@@ -97,9 +96,10 @@ Guide parsing, favorites, and history exist as component foundations. A usable p
 | 3 | M3U playback resolution | **Completed.** The M3U source type completes the registered HTTP(S) live-TV playback path with safe failure boundaries. |
 | 4 | Playback controls and safe status | **Completed.** Pause, resume, and stop actions delegate through `PlayerPort` with generic Qt feedback and one shared libVLC player. |
 | 5 | Provider lifecycle management | **Completed.** Type-aware edit/removal safely preserves blank credential fields, cleans keyring entries, updates metadata, and synchronizes the registry. |
-| 6 | Registered catalogue discovery | **Current P0.** Add bounded browse-only category, movie, or series discovery where adapter contracts and fixtures prove the capability. |
-| 7 | EPG/library completion | Users can configure guide sources and maintain personal state safely. |
-| 8 | VOD/series playback, protocol breadth, and hardening | Higher-breadth capabilities build on a viable product lifecycle. |
+| 6 | Registered live-category discovery | **Completed.** Xtream live categories use the registered resolver/factory path and a browse-only Qt dialog, with no content-selection, stream-resolution, or playback path. |
+| 7 | XMLTV source binding and refresh | **Current P1.** Define one safe registered-provider XMLTV source lifecycle, mapping persistence, bounded fetch/refresh, and tests before exposing it to users. |
+| 8 | Library completion | Users can configure guide sources and maintain personal state safely. |
+| 9 | VOD/series playback, protocol breadth, and hardening | Higher-breadth capabilities build on a viable product lifecycle. |
 
 ## Non-negotiable constraints for future work
 

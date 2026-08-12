@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 from samotech_iptv.application.ports.provider_capabilities import (
     CatalogProvider,
+    CategoryProvider,
     EPGProvider,
     PlaybackProvider,
     SearchProvider,
@@ -39,6 +40,13 @@ class ProviderResolutionService(ProviderResolverPort):
         provider = self._resolve(provider_id)
         if not isinstance(provider, CatalogProvider):
             raise ProviderError("Provider does not support channel browsing")
+        return provider
+
+    def resolve_category_provider(self, provider_id: str) -> CategoryProvider:
+        """Build the requested provider and verify live-category support."""
+        provider = self._resolve(provider_id)
+        if not isinstance(provider, CategoryProvider):
+            raise ProviderError("Provider does not support category browsing")
         return provider
 
     def resolve_playback_provider(self, provider_id: str) -> PlaybackProvider:

@@ -11,6 +11,7 @@ from samotech_iptv.application.use_cases.play_registered_channel import PlayRegi
 from samotech_iptv.domain.value_objects.url import URL
 
 if TYPE_CHECKING:
+    from samotech_iptv.application.ports.provider_capabilities import CategoryProvider
     from samotech_iptv.domain.value_objects.channel_id import ChannelId
 
 
@@ -34,6 +35,9 @@ class FakeResolver(ProviderResolverPort):
 
     def resolve_catalog_provider(self, provider_id: str) -> object:
         raise AssertionError(f"Unexpected catalogue resolution for {provider_id}")
+
+    def resolve_category_provider(self, provider_id: str) -> CategoryProvider:
+        raise AssertionError(f"Unexpected category resolution for {provider_id}")
 
     def resolve_playback_provider(self, provider_id: str) -> PlaybackProvider:
         self.provider_ids.append(provider_id)

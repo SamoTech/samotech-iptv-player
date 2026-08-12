@@ -284,6 +284,7 @@ async def test_main_window_reports_safe_recording_status() -> None:
         FakeRegistration(),
         FakeRegistration(),
         FakeRegistration(),
+        FakeRegistration(),
         FakePlayChannel(),
         FakeRegistration(),
         FakeRegistration(),
@@ -321,6 +322,7 @@ async def test_main_window_reports_safe_recording_status() -> None:
 async def test_main_window_hides_recording_failure_details() -> None:
     window = MainWindow(
         FakePlayer(),
+        FakeRegistration(),
         FakeRegistration(),
         FakeRegistration(),
         FakeRegistration(),
@@ -368,6 +370,7 @@ def test_main_window_exposes_xtream_provider_menu_action() -> None:
         FakeRegistration(),
         FakeRegistration(),
         FakeRegistration(),
+        FakeRegistration(),
         FakePlayChannel(),
         FakeRegistration(),
         FakeRegistration(),
@@ -387,6 +390,7 @@ def test_main_window_exposes_xtream_provider_menu_action() -> None:
         window.add_m3u_provider_action,
         window.add_mag_provider_action,
         window.browse_channels_action,
+        window.browse_live_categories_action,
         window.show_epg_action,
         window.show_provider_list_action,
     ]
@@ -400,6 +404,10 @@ def test_main_window_exposes_xtream_provider_menu_action() -> None:
     assert window.add_mag_provider_action.triggered.callbacks == [window.open_mag_provider_dialog]
     assert window.browse_channels_action.text == "Browse Channels"
     assert window.browse_channels_action.triggered.callbacks == [window.open_channel_browser_dialog]
+    assert window.browse_live_categories_action.text == "Browse Live Categories"
+    assert window.browse_live_categories_action.triggered.callbacks == [
+        window.open_category_browser_dialog
+    ]
     assert window.show_epg_action.text == "Show EPG…"
     assert window.show_epg_action.triggered.callbacks == [window.open_epg_grid_dialog]
     assert window.show_provider_list_action.text == "Show Registered Providers"
@@ -436,6 +444,7 @@ async def test_main_window_opens_and_loads_theme_settings_dialog() -> None:
     save_theme_preference = FakeThemeSave()
     window = MainWindow(
         FakePlayer(),
+        FakeRegistration(),
         FakeRegistration(),
         FakeRegistration(),
         FakeRegistration(),

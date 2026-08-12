@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from samotech_iptv.application.ports.provider_capabilities import (
         CatalogProvider,
+        CategoryProvider,
         EPGProvider,
         PlaybackProvider,
         SearchProvider,
@@ -22,6 +23,11 @@ class ProviderResolverPort(ABC):
     @abstractmethod
     def resolve_catalog_provider(self, provider_id: str) -> CatalogProvider:
         """Return a channel-catalogue provider without exposing secrets."""
+        ...
+
+    @abstractmethod
+    def resolve_category_provider(self, provider_id: str) -> CategoryProvider:
+        """Return a live-category provider without exposing secrets."""
         ...
 
     @abstractmethod

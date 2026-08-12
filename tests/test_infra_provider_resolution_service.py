@@ -6,10 +6,12 @@ import pytest
 
 from samotech_iptv.application.ports.provider_capabilities import (
     CatalogProvider,
+    CategoryProvider,
     EPGProvider,
     PlaybackProvider,
 )
 from samotech_iptv.core.exceptions import ProviderError
+from samotech_iptv.domain.entities.category import Category
 from samotech_iptv.domain.entities.channel import Channel
 from samotech_iptv.domain.value_objects.channel_id import ChannelId
 from samotech_iptv.domain.value_objects.provider_id import ProviderId
@@ -40,6 +42,19 @@ class FakeCatalogProvider(CatalogProvider):
                 name="Demo Channel",
             )
         ]
+
+
+class FakeCategoryProvider(CategoryProvider):
+    """Live-category-capable adapter double returned by the provider factory."""
+
+    async def load_live_categories(self) -> list[Category]:
+        return [Category(id="news", name="News", provider_id="xtream-demo")]
+
+    async def load_vod_categories(self) -> list[Category]:
+        return []
+
+    async def load_series_categories(self) -> list[Category]:
+        return []
 
 
 class FakePlaybackProvider(PlaybackProvider):
@@ -84,6 +99,29 @@ def test_resolver_builds_catalogue_provider_with_shared_context() -> None:
 
     assert result is provider
     assert received_contexts == [context]
+
+
+def test_resolver_builds_category_provider_with_shared_context() -> None:
+    registry = ProviderRegistry()
+    registry.register(
+        InfraProviderMetadata(
+            provider_id="xtream-demo",
+            provider_type="xtream",
+            base_url="https://example.invalid",
+        )
+    )
+    factory = ProviderFactory()
+    context = object()
+    provider = FakeCategoryProvider()
+    factory.register_type("xtream", lambda _, **__: provider)
+
+    result = ProviderResolutionService(  # type: ignore[arg-type]
+        registry,
+        factory,
+        context,
+    ).resolve_category_provider("xtream-demo")
+
+    assert result is provider
 
 
 def test_resolver_builds_playback_provider_with_shared_context() -> None:
@@ -152,6 +190,8 @@ def test_resolver_rejects_provider_without_catalogue_capability() -> None:
 
     with pytest.raises(ProviderError, match="does not support channel browsing"):
         resolver.resolve_catalog_provider("unsupported")
+    with pytest.raises(ProviderError, match="does not support category browsing"):
+        resolver.resolve_category_provider("unsupported")
     with pytest.raises(ProviderError, match="does not support playback"):
         resolver.resolve_playback_provider("unsupported")
     with pytest.raises(ProviderError, match="does not support EPG"):

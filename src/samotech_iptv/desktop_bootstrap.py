@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from samotech_iptv.application.ports.player_port import PlayerPort
     from samotech_iptv.application.use_cases.browse_channels import BrowseChannels
     from samotech_iptv.application.use_cases.list_providers import ListProviders
+    from samotech_iptv.application.use_cases.load_categories import LoadCategories
     from samotech_iptv.application.use_cases.load_registered_epg import LoadRegisteredEPG
     from samotech_iptv.application.use_cases.load_theme_preference import LoadThemePreference
     from samotech_iptv.application.use_cases.play_registered_channel import (
@@ -62,6 +63,7 @@ def build_desktop_application(
     register_m3u_provider: RegisterM3UProvider,
     register_mag_provider: RegisterMAGProvider,
     list_providers: ListProviders,
+    load_categories: LoadCategories,
     update_provider: UpdateProvider,
     remove_provider: RemoveProvider,
     browse_channels: BrowseChannels,
@@ -90,6 +92,7 @@ def build_desktop_application(
         register_m3u_provider,
         register_mag_provider,
         list_providers,
+        load_categories,
         update_provider,
         remove_provider,
         browse_channels,

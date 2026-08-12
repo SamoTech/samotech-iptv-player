@@ -16,6 +16,8 @@ This file records concise historical delivery milestones. It is **not** the curr
 - Registered-provider lifecycle management with application update/removal use cases, type-aware Qt edit dialogs, safe provider selection, list refresh after removal, and generic presentation outcomes.
 - Credential-preserving profile edits: optional blank Xtream/MAG/M3U secret fields are never prefilled and retain existing keyring values; removal deletes persisted non-secret metadata, the associated keyring credential when present, and the runtime registry record.
 - Focused lifecycle and presentation coverage for metadata deletion, credential cleanup, blank-field preservation, registry synchronization, safe status copy, and production composition wiring.
+- Registered Xtream **live-category** discovery through the existing registry/factory path, typed `CategoryProvider`, canonical category translation, `LoadCategories` application use case, and a minimal Qt browse dialog.
+- Deterministic resolver and registry-to-factory-to-adapter integration coverage for live-category discovery, plus presentation tests for provider selection, rendered categories, empty state, and generic failure feedback.
 
 ### Changed
 
@@ -25,7 +27,7 @@ This file records concise historical delivery milestones. It is **not** the curr
 ### Documentation
 
 - Rebaselined product purpose, architecture terminology, support matrices, roadmap, gap analysis, security model, and direct-to-main development guidance against the repository’s verified implementation.
-- Recorded the delivered composition-root, lifecycle, M3U registered-playback, generic desktop playback-control, and secure provider lifecycle increments; prioritized registered catalogue discovery next.
+- Recorded the delivered composition-root, lifecycle, M3U registered-playback, generic desktop playback-control, secure provider lifecycle, and browse-only registered live-category discovery increments; prioritized XMLTV source binding and refresh next.
 
 ## [0.1.0] — 2026-08-12
 

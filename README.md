@@ -30,7 +30,7 @@ The current codebase implements tested boundaries for the following capabilities
 | Library state | SQLite persistence foundations for provider metadata, favorites, history, and non-secret theme preferences. |
 | Programme guide | Provider EPG grid for MAG/Stalker and Xtream short EPG; bounded secure XMLTV parsing with explicit source-channel mappings. |
 | Player controls | libVLC play, pause, resume, stop, native video output, and local MPEG transport-stream recording. |
-| Desktop shell | PySide6 dialogs for provider entry, provider listing, channel browsing, EPG display, recording actions, and theme settings; qasync runtime support; production composition of safe state, provider services, use cases, theme, and one libVLC player. |
+| Desktop shell | PySide6 dialogs for provider entry, provider listing/management, channel browsing, browse-only registered live-category discovery, EPG display, recording actions, and theme settings; qasync runtime support; production composition of safe state, provider services, use cases, theme, and one libVLC player. |
 | Theme settings | Persisted system/light/dark preference, deterministic Qt stylesheet application, startup initial-theme support, and a Settings menu/dialog. |
 | Extensibility | Explicitly selected trusted local Python provider-plugin SDK with API-version and namespace validation. |
 
@@ -39,7 +39,7 @@ The current codebase implements tested boundaries for the following capabilities
 | Provider or source | Status | What is available now | What remains |
 |---|---|---|---|
 | M3U | **Partially Implemented** | Local/file/HTTP(S) source loading, extended-M3U parsing, secure tokenized-source handling, canonical live channels/search, and parsed HTTP(S) stream resolution through the registered-player path. | Non-HTTP(S) transports remain classified but are outside the current `URL`/player boundary; no VOD/series UI or XMLTV source binding. |
-| Xtream Codes API | **Partially Implemented** | Credential validation, live channels, live/VOD/series categories, movies, series, short EPG, local channel search, and live stream URL resolution. | VOD/series/category capability exposure through registered-provider use cases and desktop catalogue UI; broader playback/track UX. |
+| Xtream Codes API | **Partially Implemented** | Credential validation, live channels, registered **live-category** discovery, live/VOD/series category adapter methods, movies, series, short EPG, local channel search, and live stream URL resolution. | VOD/series category families, movies, series, and episodes lack registered browse UI/resolution; live-category discovery does not select content, resolve streams, or play media. |
 | MAG/Stalker | **Partially Implemented** | Authorized MAC identity handling, session refresh, live channels, EPG, local channel search, and live stream resolution. | Canonical VOD, series, category-family, catch-up/archive, and user-facing catalogue workflows. |
 | Ministra | **Planned** | Compatibility assessment and a separate-adapter design decision. | Authorized sanitized fixture, approved device identity, dedicated device-facing adapter, handshake/profile/catalogue/link-resolution implementation. |
 | Trusted local provider plugins | **Implemented** | Explicit local-file loading, API version/identity/namespace validation, transactional registration, and a tested reference plugin. | Sandbox, signing, marketplace, automatic discovery, remote installation, and plugin updating are deliberately out of scope. |
@@ -59,14 +59,14 @@ The current codebase implements tested boundaries for the following capabilities
 
 | Capability | Status | Current scope |
 |---|---|---|
-| Live TV | **Partially Implemented** | M3U, Xtream, and MAG adapters can model live channels and resolve supported HTTP(S) streams through the registered-provider path. |
+| Live TV | **Partially Implemented** | M3U, Xtream, and MAG adapters can model live channels and resolve supported HTTP(S) streams through the registered-provider path. Xtream live categories can be browsed through a separate registered-provider dialog; this path has no content-selection or player operation. |
 | Movies/VOD | **Partially Implemented** | Canonical domain records and Xtream provider catalogue methods exist. No registered-provider movie browsing/playback UI is present. |
 | Series and episodes | **Partially Implemented** | Canonical domain records and Xtream series catalogue methods exist. No series/episode browse/playback workflow is present. |
 | EPG | **Partially Implemented** | MAG/Stalker and Xtream adapter EPG plus a safe Qt grid are implemented. XMLTV integration and catch-up/archive behavior are not wired. |
 | Catch-up/archive | **Planned** | Capability vocabulary exists, but no executable provider or UI workflow exists. |
 | Favorites | **Partially Implemented** | SQLite persistence and adding a selected channel from the browser are implemented. Listing/removal UI is absent. |
 | History | **Partially Implemented** | SQLite persistence and playback-time recording use case are implemented. History UI and resume workflow are absent. |
-| Provider management | **Partially Implemented** | Add/list flows and safe metadata restoration during production composition are implemented. Edit/remove UI, lifecycle-owned cleanup, and operational diagnostics are absent. |
+| Provider management | **Implemented for registered profiles** | Add/list/edit/remove flows, safe metadata restoration, blank-credential preservation, and keyring cleanup on removal are implemented. Confirmation UX and operational diagnostics remain limited. |
 | Search | **Implemented** | Provider-scoped live-channel search is available through M3U, Xtream, and MAG adapters and the channel browser. |
 | Recording | **Implemented** | libVLC duplicate-output recording to a timestamped local `.ts` file with generic UI feedback. |
 | Settings and theme | **Implemented** | Persisted system/light/dark preference, application stylesheets, and Settings dialog. |

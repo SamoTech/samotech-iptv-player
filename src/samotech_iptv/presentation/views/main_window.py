@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from samotech_iptv.application.ports.player_port import PlayerPort
     from samotech_iptv.application.use_cases.browse_channels import BrowseChannels
     from samotech_iptv.application.use_cases.list_providers import ListProviders
+    from samotech_iptv.application.use_cases.load_categories import LoadCategories
     from samotech_iptv.application.use_cases.load_registered_epg import LoadRegisteredEPG
     from samotech_iptv.application.use_cases.load_theme_preference import LoadThemePreference
     from samotech_iptv.application.use_cases.play_registered_channel import (
@@ -40,6 +41,9 @@ if TYPE_CHECKING:
     )
     from samotech_iptv.application.use_cases.start_recording import StartRecording
     from samotech_iptv.application.use_cases.stop_recording import StopRecording
+    from samotech_iptv.presentation.dialogs.category_browser_dialog import (
+        CategoryBrowserDialog,
+    )
     from samotech_iptv.presentation.dialogs.channel_browser_dialog import (
         ChannelBrowserDialog,
     )
@@ -63,6 +67,7 @@ class MainWindow(QMainWindow):  # type: ignore[misc]
         register_m3u_provider: RegisterM3UProvider,
         register_mag_provider: RegisterMAGProvider,
         list_providers: ListProviders,
+        load_categories: LoadCategories,
         update_provider: UpdateProvider,
         remove_provider: RemoveProvider,
         browse_channels: BrowseChannels,
@@ -83,6 +88,7 @@ class MainWindow(QMainWindow):  # type: ignore[misc]
         self._register_m3u_provider = register_m3u_provider
         self._register_mag_provider = register_mag_provider
         self._list_providers = list_providers
+        self._load_categories = load_categories
         self._update_provider = update_provider
         self._remove_provider = remove_provider
         self._browse_channels = browse_channels
@@ -108,6 +114,8 @@ class MainWindow(QMainWindow):  # type: ignore[misc]
         self.add_mag_provider_action.triggered.connect(self.open_mag_provider_dialog)
         self.browse_channels_action = QAction("Browse Channels", self)
         self.browse_channels_action.triggered.connect(self.open_channel_browser_dialog)
+        self.browse_live_categories_action = QAction("Browse Live Categories", self)
+        self.browse_live_categories_action.triggered.connect(self.open_category_browser_dialog)
         self.show_epg_action = QAction("Show EPG…", self)
         self.show_epg_action.triggered.connect(self.open_epg_grid_dialog)
         self.show_provider_list_action = QAction("Show Registered Providers", self)
@@ -129,6 +137,7 @@ class MainWindow(QMainWindow):  # type: ignore[misc]
         providers_menu.addAction(self.add_m3u_provider_action)
         providers_menu.addAction(self.add_mag_provider_action)
         providers_menu.addAction(self.browse_channels_action)
+        providers_menu.addAction(self.browse_live_categories_action)
         providers_menu.addAction(self.show_epg_action)
         providers_menu.addAction(self.show_provider_list_action)
         playback_menu = self.menuBar().addMenu("Playback")
@@ -143,6 +152,7 @@ class MainWindow(QMainWindow):  # type: ignore[misc]
         self._active_m3u_provider_dialog: M3UProviderDialog | None = None
         self._active_mag_provider_dialog: MAGProviderDialog | None = None
         self._active_channel_browser_dialog: ChannelBrowserDialog | None = None
+        self._active_category_browser_dialog: CategoryBrowserDialog | None = None
         self._active_epg_grid_dialog: EPGGridDialog | None = None
         self._active_provider_list_dialog: ProviderListDialog | None = None
         self._active_settings_dialog: ThemeSettingsDialog | None = None
@@ -172,6 +182,17 @@ class MainWindow(QMainWindow):  # type: ignore[misc]
         dialog = MAGProviderDialog(self._register_mag_provider)
         dialog.show()
         self._active_mag_provider_dialog = dialog
+        return dialog
+
+    def open_category_browser_dialog(self) -> CategoryBrowserDialog:
+        """Create and show browse-only live categories for a registered provider."""
+        from samotech_iptv.presentation.dialogs.category_browser_dialog import (
+            CategoryBrowserDialog,
+        )
+
+        dialog = CategoryBrowserDialog(self._load_categories)
+        dialog.show()
+        self._active_category_browser_dialog = dialog
         return dialog
 
     def open_channel_browser_dialog(self) -> ChannelBrowserDialog:
