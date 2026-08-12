@@ -15,11 +15,11 @@ from samotech_iptv.presentation.views.main_window import MainWindow
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
+    from samotech_iptv.application.ports.player_port import PlayerPort
     from samotech_iptv.application.use_cases.browse_channels import BrowseChannels
     from samotech_iptv.application.use_cases.list_providers import ListProviders
     from samotech_iptv.application.use_cases.load_registered_epg import LoadRegisteredEPG
     from samotech_iptv.application.use_cases.load_theme_preference import LoadThemePreference
-    from samotech_iptv.application.use_cases.play_channel import PlayChannel
     from samotech_iptv.application.use_cases.play_registered_channel import (
         PlayRegisteredChannel,
     )
@@ -48,7 +48,6 @@ class DesktopApplication:
 
 
 def build_desktop_application(
-    play_channel: PlayChannel,
     register_xtream_provider: RegisterXtreamProvider,
     register_m3u_provider: RegisterM3UProvider,
     register_mag_provider: RegisterMAGProvider,
@@ -64,14 +63,14 @@ def build_desktop_application(
     stop_recording: StopRecording,
     initial_theme: ThemePreference = ThemePreference.SYSTEM,
     argv: Sequence[str] | None = None,
+    player: PlayerPort | None = None,
 ) -> DesktopApplication:
-    """Compose the Qt shell around externally configured provider playback logic."""
+    """Compose the Qt shell around externally configured registered-provider logic."""
     application = QApplication.instance() or QApplication(list(argv or []))
     apply_theme(application, initial_theme)
-    player = build_player()
+    desktop_player = player or build_player()
     main_window = MainWindow(
-        player,
-        play_channel,
+        desktop_player,
         register_xtream_provider,
         register_m3u_provider,
         register_mag_provider,

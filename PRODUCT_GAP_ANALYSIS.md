@@ -19,17 +19,17 @@ The repository has a tested Clean Architecture foundation and executable pieces 
 
 | Capability | Evidence of usability today | Boundaries |
 |---|---|---|
-| Xtream live-TV component workflow | Authentication, catalogue, search, short EPG, and live stream resolution are implemented in the adapter; registered-playback use case and Qt channel browser exist. | Requires manual construction of dependencies because no production composition root/launcher exists. |
-| MAG/Stalker live-TV component workflow | Authorized MAC identity, session lifecycle, live catalogue, search, EPG, and live link resolution exist behind the adapter. | Requires an authorized provider and manual composition; only the live-TV subset is implemented. |
+| Xtream live-TV component workflow | Authentication, catalogue, search, short EPG, and live stream resolution are implemented in the adapter; registered-playback use case and Qt channel browser exist. | Production composition now wires safe stores, services, use cases, theme, and one player; no executable lifecycle entry point exists yet. |
+| MAG/Stalker live-TV component workflow | Authorized MAC identity, session lifecycle, live catalogue, search, EPG, and live link resolution exist behind the adapter. | Requires an authorized provider; production composition is present but the lifecycle/launcher remains incomplete. |
 | M3U catalogue component workflow | Local/file/HTTP(S) source loading, extended-M3U parsing, source protection, live catalogue, and search are implemented. | The adapter does not yet provide registered playback resolution. |
 | Local recording component workflow | Active libVLC playback can be duplicated to a safe timestamped local `.ts` file. | Requires active playback and lacks a recording-library experience. |
-| Persisted settings component workflow | System/light/dark preference can be persisted and presented in a Qt settings dialog. | A production root must load the preference and launch the UI lifecycle. |
+| Persisted settings component workflow | System/light/dark preference can be persisted, loaded by production composition before bootstrap, and presented in a Qt settings dialog. | An executable lifecycle still must launch the UI and close resources safely. |
 
 ## Partially usable capabilities
 
 | Priority | Gap | Why it is partial | Recommended completion direction |
 |---|---|---|---|
-| **P0** | No runnable application composition and lifecycle | Existing bootstrap/runtime boundaries require callers to provide fully constructed use cases and a preloaded theme. No entry point initializes repositories, restores metadata, creates provider services/context, or closes resources. | Build a production composition root, then a CLI/module entry point and graceful lifecycle. |
+| **P0** | No runnable application lifecycle or entry point | Production composition now initializes repositories, restores metadata, creates provider services/context/use cases, loads theme, and shares one player. No lifecycle owner invokes it, runs qasync, reports generic startup failures, or closes resources. | Add a CLI/module entry point and graceful startup/shutdown lifecycle around the production root. |
 | **P0** | M3U cannot resolve a parsed stream through the registered-player path | M3U exposes live catalogue/search but not `PlaybackProvider`; parsed streams are not retained or resolved by the adapter. | Add safe parsed-channel/stream lookup and `PlaybackProvider` implementation, then test registered M3U playback orchestration. |
 | **P1** | Provider management ends at add/list | Registration and metadata persistence exist, but users cannot edit/remove profiles or observe lifecycle errors safely. | Add delete/update contracts, credential cleanup, registry refresh, safe dialog actions, and tests. |
 | **P1** | Playback UX lacks state and direct controls | The player adapter supports play/pause/resume/stop, but the desktop menu currently exposes recording controls only. | Add generic playback state/status and pause/resume/stop actions without revealing stream URLs. |
@@ -44,20 +44,17 @@ The repository has a tested Clean Architecture foundation and executable pieces 
 
 ### P0 — Runnable Desktop Composition and Provider Lifecycle
 
-The primary gap is a missing production composition root. The project cannot yet act as a complete IPTV desktop application because it has no supported path that performs the following coherent lifecycle:
+The dependency-wiring portion of this gap is complete: `build_production_desktop_application()` now performs configuration, safe-store initialization, metadata restoration, provider-service/use-case construction, initial-theme loading, player construction, and Qt shell composition. The remaining P0 gap is lifecycle ownership and an executable entry point; the project cannot yet act as a complete IPTV desktop application because no supported path performs the final lifecycle steps:
 
 ```text
-configuration
-  → initialize SQLite repositories
-  → restore safe provider metadata to registry
-  → construct keyring/provider factory/context/services/use cases
-  → load persisted theme
-  → build desktop application
+production composition root
+  → invoke from an executable entry point
   → run qasync event loop
+  → report only generic startup failures
   → close managed resources safely
 ```
 
-This is the correct current milestone because it turns already tested abstractions into a usable user workflow without changing provider protocols or adding product polish ahead of functionality.
+This remains the correct current milestone because lifecycle ownership turns the delivered composition graph into a usable user workflow without changing provider protocols or adding product polish ahead of functionality.
 
 ### P0 — M3U registered stream resolution
 
@@ -97,8 +94,8 @@ Guide parsing, favorites, and history exist as component foundations. A usable p
 
 | Sequence | Bounded increment | Outcome |
 |---:|---|---|
-| 1 | Production composition root | Existing services, repositories, provider registry/factory/context, use cases, and theme become constructible/testable as one application graph. |
-| 2 | Startup/shutdown lifecycle and entry point | A user can launch the desktop shell through supported code and state is initialized/restored safely. |
+| 1 | Production composition root | **Completed.** Existing services, repositories, provider registry/factory/context, use cases, theme, and one player are constructible/testable as one application graph, with safe metadata restoration. |
+| 2 | Startup/shutdown lifecycle and entry point | A user can launch the desktop shell through supported code, receives generic startup failures, and managed state is closed safely. |
 | 3 | M3U playback resolution | The M3U source type can complete the registered live-TV playback path. |
 | 4 | Playback controls and safe status | The live-TV workflow becomes operable rather than merely invocable by double-click. |
 | 5 | Provider lifecycle and EPG/library completion | Users can maintain sources and personal state safely. |

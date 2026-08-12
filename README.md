@@ -4,7 +4,7 @@
 
 SamoTech IPTV Player is a Python project for connecting authorized IPTV sources through provider-specific adapters, translating their records into a canonical domain model, resolving eligible media streams, and presenting the supported workflow in a PySide6/Qt desktop shell backed exclusively by libVLC. It is designed to grow across provider ecosystems without coupling the application domain, use cases, or desktop UI to a provider protocol.
 
-The repository currently contains substantial, tested foundations for M3U, Xtream Codes, and MAG/Stalker live-TV workflows, SQLite-backed non-secret user state, OS-keyring credential ownership, a Qt/libVLC presentation shell, recording controls, and persisted theme settings. It is **not yet a packaged, one-command end-user application**: the next milestone is the production composition and lifecycle that connects the existing components into a runnable desktop application.
+The repository currently contains substantial, tested foundations for M3U, Xtream Codes, and MAG/Stalker live-TV workflows, SQLite-backed non-secret user state, OS-keyring credential ownership, a Qt/libVLC presentation shell, recording controls, persisted theme settings, and a production composition root that safely wires those components. It is **not yet a packaged, one-command end-user application**: the remaining current work is the lifecycle owner and executable entry point that start and close the composed desktop application safely.
 
 For the authoritative current-state matrices, known limitations, verification baseline, and next milestone, read [PROJECT_STATUS.md](PROJECT_STATUS.md). The delivery sequence is maintained in [ROADMAP.md](ROADMAP.md).
 
@@ -20,7 +20,7 @@ The project provides an architecture for a desktop IPTV experience that can conn
 
 ## What the project can do today
 
-The current codebase implements tested boundaries for the following capabilities. “Implemented” means executable through the stated layer and covered by focused tests; it does not imply that all capabilities have already been wired into a packaged end-user launcher.
+The current codebase implements tested boundaries for the following capabilities. “Implemented” means executable through the stated layer and covered by focused tests; it does not imply that an end-user launcher, packaging, or complete operational lifecycle already exists.
 
 | Area | Current capability |
 |---|---|
@@ -30,7 +30,7 @@ The current codebase implements tested boundaries for the following capabilities
 | Library state | SQLite persistence foundations for provider metadata, favorites, history, and non-secret theme preferences. |
 | Programme guide | Provider EPG grid for MAG/Stalker and Xtream short EPG; bounded secure XMLTV parsing with explicit source-channel mappings. |
 | Player controls | libVLC play, pause, resume, stop, native video output, and local MPEG transport-stream recording. |
-| Desktop shell | PySide6 dialogs for provider entry, provider listing, channel browsing, EPG display, recording actions, and theme settings; qasync runtime support. |
+| Desktop shell | PySide6 dialogs for provider entry, provider listing, channel browsing, EPG display, recording actions, and theme settings; qasync runtime support; production composition of safe state, provider services, use cases, theme, and one libVLC player. |
 | Theme settings | Persisted system/light/dark preference, deterministic Qt stylesheet application, startup initial-theme support, and a Settings menu/dialog. |
 | Extensibility | Explicitly selected trusted local Python provider-plugin SDK with API-version and namespace validation. |
 
@@ -66,7 +66,7 @@ The current codebase implements tested boundaries for the following capabilities
 | Catch-up/archive | **Planned** | Capability vocabulary exists, but no executable provider or UI workflow exists. |
 | Favorites | **Partially Implemented** | SQLite persistence and adding a selected channel from the browser are implemented. Listing/removal UI is absent. |
 | History | **Partially Implemented** | SQLite persistence and playback-time recording use case are implemented. History UI and resume workflow are absent. |
-| Provider management | **Partially Implemented** | Add and list flows are implemented. Restore/lifecycle composition, edit/remove UI, and operational diagnostics are absent. |
+| Provider management | **Partially Implemented** | Add/list flows and safe metadata restoration during production composition are implemented. Edit/remove UI, lifecycle-owned cleanup, and operational diagnostics are absent. |
 | Search | **Implemented** | Provider-scoped live-channel search is available through M3U, Xtream, and MAG adapters and the channel browser. |
 | Recording | **Implemented** | libVLC duplicate-output recording to a timestamped local `.ts` file with generic UI feedback. |
 | Settings and theme | **Implemented** | Persisted system/light/dark preference, application stylesheets, and Settings dialog. |
@@ -97,7 +97,7 @@ The `domain` package contains framework-independent business records and validat
 
 ## Current implementation status and limitation
 
-The principal product gap is not a missing theme or a lack of abstract provider APIs. It is the absence of a production composition root and application entry point that initializes repositories, restores safe provider metadata, constructs provider services and use cases, loads the theme, starts the desktop runtime, and shuts resources down predictably. Consequently, the repository offers tested application components but does not yet provide a complete, supported command for a user to launch and operate the player end-to-end.
+The principal product gap is no longer dependency wiring: `build_production_desktop_application()` initializes safe SQLite state, restores provider metadata, constructs provider services and use cases, loads the persisted theme, and shares one libVLC player with the Qt shell. The remaining blocker is a lifecycle owner and application entry point that start the qasync runtime, handle startup failures generically, and close resources predictably. Consequently, the repository still does not provide a complete, supported command for a user to launch and operate the player end-to-end.
 
 The detailed prioritization is maintained in [PRODUCT_GAP_ANALYSIS.md](PRODUCT_GAP_ANALYSIS.md).
 
@@ -137,7 +137,7 @@ The GitHub CI workflow also verifies the project on Python 3.13 and runs a best-
 
 ## Running the application
 
-A supported production launcher is **not yet available**. The repository currently supplies the tested `build_desktop_application()` composition factory and `run_desktop_application()` qasync runtime boundary, but no executable production composition root invokes them. The next roadmap milestone addresses this gap before packaging, auto-updating, or telemetry work.
+A supported production launcher is **not yet available**. The repository now supplies `build_production_desktop_application()` to initialize and wire the application graph, as well as `build_desktop_application()` and `run_desktop_application()` boundaries. A lifecycle owner and executable module/CLI entry point still need to invoke that root, run qasync, report generic startup failures, and close resources safely before packaging, auto-updating, or telemetry work.
 
 ## Project structure
 
@@ -148,6 +148,7 @@ src/samotech_iptv/
 ├── infrastructure/  Provider adapters, parsers, SQLite, keyring, networking, libVLC, plugins
 ├── presentation/    PySide6 dialogs, views, widgets, theme engine
 ├── desktop_bootstrap.py
+├── desktop_composition.py
 └── desktop_runtime.py
 
 providers/           Legacy MAG provider implementation used behind the MAG adapter

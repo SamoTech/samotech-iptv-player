@@ -16,7 +16,6 @@ if TYPE_CHECKING:
     from samotech_iptv.application.use_cases.list_providers import ListProviders
     from samotech_iptv.application.use_cases.load_registered_epg import LoadRegisteredEPG
     from samotech_iptv.application.use_cases.load_theme_preference import LoadThemePreference
-    from samotech_iptv.application.use_cases.play_channel import PlayChannel
     from samotech_iptv.application.use_cases.play_registered_channel import (
         PlayRegisteredChannel,
     )
@@ -51,7 +50,6 @@ class MainWindow(QMainWindow):  # type: ignore[misc]
     def __init__(
         self,
         player: PlayerPort,
-        play_channel: PlayChannel,
         register_xtream_provider: RegisterXtreamProvider,
         register_m3u_provider: RegisterM3UProvider,
         register_mag_provider: RegisterMAGProvider,
@@ -67,7 +65,6 @@ class MainWindow(QMainWindow):  # type: ignore[misc]
         stop_recording: StopRecording,
     ) -> None:
         super().__init__()
-        self._play_channel = play_channel
         self._register_xtream_provider = register_xtream_provider
         self._register_m3u_provider = register_m3u_provider
         self._register_mag_provider = register_mag_provider
@@ -218,11 +215,6 @@ class MainWindow(QMainWindow):  # type: ignore[misc]
             self.statusBar().showMessage("Unable to stop recording")
             return
         self.statusBar().showMessage("Recording stopped")
-
-    async def play_channel(self, channel_id: str) -> None:
-        """Resolve and start one preconfigured provider channel through the application boundary."""
-        self.video_surface.attach_player_output()
-        await self._play_channel.execute(channel_id)
 
     async def play_registered_channel(self, provider_id: str, channel_id: str) -> None:
         """Attach video output and play one channel from the selected registered provider."""

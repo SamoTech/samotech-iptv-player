@@ -71,9 +71,11 @@ The application’s `PlayChannel` use case resolves an authorized canonical URL 
 
 ## Desktop composition status
 
-`desktop_bootstrap.build_desktop_application()` creates or reuses `QApplication`, applies a supplied initial theme, builds the libVLC adapter, and creates `MainWindow` from externally supplied use cases. `desktop_runtime.run_desktop_application()` runs that composed window through `qasync`.
+`desktop_bootstrap.build_desktop_application()` creates or reuses `QApplication`, applies a supplied initial theme, and creates `MainWindow` from externally supplied use cases and an optional shared player. It creates the libVLC adapter itself only when a caller does not inject one. `desktop_runtime.run_desktop_application()` runs that composed window through `qasync`.
 
-Those are tested composition boundaries, not a finished application lifecycle. The repository currently has no production composition root or executable entry point that initializes repositories, restores metadata, constructs provider services/use cases, loads the persisted theme, runs the UI, and closes resources. Completing that lifecycle is the current roadmap milestone.
+`desktop_composition.build_production_desktop_application()` is the production dependency-wiring root. It builds the provider context/registry/factory, initializes non-secret SQLite repositories, restores provider metadata, constructs registration/catalogue/resolution services and presentation use cases, loads the persisted theme, builds one libVLC player, and injects that same player into registered playback, recording, and the Qt video surface. It neither starts the qasync loop nor closes runtime resources.
+
+The remaining lifecycle gap is an executable module/CLI entry point and lifecycle owner that invokes production composition, runs the UI, reports only generic startup failures, and closes managed resources safely.
 
 ## Persistence and security boundaries
 
@@ -93,4 +95,4 @@ Plugin API version 1 is for **trusted, explicitly selected local Python files** 
 
 ## Current architectural gaps
 
-The primary current gap is lifecycle composition, not another provider protocol abstraction. The next implementation increment should assemble the existing registry/factory/context, secure stores, SQLite repositories, theme preference, use cases, bootstrap, and qasync runtime into a testable production composition root. Other gaps—including M3U stream resolution, VOD/series workflows, XMLTV source binding, playback controls, and production hardening—are tracked in [PRODUCT_GAP_ANALYSIS.md](PRODUCT_GAP_ANALYSIS.md).
+The primary current gap is lifecycle ownership and an executable entry point, not another provider protocol abstraction. The next implementation increment should invoke the delivered composition root, manage qasync startup/shutdown and generic failures, and close resources safely. Other gaps—including M3U stream resolution, VOD/series workflows, XMLTV source binding, playback controls, and production hardening—are tracked in [PRODUCT_GAP_ANALYSIS.md](PRODUCT_GAP_ANALYSIS.md).

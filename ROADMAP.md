@@ -68,7 +68,7 @@ Make the existing, tested provider → application → libVLC → Qt capabilitie
 
 ### Why this is next
 
-The repository already contains individual provider adapters, secure registration services, SQLite repositories, use cases, a Qt bootstrap factory, and a qasync runtime. However, no production composition root or executable entry point constructs and connects them. The current bootstrap accepts already-constructed use cases and the runtime is referenced only in focused tests. Therefore a user cannot yet launch the complete registered-provider live-TV workflow from the repository as a supported application.
+The repository now has a production composition root that initializes safe SQLite state, restores non-secret provider metadata, registers M3U/Xtream/MAG constructors, constructs the provider graph and application use cases, loads the persisted theme, and injects one libVLC player into the Qt shell. However, no executable entry point or lifecycle owner starts the root, runs qasync, surfaces generic startup errors, and closes resources. Therefore a user still cannot launch the complete registered-provider live-TV workflow from the repository as a supported application.
 
 This product blocker has higher value and lower dependency risk than auto-updating, crash reporting, picture-in-picture, or cosmetic work. Those capabilities should build on a stable application lifecycle rather than precede it.
 
@@ -76,9 +76,8 @@ This product blocker has higher value and lower dependency risk than auto-updati
 
 | Increment | Scope | Exit criteria |
 |---|---|---|
-| 1. Composition root | Construct existing configuration, storage, keyring, provider factory/registry/context, registration/catalogue/resolution services, use cases, player, and theme; restore persisted safe metadata. | A fake-backed integration test verifies construction and metadata restoration without accessing real providers or secrets. |
-| 2. Startup and shutdown lifecycle | Initialize repositories, load the initial theme, run the qasync desktop loop, and close lifecycle-managed resources safely. | Focused lifecycle tests cover success and generic startup failure paths. |
-| 3. CLI entry point | Add a documented module or console entry point that invokes the production lifecycle. | A smoke test verifies safe argument handling and composition delegation. |
+| 1. Composition root | **Completed.** `build_production_desktop_application()` constructs configuration, SQLite repositories, keyring/context/registry/factory/services, use cases, one player, and the initial theme; it restores safe metadata. | Fake-backed integration coverage verifies construction, metadata restoration, M3U/Xtream/MAG factory registration, persisted-theme loading, and shared-player wiring without accessing real providers or secrets. |
+| 2. Startup, shutdown, and CLI lifecycle | Add a lifecycle owner and documented module/CLI entry point that invokes production composition, runs the qasync desktop loop, emits only generic startup failures, and closes managed resources safely. | Focused lifecycle and smoke tests cover success, generic startup failure, composition delegation, and safe close behavior. |
 | 4. Provider management completion | Add user-facing provider removal/edit behavior and predictable persisted-registry refresh. | Provider metadata and credential cleanup are tested, with no secret leakage. |
 
 ## Next milestone — Usable live-TV workflow completion

@@ -4,9 +4,20 @@ This file records concise historical delivery milestones. It is **not** the curr
 
 ## [Unreleased]
 
+### Added
+
+- Production desktop composition root that initializes non-secret SQLite repositories, restores safe provider metadata, registers M3U/Xtream/MAG provider constructors, constructs existing provider services/use cases, loads the persisted theme, and injects one shared libVLC player into the Qt shell.
+- Fake-backed integration coverage for safe metadata restoration, factory registration, persisted-theme loading, and shared-player wiring.
+
+### Changed
+
+- Desktop bootstrap can accept a caller-owned shared player, preventing production composition from constructing multiple libVLC adapters.
+- Removed the obsolete preconfigured-provider playback path from the Qt main-window constructor; registered-provider playback is the production desktop flow.
+
 ### Documentation
 
 - Rebaselined product purpose, architecture terminology, support matrices, roadmap, gap analysis, security model, and direct-to-main development guidance against the repository’s verified implementation.
+- Recorded the delivered composition-root increment and the remaining executable lifecycle/entry-point blocker.
 
 ## [0.1.0] — 2026-08-12
 

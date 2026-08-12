@@ -256,40 +256,11 @@ from samotech_iptv.presentation.views.main_window import MainWindow  # noqa: E40
 
 
 @pytest.mark.asyncio
-async def test_main_window_attaches_surface_then_delegates_playback() -> None:
-    player = FakePlayer()
-    play_channel = FakePlayChannel()
-    window = MainWindow(
-        player,
-        play_channel,
-        FakeRegistration(),
-        FakeRegistration(),
-        FakeRegistration(),
-        FakeRegistration(),
-        FakeRegistration(),
-        FakePlayChannel(),
-        FakeRegistration(),
-        FakeRegistration(),
-        FakeRegistration(),
-        FakeThemeLoad(),
-        FakeThemeSave(),
-        FakeRegistration(),
-        FakeRegistration(),
-    )  # type: ignore[arg-type]
-
-    await window.play_channel("xtream-demo:1")
-
-    assert player.native_window_ids == [int(window.video_surface.winId())]
-    assert play_channel.channel_ids == ["xtream-demo:1"]
-
-
-@pytest.mark.asyncio
 async def test_main_window_reports_safe_recording_status() -> None:
     start_recording = FakeRecording()
     stop_recording = FakeRecording()
     window = MainWindow(
         FakePlayer(),
-        FakePlayChannel(),
         FakeRegistration(),
         FakeRegistration(),
         FakeRegistration(),
@@ -317,7 +288,6 @@ async def test_main_window_reports_safe_recording_status() -> None:
 async def test_main_window_hides_recording_failure_details() -> None:
     window = MainWindow(
         FakePlayer(),
-        FakePlayChannel(),
         FakeRegistration(),
         FakeRegistration(),
         FakeRegistration(),
@@ -343,7 +313,6 @@ async def test_main_window_hides_recording_failure_details() -> None:
 def test_main_window_exposes_xtream_provider_menu_action() -> None:
     window = MainWindow(
         FakePlayer(),
-        FakePlayChannel(),
         FakeRegistration(),
         FakeRegistration(),
         FakeRegistration(),
@@ -405,7 +374,6 @@ async def test_main_window_opens_and_loads_theme_settings_dialog() -> None:
     save_theme_preference = FakeThemeSave()
     window = MainWindow(
         FakePlayer(),
-        FakePlayChannel(),
         FakeRegistration(),
         FakeRegistration(),
         FakeRegistration(),

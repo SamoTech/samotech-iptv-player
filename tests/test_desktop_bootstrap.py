@@ -161,7 +161,6 @@ def test_bootstrap_composes_qt_application_vlc_player_and_main_window() -> None:
     player = object()
     with patch("samotech_iptv.desktop_bootstrap.build_player", return_value=player) as factory:
         desktop = build_desktop_application(
-            FakePlayChannel(),
             FakeRegistration(),  # type: ignore[arg-type]
             FakeRegistration(),  # type: ignore[arg-type]
             FakeRegistration(),  # type: ignore[arg-type]
@@ -177,9 +176,10 @@ def test_bootstrap_composes_qt_application_vlc_player_and_main_window() -> None:
             FakeRegistration(),  # type: ignore[arg-type]
             initial_theme=ThemePreference.DARK,
             argv=["iptv-player"],
+            player=player,
         )
 
-    factory.assert_called_once_with()
+    factory.assert_not_called()
     assert desktop.application.argv == ["iptv-player"]
     assert desktop.application.styles == ["QWidget { background-color: #202124; color: #f1f3f4; }"]
     assert desktop.main_window.video_surface._player is player
