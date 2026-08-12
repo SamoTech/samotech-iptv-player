@@ -1,0 +1,28 @@
+from __future__ import annotations
+
+from samotech_iptv.domain.value_objects.theme_preference import ThemePreference
+from samotech_iptv.presentation.theme.theme_engine import apply_theme
+
+
+class FakeApplication:
+    """Minimal QApplication double retaining the applied application stylesheet."""
+
+    def __init__(self) -> None:
+        self.stylesheets: list[str] = []
+
+    def setStyleSheet(self, stylesheet: str) -> None:  # noqa: N802
+        self.stylesheets.append(stylesheet)
+
+
+def test_theme_engine_applies_supported_preferences() -> None:
+    application = FakeApplication()
+
+    apply_theme(application, ThemePreference.SYSTEM)  # type: ignore[arg-type]
+    apply_theme(application, ThemePreference.LIGHT)  # type: ignore[arg-type]
+    apply_theme(application, ThemePreference.DARK)  # type: ignore[arg-type]
+
+    assert application.stylesheets == [
+        "",
+        "QWidget { background-color: #ffffff; color: #202124; }",
+        "QWidget { background-color: #202124; color: #f1f3f4; }",
+    ]
