@@ -42,3 +42,7 @@ presentation  →  core
 ## Initial main-window composition
 
 `MainWindow` hosts `VlcVideoSurface` as its central widget and receives an abstract `PlayerPort` plus the application `PlayChannel` use case. Its asynchronous `play_channel(channel_id)` method first ensures that the native Qt surface is attached, then delegates the channel identifier to application orchestration. It does not resolve provider streams directly or access provider credentials, tokens, sessions, or concrete infrastructure adapters.
+
+## Desktop bootstrap
+
+`samotech_iptv.desktop_bootstrap.build_desktop_application(play_channel, argv)` creates or reuses `QApplication`, constructs the sole libVLC `PlayerPort`, and returns a composed `MainWindow`. It intentionally accepts an already configured `PlayChannel` use case rather than constructing a provider, authenticating credentials, or starting the Qt event loop. Provider selection, credentials, and lifecycle remain a separate composition concern.

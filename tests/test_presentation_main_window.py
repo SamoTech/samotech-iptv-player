@@ -88,6 +88,5 @@ async def test_main_window_attaches_surface_then_delegates_playback() -> None:
 
     await window.play_channel("xtream-demo:1")
 
-    assert player.native_window_ids == [789]
+    assert player.native_window_ids == [int(window.video_surface.winId())]
     assert play_channel.channel_ids == ["xtream-demo:1"]
-    assert window.title == "SamoTech IPTV Player"

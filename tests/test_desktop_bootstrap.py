@@ -1,0 +1,91 @@
+"""Tests for the PySide6 desktop composition factory."""
+
+from __future__ import annotations
+
+import sys
+from types import ModuleType, SimpleNamespace
+from unittest.mock import patch
+
+
+class FakeApplication:
+    """Minimal QApplication double with process-wide instance behavior."""
+
+    current: FakeApplication | None = None
+
+    def __init__(self, argv: list[str]) -> None:
+        self.argv = argv
+        type(self).current = self
+
+    @classmethod
+    def instance(cls) -> FakeApplication | None:
+        return cls.current
+
+
+class FakeFrame:
+    """Minimal QFrame double for hosted video surface construction."""
+
+    def __init__(self) -> None:
+        return None
+
+    def setAttribute(self, _: object) -> None:  # noqa: N802
+        return None
+
+    def setStyleSheet(self, _: str) -> None:  # noqa: N802
+        return None
+
+    def winId(self) -> int:  # noqa: N802
+        return 1
+
+    def showEvent(self, _: object) -> None:  # noqa: N802
+        return None
+
+
+class FakeMainWindow:
+    """Minimal QMainWindow double for bootstrap construction."""
+
+    def __init__(self) -> None:
+        return None
+
+    def setCentralWidget(self, _: object) -> None:  # noqa: N802
+        return None
+
+    def setWindowTitle(self, _: str) -> None:  # noqa: N802
+        return None
+
+
+def _install_fake_runtime() -> None:
+    qtcore = ModuleType("PySide6.QtCore")
+    qtcore.Qt = SimpleNamespace(WidgetAttribute=SimpleNamespace(WA_NativeWindow=object()))
+    qtgui = ModuleType("PySide6.QtGui")
+    qtgui.QShowEvent = object
+    qtwidgets = ModuleType("PySide6.QtWidgets")
+    qtwidgets.QApplication = FakeApplication
+    qtwidgets.QFrame = FakeFrame
+    qtwidgets.QMainWindow = FakeMainWindow
+    sys.modules.setdefault("PySide6", ModuleType("PySide6"))
+    sys.modules.setdefault("PySide6.QtCore", qtcore)
+    sys.modules.setdefault("PySide6.QtGui", qtgui)
+    sys.modules.setdefault("PySide6.QtWidgets", qtwidgets)
+    sys.modules.setdefault("vlc", SimpleNamespace(Instance=lambda: None))
+
+
+_install_fake_runtime()
+
+from samotech_iptv.desktop_bootstrap import build_desktop_application  # noqa: E402
+
+
+class FakePlayChannel:
+    """Application playback double used only for desktop composition."""
+
+    async def execute(self, _: str) -> None:
+        return None
+
+
+def test_bootstrap_composes_qt_application_vlc_player_and_main_window() -> None:
+    player = object()
+    with patch("samotech_iptv.desktop_bootstrap.build_player", return_value=player) as factory:
+        desktop = build_desktop_application(FakePlayChannel(), ["iptv-player"])
+
+    factory.assert_called_once_with()
+    assert desktop.application.argv == ["iptv-player"]
+    assert desktop.main_window.video_surface._player is player
