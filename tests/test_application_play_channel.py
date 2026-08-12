@@ -7,12 +7,12 @@ from typing import TYPE_CHECKING, cast
 import pytest
 
 from samotech_iptv.application.use_cases.play_channel import PlayChannel
-from samotech_iptv.domain.value_objects.channel_id import ChannelId
 from samotech_iptv.domain.value_objects.url import URL
 
 if TYPE_CHECKING:
     from samotech_iptv.application.ports.player_port import PlayerPort
     from samotech_iptv.application.ports.provider_capabilities import PlaybackProvider
+    from samotech_iptv.domain.value_objects.channel_id import ChannelId
 
 
 class FakeProvider:
@@ -50,6 +50,6 @@ async def test_play_channel_resolves_provider_url_then_invokes_player() -> None:
     player = FakePlayer()
     use_case = PlayChannel(cast("PlaybackProvider", FakeProvider()), cast("PlayerPort", player))
 
-    await use_case.execute(ChannelId("xtream-demo:1"))
+    await use_case.execute("xtream-demo:1")
 
     assert player.url == URL("https://example.test/live.m3u8")

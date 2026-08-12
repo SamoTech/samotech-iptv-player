@@ -61,5 +61,5 @@ def test_video_surface_attaches_native_handle_once() -> None:
     surface.attach_player_output()
     surface.attach_player_output()
 
-    assert player.native_window_ids == [456]
+    assert player.native_window_ids == [int(surface.winId())]
     assert surface.styles == ["background-color: black;"]

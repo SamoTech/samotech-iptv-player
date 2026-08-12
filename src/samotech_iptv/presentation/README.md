@@ -38,3 +38,7 @@ presentation  →  core
 - `VlcVideoSurface` provides the native video handle used by the sole libVLC backend; it must be shown before provider playback begins.
 - Main window: channel list, player area, EPG panel.
 - System-tray integration.
+
+## Initial main-window composition
+
+`MainWindow` hosts `VlcVideoSurface` as its central widget and receives an abstract `PlayerPort` plus the application `PlayChannel` use case. Its asynchronous `play_channel(channel_id)` method first ensures that the native Qt surface is attached, then delegates the channel identifier to application orchestration. It does not resolve provider streams directly or access provider credentials, tokens, sessions, or concrete infrastructure adapters.

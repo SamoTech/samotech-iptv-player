@@ -9,7 +9,6 @@ from samotech_iptv.core.logging import get_logger
 if TYPE_CHECKING:
     from samotech_iptv.application.ports.player_port import PlayerPort
     from samotech_iptv.application.ports.provider_capabilities import PlaybackProvider
-    from samotech_iptv.domain.value_objects.channel_id import ChannelId
 
 __all__ = ["PlayChannel"]
 
@@ -23,8 +22,10 @@ class PlayChannel:
         self._provider = provider
         self._player = player
 
-    async def execute(self, channel_id: ChannelId) -> None:
+    async def execute(self, channel_id: str) -> None:
         """Resolve and play one channel without leaking provider state into the player."""
+        from samotech_iptv.domain.value_objects.channel_id import ChannelId
+
         _LOG.info("Resolving and playing channel %s", channel_id)
-        url = await self._provider.resolve_stream(channel_id)
+        url = await self._provider.resolve_stream(ChannelId(channel_id))
         await self._player.play(url)
