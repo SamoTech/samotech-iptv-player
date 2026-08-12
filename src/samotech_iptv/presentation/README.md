@@ -46,3 +46,7 @@ presentation  →  core
 ## Desktop bootstrap
 
 `samotech_iptv.desktop_bootstrap.build_desktop_application(play_channel, argv)` creates or reuses `QApplication`, constructs the sole libVLC `PlayerPort`, and returns a composed `MainWindow`. It intentionally accepts an already configured `PlayChannel` use case rather than constructing a provider, authenticating credentials, or starting the Qt event loop. Provider selection, credentials, and lifecycle remain a separate composition concern.
+
+## Manual provider entry
+
+The first manual-provider flow is Xtream. `XtreamProviderDialog` collects a provider ID, server URL, username, and password only long enough to submit `RegisterXtreamProviderRequest` to the application use case, then clears the password field. Registration crosses the `ProviderRegistrationPort`; infrastructure validates the profile, stores the credential through `CredentialStorePort`, and registers non-secret metadata only. M3U and MAG/Stalker forms will use the same registration boundary rather than storing provider secrets in widgets or profile metadata.

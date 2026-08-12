@@ -35,12 +35,14 @@ from samotech_iptv.application.ports.provider_capabilities import (
     VodProvider,
 )
 from samotech_iptv.application.ports.provider_port import ProviderPort
+from samotech_iptv.application.ports.provider_registration_port import ProviderRegistrationPort
 from samotech_iptv.application.ports.storage_port import StoragePort
 
 __all__ = [
     # Original ports
     "ProviderPort",
     "PlayerPort",
+    "ProviderRegistrationPort",
     "StoragePort",
     "CredentialStorePort",
     "NotificationPort",

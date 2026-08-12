@@ -43,6 +43,10 @@ from samotech_iptv.application.dtos.provider import (
     ProviderCapabilities,
     ProviderMetadata,
 )
+from samotech_iptv.application.dtos.provider_registration import (
+    RegisterXtreamProviderRequest,
+    RegisterXtreamProviderResponse,
+)
 from samotech_iptv.application.dtos.stream import (
     ResolveStreamRequest,
     ResolveStreamResponse,
@@ -51,6 +55,8 @@ from samotech_iptv.application.dtos.stream import (
 __all__ = [
     "ProviderMetadata",
     "ProviderCapabilities",
+    "RegisterXtreamProviderRequest",
+    "RegisterXtreamProviderResponse",
     "AuthenticateRequest",
     "AuthenticateResponse",
     "ChannelDTO",
