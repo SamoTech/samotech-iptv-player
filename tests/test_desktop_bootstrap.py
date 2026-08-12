@@ -81,11 +81,22 @@ class FakeMenuBar:
         return menu
 
 
+class FakeStatusBar:
+    """Minimal QStatusBar double for recording status feedback."""
+
+    def __init__(self) -> None:
+        self.messages: list[str] = []
+
+    def showMessage(self, message: str) -> None:  # noqa: N802
+        self.messages.append(message)
+
+
 class FakeMainWindow:
     """Minimal QMainWindow double for bootstrap construction."""
 
     def __init__(self) -> None:
         self.menu_bar = FakeMenuBar()
+        self.status_bar = FakeStatusBar()
 
     def setCentralWidget(self, _: object) -> None:  # noqa: N802
         return None
@@ -95,6 +106,9 @@ class FakeMainWindow:
 
     def menuBar(self) -> FakeMenuBar:  # noqa: N802
         return self.menu_bar
+
+    def statusBar(self) -> FakeStatusBar:  # noqa: N802
+        return self.status_bar
 
 
 def _install_fake_runtime() -> None:
@@ -148,6 +162,8 @@ def test_bootstrap_composes_qt_application_vlc_player_and_main_window() -> None:
             FakeRegistration(),  # type: ignore[arg-type]
             FakeRegistration(),  # type: ignore[arg-type]
             FakePlayChannel(),  # type: ignore[arg-type]
+            FakeRegistration(),  # type: ignore[arg-type]
+            FakeRegistration(),  # type: ignore[arg-type]
             FakeRegistration(),  # type: ignore[arg-type]
             FakeRegistration(),  # type: ignore[arg-type]
             FakeRegistration(),  # type: ignore[arg-type]

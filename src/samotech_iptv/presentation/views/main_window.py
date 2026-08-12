@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import TYPE_CHECKING
 
 from PySide6.QtGui import QAction  # type: ignore[import-not-found]
@@ -27,6 +28,8 @@ if TYPE_CHECKING:
     from samotech_iptv.application.use_cases.search_registered_channels import (
         SearchRegisteredChannels,
     )
+    from samotech_iptv.application.use_cases.start_recording import StartRecording
+    from samotech_iptv.application.use_cases.stop_recording import StopRecording
     from samotech_iptv.presentation.dialogs.channel_browser_dialog import (
         ChannelBrowserDialog,
     )
@@ -55,6 +58,8 @@ class MainWindow(QMainWindow):  # type: ignore[misc]
         search_registered_channels: SearchRegisteredChannels,
         save_favorite: SaveFavorite,
         load_registered_epg: LoadRegisteredEPG,
+        start_recording: StartRecording,
+        stop_recording: StopRecording,
     ) -> None:
         super().__init__()
         self._play_channel = play_channel
@@ -67,6 +72,8 @@ class MainWindow(QMainWindow):  # type: ignore[misc]
         self._search_registered_channels = search_registered_channels
         self._save_favorite = save_favorite
         self._load_registered_epg = load_registered_epg
+        self._start_recording = start_recording
+        self._stop_recording = stop_recording
         self.video_surface = VlcVideoSurface(player)
         self.setCentralWidget(self.video_surface)
         self.setWindowTitle("SamoTech IPTV Player")
@@ -82,6 +89,10 @@ class MainWindow(QMainWindow):  # type: ignore[misc]
         self.show_epg_action.triggered.connect(self.open_epg_grid_dialog)
         self.show_provider_list_action = QAction("Show Registered Providers", self)
         self.show_provider_list_action.triggered.connect(self.open_provider_list_dialog)
+        self.start_recording_action = QAction("Start Recording", self)
+        self.start_recording_action.triggered.connect(self._schedule_start_recording)
+        self.stop_recording_action = QAction("Stop Recording", self)
+        self.stop_recording_action.triggered.connect(self._schedule_stop_recording)
         providers_menu = self.menuBar().addMenu("Providers")
         providers_menu.addAction(self.add_xtream_provider_action)
         providers_menu.addAction(self.add_m3u_provider_action)
@@ -89,6 +100,9 @@ class MainWindow(QMainWindow):  # type: ignore[misc]
         providers_menu.addAction(self.browse_channels_action)
         providers_menu.addAction(self.show_epg_action)
         providers_menu.addAction(self.show_provider_list_action)
+        playback_menu = self.menuBar().addMenu("Playback")
+        playback_menu.addAction(self.start_recording_action)
+        playback_menu.addAction(self.stop_recording_action)
         self._active_xtream_provider_dialog: XtreamProviderDialog | None = None
         self._active_m3u_provider_dialog: M3UProviderDialog | None = None
         self._active_mag_provider_dialog: MAGProviderDialog | None = None
@@ -156,6 +170,32 @@ class MainWindow(QMainWindow):  # type: ignore[misc]
         dialog.show()
         self._active_provider_list_dialog = dialog
         return dialog
+
+    def _schedule_start_recording(self) -> None:
+        """Queue local stream recording on the supported Qt-aware event loop."""
+        asyncio.create_task(self.start_recording())
+
+    def _schedule_stop_recording(self) -> None:
+        """Queue recording shutdown on the supported Qt-aware event loop."""
+        asyncio.create_task(self.stop_recording())
+
+    async def start_recording(self) -> None:
+        """Start recording active playback with generic, credential-safe feedback."""
+        try:
+            await self._start_recording.execute()
+        except Exception:  # noqa: BLE001
+            self.statusBar().showMessage("Unable to start recording")
+            return
+        self.statusBar().showMessage("Recording started")
+
+    async def stop_recording(self) -> None:
+        """Stop recording active playback with generic, credential-safe feedback."""
+        try:
+            await self._stop_recording.execute()
+        except Exception:  # noqa: BLE001
+            self.statusBar().showMessage("Unable to stop recording")
+            return
+        self.statusBar().showMessage("Recording stopped")
 
     async def play_channel(self, channel_id: str) -> None:
         """Resolve and start one preconfigured provider channel through the application boundary."""

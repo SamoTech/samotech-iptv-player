@@ -120,6 +120,16 @@ class FakeMenuBar:
         return menu
 
 
+class FakeStatusBar:
+    """Minimal QStatusBar double retaining safe status feedback."""
+
+    def __init__(self) -> None:
+        self.messages: list[str] = []
+
+    def showMessage(self, message: str) -> None:  # noqa: N802
+        self.messages.append(message)
+
+
 class FakeMainWindow:
     """Minimal QMainWindow double for composition verification."""
 
@@ -127,6 +137,7 @@ class FakeMainWindow:
         self.central_widget: object | None = None
         self.title: str | None = None
         self.menu_bar = FakeMenuBar()
+        self.status_bar = FakeStatusBar()
 
     def setCentralWidget(self, widget: object) -> None:  # noqa: N802
         self.central_widget = widget
@@ -136,6 +147,9 @@ class FakeMainWindow:
 
     def menuBar(self) -> FakeMenuBar:  # noqa: N802
         return self.menu_bar
+
+    def statusBar(self) -> FakeStatusBar:  # noqa: N802
+        return self.status_bar
 
 
 class FakePlayer:
@@ -163,6 +177,19 @@ class FakePlayChannel:
 
     async def execute(self, channel_id: str) -> None:
         self.channel_ids.append(channel_id)
+
+
+class FakeRecording:
+    """Recording use-case double with configurable generic failure behavior."""
+
+    def __init__(self, should_fail: bool = False) -> None:
+        self.should_fail = should_fail
+        self.calls = 0
+
+    async def execute(self) -> None:
+        self.calls += 1
+        if self.should_fail:
+            raise RuntimeError("local recording output failed")
 
 
 def _install_fake_pyside6() -> None:
@@ -205,12 +232,67 @@ async def test_main_window_attaches_surface_then_delegates_playback() -> None:
         FakeRegistration(),
         FakeRegistration(),
         FakeRegistration(),
+        FakeRegistration(),
+        FakeRegistration(),
     )  # type: ignore[arg-type]
 
     await window.play_channel("xtream-demo:1")
 
     assert player.native_window_ids == [int(window.video_surface.winId())]
     assert play_channel.channel_ids == ["xtream-demo:1"]
+
+
+@pytest.mark.asyncio
+async def test_main_window_reports_safe_recording_status() -> None:
+    start_recording = FakeRecording()
+    stop_recording = FakeRecording()
+    window = MainWindow(
+        FakePlayer(),
+        FakePlayChannel(),
+        FakeRegistration(),
+        FakeRegistration(),
+        FakeRegistration(),
+        FakeRegistration(),
+        FakeRegistration(),
+        FakePlayChannel(),
+        FakeRegistration(),
+        FakeRegistration(),
+        FakeRegistration(),
+        start_recording,
+        stop_recording,
+    )  # type: ignore[arg-type]
+
+    await window.start_recording()
+    await window.stop_recording()
+
+    assert start_recording.calls == 1
+    assert stop_recording.calls == 1
+    assert window.status_bar.messages == ["Recording started", "Recording stopped"]
+
+
+@pytest.mark.asyncio
+async def test_main_window_hides_recording_failure_details() -> None:
+    window = MainWindow(
+        FakePlayer(),
+        FakePlayChannel(),
+        FakeRegistration(),
+        FakeRegistration(),
+        FakeRegistration(),
+        FakeRegistration(),
+        FakeRegistration(),
+        FakePlayChannel(),
+        FakeRegistration(),
+        FakeRegistration(),
+        FakeRegistration(),
+        FakeRecording(should_fail=True),
+        FakeRecording(should_fail=True),
+    )  # type: ignore[arg-type]
+
+    await window.start_recording()
+    await window.stop_recording()
+
+    assert window.status_bar.messages == ["Unable to start recording", "Unable to stop recording"]
+    assert all("output" not in message for message in window.status_bar.messages)
 
 
 def test_main_window_exposes_xtream_provider_menu_action() -> None:
@@ -223,6 +305,8 @@ def test_main_window_exposes_xtream_provider_menu_action() -> None:
         FakeRegistration(),
         FakeRegistration(),
         FakePlayChannel(),
+        FakeRegistration(),
+        FakeRegistration(),
         FakeRegistration(),
         FakeRegistration(),
         FakeRegistration(),
@@ -253,3 +337,12 @@ def test_main_window_exposes_xtream_provider_menu_action() -> None:
     assert window.show_provider_list_action.triggered.callbacks == [
         window.open_provider_list_dialog
     ]
+    assert window.menu_bar.menus[1].title == "Playback"
+    assert window.menu_bar.menus[1].actions == [
+        window.start_recording_action,
+        window.stop_recording_action,
+    ]
+    assert window.start_recording_action.text == "Start Recording"
+    assert window.start_recording_action.triggered.callbacks == [window._schedule_start_recording]
+    assert window.stop_recording_action.text == "Stop Recording"
+    assert window.stop_recording_action.triggered.callbacks == [window._schedule_stop_recording]

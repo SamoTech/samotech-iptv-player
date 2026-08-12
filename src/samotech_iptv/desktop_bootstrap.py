@@ -29,6 +29,8 @@ if TYPE_CHECKING:
     from samotech_iptv.application.use_cases.search_registered_channels import (
         SearchRegisteredChannels,
     )
+    from samotech_iptv.application.use_cases.start_recording import StartRecording
+    from samotech_iptv.application.use_cases.stop_recording import StopRecording
 
 __all__ = ["DesktopApplication", "build_desktop_application"]
 
@@ -52,6 +54,8 @@ def build_desktop_application(
     search_registered_channels: SearchRegisteredChannels,
     save_favorite: SaveFavorite,
     load_registered_epg: LoadRegisteredEPG,
+    start_recording: StartRecording,
+    stop_recording: StopRecording,
     argv: Sequence[str] | None = None,
 ) -> DesktopApplication:
     """Compose the Qt shell around externally configured provider playback logic."""
@@ -69,5 +73,7 @@ def build_desktop_application(
         search_registered_channels,
         save_favorite,
         load_registered_epg,
+        start_recording,
+        stop_recording,
     )
     return DesktopApplication(application=application, main_window=main_window)

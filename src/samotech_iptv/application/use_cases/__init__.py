@@ -22,11 +22,12 @@ from samotech_iptv.application.use_cases.refresh_provider import RefreshProvider
 from samotech_iptv.application.use_cases.register_xtream_provider import RegisterXtreamProvider
 from samotech_iptv.application.use_cases.remove_favorite import RemoveFavorite
 from samotech_iptv.application.use_cases.resolve_stream import ResolveStream
-from samotech_iptv.application.use_cases.save_favorite import SaveFavorite
 from samotech_iptv.application.use_cases.search_channels import SearchChannels
 from samotech_iptv.application.use_cases.search_registered_channels import (
     SearchRegisteredChannels,
 )
+from samotech_iptv.application.use_cases.start_recording import StartRecording
+from samotech_iptv.application.use_cases.stop_recording import StopRecording
 
 __all__ = [
     "AuthenticateProvider",
@@ -42,6 +43,8 @@ __all__ = [
     "PlayRegisteredChannel",
     "SearchChannels",
     "SearchRegisteredChannels",
+    "StartRecording",
+    "StopRecording",
     "SaveFavorite",
     "LoadHistory",
     "RecordHistory",

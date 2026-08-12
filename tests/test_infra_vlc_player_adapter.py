@@ -1,9 +1,8 @@
-"""Focused contracts for the sole libVLC player adapter."""
-
 from __future__ import annotations
 
 import importlib
 import sys
+from dataclasses import dataclass, field
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
@@ -12,21 +11,34 @@ import pytest
 from samotech_iptv.domain.value_objects.url import URL
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from samotech_iptv.infrastructure.player.vlc_player_adapter import VlcPlayerAdapter
+
+
+@dataclass
+class FakeMedia:
+    """Deterministic libVLC media double retaining stream-output options."""
+
+    url: str
+    options: list[str] = field(default_factory=list)
+
+    def add_option(self, option: str) -> None:
+        self.options.append(option)
 
 
 class FakePlayer:
     """Deterministic libVLC player double."""
 
     def __init__(self) -> None:
-        self.media: object | None = None
+        self.media: FakeMedia | None = None
         self.playing = False
         self.calls: list[str] = []
 
     def is_playing(self) -> int:
         return int(self.playing)
 
-    def set_media(self, media: object) -> None:
+    def set_media(self, media: FakeMedia) -> None:
         self.media = media
 
     def play(self) -> int:
@@ -61,8 +73,8 @@ class FakeInstance:
     def media_player_new(self) -> FakePlayer:
         return self.player
 
-    def media_new(self, url: str) -> object:
-        return {"url": url}
+    def media_new(self, url: str) -> FakeMedia:
+        return FakeMedia(url)
 
 
 def _adapter(player: FakePlayer) -> VlcPlayerAdapter:
@@ -78,7 +90,7 @@ async def test_vlc_adapter_controls_libvlc_playback() -> None:
 
     await adapter.play(URL("https://example.test/live.m3u8"))
     assert adapter.is_playing is True
-    assert player.media == {"url": "https://example.test/live.m3u8"}
+    assert player.media == FakeMedia("https://example.test/live.m3u8")
 
     await adapter.pause()
     assert adapter.is_playing is False
@@ -86,6 +98,61 @@ async def test_vlc_adapter_controls_libvlc_playback() -> None:
     await adapter.stop()
 
     assert player.calls == ["play", "pause", "play", "stop"]
+
+
+@pytest.mark.asyncio
+async def test_vlc_adapter_records_active_stream_with_duplicate_file_output(tmp_path: Path) -> None:
+    player = FakePlayer()
+    adapter = _adapter(player)
+    destination = tmp_path / "recording.ts"
+
+    await adapter.play(URL("https://example.test/live.m3u8"))
+    await adapter.start_recording(destination)
+
+    assert adapter.is_recording is True
+    assert player.media is not None
+    assert player.media.url == "https://example.test/live.m3u8"
+    assert player.media.options == [
+        f":sout=#duplicate{{dst=display,dst=std{{access=file,mux=ts,dst='{destination}'}}}}"
+    ]
+    assert player.calls == ["play", "play"]
+
+    await adapter.stop_recording()
+
+    assert adapter.is_recording is False
+    assert player.media == FakeMedia("https://example.test/live.m3u8")
+    assert player.calls == ["play", "play", "play"]
+
+
+@pytest.mark.asyncio
+async def test_vlc_adapter_rejects_invalid_recording_state_or_destination(tmp_path: Path) -> None:
+    player = FakePlayer()
+    adapter = _adapter(player)
+
+    with pytest.raises(RuntimeError, match="active playback"):
+        await adapter.start_recording(tmp_path / "recording.ts")
+
+    await adapter.play(URL("https://example.test/live.m3u8"))
+    with pytest.raises(ValueError, match=".ts extension"):
+        await adapter.start_recording(tmp_path / "recording.mkv")
+
+    await adapter.start_recording(tmp_path / "recording.ts")
+    with pytest.raises(RuntimeError, match="already active"):
+        await adapter.start_recording(tmp_path / "second.ts")
+
+
+@pytest.mark.asyncio
+async def test_vlc_adapter_clears_recording_state_when_playback_stops(tmp_path: Path) -> None:
+    player = FakePlayer()
+    adapter = _adapter(player)
+
+    await adapter.play(URL("https://example.test/live.m3u8"))
+    await adapter.start_recording(tmp_path / "recording.ts")
+    await adapter.stop()
+
+    assert adapter.is_recording is False
+    with pytest.raises(RuntimeError, match="No active recording"):
+        await adapter.stop_recording()
 
 
 def test_vlc_adapter_attaches_linux_video_output(monkeypatch: pytest.MonkeyPatch) -> None:

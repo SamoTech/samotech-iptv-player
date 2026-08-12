@@ -64,12 +64,22 @@ class FakePlayer(PlayerPort):
     async def resume(self) -> None:
         return None
 
+    async def start_recording(self, destination: object) -> None:
+        return None
+
+    async def stop_recording(self) -> None:
+        return None
+
     def attach_video_output(self, native_window_id: int) -> None:
         return None
 
     @property
     def is_playing(self) -> bool:
         return bool(self.urls)
+
+    @property
+    def is_recording(self) -> bool:
+        return False
 
 
 @pytest.mark.asyncio

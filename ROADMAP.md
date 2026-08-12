@@ -6,7 +6,7 @@ The repository scaffold and the core recovery are complete. The recovered core i
 
 > **Current phase:** Phase 6 — XMLTV EPG parser and EPG grid — **completed**.
 > **Completed milestone:** Core recovery; validated domain/provider contracts; VLC and Qt desktop composition; registered-provider channel browsing, search, favorites, and watch history; a provider-resolved EPG grid that renders titles and schedule times only; and bounded, secure XMLTV parsing into canonical programme entries.
-> **Next product milestone:** Stream recording through the VLC player adapter.
+> **Next product milestone:** Plugin SDK, example provider plugin, and plugin loader.
 
 | Phase | Scope | Status |
 |---:|---|---|
@@ -17,7 +17,7 @@ The repository scaffold and the core recovery are complete. The recovered core i
 | **4** | Channel browser UI, search, favorites, and watch history | **Completed** |
 | **5** | Xtream Codes and Stalker provider clients; playlist manager UI | Partially advanced by recovered MAG/Stalker core, M3U/Xtream capability increments, and a Ministra separate-provider assessment; Ministra implementation remains gated on an authorized fixture and approved device identity |
 | **6** | XMLTV EPG parser and EPG grid view | **Completed** — registered-provider EPG capability resolution, safe application DTOs, a Qt grid that displays title/start/end only, and a bounded `defusedxml` parser with explicit source-channel mapping and canonical `EPGEntry` translation are delivered; source fetching and provider-specific XMLTV binding remain future integration work |
-| **7** | Stream recording through the player adapter and recording UI | Planned — next milestone |
+| **7** | Stream recording through the player adapter and recording UI | **Completed** — libVLC duplicate display/file stream output, safe timestamped `.ts` destinations, start/stop application use cases, and Qt Playback-menu controls are delivered; recording-library metadata management remains future work |
 | **8** | Plugin SDK, example provider plugin, and plugin loader | Planned |
 | **9** | Theme engine, dark/light styles, and settings UI | Planned |
 | **10** | Auto-updater, crash reporting, picture-in-picture, subtitle/audio management | Planned |

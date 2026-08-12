@@ -69,12 +69,23 @@ class FakeFrame:
         return None
 
 
+class FakeStatusBar:
+    """Minimal QStatusBar double compatible with recording controls."""
+
+    def __init__(self) -> None:
+        self.messages: list[str] = []
+
+    def showMessage(self, message: str) -> None:  # noqa: N802
+        self.messages.append(message)
+
+
 class FakeMainWindow:
     """Minimal QMainWindow double compatible with later composition collection."""
 
     def __init__(self) -> None:
         self.central_widget: object | None = None
         self.menu_bar = FakeMenuBar()
+        self.status_bar = FakeStatusBar()
         self.title: str | None = None
 
     def setCentralWidget(self, widget: object) -> None:  # noqa: N802
@@ -85,6 +96,9 @@ class FakeMainWindow:
 
     def menuBar(self) -> FakeMenuBar:  # noqa: N802
         return self.menu_bar
+
+    def statusBar(self) -> FakeStatusBar:  # noqa: N802
+        return self.status_bar
 
 
 class FakeSignal:
