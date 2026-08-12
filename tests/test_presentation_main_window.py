@@ -51,6 +51,13 @@ class FakePlayer:
         self.native_window_ids.append(native_window_id)
 
 
+class FakeRegistration:
+    """Registration-use-case double required by main-window composition."""
+
+    async def execute(self, _: object) -> object:
+        return object()
+
+
 class FakePlayChannel:
     """Application-use-case double that records presentation requests."""
 
@@ -69,6 +76,9 @@ def _install_fake_pyside6() -> None:
     qtwidgets = ModuleType("PySide6.QtWidgets")
     qtwidgets.QFrame = FakeFrame
     qtwidgets.QMainWindow = FakeMainWindow
+    qtwidgets.QDialog = object
+    qtwidgets.QFormLayout = object
+    qtwidgets.QLineEdit = object
     sys.modules.setdefault("PySide6", ModuleType("PySide6"))
     sys.modules.setdefault("PySide6.QtCore", qtcore)
     sys.modules.setdefault("PySide6.QtGui", qtgui)
@@ -84,7 +94,7 @@ from samotech_iptv.presentation.views.main_window import MainWindow  # noqa: E40
 async def test_main_window_attaches_surface_then_delegates_playback() -> None:
     player = FakePlayer()
     play_channel = FakePlayChannel()
-    window = MainWindow(player, play_channel)  # type: ignore[arg-type]
+    window = MainWindow(player, play_channel, FakeRegistration())  # type: ignore[arg-type]
 
     await window.play_channel("xtream-demo:1")
 

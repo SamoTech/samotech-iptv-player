@@ -62,6 +62,9 @@ def _install_fake_runtime() -> None:
     qtwidgets.QApplication = FakeApplication
     qtwidgets.QFrame = FakeFrame
     qtwidgets.QMainWindow = FakeMainWindow
+    qtwidgets.QDialog = object
+    qtwidgets.QFormLayout = object
+    qtwidgets.QLineEdit = object
     sys.modules.setdefault("PySide6", ModuleType("PySide6"))
     sys.modules.setdefault("PySide6.QtCore", qtcore)
     sys.modules.setdefault("PySide6.QtGui", qtgui)
@@ -74,6 +77,13 @@ _install_fake_runtime()
 from samotech_iptv.desktop_bootstrap import build_desktop_application  # noqa: E402
 
 
+class FakeRegistration:
+    """Registration-use-case double used only for desktop composition."""
+
+    async def execute(self, _: object) -> object:
+        return object()
+
+
 class FakePlayChannel:
     """Application playback double used only for desktop composition."""
 
@@ -84,7 +94,11 @@ class FakePlayChannel:
 def test_bootstrap_composes_qt_application_vlc_player_and_main_window() -> None:
     player = object()
     with patch("samotech_iptv.desktop_bootstrap.build_player", return_value=player) as factory:
-        desktop = build_desktop_application(FakePlayChannel(), ["iptv-player"])
+        desktop = build_desktop_application(
+            FakePlayChannel(),
+            FakeRegistration(),  # type: ignore[arg-type]
+            ["iptv-player"],
+        )
 
     factory.assert_called_once_with()
     assert desktop.application.argv == ["iptv-player"]
