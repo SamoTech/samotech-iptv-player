@@ -47,6 +47,9 @@ class FakeResolver(ProviderResolverPort):
     def resolve_playback_provider(self, provider_id: str) -> PlaybackProvider:
         raise AssertionError(f"Unexpected playback resolution for {provider_id}")
 
+    def resolve_search_provider(self, provider_id: str) -> object:
+        raise AssertionError(f"Unexpected search resolution for {provider_id}")
+
 
 @pytest.mark.asyncio
 async def test_browse_channels_resolves_provider_then_returns_channel_dtos() -> None:

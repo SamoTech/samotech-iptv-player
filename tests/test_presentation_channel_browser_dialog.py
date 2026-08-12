@@ -293,3 +293,45 @@ async def test_channel_browser_delegates_selected_channel_to_playback_callback()
     assert playback.requests == [("provider-one", "channel-7")]
     assert dialog.status_label.value == "Playing Sports HD"
     assert "stream-7" not in dialog.status_label.value
+
+
+class FakeSearchRegisteredChannels:
+    """Search use-case double retaining only the provider ID and query passed by the UI."""
+
+    def __init__(self, response: LoadChannelsResponse) -> None:
+        self.response = response
+        self.requests: list[tuple[str, str]] = []
+
+    async def execute(self, request: object) -> LoadChannelsResponse:
+        self.requests.append((request.provider_id, request.query))  # type: ignore[union-attr]
+        return self.response
+
+
+@pytest.mark.asyncio
+async def test_channel_browser_search_renders_safe_matching_rows() -> None:
+    search = FakeSearchRegisteredChannels(
+        LoadChannelsResponse(
+            channels=[
+                ChannelDTO(
+                    id="internal-channel-id",
+                    name="Sports News",
+                    provider_id="provider-one",
+                    stream_id="900",
+                )
+            ],
+            total=1,
+        )
+    )
+    dialog = ChannelBrowserDialog(
+        FakeBrowseChannels(LoadChannelsResponse()),
+        search_channels=search,  # type: ignore[arg-type]
+    )  # type: ignore[arg-type]
+    dialog.provider_id_input.value = "provider-one"
+    dialog.search_query_input.value = "sports"
+
+    await dialog.search_channels()
+
+    assert search.requests == [("provider-one", "sports")]
+    assert dialog.channel_list.items == ["Sports News · 900"]
+    assert dialog.status_label.value == "1 channels found"
+    assert "internal-channel-id" not in dialog.channel_list.items[0]

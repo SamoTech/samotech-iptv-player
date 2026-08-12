@@ -24,6 +24,9 @@ if TYPE_CHECKING:
     from samotech_iptv.application.use_cases.register_xtream_provider import (
         RegisterXtreamProvider,
     )
+    from samotech_iptv.application.use_cases.search_registered_channels import (
+        SearchRegisteredChannels,
+    )
 
 __all__ = ["DesktopApplication", "build_desktop_application"]
 
@@ -44,6 +47,7 @@ def build_desktop_application(
     list_providers: ListProviders,
     browse_channels: BrowseChannels,
     play_registered_channel: PlayRegisteredChannel,
+    search_registered_channels: SearchRegisteredChannels,
     argv: Sequence[str] | None = None,
 ) -> DesktopApplication:
     """Compose the Qt shell around externally configured provider playback logic."""
@@ -58,5 +62,6 @@ def build_desktop_application(
         list_providers,
         browse_channels,
         play_registered_channel,
+        search_registered_channels,
     )
     return DesktopApplication(application=application, main_window=main_window)

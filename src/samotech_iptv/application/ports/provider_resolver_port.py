@@ -9,6 +9,7 @@ if TYPE_CHECKING:
     from samotech_iptv.application.ports.provider_capabilities import (
         CatalogProvider,
         PlaybackProvider,
+        SearchProvider,
     )
 
 __all__ = ["ProviderResolverPort"]
@@ -25,4 +26,9 @@ class ProviderResolverPort(ABC):
     @abstractmethod
     def resolve_playback_provider(self, provider_id: str) -> PlaybackProvider:
         """Return a stream-resolution provider without exposing secrets."""
+        ...
+
+    @abstractmethod
+    def resolve_search_provider(self, provider_id: str) -> SearchProvider:
+        """Return a channel-search provider without exposing secrets."""
         ...

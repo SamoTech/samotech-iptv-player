@@ -22,6 +22,9 @@ if TYPE_CHECKING:
     from samotech_iptv.application.use_cases.register_xtream_provider import (
         RegisterXtreamProvider,
     )
+    from samotech_iptv.application.use_cases.search_registered_channels import (
+        SearchRegisteredChannels,
+    )
     from samotech_iptv.presentation.dialogs.channel_browser_dialog import (
         ChannelBrowserDialog,
     )
@@ -46,6 +49,7 @@ class MainWindow(QMainWindow):  # type: ignore[misc]
         list_providers: ListProviders,
         browse_channels: BrowseChannels,
         play_registered_channel: PlayRegisteredChannel,
+        search_registered_channels: SearchRegisteredChannels,
     ) -> None:
         super().__init__()
         self._play_channel = play_channel
@@ -55,6 +59,7 @@ class MainWindow(QMainWindow):  # type: ignore[misc]
         self._list_providers = list_providers
         self._browse_channels = browse_channels
         self._play_registered_channel = play_registered_channel
+        self._search_registered_channels = search_registered_channels
         self.video_surface = VlcVideoSurface(player)
         self.setCentralWidget(self.video_surface)
         self.setWindowTitle("SamoTech IPTV Player")
@@ -113,7 +118,11 @@ class MainWindow(QMainWindow):  # type: ignore[misc]
             ChannelBrowserDialog,
         )
 
-        dialog = ChannelBrowserDialog(self._browse_channels, self.play_registered_channel)
+        dialog = ChannelBrowserDialog(
+            self._browse_channels,
+            self.play_registered_channel,
+            self._search_registered_channels,
+        )
         dialog.show()
         self._active_channel_browser_dialog = dialog
         return dialog

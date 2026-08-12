@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 from samotech_iptv.application.ports.provider_capabilities import (
     CatalogProvider,
     PlaybackProvider,
+    SearchProvider,
 )
 from samotech_iptv.application.ports.provider_resolver_port import ProviderResolverPort
 from samotech_iptv.core.exceptions import ProviderError
@@ -44,6 +45,13 @@ class ProviderResolutionService(ProviderResolverPort):
         provider = self._resolve(provider_id)
         if not isinstance(provider, PlaybackProvider):
             raise ProviderError("Provider does not support playback")
+        return provider
+
+    def resolve_search_provider(self, provider_id: str) -> SearchProvider:
+        """Build the requested provider and verify channel-search support."""
+        provider = self._resolve(provider_id)
+        if not isinstance(provider, SearchProvider):
+            raise ProviderError("Provider does not support channel search")
         return provider
 
     def _resolve(self, provider_id: str) -> object:
