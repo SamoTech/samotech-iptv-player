@@ -193,7 +193,12 @@ from samotech_iptv.presentation.views.main_window import MainWindow  # noqa: E40
 async def test_main_window_attaches_surface_then_delegates_playback() -> None:
     player = FakePlayer()
     play_channel = FakePlayChannel()
-    window = MainWindow(player, play_channel, FakeRegistration())  # type: ignore[arg-type]
+    window = MainWindow(
+        player,
+        play_channel,
+        FakeRegistration(),
+        FakeRegistration(),
+    )  # type: ignore[arg-type]
 
     await window.play_channel("xtream-demo:1")
 
@@ -202,11 +207,21 @@ async def test_main_window_attaches_surface_then_delegates_playback() -> None:
 
 
 def test_main_window_exposes_xtream_provider_menu_action() -> None:
-    window = MainWindow(FakePlayer(), FakePlayChannel(), FakeRegistration())  # type: ignore[arg-type]
+    window = MainWindow(
+        FakePlayer(),
+        FakePlayChannel(),
+        FakeRegistration(),
+        FakeRegistration(),
+    )  # type: ignore[arg-type]
 
     assert window.menu_bar.menus[0].title == "Providers"
-    assert window.menu_bar.menus[0].actions == [window.add_xtream_provider_action]
+    assert window.menu_bar.menus[0].actions == [
+        window.add_xtream_provider_action,
+        window.add_m3u_provider_action,
+    ]
     assert window.add_xtream_provider_action.text == "Add Xtream Provider…"
     assert window.add_xtream_provider_action.triggered.callbacks == [
         window.open_xtream_provider_dialog
     ]
+    assert window.add_m3u_provider_action.text == "Add M3U Provider…"
+    assert window.add_m3u_provider_action.triggered.callbacks == [window.open_m3u_provider_dialog]

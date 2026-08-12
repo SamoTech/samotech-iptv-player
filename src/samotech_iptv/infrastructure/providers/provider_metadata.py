@@ -30,6 +30,7 @@ class InfraProviderMetadata:
         capabilities:  Canonical capabilities this provider implements.
         last_error:    Most recent error message, if any.  Session tokens
                        are held only by the live provider adapter.
+        source_is_secure:  Whether the complete M3U source is retained in secure storage.
     """
 
     provider_id: str
@@ -38,3 +39,4 @@ class InfraProviderMetadata:
     is_active: bool = True
     capabilities: frozenset[ProviderCapability] = field(default_factory=frozenset)
     last_error: str | None = None
+    source_is_secure: bool = False

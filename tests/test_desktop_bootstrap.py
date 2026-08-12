@@ -143,6 +143,7 @@ def test_bootstrap_composes_qt_application_vlc_player_and_main_window() -> None:
         desktop = build_desktop_application(
             FakePlayChannel(),
             FakeRegistration(),  # type: ignore[arg-type]
+            FakeRegistration(),  # type: ignore[arg-type]
             ["iptv-player"],
         )
 

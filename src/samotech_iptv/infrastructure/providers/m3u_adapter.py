@@ -41,6 +41,7 @@ class M3UProviderAdapter(CatalogProvider, SearchProvider, CapabilityProvider):
         parser: M3UParser | None = None,
     ) -> None:
         self._metadata = metadata
+        self._context = context
         self._source = metadata.base_url
         self._source_loader = source_loader or M3USourceLoader(context.http_client)
         self._parser = parser or M3UParser()
@@ -56,8 +57,17 @@ class M3UProviderAdapter(CatalogProvider, SearchProvider, CapabilityProvider):
 
     async def load_channels(self) -> Sequence[Channel]:
         """Load source text then translate it through the canonical M3U parser."""
-        source_text = await self._source_loader.load(self._source)
+        source_text = await self._source_loader.load(await self._resolve_source())
         return self._parser.parse(source_text, self.provider_id).channels
+
+    async def _resolve_source(self) -> str:
+        """Return a securely stored tokenized M3U source when one is configured."""
+        if not self._metadata.source_is_secure:
+            return self._source
+        credential = await self._context.credential_store.retrieve(self.provider_id)
+        if credential is not None and credential.username == "m3u-source":
+            return credential.password
+        return self._source
 
     async def search_channels(self, query: str, limit: int = 100) -> Sequence[Channel]:
         """Search the loaded M3U catalogue locally."""

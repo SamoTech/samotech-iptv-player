@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from samotech_iptv.application.use_cases.play_channel import PlayChannel
+    from samotech_iptv.application.use_cases.register_m3u_provider import RegisterM3UProvider
     from samotech_iptv.application.use_cases.register_xtream_provider import (
         RegisterXtreamProvider,
     )
@@ -32,10 +33,16 @@ class DesktopApplication:
 def build_desktop_application(
     play_channel: PlayChannel,
     register_xtream_provider: RegisterXtreamProvider,
+    register_m3u_provider: RegisterM3UProvider,
     argv: Sequence[str] | None = None,
 ) -> DesktopApplication:
     """Compose the Qt shell around externally configured provider playback logic."""
     application = QApplication.instance() or QApplication(list(argv or []))
     player = build_player()
-    main_window = MainWindow(player, play_channel, register_xtream_provider)
+    main_window = MainWindow(
+        player,
+        play_channel,
+        register_xtream_provider,
+        register_m3u_provider,
+    )
     return DesktopApplication(application=application, main_window=main_window)

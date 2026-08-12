@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from samotech_iptv.application.dtos.provider_registration import (
+        RegisterM3UProviderRequest,
         RegisterXtreamProviderRequest,
     )
 
@@ -15,6 +16,11 @@ __all__ = ["ProviderRegistrationPort"]
 
 class ProviderRegistrationPort(ABC):
     """Register provider metadata and credentials through a secure composition boundary."""
+
+    @abstractmethod
+    async def register_m3u(self, request: RegisterM3UProviderRequest) -> str:
+        """Register an M3U profile and protect tokenized source URLs."""
+        ...
 
     @abstractmethod
     async def register_xtream(self, request: RegisterXtreamProviderRequest) -> str:

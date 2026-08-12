@@ -4,7 +4,19 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-__all__ = ["RegisterXtreamProviderRequest", "RegisterXtreamProviderResponse"]
+__all__ = [
+    "RegisterM3UProviderRequest",
+    "RegisterXtreamProviderRequest",
+    "RegisterXtreamProviderResponse",
+]
+
+
+@dataclass(frozen=True)
+class RegisterM3UProviderRequest:
+    """Ephemeral M3U source input; tokenized source URLs must never be serialized or logged."""
+
+    provider_id: str
+    source: str
 
 
 @dataclass(frozen=True)
