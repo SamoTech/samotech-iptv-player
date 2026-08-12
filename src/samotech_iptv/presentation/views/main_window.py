@@ -14,6 +14,9 @@ if TYPE_CHECKING:
     from samotech_iptv.application.use_cases.browse_channels import BrowseChannels
     from samotech_iptv.application.use_cases.list_providers import ListProviders
     from samotech_iptv.application.use_cases.play_channel import PlayChannel
+    from samotech_iptv.application.use_cases.play_registered_channel import (
+        PlayRegisteredChannel,
+    )
     from samotech_iptv.application.use_cases.register_m3u_provider import RegisterM3UProvider
     from samotech_iptv.application.use_cases.register_mag_provider import RegisterMAGProvider
     from samotech_iptv.application.use_cases.register_xtream_provider import (
@@ -42,6 +45,7 @@ class MainWindow(QMainWindow):  # type: ignore[misc]
         register_mag_provider: RegisterMAGProvider,
         list_providers: ListProviders,
         browse_channels: BrowseChannels,
+        play_registered_channel: PlayRegisteredChannel,
     ) -> None:
         super().__init__()
         self._play_channel = play_channel
@@ -50,6 +54,7 @@ class MainWindow(QMainWindow):  # type: ignore[misc]
         self._register_mag_provider = register_mag_provider
         self._list_providers = list_providers
         self._browse_channels = browse_channels
+        self._play_registered_channel = play_registered_channel
         self.video_surface = VlcVideoSurface(player)
         self.setCentralWidget(self.video_surface)
         self.setWindowTitle("SamoTech IPTV Player")
@@ -108,7 +113,7 @@ class MainWindow(QMainWindow):  # type: ignore[misc]
             ChannelBrowserDialog,
         )
 
-        dialog = ChannelBrowserDialog(self._browse_channels)
+        dialog = ChannelBrowserDialog(self._browse_channels, self.play_registered_channel)
         dialog.show()
         self._active_channel_browser_dialog = dialog
         return dialog
@@ -123,6 +128,11 @@ class MainWindow(QMainWindow):  # type: ignore[misc]
         return dialog
 
     async def play_channel(self, channel_id: str) -> None:
-        """Resolve and start one provider channel through the application boundary."""
+        """Resolve and start one preconfigured provider channel through the application boundary."""
         self.video_surface.attach_player_output()
         await self._play_channel.execute(channel_id)
+
+    async def play_registered_channel(self, provider_id: str, channel_id: str) -> None:
+        """Attach video output and play one channel from the selected registered provider."""
+        self.video_surface.attach_player_output()
+        await self._play_registered_channel.execute(provider_id, channel_id)

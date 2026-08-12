@@ -4,7 +4,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from samotech_iptv.application.ports.provider_capabilities import CatalogProvider
+from samotech_iptv.application.ports.provider_capabilities import (
+    CatalogProvider,
+    PlaybackProvider,
+)
 from samotech_iptv.application.ports.provider_resolver_port import ProviderResolverPort
 from samotech_iptv.core.exceptions import ProviderError
 
@@ -31,8 +34,19 @@ class ProviderResolutionService(ProviderResolverPort):
 
     def resolve_catalog_provider(self, provider_id: str) -> CatalogProvider:
         """Build the requested provider and verify channel-catalogue support."""
-        metadata = self._registry.get(provider_id)
-        provider = self._factory.create(metadata, context=self._context)
+        provider = self._resolve(provider_id)
         if not isinstance(provider, CatalogProvider):
             raise ProviderError("Provider does not support channel browsing")
         return provider
+
+    def resolve_playback_provider(self, provider_id: str) -> PlaybackProvider:
+        """Build the requested provider and verify stream-resolution support."""
+        provider = self._resolve(provider_id)
+        if not isinstance(provider, PlaybackProvider):
+            raise ProviderError("Provider does not support playback")
+        return provider
+
+    def _resolve(self, provider_id: str) -> object:
+        """Create a provider only after locating its registered non-secret metadata."""
+        metadata = self._registry.get(provider_id)
+        return self._factory.create(metadata, context=self._context)

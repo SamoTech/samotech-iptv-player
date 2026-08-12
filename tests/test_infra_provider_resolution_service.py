@@ -2,12 +2,16 @@ from __future__ import annotations
 
 import pytest
 
-from samotech_iptv.application.ports.provider_capabilities import CatalogProvider
+from samotech_iptv.application.ports.provider_capabilities import (
+    CatalogProvider,
+    PlaybackProvider,
+)
 from samotech_iptv.core.exceptions import ProviderError
 from samotech_iptv.domain.entities.channel import Channel
 from samotech_iptv.domain.value_objects.channel_id import ChannelId
 from samotech_iptv.domain.value_objects.provider_id import ProviderId
 from samotech_iptv.domain.value_objects.stream_id import StreamId
+from samotech_iptv.domain.value_objects.url import URL
 from samotech_iptv.infrastructure.providers.provider_factory import ProviderFactory
 from samotech_iptv.infrastructure.providers.provider_metadata import (
     InfraProviderMetadata,
@@ -30,6 +34,13 @@ class FakeCatalogProvider(CatalogProvider):
                 name="Demo Channel",
             )
         ]
+
+
+class FakePlaybackProvider(PlaybackProvider):
+    """Playback-capable adapter double returned by the provider factory."""
+
+    async def resolve_stream(self, _: ChannelId) -> URL:
+        return URL("https://example.invalid/live.m3u8")
 
 
 def test_resolver_builds_catalogue_provider_with_shared_context() -> None:
@@ -62,6 +73,29 @@ def test_resolver_builds_catalogue_provider_with_shared_context() -> None:
     assert received_contexts == [context]
 
 
+def test_resolver_builds_playback_provider_with_shared_context() -> None:
+    registry = ProviderRegistry()
+    registry.register(
+        InfraProviderMetadata(
+            provider_id="xtream-demo",
+            provider_type="xtream",
+            base_url="https://example.invalid",
+        )
+    )
+    factory = ProviderFactory()
+    context = object()
+    provider = FakePlaybackProvider()
+    factory.register_type("xtream", lambda _, **__: provider)
+
+    result = ProviderResolutionService(  # type: ignore[arg-type]
+        registry,
+        factory,
+        context,
+    ).resolve_playback_provider("xtream-demo")
+
+    assert result is provider
+
+
 def test_resolver_rejects_provider_without_catalogue_capability() -> None:
     registry = ProviderRegistry()
     registry.register(
@@ -82,3 +116,5 @@ def test_resolver_rejects_provider_without_catalogue_capability() -> None:
 
     with pytest.raises(ProviderError, match="does not support channel browsing"):
         resolver.resolve_catalog_provider("unsupported")
+    with pytest.raises(ProviderError, match="does not support playback"):
+        resolver.resolve_playback_provider("unsupported")

@@ -148,12 +148,26 @@ class FakeListWidget:
 
     def __init__(self) -> None:
         self.items: list[str] = []
+        self.current_row = -1
+        self.itemDoubleClicked = FakeSignal()  # noqa: N815
 
     def addItem(self, item: str) -> None:  # noqa: N802
         self.items.append(item)
 
     def clear(self) -> None:
         self.items.clear()
+        self.current_row = -1
+
+    def currentRow(self) -> int:  # noqa: N802
+        return self.current_row
+
+
+class FakePushButton:
+    """Minimal QPushButton double exposing its clicked signal."""
+
+    def __init__(self, text: str) -> None:
+        self.text = text
+        self.clicked = FakeSignal()
 
 
 def _install_fake_pyside6() -> None:
@@ -173,6 +187,7 @@ def _install_fake_pyside6() -> None:
     qtwidgets.QLineEdit = FakeLineEdit
     qtwidgets.QListWidget = FakeListWidget
     qtwidgets.QMainWindow = FakeMainWindow
+    qtwidgets.QPushButton = FakePushButton
     sys.modules["PySide6"] = ModuleType("PySide6")
     sys.modules["PySide6.QtCore"] = qtcore
     sys.modules["PySide6.QtGui"] = qtgui
@@ -239,3 +254,42 @@ async def test_channel_browser_hides_provider_error_details() -> None:
     assert dialog.channel_list.items == []
     assert dialog.status_label.value == "Unable to load channels"
     assert "secret" not in dialog.status_label.value
+
+
+class FakePlaySelectedChannel:
+    """Playback callback double recording safe selected-provider channel identifiers."""
+
+    def __init__(self) -> None:
+        self.requests: list[tuple[str, str]] = []
+
+    async def __call__(self, provider_id: str, channel_id: str) -> None:
+        self.requests.append((provider_id, channel_id))
+
+
+@pytest.mark.asyncio
+async def test_channel_browser_delegates_selected_channel_to_playback_callback() -> None:
+    playback = FakePlaySelectedChannel()
+    dialog = ChannelBrowserDialog(
+        FakeBrowseChannels(
+            LoadChannelsResponse(
+                channels=[
+                    ChannelDTO(
+                        id="channel-7",
+                        name="Sports HD",
+                        provider_id="provider-one",
+                        stream_id="stream-7",
+                    )
+                ],
+                total=1,
+            )
+        ),
+        playback,
+    )  # type: ignore[arg-type]
+    dialog.provider_id_input.value = "provider-one"
+
+    await dialog.load_channels()
+    await dialog._play_channel(0)
+
+    assert playback.requests == [("provider-one", "channel-7")]
+    assert dialog.status_label.value == "Playing Sports HD"
+    assert "stream-7" not in dialog.status_label.value

@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import pytest
 
 from samotech_iptv.application.dtos import LoadChannelsRequest
 from samotech_iptv.application.ports.provider_capabilities import CatalogProvider
+
+if TYPE_CHECKING:
+    from samotech_iptv.application.ports.provider_capabilities import PlaybackProvider
 from samotech_iptv.application.ports.provider_resolver_port import ProviderResolverPort
 from samotech_iptv.application.use_cases.browse_channels import BrowseChannels
 from samotech_iptv.domain.entities.channel import Channel
@@ -38,6 +43,9 @@ class FakeResolver(ProviderResolverPort):
         if self._provider is None:
             raise RuntimeError("Provider is unavailable")
         return self._provider
+
+    def resolve_playback_provider(self, provider_id: str) -> PlaybackProvider:
+        raise AssertionError(f"Unexpected playback resolution for {provider_id}")
 
 
 @pytest.mark.asyncio

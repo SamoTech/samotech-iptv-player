@@ -201,6 +201,7 @@ async def test_main_window_attaches_surface_then_delegates_playback() -> None:
         FakeRegistration(),
         FakeRegistration(),
         FakeRegistration(),
+        FakePlayChannel(),
     )  # type: ignore[arg-type]
 
     await window.play_channel("xtream-demo:1")
@@ -218,6 +219,7 @@ def test_main_window_exposes_xtream_provider_menu_action() -> None:
         FakeRegistration(),
         FakeRegistration(),
         FakeRegistration(),
+        FakePlayChannel(),
     )  # type: ignore[arg-type]
 
     assert window.menu_bar.menus[0].title == "Providers"
