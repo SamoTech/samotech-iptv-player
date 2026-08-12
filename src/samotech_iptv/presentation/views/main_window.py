@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from PySide6.QtGui import QAction  # type: ignore[import-not-found]
 from PySide6.QtWidgets import QMainWindow  # type: ignore[import-not-found]
 
-from samotech_iptv.presentation.dialogs.xtream_provider_dialog import XtreamProviderDialog
 from samotech_iptv.presentation.widgets.vlc_video_surface import VlcVideoSurface
 
 if TYPE_CHECKING:
@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from samotech_iptv.application.use_cases.register_xtream_provider import (
         RegisterXtreamProvider,
     )
+    from samotech_iptv.presentation.dialogs.xtream_provider_dialog import XtreamProviderDialog
 
 __all__ = ["MainWindow"]
 
@@ -34,11 +35,18 @@ class MainWindow(QMainWindow):  # type: ignore[misc]
         self.video_surface = VlcVideoSurface(player)
         self.setCentralWidget(self.video_surface)
         self.setWindowTitle("SamoTech IPTV Player")
+        self.add_xtream_provider_action = QAction("Add Xtream Provider…", self)
+        self.add_xtream_provider_action.triggered.connect(self.open_xtream_provider_dialog)
+        self.menuBar().addMenu("Providers").addAction(self.add_xtream_provider_action)
+        self._active_xtream_provider_dialog: XtreamProviderDialog | None = None
 
     def open_xtream_provider_dialog(self) -> XtreamProviderDialog:
         """Create and show the secure manual Xtream-entry dialog."""
+        from samotech_iptv.presentation.dialogs.xtream_provider_dialog import XtreamProviderDialog
+
         dialog = XtreamProviderDialog(self._register_xtream_provider)
         dialog.show()
+        self._active_xtream_provider_dialog = dialog
         return dialog
 
     async def play_channel(self, channel_id: str) -> None:

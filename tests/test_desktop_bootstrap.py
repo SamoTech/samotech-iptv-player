@@ -40,11 +40,52 @@ class FakeFrame:
         return None
 
 
+class FakeSignal:
+    """Minimal Qt signal double for main-window action construction."""
+
+    def __init__(self) -> None:
+        self.callbacks: list[object] = []
+
+    def connect(self, callback: object) -> None:
+        self.callbacks.append(callback)
+
+
+class FakeAction:
+    """Minimal QAction double for main-window action construction."""
+
+    def __init__(self, text: str, _: object) -> None:
+        self.text = text
+        self.triggered = FakeSignal()
+
+
+class FakeMenu:
+    """Minimal QMenu double for main-window action construction."""
+
+    def __init__(self, title: str) -> None:
+        self.title = title
+        self.actions: list[FakeAction] = []
+
+    def addAction(self, action: FakeAction) -> None:  # noqa: N802
+        self.actions.append(action)
+
+
+class FakeMenuBar:
+    """Minimal QMenuBar double for main-window action construction."""
+
+    def __init__(self) -> None:
+        self.menus: list[FakeMenu] = []
+
+    def addMenu(self, title: str) -> FakeMenu:  # noqa: N802
+        menu = FakeMenu(title)
+        self.menus.append(menu)
+        return menu
+
+
 class FakeMainWindow:
     """Minimal QMainWindow double for bootstrap construction."""
 
     def __init__(self) -> None:
-        return None
+        self.menu_bar = FakeMenuBar()
 
     def setCentralWidget(self, _: object) -> None:  # noqa: N802
         return None
@@ -52,11 +93,15 @@ class FakeMainWindow:
     def setWindowTitle(self, _: str) -> None:  # noqa: N802
         return None
 
+    def menuBar(self) -> FakeMenuBar:  # noqa: N802
+        return self.menu_bar
+
 
 def _install_fake_runtime() -> None:
     qtcore = ModuleType("PySide6.QtCore")
     qtcore.Qt = SimpleNamespace(WidgetAttribute=SimpleNamespace(WA_NativeWindow=object()))
     qtgui = ModuleType("PySide6.QtGui")
+    qtgui.QAction = FakeAction
     qtgui.QShowEvent = object
     qtwidgets = ModuleType("PySide6.QtWidgets")
     qtwidgets.QApplication = FakeApplication
@@ -64,6 +109,7 @@ def _install_fake_runtime() -> None:
     qtwidgets.QMainWindow = FakeMainWindow
     qtwidgets.QDialog = object
     qtwidgets.QFormLayout = object
+    qtwidgets.QLabel = object
     qtwidgets.QLineEdit = object
     sys.modules.setdefault("PySide6", ModuleType("PySide6"))
     sys.modules.setdefault("PySide6.QtCore", qtcore)
