@@ -95,6 +95,8 @@ class MAGSession:
 
     async def _run_post_handshake_stages(self) -> None:
         """Run explicitly selected stages after a structurally valid token."""
+        if self._profile.requires_account_info:
+            await self.get_account_info()
         if self._creds.profile_required or self._creds.profile_second_step:
             self._auth_state = MAGAuthState.PROFILE_REQUIRED
             await self.get_profile(auth_second_step=self._creds.profile_second_step)
@@ -109,6 +111,22 @@ class MAGSession:
                 "AUTH_KEY_TRANSPORT_UNSUPPORTED: authorization-key request transport "
                 "is not established"
             )
+
+    async def get_account_info(self) -> object:
+        """Validate the concrete portal account-info response after handshake."""
+        request = self._profile.build_request(self._creds.portal_url, MAGOperation.ACCOUNT_INFO)
+        payload = await self._conn.get(
+            request.endpoint,
+            params=request.params,
+            headers={**request.headers, **self._request_headers()},
+            base_url=request.base_url,
+        )
+        raw_js = payload.get("js") if isinstance(payload, Mapping) else None
+        if not isinstance(raw_js, Mapping):
+            raise AuthError("ACCOUNT_INFO_REQUIRED: portal returned no account object")
+        if raw_js.get("error"):
+            raise AuthError("ACCOUNT_INFO_AUTH_ERROR: portal rejected account-info request")
+        return payload
 
     async def get_profile(self, *, auth_second_step: bool = False) -> object:
         """Request the minimal or explicitly populated profile stage."""

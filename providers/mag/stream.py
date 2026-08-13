@@ -31,6 +31,11 @@ class MAGStream:
         channel_command: str | None = None,
     ) -> str:
         """Resolve one live/VOD stream while keeping portal commands private."""
+        if self._sess.profile.uses_direct_channel_urls is True:
+            if not channel_command:
+                raise StreamError("Portal did not supply a direct channel command")
+            return self._validated_url(channel_command)
+
         operation = (
             MAGOperation.CREATE_VOD_LINK
             if stream_type in ("vod", "series")
@@ -52,6 +57,10 @@ class MAGStream:
                 "Verify you are authorised to access this content."
             )
 
+        return self._validated_url(value)
+
+    @staticmethod
+    def _validated_url(value: str) -> str:
         url = value.strip()
         for part in value.split():
             if part.startswith(("http://", "https://", "rtsp://", "rtmp://")):

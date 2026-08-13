@@ -34,7 +34,10 @@ class MAGCatalogue:
 
     async def get_live_categories(self) -> list[MagRecord]:
         """Return live genre records only for profiles that explicitly support them."""
-        if not self._sess.profile.uses_ordered_live_catalogue:
+        if not (
+            self._sess.profile.uses_ordered_live_catalogue
+            or self._sess.profile.uses_direct_live_catalogue
+        ):
             raise ProviderError("Provider does not support category browsing")
         data = await self._sess.request(MAGOperation.LIVE_GENRES)
         return self._records_from_js_list(data)
@@ -44,8 +47,30 @@ class MAGCatalogue:
         if not self._sess.profile.uses_ordered_live_catalogue:
             data = await self._sess.request(MAGOperation.CHANNELS)
             items = self._records_from_response(data)
-            self._last_live_stats = {"received": len(items), "accepted": len(items), "rejected": 0}
-            return items
+            if not self._sess.profile.uses_direct_channel_urls:
+                self._last_live_stats = {
+                    "received": len(items),
+                    "accepted": len(items),
+                    "rejected": 0,
+                }
+                return items
+            accepted_records: list[MagRecord] = []
+            rejected = 0
+            for item in items:
+                channel_id = str(item.get("id") or "").strip()
+                name = str(item.get("name") or item.get("title") or "").strip()
+                command = self._direct_command(item)
+                if not channel_id or not name or not command:
+                    rejected += 1
+                    continue
+                self._live_commands[channel_id] = command
+                accepted_records.append(item)
+            self._last_live_stats = {
+                "received": len(items),
+                "accepted": len(accepted_records),
+                "rejected": rejected,
+            }
+            return accepted_records
         return await self._ordered_live_channels()
 
     async def _ordered_live_channels(self) -> list[MagRecord]:
@@ -106,7 +131,10 @@ class MAGCatalogue:
         command = self._live_commands.get(key)
         if command is not None:
             return command
-        if self._sess.profile.uses_channel_command_for_live_link:
+        if (
+            self._sess.profile.uses_channel_command_for_live_link
+            or self._sess.profile.uses_direct_channel_urls
+        ):
             await self.get_channels()
             return self._live_commands.get(key)
         return None
@@ -161,6 +189,20 @@ class MAGCatalogue:
             return {}
         payload = data.get("js", {})
         return payload if isinstance(payload, Mapping) else {}
+
+    @staticmethod
+    def _direct_command(record: MagRecord) -> str | None:
+        """Extract a supplied ``cmds[].url`` without rewriting or logging it."""
+        raw_commands = record.get("cmds")
+        if not isinstance(raw_commands, list) or not raw_commands:
+            return None
+        first = raw_commands[0]
+        if not isinstance(first, Mapping):
+            return None
+        raw_url = first.get("url")
+        if not isinstance(raw_url, str) or not raw_url.strip():
+            return None
+        return raw_url.strip()
 
     @staticmethod
     def _records(value: object) -> list[MagRecord]:

@@ -22,6 +22,7 @@ from .protocol_profile import (
     MAGProtocolProfile,
     StalkerClientCompatibilityProfile,
     StalkerHelperCompatibilityProfile,
+    StalkerPortalPhpLegacyProfile,
     StalkerQueryProtocolProfile,
 )
 from .session import MAGSession
@@ -52,7 +53,8 @@ class MAGProvider(BaseProvider):
     max_retries : int          (default 3)
     dev_mode : bool            (default False)
     use_keyring : bool         (default False)
-    protocol_profile : str     (`legacy`, `stalker_query`, or bounded `auto`)
+    protocol_profile : str     (`legacy`, `stalker_query`, `stalker_portal_php_legacy`,
+                                  or bounded `auto`)
     """
 
     def __init__(self, config: dict[str, Any]) -> None:
@@ -95,6 +97,8 @@ class MAGProvider(BaseProvider):
             protocol_profile = StalkerClientCompatibilityProfile()
         elif profile_name == "stalker_helper_compatibility":
             protocol_profile = StalkerHelperCompatibilityProfile()
+        elif profile_name == "stalker_portal_php_legacy":
+            protocol_profile = StalkerPortalPhpLegacyProfile()
         else:
             raise ValueError(f"Unsupported MAG protocol profile: {profile_name!r}")
         self._session = MAGSession(self._connection, creds, profile=protocol_profile)
@@ -114,7 +118,8 @@ class MAGProvider(BaseProvider):
                     log.info(
                         "[IPTV] PROVIDER=MAG OPERATION=DISCOVERY CANDIDATE=%s "
                         "HTTP_STATUS=%s CONTENT_TYPE=%s RESPONSE_BYTES=%s JSON=%s "
-                        "TOKEN_PRESENT=%s CLASSIFICATION=%s ELAPSED=%.3fs",
+                        "TOKEN_PRESENT=%s CLASSIFICATION=%s REDIRECTS=%d SERVER=%s "
+                        "ALLOW=%s WWW_AUTHENTICATE=%s ELAPSED=%.3fs",
                         result.candidate_name,
                         result.status if result.status is not None else "<none>",
                         result.content_type or "<missing>",
@@ -122,6 +127,10 @@ class MAGProvider(BaseProvider):
                         result.is_json,
                         result.token_present,
                         result.classification,
+                        result.redirect_count,
+                        result.server or "<missing>",
+                        result.allow or "<missing>",
+                        result.www_authenticate,
                         result.elapsed_seconds,
                     )
                 if profile is None:
@@ -172,7 +181,10 @@ class MAGProvider(BaseProvider):
     @property
     def supports_live_categories(self) -> bool:
         """Whether the selected authenticated profile supports live genre browsing."""
-        return self._session.profile.uses_ordered_live_catalogue
+        return (
+            self._session.profile.uses_ordered_live_catalogue
+            or self._session.profile.uses_direct_live_catalogue
+        )
 
     @property
     def live_catalogue_stats(self) -> dict[str, int]:

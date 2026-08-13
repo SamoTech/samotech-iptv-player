@@ -19,6 +19,7 @@ from .protocol_profile import (
     MAGProtocolProfile,
     StalkerClientCompatibilityProfile,
     StalkerHelperCompatibilityProfile,
+    StalkerPortalPhpLegacyProfile,
     StalkerQueryProtocolProfile,
 )
 
@@ -182,6 +183,10 @@ class MAGProtocolDiscovery:
                 "origin_portal_php_stalker_client",
                 StalkerClientCompatibilityProfile(),
             ),
+            MAGDiscoveryCandidate(
+                "origin_portal_php_mac_client",
+                StalkerPortalPhpLegacyProfile(),
+            ),
         )
 
     async def probe_case(self, case: MAGDifferentialCase) -> MAGDifferentialResult:
@@ -290,7 +295,11 @@ class MAGProtocolDiscovery:
                 continue
             if self._should_probe_prehash(primary) and not isinstance(
                 candidate.profile,
-                (StalkerClientCompatibilityProfile, StalkerHelperCompatibilityProfile),
+                (
+                    StalkerClientCompatibilityProfile,
+                    StalkerHelperCompatibilityProfile,
+                    StalkerPortalPhpLegacyProfile,
+                ),
             ):
                 with_prehash = await self._probe(candidate, prehash=True)
                 results.append(with_prehash)

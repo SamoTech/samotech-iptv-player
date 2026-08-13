@@ -126,6 +126,7 @@ async def test_discovery_probes_only_fixed_candidates_and_uses_deterministic_pri
         "origin_stb_server",
         "origin_portal_php",
         "origin_portal_php_stalker_client",
+        "origin_portal_php_mac_client",
     ]
     assert all(
         result.classification is MAGDiscoveryClassification.VALID_STALKER_HANDSHAKE
@@ -140,11 +141,13 @@ async def test_discovery_probes_only_fixed_candidates_and_uses_deterministic_pri
         "/stb/server/load.php",
         "/portal.php",
         "/portal.php",
+        "/portal.php",
     ]
     assert all(state.requests[index]["has_mac_header"] is True for index in (0, 1, 3, 4))
-    assert all(state.requests[index]["has_mac_header"] is False for index in (2, 5))
-    assert all(state.requests[index]["has_cookie"] is True for index in (2, 5))
-    assert all(request["has_authorization"] is False for request in state.requests)
+    assert all(state.requests[index]["has_mac_header"] is False for index in (2, 5, 6))
+    assert all(state.requests[index]["has_cookie"] is True for index in (2, 5, 6))
+    assert all(state.requests[index]["has_authorization"] is False for index in range(6))
+    assert state.requests[6]["has_authorization"] is True
     assert all(
         state.requests[index]["query"]
         == {"type": "stb", "action": "handshake", "token": "", "JsHttpRequest": "1-xml"}
@@ -153,6 +156,12 @@ async def test_discovery_probes_only_fixed_candidates_and_uses_deterministic_pri
     assert state.requests[5]["query"] == {
         "type": "stb",
         "action": "handshake",
+        "JsHttpRequest": "1-xml",
+    }
+    assert state.requests[6]["query"] == {
+        "action": "handshake",
+        "type": "stb",
+        "token": "",
         "JsHttpRequest": "1-xml",
     }
     assert "00:11:22:33:44:55" not in repr(results)
@@ -313,6 +322,7 @@ async def test_discovery_classifies_http_empty_and_malformed_boundaries(
         MAGDiscoveryClassification.HTTP_401,
         MAGDiscoveryClassification.HTTP_401,
         MAGDiscoveryClassification.EMPTY_RESPONSE,
+        MAGDiscoveryClassification.MALFORMED_JSON,
         MAGDiscoveryClassification.MALFORMED_JSON,
         MAGDiscoveryClassification.MALFORMED_JSON,
     ]

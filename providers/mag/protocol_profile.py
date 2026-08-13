@@ -13,7 +13,12 @@ from enum import StrEnum
 from urllib.parse import quote, urlsplit, urlunsplit
 
 from ..base.errors import AuthError
-from .constants import DEFAULT_TOKEN_TTL_S, ENDPOINT_HANDSHAKE, USER_AGENT
+from .constants import (
+    BROWSER_USER_AGENT,
+    DEFAULT_TOKEN_TTL_S,
+    ENDPOINT_HANDSHAKE,
+    USER_AGENT,
+)
 
 __all__ = [
     "LegacyMAGProtocolProfile",
@@ -25,6 +30,7 @@ __all__ = [
     "MAGProtocolRequest",
     "StalkerClientCompatibilityProfile",
     "StalkerHelperCompatibilityProfile",
+    "StalkerPortalPhpLegacyProfile",
     "StalkerQueryProtocolProfile",
 ]
 
@@ -109,6 +115,8 @@ class MAGProtocolProfile:
     user_agent: str | None = None
     model_x_user_agent: bool = False
     model_link: str = "WiFi"
+    uses_mac_authorization: bool = False
+    uses_mac_cookie: bool = False
     referer_suffix: str | None = None
     extra_headers: Mapping[str, str] = field(default_factory=dict)
     uses_stalker_cookies: bool = False
@@ -116,8 +124,11 @@ class MAGProtocolProfile:
     cookie_language: str = "en"
     cookie_timezone: str = "Europe/Paris"
     uses_ordered_live_catalogue: bool = False
+    uses_direct_live_catalogue: bool = False
+    requires_account_info: bool = False
     ordered_live_start_page: int = 0
     uses_channel_command_for_live_link: bool = False
+    uses_direct_channel_urls: bool = False
 
     def request_base_url(self, portal_url: str) -> str:
         """Return the safe base URL selected by this fixed profile."""
@@ -155,6 +166,17 @@ class MAGProtocolProfile:
         headers = self.protocol_headers(portal_url)
         if self.model_x_user_agent and mag_model.strip():
             headers["X-User-Agent"] = f"Model: {mag_model.strip()}; Link: {self.model_link}"
+        if self.uses_mac_cookie:
+            encoded_mac = (
+                quote(mac_address.strip()) if self.quote_mac_cookie else mac_address.strip()
+            )
+            headers["Cookie"] = f"mac={encoded_mac}"
+            if not token and self.uses_mac_authorization and mac_address:
+                headers["Authorization"] = f"MAC {mac_address.strip()}"
+            if token:
+                headers["Authorization"] = f"Bearer {token}"
+            return headers
+
         if self.uses_stalker_cookies:
             encoded_mac = (
                 quote(mac_address.strip()) if self.quote_mac_cookie else mac_address.strip()
@@ -182,6 +204,10 @@ class MAGProtocolProfile:
             headers["X-Device-ID2"] = device_id2
         return headers
 
+    def operation_endpoint(self, operation: MAGOperation) -> str:
+        """Return the fixed endpoint family for one operation."""
+        return self.handshake_endpoint
+
     def operation_params(self, operation: MAGOperation) -> dict[str, str | int]:
         """Return fixed protocol parameters for one supported operation."""
         if operation is MAGOperation.HANDSHAKE:
@@ -191,9 +217,17 @@ class MAGProtocolProfile:
         if operation is MAGOperation.DO_AUTH:
             return {"type": "stb", "action": "do_auth", "JsHttpRequest": "1-xml"}
         if operation is MAGOperation.ACCOUNT_INFO:
-            return {"type": "account_info", "action": "get_main_info"}
+            return {
+                "type": "account_info",
+                "action": "get_main_info",
+                "JsHttpRequest": "1-xml",
+            }
         if operation is MAGOperation.CHANNELS:
-            return {"type": "itv", "action": "get_all_channels"}
+            return {
+                "type": "itv",
+                "action": "get_all_channels",
+                "JsHttpRequest": "1-xml",
+            }
         if operation is MAGOperation.LIVE_GENRES:
             return {"type": "itv", "action": "get_genres", "JsHttpRequest": "1-xml"}
         if operation is MAGOperation.LIVE_ORDERED_LIST:
@@ -279,7 +313,7 @@ class MAGProtocolProfile:
             request_params.update(params)
         return MAGProtocolRequest(
             base_url=self.request_base_url(portal_url),
-            endpoint=self.handshake_endpoint,
+            endpoint=self.operation_endpoint(operation),
             params=request_params,
             headers=self.protocol_headers(portal_url),
             method=(self.handshake_method if operation is MAGOperation.HANDSHAKE else "GET"),
@@ -337,6 +371,42 @@ class LegacyMAGProtocolProfile(MAGProtocolProfile):
     """Bare configured-base ``/server/load.php`` legacy profile."""
 
     name: str = "legacy"
+
+
+@dataclass(frozen=True)
+class StalkerPortalPhpLegacyProfile(MAGProtocolProfile):
+    """Concrete browser-style origin ``portal.php`` MAC-authentication profile."""
+
+    name: str = "stalker_portal_php_legacy"
+    handshake_endpoint: str = "portal.php"
+    use_origin_base: bool = True
+    handshake_params: Mapping[str, str] = field(
+        default_factory=lambda: {
+            "action": "handshake",
+            "type": "stb",
+            "token": "",
+            "JsHttpRequest": "1-xml",
+        }
+    )
+    http_user_agent: str | None = BROWSER_USER_AGENT
+    referer_suffix: str | None = "/c/"
+    extra_headers: Mapping[str, str] = field(
+        default_factory=lambda: {
+            "Accept": "application/json, text/javascript, */*; q=0.01",
+            "X-Requested-With": "XMLHttpRequest",
+        }
+    )
+    uses_mac_authorization: bool = True
+    uses_mac_cookie: bool = True
+    quote_mac_cookie: bool = False
+    uses_direct_live_catalogue: bool = True
+    requires_account_info: bool = True
+    uses_direct_channel_urls: bool = True
+
+    def operation_endpoint(self, operation: MAGOperation) -> str:
+        if operation is MAGOperation.LIVE_GENRES:
+            return "server/load.php"
+        return "portal.php"
 
 
 @dataclass(frozen=True)

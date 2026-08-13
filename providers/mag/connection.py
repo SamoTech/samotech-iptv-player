@@ -106,7 +106,7 @@ class MAGConnection:
             connector=connector,
             timeout=self._timeout,
         )
-        log.debug("HTTP session opened for %s", self._portal_url)
+        log.debug("HTTP session opened")
 
     async def close(self) -> None:
         """Close the active HTTP session."""
@@ -260,7 +260,13 @@ class MAGConnection:
         last_exc: Exception | None = None
         for attempt in range(1, self._max_retries + 1):
             try:
-                log.debug("%s %s (attempt %d/%d)", method, url, attempt, self._max_retries)
+                log.debug(
+                    "%s %s (attempt %d/%d)",
+                    method,
+                    urlparse(url).path or "/",
+                    attempt,
+                    self._max_retries,
+                )
                 async with session.request(
                     method,
                     url,
@@ -325,7 +331,9 @@ class MAGConnection:
                     return cast("JSON", data)
             except aiohttp.ClientResponseError as exc:
                 if 400 <= exc.status < 500:
-                    raise NetworkError(f"HTTP {exc.status} from {url}: {exc.message}") from exc
+                    raise NetworkError(
+                        f"HTTP {exc.status} from {urlparse(url).path or '/'}: {exc.message}"
+                    ) from exc
                 log.warning("HTTP %d on attempt %d — %s", exc.status, attempt, exc.message)
                 last_exc = exc
             except (TimeoutError, aiohttp.ClientError) as exc:
