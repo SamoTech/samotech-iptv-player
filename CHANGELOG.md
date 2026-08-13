@@ -8,7 +8,7 @@
 
 ### Verification
 
-- Added adapter-to-fixture coverage for strict handshake gating, headers, Referer, private cookies, token TTL, live genres, ordered-list channels, command-based stream resolution, resource cleanup, and sensitive-value redaction. Real MAG authentication and playback remain **UNRESOLVED** pending the Windows portal run.
+- Added adapter-to-fixture coverage for strict handshake gating, headers, Referer, private cookies, token TTL, live genres, ordered-list channels, command-based stream resolution, resource cleanup, and sensitive-value redaction. The Windows client-fingerprint run completed without a token-bearing handshake; real MAG authentication and playback remain **UNRESOLVED**.
 
 
 This file records concise historical delivery milestones. It is **not** the current support matrix or roadmap; read [PROJECT_STATUS.md](PROJECT_STATUS.md) for verified current capability status and [ROADMAP.md](ROADMAP.md) for delivery direction.

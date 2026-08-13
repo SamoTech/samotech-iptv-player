@@ -29,7 +29,7 @@ The legacy MAG provider owns its `aiohttp` session and connector. It keeps those
 
 ## Current real-portal status
 
-The supplied real portal remains **UNRESOLVED** for compatibility. Previous approved generic requests produced three HTTP-404 classifications and one HTTP-200 empty-response classification; no candidate produced a JSON session token. The new compatibility request uses the same already-approved `portal.php` path with a materially different client fingerprint, but has not yet been run against the real Windows portal. A supplied Windows run of the failure-safe revision exercised the earlier sequence twice and logged HTTP-session closure before each authentication failure, with no unclosed-session or unclosed-connector warning in the supplied log. This confirms cleanup of the observed failure path, not portal compatibility or playback.
+The supplied real portal remains **UNRESOLVED** for compatibility. A real Windows run of `stalker_client_compatibility` completed the closed candidate set: the three documented server-path candidates returned HTTP 404, the generic `portal.php` candidate returned HTTP 200 with an empty `text/javascript` response, and the materially different client-fingerprint request at that same approved `portal.php` path returned HTTP 404. No request produced JSON or a session token. The owned HTTP session closed before the authentication failure was translated, with no unclosed-session or unclosed-connector warning in the supplied excerpt. This confirms cleanup only; channels, stream resolution, and playback were not reached.
 
 ## Security
 
