@@ -17,6 +17,8 @@ from .constants import DEFAULT_TOKEN_TTL_S, ENDPOINT_HANDSHAKE, USER_AGENT
 
 __all__ = [
     "LegacyMAGProtocolProfile",
+    "MAGAuthMode",
+    "MAGAuthState",
     "MAGHandshake",
     "MAGOperation",
     "MAGProtocolProfile",
@@ -27,10 +29,33 @@ __all__ = [
 ]
 
 
+class MAGAuthMode(StrEnum):
+    """Explicit MAG authentication modes; no mode is inferred."""
+
+    MAC_ONLY = "mac_only"
+    MAC_PLUS_LOGIN = "mac_plus_login"
+    AUTHORIZATION_KEY = "authorization_key"
+
+
+class MAGAuthState(StrEnum):
+    """Private authentication state-machine stages."""
+
+    DISCOVERY = "discovery"
+    HANDSHAKE = "handshake"
+    TOKEN_RECEIVED = "token_received"  # noqa: S105
+    PROFILE_REQUIRED = "profile_required"
+    GET_PROFILE = "get_profile"
+    DO_AUTH = "do_auth"
+    SESSION_VALIDATED = "session_validated"
+    CATALOGUE = "catalogue"
+
+
 class MAGOperation(StrEnum):
     """Protocol operations supported by the MAG live-TV boundary."""
 
     HANDSHAKE = "handshake"
+    GET_PROFILE = "get_profile"
+    DO_AUTH = "do_auth"
     ACCOUNT_INFO = "account_info"
     CHANNELS = "channels"
     LIVE_GENRES = "live_genres"
@@ -156,6 +181,10 @@ class MAGProtocolProfile:
         """Return fixed protocol parameters for one supported operation."""
         if operation is MAGOperation.HANDSHAKE:
             return dict(self.handshake_params)
+        if operation is MAGOperation.GET_PROFILE:
+            return {"type": "stb", "action": "get_profile", "JsHttpRequest": "1-xml"}
+        if operation is MAGOperation.DO_AUTH:
+            return {"type": "stb", "action": "do_auth", "JsHttpRequest": "1-xml"}
         if operation is MAGOperation.ACCOUNT_INFO:
             return {"type": "account_info", "action": "get_main_info"}
         if operation is MAGOperation.CHANNELS:
@@ -175,6 +204,49 @@ class MAGProtocolProfile:
         if operation is MAGOperation.CREATE_VOD_LINK:
             return {"type": "vod", "action": "create_link"}
         raise ValueError(f"Unsupported MAG operation: {operation!r}")
+
+    def profile_params(
+        self,
+        *,
+        serial_number: str = "",
+        device_id: str = "",
+        device_id2: str = "",
+        mag_model: str = "",
+        signature: str = "",
+    ) -> dict[str, str | int]:
+        """Build minimal get_profile params plus only explicitly supplied identity."""
+        params = self.operation_params(MAGOperation.GET_PROFILE)
+        if serial_number:
+            params["sn"] = serial_number
+        if device_id:
+            params["device_id"] = device_id
+        if device_id2:
+            params["device_id2"] = device_id2
+        if mag_model:
+            params["stb_type"] = mag_model
+        if signature:
+            params["signature"] = signature
+        return params
+
+    def do_auth_params(
+        self,
+        *,
+        login: str,
+        password: str,
+        device_id: str = "",
+        device_id2: str = "",
+        signature: str = "",
+    ) -> dict[str, str | int]:
+        """Build the source-observed login form without logging its values."""
+        params = self.operation_params(MAGOperation.DO_AUTH)
+        params.update({"login": login, "password": password})
+        if device_id:
+            params["device_id"] = device_id
+        if device_id2:
+            params["device_id2"] = device_id2
+        if signature:
+            params["signature"] = signature
+        return params
 
     def live_link_params(self, command: str) -> dict[str, str | int]:
         """Build profile-owned live ``create_link`` parameters from a private command."""

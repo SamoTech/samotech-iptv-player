@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import time
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import TYPE_CHECKING
 
@@ -27,6 +27,8 @@ if TYPE_CHECKING:
     from .credentials import MAGCredentials
 
 __all__ = [
+    "MAGDifferentialCase",
+    "MAGDifferentialResult",
     "MAGDiscoveryCandidate",
     "MAGDiscoveryClassification",
     "MAGDiscoveryResult",
@@ -47,6 +49,21 @@ class MAGDiscoveryClassification(StrEnum):
     JSON_WITHOUT_TOKEN = "JSON_WITHOUT_TOKEN"  # noqa: S105
     VALID_STALKER_HANDSHAKE = "VALID_STALKER_HANDSHAKE"
     UNKNOWN_PROTOCOL = "UNKNOWN_PROTOCOL"
+    PROFILE_REQUIRED = "PROFILE_REQUIRED"
+    PROFILE_SUCCESS = "PROFILE_SUCCESS"
+    PROFILE_AUTH_ERROR = "PROFILE_AUTH_ERROR"
+    LOGIN_REQUIRED = "LOGIN_REQUIRED"
+    AUTH_KEY_REQUIRED = "AUTH_KEY_REQUIRED"
+    STB_NOT_AUTHORIZED = "STB_NOT_AUTHORIZED"
+    STB_MODEL_REJECTED = "STB_MODEL_REJECTED"
+    DEVICE_ID_REQUIRED = "DEVICE_ID_REQUIRED"
+    DEVICE_ID_REJECTED = "DEVICE_ID_REJECTED"
+    AUTH_SUCCESS = "AUTH_SUCCESS"
+    SESSION_ERROR = "SESSION_ERROR"
+    METHOD_NOT_ALLOWED = "METHOD_NOT_ALLOWED"
+    CONTENT_TYPE_MISMATCH = "CONTENT_TYPE_MISMATCH"
+    REDIRECTED = "REDIRECTED"
+    WAF_OR_GATEWAY_SUSPECTED = "WAF_OR_GATEWAY_SUSPECTED"
 
 
 @dataclass(frozen=True)
@@ -55,6 +72,41 @@ class MAGDiscoveryCandidate:
 
     name: str
     profile: MAGProtocolProfile
+
+
+@dataclass(frozen=True)
+class MAGDifferentialCase:
+    """One fixed, evidence-labelled request variation for the differential lab."""
+
+    test_id: str
+    profile: MAGProtocolProfile
+    endpoint: str
+    method: str
+    params: Mapping[str, str | int] = field(default_factory=dict)
+    form: Mapping[str, str | int] = field(default_factory=dict)
+    header_fingerprint: str = ""
+    cookie_policy: str = ""
+    expected_evidence: str = ""
+
+
+@dataclass(frozen=True)
+class MAGDifferentialResult:
+    """Safe result metadata for one fixed differential request."""
+
+    test_id: str
+    profile_name: str
+    endpoint: str
+    method: str
+    status: int | None
+    content_type: str | None
+    response_size: int | None
+    is_json: bool
+    token_present: bool
+    profile_present: bool
+    error_present: bool
+    authorization_failure: bool
+    classification: MAGDiscoveryClassification
+    elapsed_seconds: float
 
 
 @dataclass(frozen=True)
@@ -70,6 +122,9 @@ class MAGDiscoveryResult:
     token_present: bool
     classification: MAGDiscoveryClassification
     used_prehash: bool = False
+    profile_present: bool = False
+    error_present: bool = False
+    authorization_failure: bool = False
 
 
 class MAGProtocolDiscovery:
@@ -119,6 +174,88 @@ class MAGProtocolDiscovery:
                 "origin_portal_php_stalker_client",
                 StalkerClientCompatibilityProfile(),
             ),
+        )
+
+    async def probe_case(self, case: MAGDifferentialCase) -> MAGDifferentialResult:
+        """Execute one caller-supplied evidence-backed request variation."""
+        headers = {
+            **case.profile.protocol_headers(self._credentials.portal_url),
+            **case.profile.request_headers(
+                self._credentials.portal_url,
+                mac_address=self._credentials.mac_address,
+                serial_number=self._credentials.serial_number,
+                device_id=self._credentials.device_id,
+                device_id2=self._credentials.device_id2,
+                token=self._credentials.token,
+                mag_model=self._credentials.mag_model,
+            ),
+        }
+        if case.method.upper() == "POST":
+            headers.setdefault("Content-Type", "application/x-www-form-urlencoded")
+        started = time.perf_counter()
+        try:
+            response = await self._connection.probe(
+                case.method.upper(),
+                case.endpoint,
+                params=case.params,
+                data=case.form,
+                headers=headers,
+                base_url=case.profile.request_base_url(self._credentials.portal_url),
+            )
+        except (NetworkError, RuntimeError):
+            return MAGDifferentialResult(
+                test_id=case.test_id,
+                profile_name=case.profile.name,
+                endpoint=case.endpoint,
+                method=case.method.upper(),
+                status=None,
+                content_type=None,
+                response_size=None,
+                is_json=False,
+                token_present=False,
+                profile_present=False,
+                error_present=False,
+                authorization_failure=False,
+                classification=MAGDiscoveryClassification.NETWORK_FAILURE,
+                elapsed_seconds=time.perf_counter() - started,
+            )
+        base_result = self._classify(case.test_id, response, prehash=False)
+        classification = base_result.classification
+        token_present = base_result.token_present
+        is_json = response.payload is not None
+        raw_js = response.payload.get("js") if isinstance(response.payload, Mapping) else None
+        profile_present = isinstance(raw_js, Mapping) and bool(raw_js)
+        error_present = isinstance(response.payload, Mapping) and bool(
+            response.payload.get("error") or (isinstance(raw_js, Mapping) and raw_js.get("error"))
+        )
+        authorization_failure = (
+            response.status in {401, 403}
+            or any(
+                marker in str(raw_js).casefold()
+                for marker in ("unauthor", "auth", "login", "device")
+            )
+            if raw_js is not None
+            else response.status in {401, 403}
+        )
+        if response.status == 405:
+            classification = MAGDiscoveryClassification.METHOD_NOT_ALLOWED
+        elif response.status in {301, 302, 303, 307, 308}:
+            classification = MAGDiscoveryClassification.REDIRECTED
+        return MAGDifferentialResult(
+            test_id=case.test_id,
+            profile_name=case.profile.name,
+            endpoint=case.endpoint,
+            method=case.method.upper(),
+            status=response.status,
+            content_type=response.content_type,
+            response_size=response.response_size,
+            is_json=is_json,
+            token_present=token_present,
+            profile_present=profile_present,
+            error_present=error_present,
+            authorization_failure=authorization_failure,
+            classification=classification,
+            elapsed_seconds=response.elapsed_seconds,
         )
 
     async def discover(self) -> tuple[tuple[MAGDiscoveryResult, ...], MAGProtocolProfile | None]:

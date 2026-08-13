@@ -42,7 +42,10 @@ class MAGProvider(BaseProvider):
 
     Optional config keys
     --------------------
-    serial_number, device_id, device_id2, mag_model : str
+    serial_number, device_id, device_id2, mag_model, signature : str
+    auth_mode : str            (default ``mac_only``)
+    login, password, authorization_key : str
+    profile_required : bool    (default False)
     timeout_s : float          (default 30)
     max_retries : int          (default 3)
     dev_mode : bool            (default False)
@@ -63,6 +66,12 @@ class MAGProvider(BaseProvider):
                 device_id=config.get("device_id", ""),
                 device_id2=config.get("device_id2", ""),
                 mag_model=config.get("mag_model", ""),
+                signature=config.get("signature", ""),
+                auth_mode=config.get("auth_mode", "mac_only"),
+                login=config.get("login", ""),
+                password=config.get("password", ""),
+                authorization_key=config.get("authorization_key", ""),
+                profile_required=bool(config.get("profile_required", False)),
             )
 
         self._connection = MAGConnection(

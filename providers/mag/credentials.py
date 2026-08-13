@@ -41,6 +41,12 @@ class MAGCredentials:
     device_id: str = ""
     device_id2: str = ""
     mag_model: str = ""
+    signature: str = ""
+    auth_mode: str = "mac_only"
+    login: str = field(default="", repr=False, compare=False)
+    password: str = field(default="", repr=False, compare=False)
+    authorization_key: str = field(default="", repr=False, compare=False)
+    profile_required: bool = False
     _token: str = field(default="", repr=False, compare=False)
 
     @classmethod

@@ -5,11 +5,18 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from collections.abc import Mapping
 from typing import TYPE_CHECKING
 
 from ..base.errors import AuthError, NetworkError
 from .constants import MAX_RECONNECT_TRIES, RECONNECT_BASE_DELAY, RECONNECT_MAX_DELAY
-from .protocol_profile import LegacyMAGProtocolProfile, MAGOperation, MAGProtocolProfile
+from .protocol_profile import (
+    LegacyMAGProtocolProfile,
+    MAGAuthMode,
+    MAGAuthState,
+    MAGOperation,
+    MAGProtocolProfile,
+)
 
 if TYPE_CHECKING:
     from .connection import MAGConnection
@@ -32,6 +39,8 @@ class MAGSession:
         self._profile = profile or LegacyMAGProtocolProfile()
         self._token_expires_at: float = 0.0
         self._refresh_task: asyncio.Task[None] | None = None
+        self._auth_state = MAGAuthState.DISCOVERY
+        self._last_profile_classification = "NOT_REQUESTED"
 
     @property
     def token(self) -> str:
@@ -48,6 +57,16 @@ class MAGSession:
         return self._creds
 
     @property
+    def auth_state(self) -> MAGAuthState:
+        """Return the private state-machine stage without credential data."""
+        return self._auth_state
+
+    @property
+    def last_profile_classification(self) -> str:
+        """Return only the safe classification of the last profile response."""
+        return self._last_profile_classification
+
+    @property
     def is_authenticated(self) -> bool:
         return bool(self._creds.token) and time.monotonic() < self._token_expires_at
 
@@ -58,7 +77,8 @@ class MAGSession:
         self._profile = profile
 
     async def authenticate(self) -> None:
-        """Perform one profile-owned handshake and retain its token privately."""
+        """Run the evidence-backed optional authentication state machine."""
+        self._auth_state = MAGAuthState.HANDSHAKE
         request = self._profile.build_request(self._creds.portal_url, MAGOperation.HANDSHAKE)
         payload = await self._conn.get(
             request.endpoint,
@@ -67,8 +87,94 @@ class MAGSession:
             base_url=request.base_url,
         )
         self._store_token(payload)
+        self._auth_state = MAGAuthState.TOKEN_RECEIVED
+        if self._creds.profile_required:
+            self._auth_state = MAGAuthState.PROFILE_REQUIRED
+            await self.get_profile()
+        if self._creds.auth_mode == MAGAuthMode.MAC_PLUS_LOGIN.value:
+            self._auth_state = MAGAuthState.DO_AUTH
+            await self.do_auth()
+        elif self._creds.auth_mode == MAGAuthMode.AUTHORIZATION_KEY.value:
+            if not self._creds.authorization_key:
+                raise AuthError("AUTH_KEY_REQUIRED: authorization key is not configured")
+            raise AuthError(
+                "AUTH_KEY_REQUIRED: authorization-key request transport is not established"
+            )
+        self._auth_state = MAGAuthState.SESSION_VALIDATED
         self._schedule_refresh()
         log.info("MAG authentication successful")
+
+    async def get_profile(self) -> object:
+        """Request the minimal or explicitly populated profile stage."""
+        self._auth_state = MAGAuthState.GET_PROFILE
+        request = self._profile.build_request(self._creds.portal_url, MAGOperation.GET_PROFILE)
+        params = self._profile.profile_params(
+            serial_number=self._creds.serial_number,
+            device_id=self._creds.device_id,
+            device_id2=self._creds.device_id2,
+            mag_model=self._creds.mag_model,
+            signature=self._creds.signature,
+        )
+        payload = await self._conn.get(
+            request.endpoint,
+            params=params,
+            headers={**request.headers, **self._request_headers()},
+            base_url=request.base_url,
+        )
+        raw_js = payload.get("js") if isinstance(payload, Mapping) else None
+        if isinstance(raw_js, Mapping) and raw_js.get("error"):
+            classification = self._classify_policy(raw_js.get("error"))
+            self._last_profile_classification = classification
+            raise AuthError(f"{classification}: portal rejected get_profile")
+        if not isinstance(raw_js, (Mapping, list, str, int, float, bool)):
+            self._last_profile_classification = "PROFILE_REQUIRED"
+            raise AuthError("PROFILE_REQUIRED: portal returned no profile object")
+        self._last_profile_classification = "PROFILE_SUCCESS"
+        self._auth_state = MAGAuthState.SESSION_VALIDATED
+        return payload
+
+    async def do_auth(self) -> object:
+        """Run explicit login/password authentication using form POST only."""
+        if not self._creds.login or not self._creds.password:
+            raise AuthError("LOGIN_REQUIRED: login/password are not configured")
+        request = self._profile.build_request(self._creds.portal_url, MAGOperation.DO_AUTH)
+        params = self._profile.do_auth_params(
+            login=self._creds.login,
+            password=self._creds.password,
+            device_id=self._creds.device_id,
+            device_id2=self._creds.device_id2,
+            signature=self._creds.signature,
+        )
+        headers = {**request.headers, **self._request_headers()}
+        headers["Content-Type"] = "application/x-www-form-urlencoded"
+        payload = await self._conn.post(
+            request.endpoint,
+            data=params,
+            headers=headers,
+            base_url=request.base_url,
+        )
+        raw_js = payload.get("js") if isinstance(payload, Mapping) else None
+        if raw_js is True or (isinstance(raw_js, str) and raw_js.casefold() == "true"):
+            self._auth_state = MAGAuthState.SESSION_VALIDATED
+            return payload
+        self._auth_state = MAGAuthState.DO_AUTH
+        raise AuthError("LOGIN_REQUIRED: portal rejected explicit do_auth credentials")
+
+    @staticmethod
+    def _classify_policy(value: object) -> str:
+        """Normalize a machine-readable policy marker without retaining its body."""
+        text = str(value).casefold()
+        if "model" in text or "stb_type" in text:
+            return "STB_MODEL_REJECTED"
+        if "device" in text or "serial" in text:
+            return "DEVICE_ID_REQUIRED"
+        if "login" in text or "password" in text:
+            return "LOGIN_REQUIRED"
+        if "key" in text or "token" in text:
+            return "AUTH_KEY_REQUIRED"
+        if "unauthor" in text or "auth" in text or "active" in text:
+            return "STB_NOT_AUTHORIZED"
+        return "PROFILE_AUTH_ERROR"
 
     async def refresh(self) -> None:
         """Refresh the token through the same selected protocol profile."""

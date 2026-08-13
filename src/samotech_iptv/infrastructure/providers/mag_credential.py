@@ -37,6 +37,12 @@ class MagCredential:
     device_id: str = ""
     device_id2: str = ""
     mag_model: str = ""
+    signature: str = ""
+    auth_mode: str = "mac_only"
+    login: str = ""
+    password: str = ""
+    authorization_key: str = ""
+    profile_required: bool = False
 
     def __post_init__(self) -> None:
         if not self.portal_url.strip():
@@ -64,6 +70,12 @@ class MagCredential:
             device_id=identity.get("device_id", ""),
             device_id2=identity.get("device_id2", ""),
             mag_model=identity.get("mag_model", ""),
+            signature=identity.get("signature", ""),
+            auth_mode=identity.get("auth_mode", "mac_only"),
+            login=identity.get("login", ""),
+            password=identity.get("password", ""),
+            authorization_key=identity.get("authorization_key", ""),
+            profile_required=bool(identity.get("profile_required", False)),
         )
 
     def as_legacy_config(self, *, timeout_s: float, max_retries: int) -> dict[str, object]:
@@ -75,6 +87,12 @@ class MagCredential:
             "device_id": self.device_id,
             "device_id2": self.device_id2,
             "mag_model": self.mag_model,
+            "signature": self.signature,
+            "auth_mode": self.auth_mode,
+            "login": self.login,
+            "password": self.password,
+            "authorization_key": self.authorization_key,
+            "profile_required": self.profile_required,
             "timeout_s": timeout_s,
             "max_retries": max_retries,
             "protocol_profile": "auto",

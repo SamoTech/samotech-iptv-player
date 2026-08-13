@@ -115,6 +115,68 @@ class MAGConnection:
         url = _sanitise_url(base_url or self._portal_url, path)
         return await self._request_with_retry("GET", url, params=params, headers=headers)
 
+    async def post(
+        self,
+        path: str,
+        *,
+        data: Mapping[str, str | int] | None = None,
+        headers: dict[str, str] | None = None,
+        base_url: str | None = None,
+    ) -> JSON:
+        """Issue one authenticated form POST relative to an approved profile base."""
+        url = _sanitise_url(base_url or self._portal_url, path)
+        return await self._request_with_retry(
+            "POST",
+            url,
+            data={key: str(value) for key, value in (data or {}).items()},
+            headers=headers,
+        )
+
+    async def probe(
+        self,
+        method: str,
+        path: str,
+        *,
+        params: Mapping[str, str | int] | None = None,
+        data: Mapping[str, str | int] | None = None,
+        headers: dict[str, str] | None = None,
+        base_url: str | None = None,
+    ) -> MAGProbeResponse:
+        """Make one transient safe probe using a source-backed HTTP method."""
+        session = self._session
+        if session is None or session.closed:
+            raise RuntimeError("Call open() before making requests")
+        url = _sanitise_url(base_url or self._portal_url, path)
+        started = time.perf_counter()
+        try:
+            async with session.request(
+                method,
+                url,
+                params=params,
+                data={key: str(value) for key, value in (data or {}).items()} or None,
+                headers=headers,
+                allow_redirects=True,
+            ) as response:
+                body = await response.read()
+                content_type = response.headers.get("Content-Type", "").split(";", 1)[0]
+                payload: JSON | None = None
+                malformed_json = False
+                if body:
+                    try:
+                        payload = cast("JSON", json.loads(body))
+                    except (json.JSONDecodeError, UnicodeDecodeError):
+                        malformed_json = True
+                return MAGProbeResponse(
+                    status=response.status,
+                    content_type=content_type or "<missing>",
+                    response_size=len(body),
+                    elapsed_seconds=time.perf_counter() - started,
+                    payload=payload,
+                    malformed_json=malformed_json,
+                )
+        except (TimeoutError, aiohttp.ClientError) as exc:
+            raise NetworkError("MAG protocol probe did not complete") from exc
+
     async def probe_get(
         self,
         path: str,
@@ -168,6 +230,7 @@ class MAGConnection:
         url: str,
         *,
         params: Mapping[str, str | int] | None = None,
+        data: Mapping[str, str | int] | None = None,
         headers: dict[str, str] | None = None,
     ) -> JSON:
         session = self._session
@@ -183,6 +246,7 @@ class MAGConnection:
                     method,
                     url,
                     params=params,
+                    data={key: str(value) for key, value in (data or {}).items()} or None,
                     headers=headers,
                     allow_redirects=True,
                 ) as response:
