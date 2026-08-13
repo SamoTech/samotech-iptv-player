@@ -112,3 +112,37 @@ async def test_close_calls_session_close() -> None:
     conn._session = mock_sess
     await conn.close()
     mock_sess.close.assert_awaited_once()
+
+
+@pytest.mark.parametrize(
+    ("base", "path", "expected"),
+    [
+        (
+            "https://host/",
+            "/server/load.php",
+            "https://host/server/load.php",
+        ),
+        (
+            "https://host/c/",
+            "/server/load.php",
+            "https://host/c/server/load.php",
+        ),
+        (
+            "https://host/c",
+            "/server/load.php",
+            "https://host/c/server/load.php",
+        ),
+        (
+            "https://host/stalker_portal/",
+            "server/load.php",
+            "https://host/stalker_portal/server/load.php",
+        ),
+        (
+            "https://host/portal.php",
+            "portal.php",
+            "https://host/portal.php",
+        ),
+    ],
+)
+def test_sanitise_url_fixed_base_variants(base: str, path: str, expected: str) -> None:
+    assert _sanitise_url(base, path) == expected

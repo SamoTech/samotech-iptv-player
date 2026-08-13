@@ -46,6 +46,7 @@ class MAGAuthState(StrEnum):
     PROFILE_REQUIRED = "profile_required"
     GET_PROFILE = "get_profile"
     DO_AUTH = "do_auth"
+    AUTH_KEY_REQUIRED = "auth_key_required"
     SESSION_VALIDATED = "session_validated"
     CATALOGUE = "catalogue"
 
@@ -75,6 +76,8 @@ class MAGProtocolRequest:
     endpoint: str
     params: dict[str, str | int]
     headers: dict[str, str]
+    method: str = "GET"
+    form: dict[str, str | int] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -100,6 +103,8 @@ class MAGProtocolProfile:
     handshake_endpoint: str = ENDPOINT_HANDSHAKE
     use_origin_base: bool = False
     handshake_params: Mapping[str, str] = field(default_factory=dict)
+    handshake_method: str = "GET"
+    handshake_form_params: Mapping[str, str | int] = field(default_factory=dict)
     http_user_agent: str | None = None
     user_agent: str | None = None
     model_x_user_agent: bool = False
@@ -213,6 +218,8 @@ class MAGProtocolProfile:
         device_id2: str = "",
         mag_model: str = "",
         signature: str = "",
+        hd: str = "",
+        auth_second_step: bool = False,
     ) -> dict[str, str | int]:
         """Build minimal get_profile params plus only explicitly supplied identity."""
         params = self.operation_params(MAGOperation.GET_PROFILE)
@@ -226,6 +233,10 @@ class MAGProtocolProfile:
             params["stb_type"] = mag_model
         if signature:
             params["signature"] = signature
+        if hd:
+            params["hd"] = hd
+        if auth_second_step:
+            params["auth_second_step"] = 1
         return params
 
     def do_auth_params(
@@ -271,6 +282,12 @@ class MAGProtocolProfile:
             endpoint=self.handshake_endpoint,
             params=request_params,
             headers=self.protocol_headers(portal_url),
+            method=(self.handshake_method if operation is MAGOperation.HANDSHAKE else "GET"),
+            form=(
+                {**request_params, **self.handshake_form_params}
+                if operation is MAGOperation.HANDSHAKE
+                else {}
+            ),
         )
 
     def handshake_request(self, portal_url: str) -> tuple[str, dict[str, str], dict[str, str]]:
@@ -288,7 +305,7 @@ class MAGProtocolProfile:
             raise AuthError("Portal handshake response did not contain a JSON object")
         raw_js = payload.get("js", {})
         js = raw_js if isinstance(raw_js, Mapping) else {}
-        token = js.get("token") or payload.get("token")
+        token = js.get("token") or js.get("Token") or payload.get("token")
         if not token:
             raise AuthError(
                 "Portal handshake response did not contain a token. "

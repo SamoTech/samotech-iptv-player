@@ -16,6 +16,7 @@ from .protocol_profile import (
     MAGAuthState,
     MAGOperation,
     MAGProtocolProfile,
+    MAGProtocolRequest,
 )
 
 if TYPE_CHECKING:
@@ -80,31 +81,36 @@ class MAGSession:
         """Run the evidence-backed optional authentication state machine."""
         self._auth_state = MAGAuthState.HANDSHAKE
         request = self._profile.build_request(self._creds.portal_url, MAGOperation.HANDSHAKE)
-        payload = await self._conn.get(
-            request.endpoint,
-            params=request.params,
-            headers={**request.headers, **self._request_headers()},
-            base_url=request.base_url,
-        )
+        payload = await self._send_profile_request(request)
         self._store_token(payload)
         self._auth_state = MAGAuthState.TOKEN_RECEIVED
-        if self._creds.profile_required or self._creds.profile_second_step:
-            self._auth_state = MAGAuthState.PROFILE_REQUIRED
-            await self.get_profile()
-        if self._creds.auth_mode == MAGAuthMode.MAC_PLUS_LOGIN.value:
-            self._auth_state = MAGAuthState.DO_AUTH
-            await self.do_auth()
-        elif self._creds.auth_mode == MAGAuthMode.AUTHORIZATION_KEY.value:
-            if not self._creds.authorization_key:
-                raise AuthError("AUTH_KEY_REQUIRED: authorization key is not configured")
-            raise AuthError(
-                "AUTH_KEY_REQUIRED: authorization-key request transport is not established"
-            )
+        try:
+            await self._run_post_handshake_stages()
+        except (AuthError, NetworkError):
+            self._invalidate_session()
+            raise
         self._auth_state = MAGAuthState.SESSION_VALIDATED
         self._schedule_refresh()
         log.info("MAG authentication successful")
 
-    async def get_profile(self) -> object:
+    async def _run_post_handshake_stages(self) -> None:
+        """Run explicitly selected stages after a structurally valid token."""
+        if self._creds.profile_required or self._creds.profile_second_step:
+            self._auth_state = MAGAuthState.PROFILE_REQUIRED
+            await self.get_profile(auth_second_step=self._creds.profile_second_step)
+        if self._creds.auth_mode == MAGAuthMode.MAC_PLUS_LOGIN.value:
+            self._auth_state = MAGAuthState.DO_AUTH
+            await self.do_auth()
+        elif self._creds.auth_mode == MAGAuthMode.AUTHORIZATION_KEY.value:
+            self._auth_state = MAGAuthState.AUTH_KEY_REQUIRED
+            if not self._creds.authorization_key:
+                raise AuthError("AUTH_KEY_REQUIRED: authorization key is not configured")
+            raise AuthError(
+                "AUTH_KEY_TRANSPORT_UNSUPPORTED: authorization-key request transport "
+                "is not established"
+            )
+
+    async def get_profile(self, *, auth_second_step: bool = False) -> object:
         """Request the minimal or explicitly populated profile stage."""
         self._auth_state = MAGAuthState.GET_PROFILE
         request = self._profile.build_request(self._creds.portal_url, MAGOperation.GET_PROFILE)
@@ -114,6 +120,8 @@ class MAGSession:
             device_id2=self._creds.device_id2,
             mag_model=self._creds.mag_model,
             signature=self._creds.signature,
+            hd=self._creds.profile_hd,
+            auth_second_step=auth_second_step,
         )
         payload = await self._conn.get(
             request.endpoint,
@@ -130,7 +138,6 @@ class MAGSession:
             self._last_profile_classification = "PROFILE_REQUIRED"
             raise AuthError("PROFILE_REQUIRED: portal returned no profile object")
         self._last_profile_classification = "PROFILE_SUCCESS"
-        self._auth_state = MAGAuthState.SESSION_VALIDATED
         return payload
 
     async def do_auth(self) -> object:
@@ -155,7 +162,6 @@ class MAGSession:
         )
         raw_js = payload.get("js") if isinstance(payload, Mapping) else None
         if raw_js is True or (isinstance(raw_js, str) and raw_js.casefold() == "true"):
-            self._auth_state = MAGAuthState.SESSION_VALIDATED
             return payload
         self._auth_state = MAGAuthState.DO_AUTH
         raise AuthError("LOGIN_REQUIRED: portal rejected explicit do_auth credentials")
@@ -176,6 +182,33 @@ class MAGSession:
             return "STB_NOT_AUTHORIZED"
         return "PROFILE_AUTH_ERROR"
 
+    async def _send_profile_request(
+        self,
+        request: MAGProtocolRequest,
+        *,
+        params: dict[str, str | int] | None = None,
+    ) -> object:
+        """Execute one profile-owned handshake without mixing query and form data."""
+        profile_request = request
+        headers = {
+            **profile_request.headers,
+            **self._request_headers(),
+        }
+        if profile_request.method.upper() == "POST":
+            headers["Content-Type"] = "application/x-www-form-urlencoded"
+            return await self._conn.post(
+                profile_request.endpoint,
+                data=profile_request.form,
+                headers=headers,
+                base_url=profile_request.base_url,
+            )
+        return await self._conn.get(
+            profile_request.endpoint,
+            params=params if params is not None else profile_request.params,
+            headers=headers,
+            base_url=profile_request.base_url,
+        )
+
     async def refresh(self) -> None:
         """Refresh the token through the same selected protocol profile."""
         try:
@@ -183,13 +216,14 @@ class MAGSession:
             params = dict(request.params)
             if self._creds.token and "token" in params:
                 params["token"] = self._creds.token
-            payload = await self._conn.get(
-                request.endpoint,
-                params=params,
-                headers={**request.headers, **self._request_headers()},
-                base_url=request.base_url,
-            )
+            payload = await self._send_profile_request(request, params=params)
             self._store_token(payload)
+            try:
+                await self._run_post_handshake_stages()
+            except (AuthError, NetworkError):
+                self._invalidate_session()
+                raise
+            self._auth_state = MAGAuthState.SESSION_VALIDATED
             log.debug("MAG token refreshed")
         except NetworkError:
             log.warning("MAG token refresh failed; will retry")
@@ -251,6 +285,11 @@ class MAGSession:
             token=self._creds.token,
             mag_model=self._creds.mag_model,
         )
+
+    def _invalidate_session(self) -> None:
+        """Clear token state after a required authentication stage fails."""
+        self._creds.token = ""
+        self._token_expires_at = 0.0
 
     def _store_token(self, payload: object) -> None:
         handshake = self._profile.parse_handshake(payload)

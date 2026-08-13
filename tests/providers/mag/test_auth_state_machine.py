@@ -15,6 +15,8 @@ _CREDENTIAL_VALUE = "fixture-password"
 def _session(
     *,
     profile_required: bool = False,
+    profile_second_step: bool = False,
+    profile_hd: str = "",
     auth_mode: str = "mac_only",
     login: str = "",
     credential_value: str = "",
@@ -26,6 +28,8 @@ def _session(
         portal_url="http://fixture.test/c/",
         mac_address="00:11:22:33:44:55",
         profile_required=profile_required,
+        profile_second_step=profile_second_step,
+        profile_hd=profile_hd,
         auth_mode=auth_mode,
         login=login,
         password=credential_value,
@@ -103,6 +107,17 @@ async def test_authorization_key_without_key_is_explicitly_blocked() -> None:
 
 
 @pytest.mark.asyncio
+async def test_profile_second_step_sends_only_explicit_second_step_fields() -> None:
+    session, connection, _ = _session(profile_second_step=True, profile_hd="1")
+
+    await session.authenticate()
+
+    profile_params = connection.get.await_args_list[-1].kwargs["params"]
+    assert profile_params["hd"] == "1"
+    assert profile_params["auth_second_step"] == 1
+
+
+@pytest.mark.asyncio
 async def test_profile_stage_can_be_called_with_empty_identity_fields() -> None:
     session, connection, _ = _session()
 
@@ -147,6 +162,8 @@ async def test_profile_policy_markers_are_normalized_safely(marker: str, expecte
         await session.authenticate()
 
     assert session.last_profile_classification == expected
+    assert not session.is_authenticated
+    assert session.token == ""
 
 
 @pytest.mark.asyncio
@@ -162,3 +179,5 @@ async def test_do_auth_rejection_is_not_success() -> None:
         await session.authenticate()
 
     assert session.auth_state is MAGAuthState.DO_AUTH
+    assert not session.is_authenticated
+    assert session.token == ""

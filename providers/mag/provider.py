@@ -47,6 +47,7 @@ class MAGProvider(BaseProvider):
     login, password, authorization_key : str
     profile_required : bool    (default False)
     profile_second_step : bool (default False)
+    profile_hd : str           (default empty)
     timeout_s : float          (default 30)
     max_retries : int          (default 3)
     dev_mode : bool            (default False)
@@ -74,6 +75,7 @@ class MAGProvider(BaseProvider):
                 authorization_key=config.get("authorization_key", ""),
                 profile_required=bool(config.get("profile_required", False)),
                 profile_second_step=bool(config.get("profile_second_step", False)),
+                profile_hd=str(config.get("profile_hd", "")),
             )
 
         self._connection = MAGConnection(

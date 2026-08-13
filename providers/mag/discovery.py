@@ -107,6 +107,10 @@ class MAGDifferentialResult:
     authorization_failure: bool
     classification: MAGDiscoveryClassification
     elapsed_seconds: float
+    redirect_count: int = 0
+    server: str = ""
+    allow: str = ""
+    www_authenticate: bool = False
 
 
 @dataclass(frozen=True)
@@ -125,6 +129,10 @@ class MAGDiscoveryResult:
     profile_present: bool = False
     error_present: bool = False
     authorization_failure: bool = False
+    redirect_count: int = 0
+    server: str = ""
+    allow: str = ""
+    www_authenticate: bool = False
 
 
 class MAGProtocolDiscovery:
@@ -256,6 +264,10 @@ class MAGProtocolDiscovery:
             authorization_failure=authorization_failure,
             classification=classification,
             elapsed_seconds=response.elapsed_seconds,
+            redirect_count=response.redirect_count,
+            server=response.server,
+            allow=response.allow,
+            www_authenticate=response.www_authenticate,
         )
 
     async def discover(self) -> tuple[tuple[MAGDiscoveryResult, ...], MAGProtocolProfile | None]:
@@ -330,9 +342,11 @@ class MAGProtocolDiscovery:
         }
         started = time.perf_counter()
         try:
-            response = await self._connection.probe_get(
+            response = await self._connection.probe(
+                request.method,
                 request.endpoint,
                 params=request.params,
+                data=request.form,
                 headers=headers,
                 base_url=request.base_url,
             )
@@ -391,6 +405,10 @@ class MAGProtocolDiscovery:
             token_present=token_present,
             classification=classification,
             used_prehash=prehash,
+            redirect_count=response.redirect_count,
+            server=response.server,
+            allow=response.allow,
+            www_authenticate=response.www_authenticate,
         )
 
     @staticmethod
@@ -401,7 +419,7 @@ class MAGProtocolDiscovery:
             return MAGDiscoveryClassification.UNKNOWN_PROTOCOL, False
         raw_js = payload.get("js")
         js = raw_js if isinstance(raw_js, Mapping) else {}
-        if js.get("token") or payload.get("token"):
+        if js.get("token") or js.get("Token") or payload.get("token"):
             return MAGDiscoveryClassification.VALID_STALKER_HANDSHAKE, True
         if isinstance(raw_js, Mapping) or "token" in payload:
             return MAGDiscoveryClassification.JSON_WITHOUT_TOKEN, False

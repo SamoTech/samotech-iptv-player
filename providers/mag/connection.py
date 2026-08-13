@@ -9,7 +9,7 @@ import ssl
 import time
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, cast
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urljoin, urlparse, urlunsplit
 
 import aiohttp
 
@@ -45,14 +45,25 @@ class MAGProbeResponse:
     elapsed_seconds: float
     payload: JSON | None = field(default=None, repr=False)
     malformed_json: bool = False
+    redirect_count: int = 0
+    server: str = ""
+    allow: str = ""
+    www_authenticate: bool = False
 
 
 def _sanitise_url(base: str, path: str) -> str:
-    """Join a portal base URL and endpoint path with a valid HTTP scheme."""
+    """Join a portal base URL and endpoint while preserving configured app paths."""
     parsed = urlparse(base)
     if parsed.scheme not in ("http", "https"):
         raise ValueError(f"Portal URL must use http or https, got: {parsed.scheme!r}")
-    return urljoin(base.rstrip("/") + "/", path.lstrip("/"))
+    base_path = parsed.path or "/"
+    endpoint = path.lstrip("/")
+    if endpoint == base_path.rsplit("/", 1)[-1] and not base_path.endswith("/"):
+        directory_base = base
+    else:
+        directory_path = base_path if base_path.endswith("/") else f"{base_path}/"
+        directory_base = urlunsplit((parsed.scheme, parsed.netloc, directory_path, "", ""))
+    return urljoin(directory_base, endpoint)
 
 
 class MAGConnection:
@@ -173,6 +184,10 @@ class MAGConnection:
                     elapsed_seconds=time.perf_counter() - started,
                     payload=payload,
                     malformed_json=malformed_json,
+                    redirect_count=len(response.history),
+                    server=response.headers.get("Server", ""),
+                    allow=response.headers.get("Allow", ""),
+                    www_authenticate="WWW-Authenticate" in response.headers,
                 )
         except (TimeoutError, aiohttp.ClientError) as exc:
             raise NetworkError("MAG protocol probe did not complete") from exc
@@ -220,6 +235,10 @@ class MAGConnection:
                     elapsed_seconds=time.perf_counter() - started,
                     payload=payload,
                     malformed_json=malformed_json,
+                    redirect_count=len(response.history),
+                    server=response.headers.get("Server", ""),
+                    allow=response.headers.get("Allow", ""),
+                    www_authenticate="WWW-Authenticate" in response.headers,
                 )
         except (TimeoutError, aiohttp.ClientError) as exc:
             raise NetworkError("MAG handshake probe did not complete") from exc

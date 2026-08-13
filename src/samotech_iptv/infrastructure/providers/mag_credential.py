@@ -44,6 +44,7 @@ class MagCredential:
     authorization_key: str = ""
     profile_required: bool = False
     profile_second_step: bool = False
+    profile_hd: str = ""
 
     def __post_init__(self) -> None:
         if not self.portal_url.strip():
@@ -78,6 +79,7 @@ class MagCredential:
             authorization_key=identity.get("authorization_key", ""),
             profile_required=bool(identity.get("profile_required", False)),
             profile_second_step=bool(identity.get("profile_second_step", False)),
+            profile_hd=identity.get("profile_hd", ""),
         )
 
     def as_legacy_config(self, *, timeout_s: float, max_retries: int) -> dict[str, object]:
@@ -97,6 +99,7 @@ class MagCredential:
             "authorization_key": self.authorization_key,
             "profile_required": self.profile_required,
             "profile_second_step": self.profile_second_step,
+            "profile_hd": self.profile_hd,
             "timeout_s": timeout_s,
             "max_retries": max_retries,
             "protocol_profile": "auto",
