@@ -28,7 +28,7 @@ The legacy MAG provider owns its `aiohttp` session and connector. It keeps those
 
 ## Current real-portal status
 
-The supplied real portal remains **UNRESOLVED** for compatibility. Its configured `/c/` base produced HTTP 404 for `/c/server/load.php`; the root `/server/load.php` variant produced HTTP 200 with an empty `text/javascript` response. No tested query/header variant produced a JSON session token. This result does not establish that MAG/Stalker support is globally broken.
+The supplied real portal remains **UNRESOLVED** for compatibility. The approved candidate set produced three HTTP-404 classifications and one HTTP-200 empty-response classification; no candidate produced a JSON session token. A supplied Windows run of the failure-safe revision exercised this same sequence twice and logged HTTP-session closure before each authentication failure, with no unclosed-session or unclosed-connector warning in the supplied log. This confirms cleanup of the observed failure path, not portal compatibility or playback. The result does not establish that MAG/Stalker support is globally broken.
 
 ## Security
 
