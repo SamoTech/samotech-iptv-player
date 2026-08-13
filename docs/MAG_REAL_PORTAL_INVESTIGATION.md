@@ -125,19 +125,19 @@ The deterministic tests prove the stage locally; they do not prove that the real
 
 ## 16. Windows playback result
 
-**Not tested for MAG.** Existing user-provided Windows evidence confirms M3U/Xtream playback and VLC/libVLC availability. The new direct-profile sandbox validation stopped before real stream resolution, and the supplied Windows log predates this profile, so video, audio, stop/play, switching, dead-stream recovery, and MAG-specific VLC diagnosis remain unverified.
+**Not tested for MAG.** Existing user-provided Windows evidence confirms M3U/Xtream playback and VLC/libVLC availability. The fresh Windows run included the new discovery candidate but stopped at TCP connection with repeated `WinError 121`, before any HTTP response or stream resolution; video, audio, stop/play, switching, dead-stream recovery, and MAG-specific VLC diagnosis remain unverified.
 
 ## 17. Final root cause
 
-**UNRESOLVED: routing/deployment/provider-side policy boundary.** Every post-commit evidence-backed differential request, including the new concrete portal.php MAC-client handshake, returned an Nginx-style HTTP 404 or empty response: GUI cases returned zero-byte `text/javascript`; helper cases returned 146-byte `text/html`; PORTAL-PHP-01 returned zero-byte `text/javascript`; all had zero redirects, no `Allow` header, and no `WWW-Authenticate` header.
+**UNRESOLVED: Windows transport path first; historical HTTP routing second.** The fresh Windows run failed before HTTP with repeated TCP `WinError 121`. Separately, every post-commit evidence-backed differential request from the successful HTTP path, including the new concrete portal.php MAC-client handshake, returned an Nginx-style HTTP 404 or empty response: GUI cases returned zero-byte `text/javascript`; helper cases returned 146-byte `text/html`; PORTAL-PHP-01 returned zero-byte `text/javascript`; all had zero redirects, no `Allow` header, and no `WWW-Authenticate` header.
  No response contained JSON, an error field, a token, a profile, or an authorization marker. Therefore the evidence does not distinguish disabled classic routing, reverse-proxy/rewrite behavior, middleware-family/version mismatch, gateway filtering, MAC registration/new-STB status, login/key policy, or model policy.
 
 A bare 404 is deliberately not classified as STB-not-authorized. The result also does not prove the portal is incompatible with all Stalker/Ministra implementations.
 
 ## 18. Exact remaining blocker
 
-The exact blocker is **absence of a machine-readable handshake response from every evidence-backed request form tested**, including the newly supplied portal.php MAC Authorization contract.
- The next justified action is provider-side confirmation of the registered/active status and configured authorization mode for the supplied device identity, followed by one corresponding explicitly selected Windows attempt. No new endpoint or protocol profile should be added until that fact or a new machine-readable response is available.
+The latest Windows blocker is **TCP transport failure before any HTTP response**, while the historical sandbox/authorized HTTP blocker is absence of a machine-readable handshake response from the tested request forms, including the newly supplied portal.php MAC Authorization contract.
+ The next justified action is to run `tools/mag_transport_probe.ps1` on the same Windows machine and network using raw TCP, PowerShell, WinHTTP, and curl. Resolve reachability if those tools time out; only if they receive HTTP should provider-side route/authorization confirmation and further protocol analysis proceed. No new endpoint or protocol profile should be added until a new machine-readable response is available.
 
 ## Security status
 

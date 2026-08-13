@@ -76,7 +76,7 @@ There was **no successful real-portal boundary**. The new concrete portal.php ha
 
 ## K. VLC result
 
-**Not run for MAG.** The authorized sandbox validation stopped at handshake, before stream resolution. A fresh Windows run of the new profile is still required for acceptance; VLC/libVLC code was not changed, and no MAG-specific playback claim is made.
+**Not run for MAG.** The authorized sandbox validation stopped at handshake, before stream resolution. The fresh Windows run included the new discovery candidate but failed earlier at TCP connection with repeated `WinError 121`; no HTTP response or stream was obtained. VLC/libVLC code was not changed, and no MAG-specific playback claim is made.
 
 ## L. Regression/CI status
 
@@ -96,9 +96,9 @@ The full suite completed successfully; only existing `aiohttp` deprecation warni
 
 ## M. Remaining blocker
 
-The remaining blocker is the absence of a machine-readable handshake response from every evidence-backed request form tested. The observed Nginx-style 404 boundary does not distinguish disabled or rewritten routes, middleware-family/version mismatch, gateway filtering, device registration state, or provider-side authorization policy. It is not sufficient evidence to claim that the device is unauthorized, and it does not prove incompatibility with every Stalker/Ministra deployment.
+The latest Windows run establishes a transport-layer blocker before HTTP: DNS resolved, but TCP connection completion repeatedly failed with `WinError 121`, so no handshake request was observed from that machine. Separate sandbox requests/aiohttp/curl runs reached HTTP and reproduced the earlier Nginx-style 404 boundary. This network-path difference must be resolved before interpreting the portal’s protocol or authorization behavior. The 404 evidence still does not distinguish disabled or rewritten routes, middleware-family/version mismatch, gateway filtering, device registration state, or provider-side authorization policy. It is not sufficient evidence to claim that the device is unauthorized, and it does not prove incompatibility with every Stalker/Ministra deployment.
 
-The next evidence requirement is a fresh Windows run using the new profile or `auto` discovery, followed by provider-side confirmation of the active portal route and registered device authorization if the handshake remains 404/empty. Until a valid real token is returned, the correct status remains **REAL PORTAL STILL BLOCKED**. No further endpoint permutations, random-token/prehash retries, fabricated identities, VOD/Series/DASH/RTMP work, or VLC changes are justified.
+The next evidence requirement is the Windows cross-client transport matrix in `tools/mag_transport_probe.ps1`: raw TCP, PowerShell, WinHTTP, and curl from the same machine and network. If those tools also time out, fix reachability/firewall/proxy/ISP conditions before changing MAG code. If they receive HTTP 404, continue routing/protocol analysis from that Windows path. Until a valid real token is returned, the correct status remains **REAL PORTAL STILL BLOCKED**. No further endpoint permutations, random-token/prehash retries, fabricated identities, VOD/Series/DASH/RTMP work, or VLC changes are justified.
 
 ## References
 
