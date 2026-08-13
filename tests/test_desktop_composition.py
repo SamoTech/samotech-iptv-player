@@ -243,7 +243,10 @@ async def test_production_composition_initialises_state_restores_metadata_and_wi
     assert result.application is desktop.application
     assert result.main_window is desktop.main_window
     assert result.close is not None
-    player_factory.assert_called_once_with()
+    player_factory.assert_called_once_with(
+        buffer_size_mb=16,
+        hardware_decode=True,
+    )
     arguments = desktop_factory.call_args.args
     keywords = desktop_factory.call_args.kwargs
     assert keywords["argv"] == ["samotech-iptv"]

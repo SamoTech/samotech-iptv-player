@@ -8,6 +8,7 @@ import pytest
 
 from samotech_iptv.application.dtos.categories import LoadCategoriesRequest
 from samotech_iptv.application.use_cases.load_categories import LoadCategories
+from samotech_iptv.core.exceptions import ProviderError
 from samotech_iptv.domain.entities.category import Category
 from samotech_iptv.domain.value_objects.provider_id import ProviderId
 
@@ -28,6 +29,11 @@ class FakeCategoryProvider:
         if self.should_fail:
             raise RuntimeError("credential-bearing provider failure")
         return self.categories
+
+
+class UnsupportedResolver:
+    def resolve_category_provider(self, provider_id: str) -> object:
+        raise ProviderError("Provider does not support category browsing")
 
 
 class FakeResolver:
@@ -85,6 +91,17 @@ async def test_load_categories_returns_empty_catalogue_without_error() -> None:
 
     assert response.categories == []
     assert response.error is None
+
+
+@pytest.mark.asyncio
+async def test_load_categories_returns_controlled_unsupported_result() -> None:
+    response = await LoadCategories(cast("ProviderResolverPort", UnsupportedResolver())).execute(
+        LoadCategoriesRequest(provider_id="mag-test")
+    )
+
+    assert response.categories == []
+    assert response.error is None
+    assert response.unsupported is True
 
 
 @pytest.mark.asyncio

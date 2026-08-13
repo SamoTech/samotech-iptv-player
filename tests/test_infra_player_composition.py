@@ -18,5 +18,8 @@ def test_build_player_constructs_the_vlc_adapter() -> None:
     ) as adapter_type:
         player = build_player()
 
-    adapter_type.assert_called_once_with()
+    adapter_type.assert_called_once_with(
+        playback_mode="auto",
+        network_caching_ms=16_000,
+    )
     assert player is adapter_type.return_value

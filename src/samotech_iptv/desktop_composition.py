@@ -129,7 +129,10 @@ async def build_production_desktop_application(
     )
     provider_catalog_service = ProviderCatalogService(registry)
     provider_resolution_service = ProviderResolutionService(registry, factory, context)
-    player = build_player()
+    player = build_player(
+        buffer_size_mb=application_config.player.buffer_size_mb,
+        hardware_decode=application_config.player.hardware_decode,
+    )
     record_history = RecordHistory(history_repository)
     list_favorites = ListFavorites(favorite_repository)
     remove_favorite = RemoveFavorite(favorite_repository)

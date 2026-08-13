@@ -64,6 +64,20 @@ class FakePlayer:
         self.calls.append(f"nsobject:{native_window_id}")
 
 
+class FailingOncePlayer(FakePlayer):
+    def __init__(self) -> None:
+        super().__init__()
+        self._play_attempts = 0
+
+    def play(self) -> int:
+        self._play_attempts += 1
+        self.calls.append("play")
+        if self._play_attempts == 1:
+            return -1
+        self.playing = True
+        return 0
+
+
 class FakeInstance:
     """Deterministic libVLC instance double."""
 
@@ -77,10 +91,10 @@ class FakeInstance:
         return FakeMedia(url)
 
 
-def _adapter(player: FakePlayer) -> VlcPlayerAdapter:
+def _adapter(player: FakePlayer, **kwargs: object) -> VlcPlayerAdapter:
     sys.modules.setdefault("vlc", SimpleNamespace(Instance=lambda: FakeInstance(player)))
     module = importlib.import_module("samotech_iptv.infrastructure.player.vlc_player_adapter")
-    return module.VlcPlayerAdapter(FakeInstance(player), player)
+    return module.VlcPlayerAdapter(FakeInstance(player), player, **kwargs)
 
 
 @pytest.mark.asyncio
@@ -90,7 +104,9 @@ async def test_vlc_adapter_controls_libvlc_playback() -> None:
 
     await adapter.play(URL("https://example.test/live.m3u8"))
     assert adapter.is_playing is True
-    assert player.media == FakeMedia("https://example.test/live.m3u8")
+    assert player.media is not None
+    assert player.media.url == "https://example.test/live.m3u8"
+    assert player.media.options == [":network-caching=1000"]
 
     await adapter.pause()
     assert adapter.is_playing is False
@@ -98,6 +114,30 @@ async def test_vlc_adapter_controls_libvlc_playback() -> None:
     await adapter.stop()
 
     assert player.calls == ["play", "pause", "play", "stop"]
+
+
+@pytest.mark.asyncio
+async def test_vlc_adapter_stops_previous_media_and_falls_back_once() -> None:
+    player = FailingOncePlayer()
+    adapter = _adapter(player, playback_mode="auto", play_retry_count=1)
+
+    await adapter.play(URL("https://example.test/first.m3u8"))
+    assert player.media is not None
+    assert player.media.options == [":network-caching=1000", ":avcodec-hw=none"]
+
+    await adapter.play(URL("https://example.test/second.m3u8"))
+
+    assert player.calls == ["play", "stop", "play", "stop", "play"]
+    assert player.media is not None
+    assert player.media.url == "https://example.test/second.m3u8"
+    assert player.media.options == [":network-caching=1000"]
+
+
+@pytest.mark.asyncio
+async def test_vlc_adapter_rejects_invalid_playback_strategy() -> None:
+    player = FakePlayer()
+    with pytest.raises(ValueError, match="playback_mode"):
+        _adapter(player, playback_mode="invalid")
 
 
 @pytest.mark.asyncio
@@ -120,7 +160,9 @@ async def test_vlc_adapter_records_active_stream_with_duplicate_file_output(tmp_
     await adapter.stop_recording()
 
     assert adapter.is_recording is False
-    assert player.media == FakeMedia("https://example.test/live.m3u8")
+    assert player.media is not None
+    assert player.media.url == "https://example.test/live.m3u8"
+    assert player.media.options == [":network-caching=1000"]
     assert player.calls == ["play", "play", "play"]
 
 

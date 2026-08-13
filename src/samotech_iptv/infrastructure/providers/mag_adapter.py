@@ -8,7 +8,8 @@ objects and entities.
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, Protocol, TypeVar, cast
+import time
+from typing import TYPE_CHECKING, Literal, Protocol, TypeVar, cast
 
 from samotech_iptv.application.ports.provider_capabilities import (
     AuthenticationProvider,
@@ -20,7 +21,8 @@ from samotech_iptv.application.ports.provider_capabilities import (
     SessionProvider,
 )
 from samotech_iptv.application.ports.provider_port import ProviderPort
-from samotech_iptv.core.exceptions import ProviderError, ValidationError
+from samotech_iptv.core.diagnostics import log_exception
+from samotech_iptv.core.exceptions import AuthenticationError, ProviderError, ValidationError
 from samotech_iptv.core.logging import get_logger
 from samotech_iptv.domain.value_objects.provider_capability import ProviderCapability
 from samotech_iptv.domain.value_objects.provider_id import ProviderId
@@ -30,6 +32,7 @@ from samotech_iptv.infrastructure.providers.mag_domain_translator import (
 )
 from samotech_iptv.infrastructure.providers.mag_error_translator import (
     translate_mag_and_raise,
+    translate_mag_error,
 )
 
 if TYPE_CHECKING:
@@ -50,6 +53,9 @@ __all__ = ["MagProviderAdapter", "register_with_factory"]
 
 _LOG = get_logger(__name__)
 _T = TypeVar("_T")
+MagSessionState = Literal[
+    "no_session", "authenticating", "authenticated", "authentication_failed", "session_expired"
+]
 _MAG_CAPABILITIES = frozenset(
     {
         ProviderCapability.AUTHENTICATION,
@@ -110,6 +116,8 @@ class MagProviderAdapter(
         self._credential: MagCredential | None = None
         self._session_token: str | None = None
         self._is_authenticated = False
+        self._session_state: MagSessionState = "no_session"
+        self._auth_lock = asyncio.Lock()
 
     @property
     def provider_id(self) -> ProviderId:
@@ -121,46 +129,36 @@ class MagProviderAdapter(
         """Whether this adapter holds a successfully established MAG session."""
         return self._is_authenticated
 
+    @property
+    def session_state(self) -> MagSessionState:
+        """Return the explicit, testable MAG lifecycle state."""
+        return self._session_state
+
     def supported_capabilities(self) -> frozenset[ProviderCapability]:
         """Return only the capabilities implemented by this MAG adapter."""
         return _MAG_CAPABILITIES
 
     async def authenticate(self, credential: Credential) -> bool:
-        """Authenticate using the MAG MAC address supplied by the application.
-
-        The generic credential's username maps to the MAG subscription MAC.
-        The legacy protocol does not submit its password field; no session
-        token is persisted or copied into registration metadata.
-        """
-        mag_credential = MagCredential.from_application_credential(credential, self._meta.base_url)
-        self._set_credential(mag_credential)
-        _LOG.info("[%s] Authenticating MAG provider", self._meta.provider_id)
-        try:
-            provider = self._ensure_provider()
-            await provider.connect()
-            self._session_token = self._read_session_token(provider)
-            self._is_authenticated = True
-            return True
-        except asyncio.CancelledError:
-            raise
-        except Exception as exc:
-            self._is_authenticated = False
-            self._session_token = None
-            translate_mag_and_raise(exc)
+        """Authenticate using the MAG MAC address supplied by the application."""
+        self._set_credential(
+            MagCredential.from_application_credential(credential, self._meta.base_url)
+        )
+        return await self._authenticate_current()
 
     async def refresh_session(self) -> bool:
         """Refresh the active MAG session token without exposing it."""
-        await self._call(lambda provider: provider.refresh_token())
+        await self._ensure_authenticated()
+        await self._call_once(lambda provider: provider.refresh_token())
         self._session_token = self._read_session_token(self._ensure_provider())
         self._is_authenticated = True
+        self._session_state = "authenticated"
         return True
 
     async def close_session(self) -> None:
         """Close the legacy connection and discard volatile session state."""
-        if self._legacy is None:
-            return
         try:
-            await self._legacy.close()
+            if self._legacy is not None:
+                await self._legacy.close()
         except asyncio.CancelledError:
             raise
         except Exception as exc:  # pragma: no cover - shutdown must be best effort
@@ -168,15 +166,26 @@ class MagProviderAdapter(
         finally:
             self._is_authenticated = False
             self._session_token = None
+            self._session_state = "no_session"
 
     async def load_channels(self) -> Sequence[Channel]:
         """Fetch and translate the MAG live-TV catalogue."""
+        started = time.perf_counter()
+        _LOG.info("[IPTV] MAG LOAD_CHANNELS provider_id=%s", self._meta.provider_id)
         raw = await self._call(lambda provider: provider.get_channels())
-        return MagDomainTranslator.channels(raw, self.provider_id)
+        channels = MagDomainTranslator.channels(raw, self.provider_id)
+        _LOG.info(
+            "[IPTV] MAG LOAD_CHANNELS SUCCESS provider_id=%s records=%d elapsed=%.3fs",
+            self._meta.provider_id,
+            len(channels),
+            time.perf_counter() - started,
+        )
+        return channels
 
     async def load_epg(self, channel_id: ChannelId) -> Sequence[EPGEntry]:
         """Fetch and translate EPG records for a single channel."""
         numeric_channel_id = self._as_mag_numeric_id(channel_id)
+        _LOG.info("[IPTV] MAG LOAD_EPG provider_id=%s", self._meta.provider_id)
         raw = await self._call(lambda provider: provider.get_epg(channel_ids=[numeric_channel_id]))
         records = self._epg_records_for_channel(raw, numeric_channel_id)
         return MagDomainTranslator.epg_entries(records, channel_id)
@@ -196,11 +205,19 @@ class MagProviderAdapter(
 
     async def resolve_stream(self, channel_id: ChannelId) -> URL:
         """Resolve a playable URL for a MAG channel identifier."""
+        started = time.perf_counter()
+        _LOG.info("[IPTV] MAG STREAM_RESOLUTION provider_id=%s", self._meta.provider_id)
         stream_id = self._as_mag_numeric_id(channel_id)
         raw_url = await self._call(
             lambda provider: provider.get_stream_url(stream_id=stream_id, stream_type="live")
         )
-        return MagDomainTranslator.stream_url(raw_url)
+        resolved = MagDomainTranslator.stream_url(raw_url)
+        _LOG.info(
+            "[IPTV] MAG STREAM_RESOLUTION SUCCESS provider_id=%s elapsed=%.3fs",
+            self._meta.provider_id,
+            time.perf_counter() - started,
+        )
+        return resolved
 
     def _set_credential(self, credential: MagCredential) -> None:
         """Set the connection credential while rejecting identity changes in-session."""
@@ -234,13 +251,87 @@ class MagProviderAdapter(
         return self._legacy
 
     async def _call(self, operation: Callable[[_LegacyMagProvider], Awaitable[_T]]) -> _T:
-        """Run a legacy operation and translate all non-cancellation errors."""
+        """Authenticate, run one operation, and retry once after session expiry."""
+        await self._ensure_authenticated()
+        try:
+            return await self._call_once(operation)
+        except AuthenticationError:
+            if self._credential is None:
+                raise
+            self._session_state = "session_expired"
+            self._is_authenticated = False
+            _LOG.warning(
+                "[IPTV] MAG SESSION EXPIRED provider_id=%s operation=retry",
+                self._meta.provider_id,
+            )
+            await self._authenticate_current()
+            _LOG.info("[IPTV] MAG REAUTH provider_id=%s", self._meta.provider_id)
+            return await self._call_once(operation)
+
+    async def _call_once(self, operation: Callable[[_LegacyMagProvider], Awaitable[_T]]) -> _T:
         try:
             return await operation(self._ensure_provider())
         except asyncio.CancelledError:
             raise
         except Exception as exc:
-            translate_mag_and_raise(exc)
+            translated = translate_mag_error(exc)
+            raise translated from exc
+
+    async def _ensure_authenticated(self) -> None:
+        if self._is_authenticated and self._session_token:
+            return
+        if self._credential is None:
+            stored = await self._ctx.credential_store.retrieve(self.provider_id)
+            if stored is None:
+                self._session_state = "authentication_failed"
+                raise AuthenticationError("MAG credentials are not available")
+            self._set_credential(
+                MagCredential.from_application_credential(stored, self._meta.base_url)
+            )
+        await self._authenticate_current()
+
+    async def _authenticate_current(self) -> bool:
+        if self._credential is None:
+            self._session_state = "authentication_failed"
+            raise AuthenticationError("MAG credentials are not available")
+        async with self._auth_lock:
+            if self._is_authenticated and self._session_token:
+                return True
+            started = time.perf_counter()
+            self._session_state = "authenticating"
+            _LOG.info(
+                "[IPTV] MAG AUTH START provider_id=%s operation=connect",
+                self._meta.provider_id,
+            )
+            try:
+                provider = self._ensure_provider()
+                await provider.connect()
+                self._session_token = self._read_session_token(provider)
+                if not self._session_token:
+                    raise AuthenticationError("MAG handshake did not establish a session")
+                self._is_authenticated = True
+                self._session_state = "authenticated"
+                _LOG.info(
+                    "[IPTV] MAG AUTH SUCCESS provider_id=%s elapsed=%.3fs",
+                    self._meta.provider_id,
+                    time.perf_counter() - started,
+                )
+                return True
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                self._is_authenticated = False
+                self._session_token = None
+                self._session_state = "authentication_failed"
+                log_exception(
+                    _LOG,
+                    "[IPTV] MAG AUTH FAILURE",
+                    exc,
+                    provider_id=self._meta.provider_id,
+                )
+                if isinstance(exc, AuthenticationError):
+                    raise
+                translate_mag_and_raise(exc)
 
     @staticmethod
     def _as_mag_numeric_id(channel_id: ChannelId) -> int:

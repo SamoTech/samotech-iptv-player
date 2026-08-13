@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
 
 import pytest
 
@@ -28,6 +28,14 @@ from samotech_iptv.infrastructure.providers.provider_metadata import (
 _AUTH_VALUE = "test-auth-value"
 _SESSION_VALUE = "initial-session-value"
 _REFRESHED_VALUE = "refreshed-session-value"
+
+
+class StoredCredentialStore:
+    def __init__(self, credential: Credential) -> None:
+        self.credential = credential
+
+    async def retrieve(self, provider_id: ProviderId) -> Credential:
+        return self.credential
 
 
 class FakeMagProvider:
@@ -87,6 +95,24 @@ class FakeMagProvider:
     async def get_stream_url(self, stream_id: int, stream_type: str = "live") -> str:
         self.stream_calls.append((stream_id, stream_type))
         return f"https://stream.example.test/live/{stream_id}.m3u8"
+
+
+class ExpiringMagProvider(FakeMagProvider):
+    def __init__(self) -> None:
+        super().__init__()
+        self.expire_next = False
+
+    async def get_channels(self) -> list[dict[str, Any]]:
+        if self.expire_next:
+            self.expire_next = False
+            from providers.base.errors import AuthError
+
+            raise AuthError("session expired")
+        return await super().get_channels()
+
+
+if TYPE_CHECKING:
+    from samotech_iptv.domain.value_objects.provider_id import ProviderId
 
 
 @pytest.fixture
@@ -247,6 +273,60 @@ class TestEpgAndPlayback:
         await adapter.authenticate(credential)
         with pytest.raises(ValidationError):
             await adapter.resolve_stream(ChannelId("not-a-number"))
+
+
+class TestAutomaticAuthentication:
+    @pytest.mark.asyncio
+    async def test_load_channels_rehydrates_stored_identity_and_authenticates(
+        self,
+        metadata: InfraProviderMetadata,
+        context: ProviderContext,
+        legacy: FakeMagProvider,
+        credential: Credential,
+    ) -> None:
+        store = StoredCredentialStore(credential)
+        context._credential_store = cast("Any", store)
+        adapter = MagProviderAdapter(metadata, context, legacy)
+
+        channels = await adapter.load_channels()
+
+        assert len(channels) == 2
+        assert legacy.connect_calls == 1
+        assert adapter.session_state == "authenticated"
+
+    @pytest.mark.asyncio
+    async def test_authenticated_session_is_reused(
+        self,
+        metadata: InfraProviderMetadata,
+        context: ProviderContext,
+        legacy: FakeMagProvider,
+        credential: Credential,
+    ) -> None:
+        store = StoredCredentialStore(credential)
+        context._credential_store = cast("Any", store)
+        adapter = MagProviderAdapter(metadata, context, legacy)
+
+        await adapter.load_channels()
+        await adapter.load_channels()
+
+        assert legacy.connect_calls == 1
+
+    @pytest.mark.asyncio
+    async def test_expired_session_reauthenticates_once(
+        self, metadata: InfraProviderMetadata, context: ProviderContext, credential: Credential
+    ) -> None:
+        store = StoredCredentialStore(credential)
+        context._credential_store = cast("Any", store)
+        legacy = ExpiringMagProvider()
+        adapter = MagProviderAdapter(metadata, context, legacy)
+
+        await adapter.load_channels()
+        legacy.expire_next = True
+        channels = await adapter.load_channels()
+
+        assert len(channels) == 2
+        assert legacy.connect_calls == 2
+        assert adapter.session_state == "authenticated"
 
 
 class TestSessionLifecycle:

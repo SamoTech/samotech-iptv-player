@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import ssl
 from typing import TYPE_CHECKING, cast
@@ -113,9 +114,59 @@ class MAGConnection:
                     headers=headers,
                     allow_redirects=True,
                 ) as response:
+                    body = await response.read()
+                    content_type = response.headers.get("Content-Type", "").split(";", 1)[0]
+                    safe_path = urlparse(url).path or "/"
+                    response_size = len(body)
+                    if response.status >= 400:
+                        log.warning(
+                            "[IPTV] PROVIDER=MAG OPERATION=HTTP_REQUEST STAGE=AUTHENTICATION "
+                            "METHOD=%s PATH=%s HTTP_STATUS=%d CONTENT_TYPE=%s RESPONSE_BYTES=%d "
+                            "RESULT=FAIL ERROR=HTTP_STATUS",
+                            method,
+                            safe_path,
+                            response.status,
+                            content_type or "<missing>",
+                            response_size,
+                        )
+                    elif not body:
+                        log.warning(
+                            "[IPTV] PROVIDER=MAG OPERATION=HTTP_REQUEST STAGE=AUTHENTICATION "
+                            "METHOD=%s PATH=%s HTTP_STATUS=%d CONTENT_TYPE=%s RESPONSE_BYTES=0 "
+                            "RESULT=FAIL ERROR=EMPTY_SESSION_RESPONSE",
+                            method,
+                            safe_path,
+                            response.status,
+                            content_type or "<missing>",
+                        )
+                        raise NetworkError("MAG response was empty")
+                    else:
+                        log.debug(
+                            "[IPTV] PROVIDER=MAG OPERATION=HTTP_REQUEST STAGE=HTTP_RESPONSE "
+                            "METHOD=%s PATH=%s HTTP_STATUS=%d CONTENT_TYPE=%s RESPONSE_BYTES=%d "
+                            "RESULT=RECEIVED",
+                            method,
+                            safe_path,
+                            response.status,
+                            content_type or "<missing>",
+                            response_size,
+                        )
                     response.raise_for_status()
-                    data = await response.json(content_type=None)
-                    log.debug("Response %d from %s", response.status, url)
+                    try:
+                        data = json.loads(body)
+                    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+                        log.warning(
+                            "[IPTV] PROVIDER=MAG OPERATION=HTTP_REQUEST STAGE=AUTHENTICATION "
+                            "METHOD=%s PATH=%s HTTP_STATUS=%d CONTENT_TYPE=%s RESPONSE_BYTES=%d "
+                            "RESULT=FAIL ERROR=MALFORMED_JSON",
+                            method,
+                            safe_path,
+                            response.status,
+                            content_type or "<missing>",
+                            response_size,
+                        )
+                        raise NetworkError("MAG response was not valid JSON") from exc
+                    log.debug("Response %d from %s", response.status, safe_path)
                     return cast("JSON", data)
             except aiohttp.ClientResponseError as exc:
                 if 400 <= exc.status < 500:

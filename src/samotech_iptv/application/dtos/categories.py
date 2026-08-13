@@ -28,3 +28,4 @@ class LoadCategoriesRequest:
 class LoadCategoriesResponse:
     categories: Sequence[CategoryDTO] = field(default_factory=list)
     error: str | None = None
+    unsupported: bool = False

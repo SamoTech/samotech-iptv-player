@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 from samotech_iptv.application.dtos.categories import CategoryDTO, LoadCategoriesResponse
 from samotech_iptv.core.diagnostics import DiagnosticTrace, log_exception, safe_label
+from samotech_iptv.core.exceptions import ProviderError
 from samotech_iptv.core.logging import get_logger
 
 if TYPE_CHECKING:
@@ -32,6 +33,18 @@ class LoadCategories:
                 provider = self._provider_resolver.resolve_category_provider(request.provider_id)
             with trace.stage("Category request", provider=type(provider).__name__):
                 categories = await provider.load_live_categories()
+        except ProviderError as exc:
+            if str(exc) == "Provider does not support category browsing":
+                trace.result("UNSUPPORTED", reason="category_browsing")
+                return LoadCategoriesResponse(unsupported=True)
+            log_exception(
+                _LOG,
+                "Unable to load registered provider categories",
+                exc,
+                provider_id=request.provider_id,
+            )
+            trace.result("FAIL", error_type=type(exc).__name__, error=safe_label(exc))
+            return LoadCategoriesResponse(error="Unable to load categories")
         except Exception as exc:  # noqa: BLE001
             log_exception(
                 _LOG,
