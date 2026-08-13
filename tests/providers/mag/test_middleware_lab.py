@@ -91,15 +91,16 @@ async def middleware_lab() -> tuple[str, MiddlewareLabState]:
                 ],
             }
             page = query.get("p", "")
-            if state.ordered_mode == "non_terminating":
+            if state.ordered_mode in {"non_terminating", "repeated"}:
+                record_id = "repeat" if state.ordered_mode == "repeated" else page
                 return web.json_response(
                     {
                         "js": {
                             "total_items": "1000000",
                             "data": [
                                 {
-                                    "id": page,
-                                    "name": f"Repeating {page}",
+                                    "id": record_id,
+                                    "name": "Repeating page",
                                     "cmd": "ffmpeg http://127.0.0.1/lab/repeating.ts",
                                 }
                             ],
@@ -222,3 +223,36 @@ async def test_ordered_catalogue_stops_pathological_pagination_with_safety_guard
     assert [request["query"].get("p") for request in ordered] == [
         str(index) for index in range(1, 1001)
     ]
+
+
+@pytest.mark.asyncio
+async def test_ordered_catalogue_stops_repeated_non_empty_pages_early(
+    middleware_lab: tuple[str, MiddlewareLabState],
+) -> None:
+    base_url, state = middleware_lab
+    state.ordered_mode = "repeated"
+
+    provider = MAGProvider(
+        {
+            "portal_url": base_url,
+            "mac_address": "00:11:22:33:44:55",
+            "protocol_profile": "stalker_helper_compatibility",
+            "timeout_s": 2.0,
+            "max_retries": 1,
+            "use_keyring": False,
+        }
+    )
+
+    try:
+        await provider.connect()
+        with pytest.raises(ProviderError, match="repeated a non-empty page"):
+            await provider.get_channels()
+    finally:
+        await provider.close()
+
+    ordered = [
+        request
+        for request in state.requests
+        if request["query"].get("action") == "get_ordered_list"
+    ]
+    assert [request["query"].get("p") for request in ordered] == ["1", "2"]

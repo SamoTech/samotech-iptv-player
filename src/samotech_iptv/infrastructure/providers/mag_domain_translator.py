@@ -31,7 +31,7 @@ class MagDomainTranslator:
         if not name:
             raise ValidationError("name", "MAG channel response has no display name")
 
-        logo = str(raw.get("logo") or raw.get("logo_small") or "").strip()
+        logo_url = MagDomainTranslator._optional_logo_url(raw.get("logo") or raw.get("logo_small"))
         number = MagDomainTranslator._optional_int(raw.get("number") or raw.get("ch_num"))
         category_id = str(raw.get("tv_genre_id") or raw.get("category_id") or "").strip() or None
         epg_channel_id = str(raw.get("xmltv_id") or raw.get("epg_id") or "").strip() or None
@@ -42,7 +42,7 @@ class MagDomainTranslator:
             provider_id=provider_id,
             stream_id=StreamId(str(raw.get("stream_id") or channel_id)),
             category_id=category_id,
-            logo_url=URL(logo) if logo else None,
+            logo_url=logo_url,
             epg_channel_id=epg_channel_id,
             number=number,
         )
@@ -85,6 +85,23 @@ class MagDomainTranslator:
     def stream_url(raw_url: str) -> URL:
         """Validate and wrap a resolved MAG stream URL."""
         return URL(raw_url)
+
+    @staticmethod
+    def _optional_logo_url(value: object) -> URL | None:
+        """Validate optional logo metadata without rejecting a channel record."""
+        logo = str(value or "").strip()
+        if not logo:
+            return None
+        try:
+            return URL(logo)
+        except ValidationError:
+            normalized = logo.lstrip("-").strip()
+            if normalized == logo or not normalized.startswith(("http://", "https://")):
+                return None
+            try:
+                return URL(normalized)
+            except ValidationError:
+                return None
 
     @staticmethod
     def _required_text(raw: Mapping[str, object], key: str) -> str:
