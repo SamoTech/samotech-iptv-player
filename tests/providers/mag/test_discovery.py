@@ -351,6 +351,11 @@ async def stalker_client_portal() -> tuple[str, StalkerClientPortalState]:
         is_client_fingerprint = (
             request.headers.get("X-User-Agent") == "Model: MAG250; Link: WiFi"
             and request.headers.get("Referer", "").endswith("/stalker_portal/c/index.html")
+            and request.headers.get("Accept") == "*/*"
+            and request.headers.get("Accept-Language") == "en-US,en;q=0.5"
+            and request.headers.get("Pragma") == "no-cache"
+            and request.headers.get("Connection") == "Close"
+            and request.headers.get("Accept-Encoding") == "gzip, deflate"
             and "mac=" in request.headers.get("Cookie", "")
         )
         state.requests.append(

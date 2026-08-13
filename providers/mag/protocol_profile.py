@@ -77,6 +77,7 @@ class MAGProtocolProfile:
     http_user_agent: str | None = None
     user_agent: str | None = None
     referer_suffix: str | None = None
+    extra_headers: Mapping[str, str] = field(default_factory=dict)
     uses_stalker_cookies: bool = False
     cookie_language: str = "en"
     cookie_timezone: str = "Europe/Paris"
@@ -101,6 +102,7 @@ class MAGProtocolProfile:
             parsed = urlsplit(portal_url)
             origin = urlunsplit((parsed.scheme, parsed.netloc, "", "", ""))
             headers["Referer"] = f"{origin}{self.referer_suffix}"
+        headers.update(self.extra_headers)
         return headers
 
     def request_headers(
@@ -277,6 +279,15 @@ class StalkerClientCompatibilityProfile(MAGProtocolProfile):
     http_user_agent: str | None = USER_AGENT
     user_agent: str | None = "Model: MAG250; Link: WiFi"
     referer_suffix: str | None = "/stalker_portal/c/index.html"
+    extra_headers: Mapping[str, str] = field(
+        default_factory=lambda: {
+            "Accept": "*/*",
+            "Accept-Language": "en-US,en;q=0.5",
+            "Pragma": "no-cache",
+            "Connection": "Close",
+            "Accept-Encoding": "gzip, deflate",
+        }
+    )
     uses_stalker_cookies: bool = True
     uses_ordered_live_catalogue: bool = True
     uses_channel_command_for_live_link: bool = True
