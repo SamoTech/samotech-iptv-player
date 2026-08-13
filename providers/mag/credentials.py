@@ -47,6 +47,7 @@ class MAGCredentials:
     password: str = field(default="", repr=False, compare=False)
     authorization_key: str = field(default="", repr=False, compare=False)
     profile_required: bool = False
+    profile_second_step: bool = False
     _token: str = field(default="", repr=False, compare=False)
 
     @classmethod

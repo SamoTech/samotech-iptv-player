@@ -88,7 +88,7 @@ class MAGSession:
         )
         self._store_token(payload)
         self._auth_state = MAGAuthState.TOKEN_RECEIVED
-        if self._creds.profile_required:
+        if self._creds.profile_required or self._creds.profile_second_step:
             self._auth_state = MAGAuthState.PROFILE_REQUIRED
             await self.get_profile()
         if self._creds.auth_mode == MAGAuthMode.MAC_PLUS_LOGIN.value:
@@ -180,9 +180,12 @@ class MAGSession:
         """Refresh the token through the same selected protocol profile."""
         try:
             request = self._profile.build_request(self._creds.portal_url, MAGOperation.HANDSHAKE)
+            params = dict(request.params)
+            if self._creds.token and "token" in params:
+                params["token"] = self._creds.token
             payload = await self._conn.get(
                 request.endpoint,
-                params=request.params,
+                params=params,
                 headers={**request.headers, **self._request_headers()},
                 base_url=request.base_url,
             )
