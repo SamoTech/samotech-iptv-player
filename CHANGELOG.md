@@ -6,10 +6,11 @@
 
 - Added separate `stalker_gui_compatibility` and `stalker_helper_compatibility` MAG profiles based on distinct secondary Stalker client references. The profiles preserve the observed endpoint paths, query differences, MAC-cookie formats, headers, timezones, live pagination starts, strict token validation, private cookie mapping, live genre/ordered-list loading, and channel-command stream-link construction. The random-token/prehash retry and fabricated device identities remain deliberately excluded because they are not verified by authorized portal evidence.
 - Added a source-derived local classic Stalker/Ministra middleware laboratory that drives the real MAG adapter through handshake, TTL, token transport, genres, page-one/page-two ordered lists, channel translation, and `create_link` using deterministic local data. Official Infomir configuration research and open-source middleware inspection are documented separately; production portal compatibility remains unresolved.
+- Added an optional explicit `mag_model` identity field for model-dependent client headers. The runtime leaves the model **UNKNOWN** when absent and never fabricates a MAG250/MAG254 identity. Official login/password, authorization-key, new-STB, and allowed-model policies remain documented provider-side possibilities rather than silently selected client modes.
 
 ### Verification
 
-- Added adapter-to-fixture coverage for strict handshake gating, headers, Referer, private cookies, token TTL, live genres, helper page-one ordered-list channels, command-based stream resolution, source-derived middleware behavior, resource cleanup, and sensitive-value redaction. The authorized real-portal runs completed without a token-bearing handshake; real MAG authentication and playback remain **UNRESOLVED**.
+- Added adapter-to-fixture coverage for strict handshake gating, headers, Referer, private cookies, explicit model-dependent helper headers, token TTL, live genres, helper page-one ordered-list channels, command-based stream resolution, source-derived middleware behavior, resource cleanup, and sensitive-value redaction. The authorized real-portal runs, including the new no-model helper revalidation, completed without a token-bearing handshake; real MAG authentication and playback remain **UNRESOLVED**.
 
 
 This file records concise historical delivery milestones. It is **not** the current support matrix or roadmap; read [PROJECT_STATUS.md](PROJECT_STATUS.md) for verified current capability status and [ROADMAP.md](ROADMAP.md) for delivery direction.

@@ -28,7 +28,7 @@ The lab declares these 15 scenarios:
 | Bounded endpoint discovery | **SIMULATED and TESTED** for the six approved candidate families, safe classification, deterministic priority, conditional `prehash=false`, and reuse of the selected endpoint family for authenticated live-channel loading. |
 | HTTP resource lifecycle | **SIMULATED and TESTED** for retained successful-session reuse, discovery/authentication failure cleanup, repeated failure cleanup, provider shutdown, and absence of `ResourceWarning` from the deterministic failure path. |
 
-The fixture uses fake identities and local loopback URLs only. No real account or provider payload is committed.
+The fixture uses fake identities and local loopback URLs only. No real account or provider payload is committed. Helper-profile tests that assert the source-observed model-dependent X-User-Agent supply `mag_model` explicitly; the production credential bridge defaults to MODEL UNKNOWN and never fabricates MAG250/MAG254.
 
 ## Boundaries exercised
 
@@ -58,4 +58,4 @@ Passing a fixture profile proves only that the application handles that modeled 
 
 ## Stalker client compatibility profiles
 
-`stalker_gui_compatibility` and `stalker_helper_compatibility` are **IMPLEMENTED and SIMULATED** from secondary reverse-engineered client references. They remain evidence-based request profiles, not middleware-version claims. The GUI profile uses the origin-relative `portal.php` family and page-zero live pagination; the helper profile uses origin-relative `stalker_portal/server/load.php` and page-one live pagination. Both exclude fabricated device identities and the helper source’s unverified 404 random-token/prehash sequence. A real token-bearing handshake remains required to establish compatibility for any particular firmware or portal.
+`stalker_gui_compatibility` and `stalker_helper_compatibility` are **IMPLEMENTED and SIMULATED** from secondary reverse-engineered client references. They remain evidence-based request profiles, not middleware-version claims. The GUI profile uses the origin-relative `portal.php` family and page-zero live pagination; the helper profile uses origin-relative `stalker_portal/server/load.php` and page-one live pagination. Model-dependent X-User-Agent is emitted only when `mag_model` is explicitly supplied; absent that field, the model is UNKNOWN. Both exclude fabricated device identities and the helper source’s unverified 404 random-token/prehash sequence. A real token-bearing handshake remains required to establish compatibility for any particular firmware or portal.
