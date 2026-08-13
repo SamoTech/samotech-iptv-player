@@ -24,6 +24,9 @@ The application correctly closed its HTTP session after bounded discovery and tr
 
 The updated Windows application included all seven bounded candidates, including `origin_portal_php_mac_client`. Each candidate was classified as `NETWORK_FAILURE`, with approximately 21 seconds elapsed per attempt. The complete LOAD_CHANNELS operation took approximately 148 seconds and returned zero records. The first concrete error was repeated `OSError: [WinError 121]` from the Windows asyncio Proactor during TCP connection completion.
 
+A subsequent Windows-native matrix confirmed the same boundary independently. The posted matrix used a different MAC identity from the original authorized test credential; because all probes failed before HTTP, this does not affect the TCP conclusion but must not be used as evidence about the original device’s authorization or protocol behavior.
+ PowerShell `Invoke-WebRequest` timed out without an HTTP status, WinHTTP timed out without an HTTP status, and the raw TCP probe explicitly failed during TCP connect with `TimeoutException: TCP connect timeout`. The companion script did not execute curl; its result was a placeholder instructing a separate curl run. Therefore the Windows evidence proves TCP connect failure and absence of an HTTP response, but does not yet include an independent curl result.
+
 The long duration is explained by independent per-candidate timeout behavior: the same unreachable destination was attempted for each bounded candidate. This is a user-experience characteristic of the failure path, not evidence that any candidate reached the portal or that a new protocol permutation is required.
 
 ## Safe sandbox transport matrix
@@ -65,11 +68,7 @@ The repository now contains two standalone diagnostic helpers outside the produc
 - `tools/mag_transport_probe.py` runs requests, aiohttp, curl, raw TCP, hostname/IP Host-preservation, and bounded HTTPS checks where available.
 - `tools/mag_transport_probe.ps1` runs Windows `Invoke-WebRequest`, WinHTTP, raw TCP, and records curl availability without printing response bodies or credentials.
 
-Run the PowerShell helper on the same Windows machine and network as the application with the authorized values supplied through environment variables. Redact the hostname, address, MAC, cookies, and command line before sharing the output. The single most justified next action is to compare raw TCP, PowerShell, WinHTTP, and `curl.exe` from that Windows path:
-
-- If raw TCP times out, fix route/firewall/ISP/proxy/reachability before changing MAG protocol code.
-- If raw TCP succeeds and curl/PowerShell return 404, the 404 routing result is reproducible and protocol investigation can continue.
-- If curl or PowerShell returns JSON/token while the application receives no response, then the aiohttp/qasync transport path becomes the focused engineering target.
+Run the PowerShell helper on the same Windows machine and network as the application with the authorized values supplied through environment variables. Redact the hostname, address, MAC, cookies, and command line before sharing the output. The raw TCP, PowerShell, and WinHTTP portions of that Windows comparison are now complete and all fail before HTTP. The only remaining client check is to execute curl.exe separately without printing its command line or response body. If curl also times out, fix route/firewall/ISP/proxy/reachability before changing MAG protocol code. If curl receives HTTP 404, the 404 routing result is reproducible from Windows and protocol investigation can continue. If curl receives JSON/token while the application receives no response, then the aiohttp/qasync transport path becomes the focused engineering target.
 
 ## Current root cause and blocker
 
