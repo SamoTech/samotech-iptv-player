@@ -2,13 +2,15 @@
 
 ## Status legend
 
-**IMPLEMENTED** means code exists. **TESTED** means deterministic repository tests exercise it. **SIMULATED** means a local fixture exercises the request/response shape. **NOT VERIFIED** means real hardware, Windows, libVLC, or a production portal was not available. **UNSUPPORTED** means the current adapter intentionally does not expose that capability.
+**IMPLEMENTED** means code exists. **TESTED** means deterministic repository tests exercise it. **SIMULATED** means a local fixture exercises the request/response shape. **NOT VERIFIED** means the relevant real hardware, portal, or playback boundary has not been exercised successfully. **UNSUPPORTED** means the current adapter intentionally does not expose that capability.
 
 ## Evidence boundary
 
 Infomir maintains firmware and Stalker Middleware documentation and versioned changelogs. The changelog records version-specific fixes involving authentication, access tokens, loading, and playback; it does not establish that every MAG hardware family uses one identical public handshake. [1]
 
 Open-source clients provide useful secondary evidence for observed request variants, including `type=stb`, `action=handshake`, `token`, `JsHttpRequest`, MAG-style headers, and Referer values. These are reverse-engineered implementation references, not universal official specifications. [2]
+
+The official Ministra configuration reference documents `/stalker_portal/` as a classic portal base and separately documents administrative/API facilities. Its REST API v1 Basic-authentication contract is an operator administration interface, not documented evidence to replace the classic MAG client session protocol. The already tested discovery set included the `/stalker_portal/` family; no official source obtained in this increment supports a fifth candidate or a new profile. [3] [4]
 
 ## Hardware-family assessment
 
@@ -28,9 +30,11 @@ The `legacy` profile preserves the existing provider behavior. The `stalker_quer
 
 ## Real-world acceptance gap
 
-The supplied portal remains **UNRESOLVED**. Real connectivity was verified, but authentication did not produce a JSON token response. A Windows/libVLC run is also required for actual audio/video, H264 fallback, dead-stream recovery, rapid switching, and UI responsiveness.
+The supplied portal remains **UNRESOLVED**. Real connectivity was verified, but authentication did not produce a JSON token response. A real Windows application run has established that libVLC loads and its plugins are discovered; MAG did not reach stream resolution, so MAG video/audio, recovery, rapid switching, and UI responsiveness remain **NOT VERIFIED**.
 
 ## References
 
 [1]: https://wiki.infomir.eu/eng/ministra-tv-platform/changelog/stalker-middleware-4-8 "Infomir Stalker Middleware changelog"
-[2]: https://github.com/Cyogenus/IPTV-MAC-STALKER-PLAYER-BY-MY-1/blob/main/stalker.py "Secondary open-source Stalker client reference"
+[2]: https://github.com/lloesche/stalker_portal/blob/master/server/load.php "Archived open-source Stalker Portal dispatcher"
+[3]: https://wiki.infomir.eu/eng/ministra-tv-platform/ministra-installation-guide/configuration-file "Infomir Ministra configuration reference"
+[4]: https://wiki.infomir.eu/eng/ministra-tv-platform/ministra-setup-guide/rest-api-v1 "Infomir Ministra REST API v1"

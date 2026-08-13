@@ -26,6 +26,7 @@ The lab declares these 15 scenarios:
 | Successful channels | **SIMULATED and TESTED** |
 | Stream resolution | **SIMULATED and TESTED** |
 | Bounded endpoint discovery | **SIMULATED and TESTED** for the four approved candidate families, safe classification, deterministic priority, conditional `prehash=false`, and reuse of the selected endpoint family for authenticated live-channel loading. |
+| HTTP resource lifecycle | **SIMULATED and TESTED** for retained successful-session reuse, discovery/authentication failure cleanup, repeated failure cleanup, provider shutdown, and absence of `ResourceWarning` from the deterministic failure path. |
 
 The fixture uses fake identities and local loopback URLs only. No real account or provider payload is committed.
 
@@ -44,7 +45,7 @@ MAG adapter
   → application category capability handling
 ```
 
-Authentication tests verify token extraction, TTL-compatible success, empty/malformed/status failures, and safe failure states. Discovery tests verify that the candidate list is finite, every result retains safe metadata only, HTTP success alone is insufficient, and the selected endpoint family is reused by normal session and live-channel operations. Live-path tests verify channel translation, stream-link resolution, and typed unsupported-category behavior. Expiry tests verify one controlled re-authentication and session reuse rather than authentication on every operation.
+Authentication tests verify token extraction, TTL-compatible success, empty/malformed/status failures, and safe failure states. Discovery tests verify that the candidate list is finite, every result retains safe metadata only, HTTP success alone is insufficient, and the selected endpoint family is reused by normal session and live-channel operations. Resource-lifecycle tests verify that the legacy provider closes its owned aiohttp resources after failed discovery/authentication, does not accumulate sessions across repeated failures, keeps a successful session reusable until explicit provider close, and does not emit a `ResourceWarning` in the fixture failure path. Live-path tests verify channel translation, stream-link resolution, and typed unsupported-category behavior. Expiry tests verify one controlled re-authentication and session reuse rather than authentication on every operation.
 
 ## Real portal distinction
 

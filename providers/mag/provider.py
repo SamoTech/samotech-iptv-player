@@ -4,6 +4,7 @@ MAGProvider — top-level facade registered as "mag".
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 
@@ -82,30 +83,57 @@ class MAGProvider(BaseProvider):
         self._stream = MAGStream(self._connection, self._session)
 
     async def connect(self) -> None:
+        """Open a reusable session, releasing it if discovery or authentication fails."""
         await self._connection.open()
-        if self._auto_discover:
-            results, profile = await MAGProtocolDiscovery(
-                self._connection, self._session.credentials
-            ).discover()
-            for result in results:
-                log.info(
-                    "[IPTV] PROVIDER=MAG OPERATION=DISCOVERY CANDIDATE=%s "
-                    "HTTP_STATUS=%s CONTENT_TYPE=%s RESPONSE_BYTES=%s JSON=%s "
-                    "TOKEN_PRESENT=%s CLASSIFICATION=%s ELAPSED=%.3fs",
-                    result.candidate_name,
-                    result.status if result.status is not None else "<none>",
-                    result.content_type or "<missing>",
-                    result.response_size if result.response_size is not None else "<none>",
-                    result.is_json,
-                    result.token_present,
-                    result.classification,
-                    result.elapsed_seconds,
-                )
-            if profile is None:
-                raise AuthError("MAG protocol discovery did not establish a valid handshake")
-            self._session.select_profile(profile)
-        await self._session.authenticate()
+        try:
+            if self._auto_discover:
+                results, profile = await MAGProtocolDiscovery(
+                    self._connection, self._session.credentials
+                ).discover()
+                for result in results:
+                    log.info(
+                        "[IPTV] PROVIDER=MAG OPERATION=DISCOVERY CANDIDATE=%s "
+                        "HTTP_STATUS=%s CONTENT_TYPE=%s RESPONSE_BYTES=%s JSON=%s "
+                        "TOKEN_PRESENT=%s CLASSIFICATION=%s ELAPSED=%.3fs",
+                        result.candidate_name,
+                        result.status if result.status is not None else "<none>",
+                        result.content_type or "<missing>",
+                        result.response_size if result.response_size is not None else "<none>",
+                        result.is_json,
+                        result.token_present,
+                        result.classification,
+                        result.elapsed_seconds,
+                    )
+                if profile is None:
+                    raise AuthError("MAG protocol discovery did not establish a valid handshake")
+                self._session.select_profile(profile)
+            await self._session.authenticate()
+        except asyncio.CancelledError:
+            await self._close_after_failed_connect()
+            raise
+        except Exception:
+            await self._close_after_failed_connect()
+            raise
         log.info("MAG provider session connected")
+
+    async def _close_after_failed_connect(self) -> None:
+        """Best-effort cleanup that preserves the original authentication failure."""
+        try:
+            await self._session.close()
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            log.warning("MAG session cleanup failed after authentication failure", exc_info=True)
+        finally:
+            try:
+                await self._connection.close()
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                log.warning(
+                    "MAG connection cleanup failed after authentication failure",
+                    exc_info=True,
+                )
 
     async def close(self) -> None:
         await self._session.close()

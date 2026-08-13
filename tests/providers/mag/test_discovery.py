@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import gc
+import warnings
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
@@ -15,6 +17,12 @@ from providers.mag.discovery import (
     MAGProtocolDiscovery,
 )
 from providers.mag.provider import MAGProvider
+
+from samotech_iptv.core.exceptions import AuthenticationError
+from samotech_iptv.domain.value_objects.credential import Credential
+from samotech_iptv.infrastructure.providers.mag_adapter import MagProviderAdapter
+from samotech_iptv.infrastructure.providers.provider_context import ProviderContext
+from samotech_iptv.infrastructure.providers.provider_metadata import InfraProviderMetadata
 
 if TYPE_CHECKING:
     from providers.mag.protocol_profile import MAGProtocolProfile
@@ -152,13 +160,105 @@ async def test_auto_profile_reuses_discovered_endpoint_for_authenticated_channel
     )
     try:
         await provider.connect()
+        session = provider._connection._session
+        assert session is not None
+        assert session.closed is False
         assert provider._session.profile.name == "discovered_configured_base"
         channels = await provider.get_channels()
         assert channels == [{"id": "1", "name": "Fixture News", "stream_id": "1"}]
         assert state.requests[-1]["path"] == "/c/server/load.php"
         assert state.requests[-1]["query"]["action"] == "get_all_channels"  # type: ignore[index]
+        assert provider._connection._session is session
+        assert session.closed is False
     finally:
         await provider.close()
+    assert session.closed is True
+
+
+@pytest.mark.asyncio
+async def test_discovery_failure_closes_owned_connection_without_resource_warning(
+    discovery_portal: tuple[str, DiscoveryPortalState],
+) -> None:
+    base_url, state = discovery_portal
+    state.mode = "classifications"
+    provider = MAGProvider(
+        {
+            "portal_url": base_url,
+            "mac_address": "00:11:22:33:44:55",
+            "protocol_profile": "auto",
+            "timeout_s": 2.0,
+            "max_retries": 1,
+            "use_keyring": False,
+        }
+    )
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always", ResourceWarning)
+        with pytest.raises(Exception, match="did not establish a valid handshake"):
+            await provider.connect()
+        session = provider._connection._session
+        assert session is not None
+        assert session.closed is True
+        gc.collect()
+    assert not [warning for warning in caught if issubclass(warning.category, ResourceWarning)]
+
+
+@pytest.mark.asyncio
+async def test_adapter_repeated_discovery_failures_close_every_owned_connection(
+    discovery_portal: tuple[str, DiscoveryPortalState],
+) -> None:
+    base_url, state = discovery_portal
+    state.mode = "classifications"
+    provider = MAGProvider(
+        {
+            "portal_url": base_url,
+            "mac_address": "00:11:22:33:44:55",
+            "protocol_profile": "auto",
+            "timeout_s": 2.0,
+            "max_retries": 1,
+            "use_keyring": False,
+        }
+    )
+    adapter = MagProviderAdapter(
+        InfraProviderMetadata("fixture-mag", "mag", base_url),
+        ProviderContext.build(overrides={"connect_timeout": 1.0, "read_timeout": 1.0}),
+        legacy_provider=provider,
+    )
+    closed_sessions = []
+    try:
+        for _ in range(3):
+            with pytest.raises(AuthenticationError):
+                await adapter.authenticate(Credential("00:11:22:33:44:55", "fixture"))
+            session = provider._connection._session
+            assert session is not None
+            assert session.closed is True
+            closed_sessions.append(session)
+        assert len({id(session) for session in closed_sessions}) == 3
+        assert all(session.closed for session in closed_sessions)
+    finally:
+        await adapter.close_session()
+
+
+@pytest.mark.asyncio
+async def test_provider_close_releases_successful_session(
+    discovery_portal: tuple[str, DiscoveryPortalState],
+) -> None:
+    base_url, _state = discovery_portal
+    provider = MAGProvider(
+        {
+            "portal_url": base_url,
+            "mac_address": "00:11:22:33:44:55",
+            "protocol_profile": "auto",
+            "timeout_s": 2.0,
+            "max_retries": 1,
+            "use_keyring": False,
+        }
+    )
+    await provider.connect()
+    session = provider._connection._session
+    assert session is not None
+    assert session.closed is False
+    await provider.close()
+    assert session.closed is True
 
 
 @pytest.mark.asyncio

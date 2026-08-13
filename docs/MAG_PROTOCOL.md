@@ -24,6 +24,8 @@ A successful handshake must return a JSON object containing either `js.token` or
 
 A valid session is reused. When a catalogue response explicitly reports a session error, the adapter marks the session expired, performs at most one controlled re-authentication, and retries the operation once. Authentication failures remain application-facing failures, not successful empty catalogues.
 
+The legacy MAG provider owns its `aiohttp` session and connector. It keeps those resources open only for a successfully authenticated active provider instance. If bounded discovery or authentication fails after opening the connection, it closes the session and connector before propagating the original failure. Explicit provider shutdown also closes those resources. Cleanup is best effort and must not replace an authentication failure or weaken authentication guards.
+
 ## Current real-portal status
 
 The supplied real portal remains **UNRESOLVED** for compatibility. Its configured `/c/` base produced HTTP 404 for `/c/server/load.php`; the root `/server/load.php` variant produced HTTP 200 with an empty `text/javascript` response. No tested query/header variant produced a JSON session token. This result does not establish that MAG/Stalker support is globally broken.
