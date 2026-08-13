@@ -112,11 +112,11 @@ The requested complete Windows debug-output review could not be performed becaus
 |---|---|
 | Branch | `main`. |
 | Commit before this report | `57539ace180fafed28876fad4d091b16d2d9e448`. |
-| Pushed | No code changes were required by this acceptance run; the report itself is to be published as a documentation commit. |
-| HEAD | Will be recorded after report publication. |
-| origin/main | Will be recorded after report publication. |
-| Remote verified | Required after the report commit. |
-| Working tree | Required clean after publication. |
+| Pushed | **YES** — documentation report published directly to `origin/main`. |
+| HEAD | `5f9ffbd8f911f980e553c3fadcb0df5f6fc00834`. |
+| origin/main | `5f9ffbd8f911f980e553c3fadcb0df5f6fc00834`. |
+| Remote verified | **YES** — HEAD equals origin/main after fetch. |
+| Working tree | **CLEAN** after publication. |
 
 ## 10. Final Product Readiness
 
