@@ -1,8 +1,8 @@
 """Evidence-based MAG/Stalker protocol request profiles.
 
-Profiles own endpoint construction, query parameters, protocol headers, and
-handshake-response interpretation.  The application-facing MAG adapter remains
-responsible for secure credential ownership and session lifecycle.
+Profiles own endpoint construction, protocol headers, safe cookie construction, and
+operation parameters.  The application-facing adapter retains credential ownership
+and session lifecycle; no profile exposes a token or device identity in diagnostics.
 """
 
 from __future__ import annotations
@@ -10,10 +10,10 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import quote, urlsplit, urlunsplit
 
 from ..base.errors import AuthError
-from .constants import DEFAULT_TOKEN_TTL_S, ENDPOINT_HANDSHAKE
+from .constants import DEFAULT_TOKEN_TTL_S, ENDPOINT_HANDSHAKE, USER_AGENT
 
 __all__ = [
     "LegacyMAGProtocolProfile",
@@ -21,16 +21,19 @@ __all__ = [
     "MAGOperation",
     "MAGProtocolProfile",
     "MAGProtocolRequest",
+    "StalkerClientCompatibilityProfile",
     "StalkerQueryProtocolProfile",
 ]
 
 
 class MAGOperation(StrEnum):
-    """Protocol operations supported by the legacy live-TV boundary."""
+    """Protocol operations supported by the MAG live-TV boundary."""
 
     HANDSHAKE = "handshake"
     ACCOUNT_INFO = "account_info"
     CHANNELS = "channels"
+    LIVE_GENRES = "live_genres"
+    LIVE_ORDERED_LIST = "live_ordered_list"
     EPG = "epg"
     VOD = "vod"
     SERIES = "series"
@@ -40,7 +43,7 @@ class MAGOperation(StrEnum):
 
 @dataclass(frozen=True)
 class MAGProtocolRequest:
-    """A fully constructed protocol request without any credential value."""
+    """A fully constructed protocol request without credential values."""
 
     base_url: str
     endpoint: str
@@ -58,37 +61,82 @@ class MAGHandshake:
 
 @dataclass(frozen=True)
 class MAGProtocolProfile:
-    """Describe protocol-owned request construction and handshake semantics.
+    """Describe profile-owned request construction and handshake semantics.
 
-    ``use_origin_base`` allows a profile to construct a request from the portal
-    origin rather than an application-configured path such as ``/c/``.  This is
-    used only by the bounded discovery candidates; it never accepts a path from
-    an untrusted response.
+    ``use_origin_base`` permits only a profile's fixed endpoint family to use a
+    portal origin instead of a configured application path.  It never accepts a
+    path supplied by a response.  ``user_agent`` preserves the historic field
+    name for the ``X-User-Agent`` header; ``http_user_agent`` controls the actual
+    HTTP ``User-Agent`` header.
     """
 
     name: str
     handshake_endpoint: str = ENDPOINT_HANDSHAKE
     use_origin_base: bool = False
     handshake_params: Mapping[str, str] = field(default_factory=dict)
+    http_user_agent: str | None = None
     user_agent: str | None = None
     referer_suffix: str | None = None
+    uses_stalker_cookies: bool = False
+    cookie_language: str = "en"
+    cookie_timezone: str = "Europe/Paris"
+    uses_ordered_live_catalogue: bool = False
+    uses_channel_command_for_live_link: bool = False
 
     def request_base_url(self, portal_url: str) -> str:
-        """Return the safe base URL selected by this profile."""
+        """Return the safe base URL selected by this fixed profile."""
         if not self.use_origin_base:
             return portal_url
         parsed = urlsplit(portal_url)
         return urlunsplit((parsed.scheme, parsed.netloc, "", "", ""))
 
     def protocol_headers(self, portal_url: str) -> dict[str, str]:
-        """Return profile-specific headers without device identity or tokens."""
+        """Return fixed profile headers without identity, cookies, or tokens."""
         headers: dict[str, str] = {}
+        if self.http_user_agent:
+            headers["User-Agent"] = self.http_user_agent
         if self.user_agent:
             headers["X-User-Agent"] = self.user_agent
         if self.referer_suffix:
             parsed = urlsplit(portal_url)
             origin = urlunsplit((parsed.scheme, parsed.netloc, "", "", ""))
             headers["Referer"] = f"{origin}{self.referer_suffix}"
+        return headers
+
+    def request_headers(
+        self,
+        portal_url: str,
+        *,
+        mac_address: str,
+        serial_number: str,
+        device_id: str,
+        device_id2: str,
+        token: str,
+    ) -> dict[str, str]:
+        """Build one private request-header set without logging sensitive values."""
+        headers = self.protocol_headers(portal_url)
+        if self.uses_stalker_cookies:
+            cookies = {
+                "mac": quote(mac_address.strip()),
+                "stb_lang": quote(self.cookie_language),
+                "timezone": quote(self.cookie_timezone),
+            }
+            if token:
+                cookies["token"] = quote(token)
+                headers["Authorization"] = f"Bearer {token}"
+            headers["Cookie"] = "; ".join(f"{key}={value}" for key, value in cookies.items())
+            return headers
+
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+        if mac_address:
+            headers["X-User-Mac"] = mac_address
+        if serial_number:
+            headers["X-Device-Serial"] = serial_number
+        if device_id:
+            headers["X-Device-ID"] = device_id
+        if device_id2:
+            headers["X-Device-ID2"] = device_id2
         return headers
 
     def operation_params(self, operation: MAGOperation) -> dict[str, str | int]:
@@ -99,6 +147,10 @@ class MAGProtocolProfile:
             return {"type": "account_info", "action": "get_main_info"}
         if operation is MAGOperation.CHANNELS:
             return {"type": "itv", "action": "get_all_channels"}
+        if operation is MAGOperation.LIVE_GENRES:
+            return {"type": "itv", "action": "get_genres", "JsHttpRequest": "1-xml"}
+        if operation is MAGOperation.LIVE_ORDERED_LIST:
+            return {"type": "itv", "action": "get_ordered_list", "JsHttpRequest": "1-xml"}
         if operation is MAGOperation.EPG:
             return {"type": "epg", "action": "get_simple_data_table"}
         if operation is MAGOperation.VOD:
@@ -110,6 +162,13 @@ class MAGProtocolProfile:
         if operation is MAGOperation.CREATE_VOD_LINK:
             return {"type": "vod", "action": "create_link"}
         raise ValueError(f"Unsupported MAG operation: {operation!r}")
+
+    def live_link_params(self, command: str) -> dict[str, str | int]:
+        """Build profile-owned live ``create_link`` parameters from a private command."""
+        params: dict[str, str | int] = {"cmd": command, "JsHttpRequest": "1-xml"}
+        if not self.uses_channel_command_for_live_link:
+            params.update({"forced_storage": "undefined", "disable_ad": "0"})
+        return params
 
     def build_request(
         self,
@@ -180,11 +239,7 @@ class LegacyMAGProtocolProfile(MAGProtocolProfile):
 
 @dataclass(frozen=True)
 class StalkerQueryProtocolProfile(MAGProtocolProfile):
-    """Observed Stalker query/header handshake variant.
-
-    The default instance remains opt-in.  Bounded discovery may instantiate this
-    profile with one of its fixed, approved endpoint families.
-    """
+    """Observed Stalker query/header handshake variant used by bounded discovery."""
 
     name: str = "stalker_query"
     handshake_params: Mapping[str, str] = field(
@@ -197,3 +252,31 @@ class StalkerQueryProtocolProfile(MAGProtocolProfile):
     )
     user_agent: str | None = "Model: MAG254; Link: WiFi"
     referer_suffix: str | None = "/c/"
+
+
+@dataclass(frozen=True)
+class StalkerClientCompatibilityProfile(MAGProtocolProfile):
+    """One bounded portal.php profile based on a concrete client request fingerprint.
+
+    It uses no fabricated device identity and deliberately excludes the reference
+    client's unverified 404 random-token/prehash behavior. A valid JSON token is
+    still required before every authenticated operation.
+    """
+
+    name: str = "stalker_client_compatibility"
+    handshake_endpoint: str = "portal.php"
+    use_origin_base: bool = True
+    handshake_params: Mapping[str, str] = field(
+        default_factory=lambda: {
+            "type": "stb",
+            "action": "handshake",
+            "token": "",
+            "JsHttpRequest": "1-xml",
+        }
+    )
+    http_user_agent: str | None = USER_AGENT
+    user_agent: str | None = "Model: MAG250; Link: WiFi"
+    referer_suffix: str | None = "/stalker_portal/c/index.html"
+    uses_stalker_cookies: bool = True
+    uses_ordered_live_catalogue: bool = True
+    uses_channel_command_for_live_link: bool = True

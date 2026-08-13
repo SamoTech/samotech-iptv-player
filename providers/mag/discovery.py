@@ -14,7 +14,12 @@ from enum import StrEnum
 from typing import TYPE_CHECKING
 
 from ..base.errors import NetworkError
-from .protocol_profile import MAGOperation, MAGProtocolProfile, StalkerQueryProtocolProfile
+from .protocol_profile import (
+    MAGOperation,
+    MAGProtocolProfile,
+    StalkerClientCompatibilityProfile,
+    StalkerQueryProtocolProfile,
+)
 
 if TYPE_CHECKING:
     from .connection import MAGConnection, MAGProbeResponse
@@ -105,6 +110,10 @@ class MAGProtocolDiscovery:
                     use_origin_base=True,
                 ),
             ),
+            MAGDiscoveryCandidate(
+                "origin_portal_php_stalker_client",
+                StalkerClientCompatibilityProfile(),
+            ),
         )
 
     async def discover(self) -> tuple[tuple[MAGDiscoveryResult, ...], MAGProtocolProfile | None]:
@@ -125,7 +134,9 @@ class MAGProtocolDiscovery:
             ):
                 selected = candidate.profile
                 continue
-            if self._should_probe_prehash(primary):
+            if self._should_probe_prehash(primary) and not isinstance(
+                candidate.profile, StalkerClientCompatibilityProfile
+            ):
                 with_prehash = await self._probe(candidate, prehash=True)
                 results.append(with_prehash)
                 if (
@@ -142,11 +153,11 @@ class MAGProtocolDiscovery:
     ) -> MAGProtocolProfile | None:
         """Select the first valid primary candidate using explicit priority order."""
         results_by_name: dict[str, MAGDiscoveryResult] = {}
-        for result in results:
-            if not result.used_prehash:
-                results_by_name[result.candidate_name] = result
+        for outcome in results:
+            if not outcome.used_prehash:
+                results_by_name[outcome.candidate_name] = outcome
         for candidate in candidates:
-            result = results_by_name.get(candidate.name)
+            result: MAGDiscoveryResult | None = results_by_name.get(candidate.name)
             if (
                 result
                 and result.classification is MAGDiscoveryClassification.VALID_STALKER_HANDSHAKE
@@ -162,7 +173,17 @@ class MAGProtocolDiscovery:
             MAGOperation.HANDSHAKE,
             params={"prehash": "false"} if prehash else None,
         )
-        headers = {**request.headers, **self._auth_headers()}
+        headers = {
+            **request.headers,
+            **candidate.profile.request_headers(
+                self._credentials.portal_url,
+                mac_address=self._credentials.mac_address,
+                serial_number=self._credentials.serial_number,
+                device_id=self._credentials.device_id,
+                device_id2=self._credentials.device_id2,
+                token="",
+            ),
+        }
         started = time.perf_counter()
         try:
             response = await self._connection.probe_get(
@@ -241,13 +262,3 @@ class MAGProtocolDiscovery:
         if isinstance(raw_js, Mapping) or "token" in payload:
             return MAGDiscoveryClassification.JSON_WITHOUT_TOKEN, False
         return MAGDiscoveryClassification.UNKNOWN_PROTOCOL, False
-
-    def _auth_headers(self) -> dict[str, str]:
-        headers = {"X-User-Mac": self._credentials.mac_address}
-        if self._credentials.serial_number:
-            headers["X-Device-Serial"] = self._credentials.serial_number
-        if self._credentials.device_id:
-            headers["X-Device-ID"] = self._credentials.device_id
-        if self._credentials.device_id2:
-            headers["X-Device-ID2"] = self._credentials.device_id2
-        return headers

@@ -63,7 +63,7 @@ class MAGSession:
         payload = await self._conn.get(
             request.endpoint,
             params=request.params,
-            headers={**request.headers, **self._auth_headers()},
+            headers={**request.headers, **self._request_headers()},
             base_url=request.base_url,
         )
         self._store_token(payload)
@@ -77,7 +77,7 @@ class MAGSession:
             payload = await self._conn.get(
                 request.endpoint,
                 params=request.params,
-                headers={**request.headers, **self._auth_headers()},
+                headers={**request.headers, **self._request_headers()},
                 base_url=request.base_url,
             )
             self._store_token(payload)
@@ -97,7 +97,7 @@ class MAGSession:
         return await self._conn.get(
             request.endpoint,
             params=request.params,
-            headers={**request.headers, **self._auth_headers()},
+            headers={**request.headers, **self._request_headers()},
             base_url=request.base_url,
         )
 
@@ -131,18 +131,16 @@ class MAGSession:
                     delay *= 2
         log.error("All MAG token refresh attempts exhausted")
 
-    def _auth_headers(self) -> dict[str, str]:
-        headers: dict[str, str] = {
-            "Authorization": f"Bearer {self._creds.token}" if self._creds.token else "",
-            "X-User-Mac": self._creds.mac_address,
-        }
-        if self._creds.serial_number:
-            headers["X-Device-Serial"] = self._creds.serial_number
-        if self._creds.device_id:
-            headers["X-Device-ID"] = self._creds.device_id
-        if self._creds.device_id2:
-            headers["X-Device-ID2"] = self._creds.device_id2
-        return {key: value for key, value in headers.items() if value}
+    def _request_headers(self) -> dict[str, str]:
+        """Build selected-profile headers privately for one runtime request."""
+        return self._profile.request_headers(
+            self._creds.portal_url,
+            mac_address=self._creds.mac_address,
+            serial_number=self._creds.serial_number,
+            device_id=self._creds.device_id,
+            device_id2=self._creds.device_id2,
+            token=self._creds.token,
+        )
 
     def _store_token(self, payload: object) -> None:
         handshake = self._profile.parse_handshake(payload)
@@ -152,4 +150,4 @@ class MAGSession:
 
     def get_headers(self) -> dict[str, str]:
         """Return current auth headers for compatibility with older callers."""
-        return self._auth_headers()
+        return self._request_headers()

@@ -46,6 +46,7 @@ async def discovery_portal() -> tuple[str, DiscoveryPortalState]:
                 "path": request.path,
                 "query": dict(request.query),
                 "has_mac_header": "X-User-Mac" in request.headers,
+                "has_cookie": "Cookie" in request.headers,
                 "has_authorization": "Authorization" in request.headers,
             }
         )
@@ -119,6 +120,7 @@ async def test_discovery_probes_only_fixed_candidates_and_uses_deterministic_pri
         "origin_stalker_portal",
         "origin_stb_server",
         "origin_portal_php",
+        "origin_portal_php_stalker_client",
     ]
     assert all(
         result.classification is MAGDiscoveryClassification.VALID_STALKER_HANDSHAKE
@@ -131,8 +133,11 @@ async def test_discovery_probes_only_fixed_candidates_and_uses_deterministic_pri
         "/stalker_portal/server/load.php",
         "/stb/server/load.php",
         "/portal.php",
+        "/portal.php",
     ]
-    assert all(request["has_mac_header"] is True for request in state.requests)
+    assert all(request["has_mac_header"] is True for request in state.requests[:4])
+    assert state.requests[4]["has_mac_header"] is False
+    assert state.requests[4]["has_cookie"] is True
     assert all(request["has_authorization"] is False for request in state.requests)
     assert all(
         request["query"]
@@ -297,6 +302,7 @@ async def test_discovery_classifies_http_empty_and_malformed_boundaries(
         MAGDiscoveryClassification.HTTP_401,
         MAGDiscoveryClassification.EMPTY_RESPONSE,
         MAGDiscoveryClassification.MALFORMED_JSON,
+        MAGDiscoveryClassification.MALFORMED_JSON,
     ]
     assert all(result.token_present is False for result in results)
 
@@ -328,3 +334,135 @@ def test_discovery_classifies_remaining_safe_probe_outcomes(
     result = MAGProtocolDiscovery._classify("fixture", response, prehash=False)
     assert result.classification is expected
     assert result.token_present is False
+
+
+@dataclass
+class StalkerClientPortalState:
+    requests: list[dict[str, object]] = field(default_factory=list)
+
+
+@pytest.fixture
+async def stalker_client_portal() -> tuple[str, StalkerClientPortalState]:
+    state = StalkerClientPortalState()
+    app = web.Application()
+
+    async def handler(request: web.Request) -> web.StreamResponse:
+        query = dict(request.query)
+        is_client_fingerprint = (
+            request.headers.get("X-User-Agent") == "Model: MAG250; Link: WiFi"
+            and request.headers.get("Referer", "").endswith("/stalker_portal/c/index.html")
+            and "mac=" in request.headers.get("Cookie", "")
+        )
+        state.requests.append(
+            {
+                "path": request.path,
+                "query": query,
+                "client_fingerprint": is_client_fingerprint,
+                "has_authorization": "Authorization" in request.headers,
+                "has_cookie": "Cookie" in request.headers,
+            }
+        )
+        if request.path != "/portal.php":
+            return web.Response(status=404, text="not found")
+        if query.get("action") == "handshake":
+            if is_client_fingerprint:
+                return web.json_response({"js": {"token": "fixture-token", "token_TTL": "120"}})
+            return web.Response(status=404, text="not found")
+        if not is_client_fingerprint or "Authorization" not in request.headers:
+            return web.Response(status=401, text="missing session")
+        if query.get("action") == "get_genres":
+            return web.json_response({"js": [{"id": "10", "title": "Fixture Live"}]})
+        if query.get("action") == "get_ordered_list":
+            assert query == {
+                "type": "itv",
+                "action": "get_ordered_list",
+                "JsHttpRequest": "1-xml",
+                "genre": "10",
+                "p": "0",
+            }
+            return web.json_response(
+                {
+                    "js": {
+                        "total_items": "1",
+                        "data": [
+                            {
+                                "id": "1",
+                                "name": "Fixture News",
+                                "stream_id": "1",
+                                "cmd": "ffmpeg http://localhost/ch/1_",
+                            }
+                        ],
+                    }
+                }
+            )
+        if query.get("action") == "create_link":
+            assert query["cmd"] == "ffmpeg http://localhost/ch/1_"
+            return web.json_response({"js": {"cmd": "ffmpeg https://stream.example/live"}})
+        return web.Response(status=404, text="unexpected request")
+
+    for path in (
+        "/c/server/load.php",
+        "/stalker_portal/server/load.php",
+        "/stb/server/load.php",
+        "/portal.php",
+    ):
+        app.router.add_get(path, handler)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, "127.0.0.1", 0)
+    await site.start()
+    port = site._server.sockets[0].getsockname()[1]  # type: ignore[union-attr]
+    try:
+        yield f"http://127.0.0.1:{port}/c/", state
+    finally:
+        await runner.cleanup()
+
+
+@pytest.mark.asyncio
+async def test_stalker_client_profile_runs_adapter_fixture_flow_with_safe_fingerprint(
+    stalker_client_portal: tuple[str, StalkerClientPortalState],
+) -> None:
+    base_url, state = stalker_client_portal
+    provider = MAGProvider(
+        {
+            "portal_url": base_url,
+            "mac_address": "00:11:22:33:44:55",
+            "protocol_profile": "auto",
+            "timeout_s": 2.0,
+            "max_retries": 1,
+            "use_keyring": False,
+        }
+    )
+    adapter = MagProviderAdapter(
+        InfraProviderMetadata("fixture-stalker-client", "mag", base_url),
+        ProviderContext.build(overrides={"connect_timeout": 1.0, "read_timeout": 1.0}),
+        legacy_provider=provider,
+    )
+    try:
+        assert await adapter.authenticate(Credential("00:11:22:33:44:55", "fixture"))
+        assert provider._session.profile.name == "stalker_client_compatibility"
+        categories = await adapter.load_live_categories()
+        channels = await adapter.load_channels()
+        resolved = await adapter.resolve_stream(channels[0].id)
+    finally:
+        await adapter.close_session()
+
+    assert [(category.id, category.name) for category in categories] == [("10", "Fixture Live")]
+    assert [(str(channel.id), channel.name) for channel in channels] == [("1", "Fixture News")]
+    assert str(resolved).startswith("https://")
+    assert provider.live_catalogue_stats == {"received": 1, "accepted": 1, "rejected": 0}
+    client_handshakes = [
+        request
+        for request in state.requests
+        if request["path"] == "/portal.php"
+        and request["query"].get("action") == "handshake"  # type: ignore[index]
+        and request["client_fingerprint"] is True
+    ]
+    assert len(client_handshakes) == 2
+    assert all(request["has_authorization"] is False for request in client_handshakes)
+    assert all(request["has_cookie"] is True for request in client_handshakes)
+    assert not any(
+        request["query"].get("prehash") for request in client_handshakes  # type: ignore[index]
+    )
+    assert "00:11:22:33:44:55" not in repr(state.requests)
+    assert "fixture-token" not in repr(state.requests)

@@ -24,6 +24,7 @@ from samotech_iptv.application.ports.provider_port import ProviderPort
 from samotech_iptv.core.diagnostics import log_exception
 from samotech_iptv.core.exceptions import AuthenticationError, ProviderError, ValidationError
 from samotech_iptv.core.logging import get_logger
+from samotech_iptv.domain.entities.category import Category
 from samotech_iptv.domain.value_objects.provider_capability import ProviderCapability
 from samotech_iptv.domain.value_objects.provider_id import ProviderId
 from samotech_iptv.infrastructure.providers.mag_credential import MagCredential
@@ -38,7 +39,6 @@ from samotech_iptv.infrastructure.providers.mag_error_translator import (
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable, Mapping, Sequence
 
-    from samotech_iptv.domain.entities.category import Category
     from samotech_iptv.domain.entities.channel import Channel
     from samotech_iptv.domain.entities.epg_entry import EPGEntry
     from samotech_iptv.domain.value_objects.channel_id import ChannelId
@@ -77,6 +77,8 @@ class _LegacyMagProvider(Protocol):
     async def close(self) -> None: ...
 
     async def refresh_token(self) -> None: ...
+
+    async def get_live_categories(self) -> list[dict[str, object]]: ...
 
     async def get_channels(self) -> list[dict[str, object]]: ...
 
@@ -170,8 +172,26 @@ class MagProviderAdapter(
             self._session_state = "no_session"
 
     async def load_live_categories(self) -> Sequence[Category]:
-        """MAG portals do not expose category browsing through this adapter."""
-        raise ProviderError("Provider does not support category browsing")
+        """Translate compatibility-profile live genres into canonical categories."""
+        await self._ensure_authenticated()
+        provider = self._ensure_provider()
+        if not bool(getattr(provider, "supports_live_categories", False)):
+            raise ProviderError("Provider does not support category browsing")
+        raw = await self._call_once(lambda current: current.get_live_categories())
+        categories: list[Category] = []
+        for record in raw:
+            category_id = str(record.get("id") or "").strip()
+            name = str(record.get("title") or record.get("name") or "").strip()
+            if not category_id or not name:
+                continue
+            categories.append(Category(id=category_id, name=name, provider_id=self.provider_id))
+        _LOG.info(
+            "[IPTV] MAG LIVE_CATEGORIES provider_id=%s records=%d translated=%d",
+            self._meta.provider_id,
+            len(raw),
+            len(categories),
+        )
+        return categories
 
     async def load_channels(self) -> Sequence[Channel]:
         """Fetch and translate the MAG live-TV catalogue."""

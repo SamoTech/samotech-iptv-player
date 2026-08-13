@@ -6,13 +6,14 @@ The MAG provider is implemented behind the application provider boundary. The Qt
 
 ## Protocol profiles
 
-The repository contains two explicit, evidence-based handshake profiles:
+The repository contains three explicit, evidence-based handshake profiles:
 
 | Profile | Status | Behavior |
 |---|---|---|
 | `legacy` | **IMPLEMENTED and TESTED** | Bare `/server/load.php` handshake relative to the configured portal base, using the existing MAG User-Agent and device identity headers. This remains the default. |
 | `stalker_query` | **IMPLEMENTED and SIMULATED** | Observed Stalker client variant using `type=stb`, `action=handshake`, empty `token`, `JsHttpRequest=1-xml`, X-User-Agent, and Referer headers. It remains available as an explicit profile. |
-| `auto` | **IMPLEMENTED and TESTED against local fixtures** | Runs a closed, deterministic discovery set: configured-base `server/load.php`, origin `stalker_portal/server/load.php`, origin `stb/server/load.php`, and origin `portal.php`. The probe uses the Stalker query handshake and may add one `prehash=false` retry only after an HTTP-200 JSON response without a token. It selects the first structurally valid token-bearing response by the documented priority and reuses that profile for the normal session. |
+| `stalker_client_compatibility` | **IMPLEMENTED and SIMULATED** | Uses the secondary reference's materially different `portal.php` client fingerprint: the exact MAG200 User-Agent, MAG250 X-User-Agent, `/stalker_portal/c/index.html` Referer, and private `mac`, `stb_lang`, and timezone cookies. It also uses `get_genres` plus `get_ordered_list(genre, p)` and a loaded channel command for `create_link`. It never fabricates device IDs or tokens. |
+| `auto` | **IMPLEMENTED and TESTED against local fixtures** | Runs a closed, deterministic discovery set: configured-base `server/load.php`, origin `stalker_portal/server/load.php`, origin `stb/server/load.php`, generic origin `portal.php`, and the materially different client-fingerprint request at that same approved `portal.php` path. The generic candidates may add one `prehash=false` retry only after an HTTP-200 JSON response without a token. The compatibility candidate never sends the unverified random-token/prehash variant. The first structurally valid token-bearing response is selected and reused for the normal session. |
 
 Discovery retains only candidate name, status, content type, response size, elapsed time, JSON/token flags, and classification. It neither stores a token nor treats HTTP 200 as authentication. The existence or selection of a profile does not imply universal portal compatibility. Firmware, middleware, portal base path, and provider-specific behavior must be established by authorized evidence.
 
@@ -28,7 +29,7 @@ The legacy MAG provider owns its `aiohttp` session and connector. It keeps those
 
 ## Current real-portal status
 
-The supplied real portal remains **UNRESOLVED** for compatibility. The approved candidate set produced three HTTP-404 classifications and one HTTP-200 empty-response classification; no candidate produced a JSON session token. A supplied Windows run of the failure-safe revision exercised this same sequence twice and logged HTTP-session closure before each authentication failure, with no unclosed-session or unclosed-connector warning in the supplied log. This confirms cleanup of the observed failure path, not portal compatibility or playback. The result does not establish that MAG/Stalker support is globally broken.
+The supplied real portal remains **UNRESOLVED** for compatibility. Previous approved generic requests produced three HTTP-404 classifications and one HTTP-200 empty-response classification; no candidate produced a JSON session token. The new compatibility request uses the same already-approved `portal.php` path with a materially different client fingerprint, but has not yet been run against the real Windows portal. A supplied Windows run of the failure-safe revision exercised the earlier sequence twice and logged HTTP-session closure before each authentication failure, with no unclosed-session or unclosed-connector warning in the supplied log. This confirms cleanup of the observed failure path, not portal compatibility or playback.
 
 ## Security
 

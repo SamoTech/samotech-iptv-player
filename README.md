@@ -198,3 +198,8 @@ No feature branches or pull requests are used unless explicitly requested. Every
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+
+## MAG/Stalker compatibility status
+
+The MAG provider includes a bounded `stalker_client_compatibility` profile derived from a secondary client reference. It is **IMPLEMENTED and SIMULATED** through the deterministic fixture lab, with strict token validation, private cookie mapping, live genre/ordered-list handling, and command-based stream-link construction. It is **NOT VERIFIED** against the authorized production portal until the current Windows build extracts a real JSON session token; MAG channels, stream resolution, and playback must not be inferred from fixture results alone.

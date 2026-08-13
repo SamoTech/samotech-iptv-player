@@ -38,3 +38,8 @@ The supplied portal remains **UNRESOLVED**. Real connectivity was verified, but 
 [2]: https://github.com/lloesche/stalker_portal/blob/master/server/load.php "Archived open-source Stalker Portal dispatcher"
 [3]: https://wiki.infomir.eu/eng/ministra-tv-platform/ministra-installation-guide/configuration-file "Infomir Ministra configuration reference"
 [4]: https://wiki.infomir.eu/eng/ministra-tv-platform/ministra-setup-guide/rest-api-v1 "Infomir Ministra REST API v1"
+
+
+## Secondary client-fingerprint profile
+
+`stalker_client_compatibility` is **IMPLEMENTED and SIMULATED** from a secondary reverse-engineered client reference. It uses an existing approved `portal.php` path with a materially different MAG client fingerprint and does not create a new firmware or middleware support claim. The profile intentionally excludes fabricated device identities and the reference’s unverified 404 random-token/prehash sequence. A real token-bearing handshake remains required to establish compatibility for any particular firmware or portal.

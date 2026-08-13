@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Added one bounded `stalker_client_compatibility` MAG profile based on a secondary Stalker client reference. It uses the existing approved `portal.php` path with a materially different client fingerprint, strict token validation, private cookie mapping, live genre/ordered-list loading, and channel-command stream-link construction. The random-token/prehash retry and fabricated device identities were deliberately excluded because they were not verified by authorized portal evidence.
+
+### Verification
+
+- Added adapter-to-fixture coverage for strict handshake gating, headers, Referer, private cookies, token TTL, live genres, ordered-list channels, command-based stream resolution, resource cleanup, and sensitive-value redaction. Real MAG authentication and playback remain **UNRESOLVED** pending the Windows portal run.
+
+
 This file records concise historical delivery milestones. It is **not** the current support matrix or roadmap; read [PROJECT_STATUS.md](PROJECT_STATUS.md) for verified current capability status and [ROADMAP.md](ROADMAP.md) for delivery direction.
 
 ## [Unreleased]

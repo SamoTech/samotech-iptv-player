@@ -50,3 +50,8 @@ Authentication tests verify token extraction, TTL-compatible success, empty/malf
 ## Real portal distinction
 
 Passing a fixture profile proves only that the application handles that modeled protocol response. It does not prove compatibility with a production portal. The supplied real portal remains unresolved because it returned 404 for the configured application path and 200 empty `text/javascript` for the root path.
+
+
+## Stalker client compatibility profile
+
+The lab additionally covers the bounded `stalker_client_compatibility` profile through the adapter, protocol profile, HTTP transport, fixture portal, parser, and canonical translator. It verifies the observed `portal.php` request fingerprint, strict JSON-token gate, private cookie/authentication transition, TTL handling, live genres, ordered-list channels, loaded-channel command `create_link`, stream-command extraction, lifecycle cleanup, and sensitive-value redaction. This remains **SIMULATED and TESTED**; it is not evidence of real portal authentication, channels, stream resolution, or VLC playback.

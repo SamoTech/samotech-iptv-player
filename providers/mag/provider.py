@@ -149,6 +149,20 @@ class MAGProvider(BaseProvider):
     async def get_profile(self) -> dict[str, Any]:
         return await self._profile_mgr.get_profile()
 
+    @property
+    def supports_live_categories(self) -> bool:
+        """Whether the selected authenticated profile supports live genre browsing."""
+        return self._session.profile.uses_ordered_live_catalogue
+
+    @property
+    def live_catalogue_stats(self) -> dict[str, int]:
+        """Return safe aggregate live-catalogue counts from the current provider session."""
+        return self._catalogue.live_catalogue_stats
+
+    async def get_live_categories(self) -> list[dict[str, Any]]:
+        """Return profile-supported live genre records."""
+        return await self._catalogue.get_live_categories()
+
     async def get_channels(self) -> list[dict[str, Any]]:
         return await self._catalogue.get_channels()
 
@@ -168,4 +182,9 @@ class MAGProvider(BaseProvider):
         return await self._catalogue.get_epg(channel_ids=channel_ids, period=period)
 
     async def get_stream_url(self, stream_id: int, stream_type: str = "live") -> str:
-        return await self._stream.get_stream_url(stream_id=stream_id, stream_type=stream_type)
+        command = await self._catalogue.live_command(stream_id) if stream_type == "live" else None
+        return await self._stream.get_stream_url(
+            stream_id=stream_id,
+            stream_type=stream_type,
+            channel_command=command,
+        )

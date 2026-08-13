@@ -150,3 +150,8 @@ git diff --check
 ```
 
 The current implementation status is authoritative in [PROJECT_STATUS.md](PROJECT_STATUS.md), while [PRODUCT_GAP_ANALYSIS.md](PRODUCT_GAP_ANALYSIS.md) explains priorities and remaining work.
+
+
+## MAG client-fingerprint compatibility increment
+
+The bounded `stalker_client_compatibility` profile is **IMPLEMENTED and TESTED against local fixtures**. It remains a scoped live-TV protocol increment: strict token validation, private request fingerprint/cookies, live genre and ordered-list support, and command-based stream-link construction. The next acceptance boundary is not another profile: the authorized Windows portal must return a real JSON token, after which live records, stream resolution, and VLC audio/video can be verified in order. Until then, production MAG compatibility remains **UNRESOLVED**.
