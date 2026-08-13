@@ -6,7 +6,7 @@ The MAG provider is implemented behind the application provider boundary. The Qt
 
 ## Protocol profiles
 
-The repository contains four explicit, evidence-based handshake profiles:
+The repository contains four explicit, evidence-based handshake profiles. Middleware-family compatibility is documented separately in `docs/MAG_MIDDLEWARE_COMPATIBILITY.md`; these profiles are request contracts, not claims about a particular Ministra/Stalker release.
 
 | Profile | Status | Behavior |
 |---|---|---|
@@ -16,7 +16,7 @@ The repository contains four explicit, evidence-based handshake profiles:
 | `stalker_helper_compatibility` | **IMPLEMENTED and SIMULATED** | Models the observed helper `stalker_portal/server/load.php` request exactly: origin-relative helper path, empty `token`, MAG200 User-Agent, MAG250 X-User-Agent, `/stalker_portal/c/index.html` Referer, observed safe browser-style headers, and private percent-encoded `mac`, `stb_lang`, Paris-timezone cookies. Its live ordered-list flow starts at `p=1`. It deliberately excludes the helper's unverified random-token/prehash retry and never fabricates device IDs or tokens. |
 | `auto` | **IMPLEMENTED and TESTED against local fixtures** | Runs a closed, deterministic discovery set: configured-base `server/load.php`, generic origin `stalker_portal/server/load.php`, exact helper origin `stalker_portal/server/load.php`, origin `stb/server/load.php`, generic origin `portal.php`, and exact GUI origin `portal.php`. The generic candidates may add one `prehash=false` retry only after an HTTP-200 JSON response without a token. The exact GUI/helper candidates never send the unverified random-token/prehash variant. The first structurally valid token-bearing response is selected and reused for the normal session. |
 
-Both compatibility profiles can be selected explicitly by their documented profile names or selected by `auto` only after a structurally valid token-bearing discovery response. Discovery retains only candidate name, status, content type, response size, elapsed time, JSON/token flags, and classification. It neither stores a token nor treats HTTP 200 as authentication. The existence or selection of a profile does not imply universal portal compatibility. Firmware, middleware, portal base path, and provider-specific behavior must be established by authorized evidence.
+Both compatibility profiles can be selected explicitly by their documented profile names or selected by `auto` only after a structurally valid token-bearing discovery response. Discovery retains only candidate name, status, content type, response size, elapsed time, JSON/token flags, and classification. It neither stores a token nor treats HTTP 200 as authentication. The existence or selection of a profile does not imply universal portal compatibility. Official Infomir documentation confirms that portal routing, STB model restrictions, and authorization modes are configurable; it does not identify the supplied portal's middleware family. See `docs/MAG_MIDDLEWARE_COMPATIBILITY.md` for the source-derived local lab and version matrix.
 
 ## Authentication contract
 
@@ -40,3 +40,7 @@ Diagnostics include only safe endpoint paths, methods, statuses, content types, 
 
 [1]: https://wiki.infomir.eu/eng/ministra-tv-platform/changelog/stalker-middleware-4-8 "Infomir Stalker Middleware changelog"
 [2]: https://github.com/Cyogenus/IPTV-MAC-STALKER-PLAYER-BY-MY-1/blob/main/stalker.py "Secondary open-source Stalker client reference"
+[3]: https://wiki.infomir.eu/eng/ministra-tv-platform/ministra-installation-guide/ministra-tv-platform-installation "Infomir Ministra installation and STB authorization documentation"
+[4]: https://wiki.infomir.eu/eng/ministra-tv-platform/ministra-installation-guide/configuration-file "Infomir Ministra configuration file"
+[5]: https://github.com/lloesche/stalker_portal "Open-source Middleware Stalker tree"
+[6]: https://github.com/iptvhakr/stalker_portal "Open-source Stalker Middleware 5.1.1 tree"

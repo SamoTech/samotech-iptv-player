@@ -10,7 +10,7 @@ Infomir maintains firmware and Stalker Middleware documentation and versioned ch
 
 Open-source clients provide useful secondary evidence for observed request variants, including `type=stb`, `action=handshake`, `token`, `JsHttpRequest`, MAG-style headers, and Referer values. These are reverse-engineered implementation references, not universal official specifications. [2]
 
-The official Ministra configuration reference documents `/stalker_portal/` as a classic portal base and separately documents administrative/API facilities. Its REST API v1 Basic-authentication contract is an operator administration interface, not documented evidence to replace the classic MAG client session protocol. The already tested discovery set included the `/stalker_portal/` family; no official source obtained in this increment supports a fifth candidate or a new profile. [3] [4]
+The official Ministra configuration reference documents `/stalker_portal/` as a classic portal base and separately documents administrative/API facilities. It also documents configurable STB model restrictions and authorization modes. Its REST API v1 Basic-authentication contract is an operator administration interface, not documented evidence to replace the classic MAG client session protocol. The already tested discovery set included the `/stalker_portal/` family; the middleware-family investigation did not identify evidence supporting another production candidate or a new client profile. [3] [4]
 
 ## Hardware-family assessment
 
@@ -26,7 +26,7 @@ The compatibility lab deliberately does not infer support for a hardware family 
 
 ## Current profiles
 
-The `legacy` profile preserves the existing provider behavior. The `stalker_query` profile models a commonly observed Stalker client request variant. The canonical MAG path now uses a bounded auto-discovery mode that probes only four documented candidate families and selects one only after a structurally valid token-bearing response; it never infers arbitrary paths or compatibility from a URL, device identity, or HTTP 200 alone.
+The `legacy` profile preserves the existing provider behavior. The `stalker_query`, `stalker_gui_compatibility`, and `stalker_helper_compatibility` profiles model distinct observed request contracts. The canonical MAG path uses a bounded auto-discovery mode that probes six documented candidate families and selects one only after a structurally valid token-bearing response; it never infers arbitrary paths or compatibility from a URL, device identity, or HTTP 200 alone. Middleware-family findings and the source-derived local lab are recorded in `docs/MAG_MIDDLEWARE_COMPATIBILITY.md`.
 
 ## Real-world acceptance gap
 
@@ -40,6 +40,6 @@ The supplied portal remains **UNRESOLVED**. Real connectivity was verified, but 
 [4]: https://wiki.infomir.eu/eng/ministra-tv-platform/ministra-setup-guide/rest-api-v1 "Infomir Ministra REST API v1"
 
 
-## Secondary client-fingerprint profile
+## Secondary client-fingerprint profiles
 
-`stalker_client_compatibility` is **IMPLEMENTED and SIMULATED** from a secondary reverse-engineered client reference. It uses an existing approved `portal.php` path with a materially different MAG client fingerprint and does not create a new firmware or middleware support claim. The profile intentionally excludes fabricated device identities and the reference’s unverified 404 random-token/prehash sequence. A real token-bearing handshake remains required to establish compatibility for any particular firmware or portal.
+`stalker_gui_compatibility` and `stalker_helper_compatibility` are **IMPLEMENTED and SIMULATED** from secondary reverse-engineered client references. They use distinct approved endpoint families and do not create firmware or middleware-version support claims. The profiles intentionally exclude fabricated device identities and the helper reference’s unverified 404 random-token/prehash sequence. A real token-bearing handshake remains required to establish compatibility for any particular firmware or portal. The local source-derived middleware laboratory proves only the SamoTech application contract against deterministic local data.

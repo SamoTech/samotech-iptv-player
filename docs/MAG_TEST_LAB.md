@@ -25,7 +25,7 @@ The lab declares these 15 scenarios:
 | Successful categories | **SIMULATED route only; NOT VERIFIED by the current MAG adapter**, which intentionally reports category browsing as unsupported |
 | Successful channels | **SIMULATED and TESTED** |
 | Stream resolution | **SIMULATED and TESTED** |
-| Bounded endpoint discovery | **SIMULATED and TESTED** for the four approved candidate families, safe classification, deterministic priority, conditional `prehash=false`, and reuse of the selected endpoint family for authenticated live-channel loading. |
+| Bounded endpoint discovery | **SIMULATED and TESTED** for the six approved candidate families, safe classification, deterministic priority, conditional `prehash=false`, and reuse of the selected endpoint family for authenticated live-channel loading. |
 | HTTP resource lifecycle | **SIMULATED and TESTED** for retained successful-session reuse, discovery/authentication failure cleanup, repeated failure cleanup, provider shutdown, and absence of `ResourceWarning` from the deterministic failure path. |
 
 The fixture uses fake identities and local loopback URLs only. No real account or provider payload is committed.
@@ -49,9 +49,13 @@ Authentication tests verify token extraction, TTL-compatible success, empty/malf
 
 ## Real portal distinction
 
-Passing a fixture profile proves only that the application handles that modeled protocol response. It does not prove compatibility with a production portal. The supplied real portal remains unresolved because it returned 404 for the configured application path and 200 empty `text/javascript` for the root path.
+Passing a fixture profile proves only that the application handles that modeled protocol response. It does not prove compatibility with a production portal. The supplied real portal remains unresolved because the bounded six-candidate set returned four HTTP 404 responses, one HTTP 200 empty `text/javascript` response, and one HTTP 404 GUI fingerprint response. A corrected GUI-cookie revalidation also returned HTTP 404.
 
 
-## Stalker client compatibility profile
+## Source-derived middleware laboratory
 
-The lab additionally covers the bounded `stalker_client_compatibility` profile through the adapter, protocol profile, HTTP transport, fixture portal, parser, and canonical translator. It verifies the observed `portal.php` request fingerprint, strict JSON-token gate, private cookie/authentication transition, TTL handling, live genres, ordered-list channels, loaded-channel command `create_link`, stream-command extraction, lifecycle cleanup, and sensitive-value redaction. This remains **SIMULATED and TESTED**; it is not evidence of real portal authentication, channels, stream resolution, or VLC playback.
+`tests/providers/mag/test_middleware_lab.py` provides a deterministic **SOURCE-DERIVED / SIMULATED** classic middleware server based on the readable open-source dispatcher contract: `/stalker_portal/server/load.php` receives `type` and `action`, authenticated requests carry Bearer authorization plus token/MAC cookies, and live catalogue calls use `get_genres`, page-one/page-two `get_ordered_list`, and command-based `create_link`. The test drives the real MAG provider through the adapter boundary and proves handshake, TTL, token transport, genres, pagination, channel translation, and stream resolution against local test data. It does not emulate hardware or establish production support.
+
+## Stalker client compatibility profiles
+
+`stalker_gui_compatibility` and `stalker_helper_compatibility` are **IMPLEMENTED and SIMULATED** from secondary reverse-engineered client references. They remain evidence-based request profiles, not middleware-version claims. The GUI profile uses the origin-relative `portal.php` family and page-zero live pagination; the helper profile uses origin-relative `stalker_portal/server/load.php` and page-one live pagination. Both exclude fabricated device identities and the helper source’s unverified 404 random-token/prehash sequence. A real token-bearing handshake remains required to establish compatibility for any particular firmware or portal.
