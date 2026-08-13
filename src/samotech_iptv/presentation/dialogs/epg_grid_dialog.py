@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING
 
-from PySide6.QtWidgets import (  # type: ignore[import-not-found]
+from PySide6.QtWidgets import (
     QDialog,
     QFormLayout,
     QLabel,
@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 __all__ = ["EPGGridDialog"]
 
 
-class EPGGridDialog(QDialog):  # type: ignore[misc]
+class EPGGridDialog(QDialog):
     """Load and render safe EPG rows for a registered provider channel."""
 
     def __init__(self, load_registered_epg: LoadRegisteredEPG) -> None:

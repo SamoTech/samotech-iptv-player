@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from PySide6.QtWidgets import (  # type: ignore[import-not-found]
+from PySide6.QtWidgets import (
     QDialog,
     QFormLayout,
     QLabel,
@@ -30,7 +30,7 @@ _CONFIGURE_ERROR = "Unable to save XMLTV guide configuration"
 _REFRESH_ERROR = "Unable to refresh XMLTV guide"
 
 
-class XMLTVGuideDialog(QDialog):  # type: ignore[misc]
+class XMLTVGuideDialog(QDialog):
     """Configure a local XMLTV binding and render bounded, non-secret schedule rows."""
 
     def __init__(

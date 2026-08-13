@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING
 
-from PySide6.QtWidgets import (  # type: ignore[import-not-found]
+from PySide6.QtWidgets import (
     QDialog,
     QFormLayout,
     QLabel,
@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 __all__ = ["HistoryLibraryDialog"]
 
 
-class HistoryLibraryDialog(QDialog):  # type: ignore[misc]
+class HistoryLibraryDialog(QDialog):
     """Render recent history and support bounded clear-all behavior."""
 
     def __init__(self, load_history: LoadHistory, clear_history: ClearHistory) -> None:

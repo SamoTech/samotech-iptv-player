@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING
 
-from PySide6.QtWidgets import (  # type: ignore[import-not-found]
+from PySide6.QtWidgets import (
     QDialog,
     QFormLayout,
     QLabel,
@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 __all__ = ["CategoryBrowserDialog"]
 
 
-class CategoryBrowserDialog(QDialog):  # type: ignore[misc]
+class CategoryBrowserDialog(QDialog):
     """Browse canonical live categories without selecting, resolving, or playing content."""
 
     def __init__(self, load_categories: LoadCategories) -> None:

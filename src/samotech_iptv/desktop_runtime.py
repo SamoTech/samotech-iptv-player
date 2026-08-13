@@ -13,16 +13,16 @@ __all__ = ["run_desktop_application"]
 
 def run_desktop_application(desktop: DesktopApplication) -> int:
     """Show the desktop window and run its Qt-aware asyncio event loop until quit."""
-    from qasync import QEventLoop  # type: ignore[import-not-found]
+    from qasync import QEventLoop  # type: ignore[import-untyped]
 
     event_loop = QEventLoop(desktop.application)
     asyncio.set_event_loop(event_loop)
     with event_loop:
-        start_callback = getattr(desktop, "start", None)
-        if start_callback is not None:
-            event_loop.run_until_complete(start_callback())
-        desktop.main_window.show()
         try:
+            start_callback = getattr(desktop, "start", None)
+            if start_callback is not None:
+                event_loop.run_until_complete(start_callback())
+            desktop.main_window.show()
             event_loop.run_forever()
         finally:
             close_callback = getattr(desktop, "close", None)

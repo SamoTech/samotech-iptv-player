@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING
 
-from PySide6.QtWidgets import (  # type: ignore[import-not-found]
+from PySide6.QtWidgets import (
     QDialog,
     QFormLayout,
     QLabel,
@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 __all__ = ["ChannelBrowserDialog"]
 
 
-class ChannelBrowserDialog(QDialog):  # type: ignore[misc]
+class ChannelBrowserDialog(QDialog):
     """Browse, search, and select safe channel rows through application callbacks."""
 
     def __init__(

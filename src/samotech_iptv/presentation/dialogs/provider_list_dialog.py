@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING
 
-from PySide6.QtWidgets import (  # type: ignore[import-not-found]
+from PySide6.QtWidgets import (
     QDialog,
     QFormLayout,
     QLabel,
@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 __all__ = ["ProviderListDialog"]
 
 
-class ProviderListDialog(QDialog):  # type: ignore[misc]
+class ProviderListDialog(QDialog):
     """Render safe provider summaries and offer credential-safe lifecycle actions."""
 
     def __init__(

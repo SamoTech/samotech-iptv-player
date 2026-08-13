@@ -174,8 +174,16 @@ async def build_production_desktop_application(
         load_history=load_history,
         clear_history=clear_history,
     )
+
+    async def close() -> None:
+        """Release the player before closing the shared HTTP client."""
+        try:
+            await player.close()
+        finally:
+            await context.http_client.close()
+
     return replace(
         desktop,
         start=context.http_client.open,
-        close=context.http_client.close,
+        close=close,
     )

@@ -22,6 +22,16 @@ from samotech_iptv.infrastructure.database.sqlite_theme_preference_repository im
 from samotech_iptv.infrastructure.providers.provider_metadata import InfraProviderMetadata
 
 
+class FakeComposedPlayer:
+    """Minimal player double recording lifecycle-owned shutdown."""
+
+    def __init__(self) -> None:
+        self.close_calls = 0
+
+    async def close(self) -> None:
+        self.close_calls += 1
+
+
 class FakeApplication:
     """Minimal QApplication double with process-wide instance behavior."""
 
@@ -224,7 +234,7 @@ async def test_production_composition_initialises_state_restores_metadata_and_wi
     )
     await theme_repository.save(ThemePreference.DARK)
 
-    player = object()
+    player = FakeComposedPlayer()
     desktop = DesktopApplication(application=object(), main_window=object())
     with (
         patch(
@@ -274,3 +284,6 @@ async def test_production_composition_initialises_state_restores_metadata_and_wi
     assert arguments[18]._player is player  # noqa: SLF001
     assert arguments[19]._player is player  # noqa: SLF001
     assert arguments[20]._player is player  # noqa: SLF001
+
+    await result.close()
+    assert player.close_calls == 1

@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING
 
-from PySide6.QtWidgets import (  # type: ignore[import-not-found]
+from PySide6.QtWidgets import (
     QDialog,
     QFormLayout,
     QLabel,
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 __all__ = ["ThemeSettingsDialog"]
 
 
-class ThemeSettingsDialog(QDialog):  # type: ignore[misc]
+class ThemeSettingsDialog(QDialog):
     """Edit one of the supported system, light, or dark desktop preferences."""
 
     def __init__(

@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from PySide6.QtWidgets import QApplication  # type: ignore[import-not-found]
+from PySide6.QtWidgets import QApplication
 
 from samotech_iptv.domain.value_objects.theme_preference import ThemePreference
 from samotech_iptv.infrastructure.player.composition import build_player
@@ -96,7 +96,13 @@ def build_desktop_application(
     clear_history: ClearHistory | None = None,
 ) -> DesktopApplication:
     """Compose the Qt shell around externally configured registered-provider logic."""
-    application = QApplication.instance() or QApplication(list(argv or []))
+    existing_application = QApplication.instance()
+    if existing_application is None:
+        application = QApplication(list(argv or []))
+    elif isinstance(existing_application, QApplication):
+        application = existing_application
+    else:
+        raise RuntimeError("An existing Qt application is not a QApplication")
     apply_theme(application, initial_theme)
     desktop_player = player or build_player()
     main_window = MainWindow(

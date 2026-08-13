@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING
 
-from PySide6.QtWidgets import (  # type: ignore[import-not-found]
+from PySide6.QtWidgets import (
     QDialog,
     QFormLayout,
     QLabel,
@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 __all__ = ["FavoriteLibraryDialog"]
 
 
-class FavoriteLibraryDialog(QDialog):  # type: ignore[misc]
+class FavoriteLibraryDialog(QDialog):
     """Render persisted favorites and support single-record removal."""
 
     def __init__(self, list_favorites: ListFavorites, remove_favorite: RemoveFavorite) -> None:

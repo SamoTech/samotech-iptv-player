@@ -31,9 +31,9 @@ def configure_logging(level: str = "INFO", *, stream: bool = True, debug: bool =
         handler.setFormatter(_DEBUG_FORMATTER if debug else _FORMATTER)
         root.addHandler(handler)
     elif debug:
-        for handler in root.handlers:
-            handler.setLevel(logging.DEBUG)
-            handler.setFormatter(_DEBUG_FORMATTER)
+        for existing_handler in root.handlers:
+            existing_handler.setLevel(logging.DEBUG)
+            existing_handler.setFormatter(_DEBUG_FORMATTER)
 
 
 def get_logger(name: str | None = None) -> logging.Logger:

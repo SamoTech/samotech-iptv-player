@@ -4,18 +4,18 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import Qt  # type: ignore[import-not-found]
-from PySide6.QtWidgets import QFrame  # type: ignore[import-not-found]
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QFrame
 
 if TYPE_CHECKING:
-    from PySide6.QtGui import QShowEvent  # type: ignore[import-not-found]
+    from PySide6.QtGui import QShowEvent
 
     from samotech_iptv.application.ports.player_port import PlayerPort
 
 __all__ = ["VlcVideoSurface"]
 
 
-class VlcVideoSurface(QFrame):  # type: ignore[misc]
+class VlcVideoSurface(QFrame):
     """A Qt-owned native surface that hosts libVLC video rendering."""
 
     def __init__(self, player: PlayerPort) -> None:

@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING
 
-from PySide6.QtWidgets import (  # type: ignore[import-not-found]
+from PySide6.QtWidgets import (
     QDialog,
     QFormLayout,
     QLabel,
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 __all__ = ["ProviderEditDialog"]
 
 
-class ProviderEditDialog(QDialog):  # type: ignore[misc]
+class ProviderEditDialog(QDialog):
     """Edit safe metadata and optional credentials for one registered provider.
 
     Passwords, MAC addresses, and protected playlist URLs are never read back into

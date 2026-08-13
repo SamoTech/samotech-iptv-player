@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import importlib
 import sys
 from dataclasses import dataclass, field
@@ -63,6 +64,9 @@ class FakePlayer:
     def set_nsobject(self, native_window_id: int) -> None:
         self.calls.append(f"nsobject:{native_window_id}")
 
+    def release(self) -> None:
+        self.calls.append("release")
+
 
 class FailingOncePlayer(FakePlayer):
     def __init__(self) -> None:
@@ -83,12 +87,16 @@ class FakeInstance:
 
     def __init__(self, player: FakePlayer) -> None:
         self.player = player
+        self.release_calls = 0
 
     def media_player_new(self) -> FakePlayer:
         return self.player
 
     def media_new(self, url: str) -> FakeMedia:
         return FakeMedia(url)
+
+    def release(self) -> None:
+        self.release_calls += 1
 
 
 def _adapter(player: FakePlayer, **kwargs: object) -> VlcPlayerAdapter:
@@ -131,6 +139,43 @@ async def test_vlc_adapter_stops_previous_media_and_falls_back_once() -> None:
     assert player.media is not None
     assert player.media.url == "https://example.test/second.m3u8"
     assert player.media.options == [":network-caching=1000"]
+
+
+@pytest.mark.asyncio
+async def test_vlc_adapter_serializes_rapid_switching_and_stop() -> None:
+    player = FakePlayer()
+    adapter = _adapter(player)
+    first = URL("https://example.test/first.m3u8")
+    second = URL("https://example.test/second.m3u8")
+    third = URL("https://example.test/third.m3u8")
+
+    await asyncio.gather(adapter.play(first), adapter.play(second), adapter.play(third))
+
+    assert player.calls == ["play", "stop", "play", "stop", "play"]
+    assert player.media is not None
+    assert player.media.url == third.value
+
+    await asyncio.gather(adapter.play(first), adapter.stop())
+
+    assert player.calls[-3:] == ["stop", "play", "stop"]
+    assert adapter.is_playing is False
+
+
+@pytest.mark.asyncio
+async def test_vlc_adapter_releases_player_and_instance_once_on_shutdown() -> None:
+    player = FakePlayer()
+    instance = FakeInstance(player)
+    sys.modules.setdefault("vlc", SimpleNamespace(Instance=lambda: instance))
+    module = importlib.import_module("samotech_iptv.infrastructure.player.vlc_player_adapter")
+    adapter = module.VlcPlayerAdapter(instance, player)
+
+    await adapter.play(URL("https://example.test/live.m3u8"))
+    await adapter.close()
+    await adapter.close()
+
+    assert player.calls == ["play", "stop", "release"]
+    assert instance.release_calls == 1
+    assert adapter.is_playing is False
 
 
 @pytest.mark.asyncio

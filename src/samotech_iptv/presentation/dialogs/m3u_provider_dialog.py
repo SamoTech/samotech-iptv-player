@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING
 
-from PySide6.QtWidgets import (  # type: ignore[import-not-found]
+from PySide6.QtWidgets import (
     QDialog,
     QFormLayout,
     QLabel,
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 __all__ = ["M3UProviderDialog"]
 
 
-class M3UProviderDialog(QDialog):  # type: ignore[misc]
+class M3UProviderDialog(QDialog):
     """Collect an M3U source and delegate registration through the application boundary."""
 
     def __init__(self, register_provider: RegisterM3UProvider) -> None:

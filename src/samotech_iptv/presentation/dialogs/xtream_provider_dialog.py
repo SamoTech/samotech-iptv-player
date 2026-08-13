@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING
 
-from PySide6.QtWidgets import (  # type: ignore[import-not-found]
+from PySide6.QtWidgets import (
     QDialog,
     QFormLayout,
     QLabel,
@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 __all__ = ["XtreamProviderDialog"]
 
 
-class XtreamProviderDialog(QDialog):  # type: ignore[misc]
+class XtreamProviderDialog(QDialog):
     """Collect ephemeral Xtream inputs and delegate secure registration to application."""
 
     def __init__(self, register_provider: RegisterXtreamProvider) -> None:

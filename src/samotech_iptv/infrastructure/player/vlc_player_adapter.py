@@ -78,6 +78,7 @@ class VlcPlayerAdapter(PlayerPort):
         self._network_caching_ms = network_caching_ms
         self._play_retry_count = play_retry_count
         self._play_lock = asyncio.Lock()
+        self._closed = False
         self._subscribe_events()
 
     def _subscribe_events(self) -> None:
@@ -164,6 +165,24 @@ class VlcPlayerAdapter(PlayerPort):
             self._recording_destination = None
             _LOG.info("[IPTV] PLAYBACK STOPPED")
 
+    async def close(self) -> None:
+        """Stop playback and release the owned libVLC player and instance exactly once."""
+        async with self._play_lock:
+            if self._closed:
+                return
+            self._closed = True
+            self._current_url = None
+            self._recording_destination = None
+            try:
+                await self._invoke("stop")
+            except Exception:  # noqa: BLE001
+                _LOG.debug("[IPTV] PLAYBACK stop during shutdown failed", exc_info=True)
+            try:
+                await self._release(self._player)
+            finally:
+                await self._release(self._instance)
+            _LOG.info("[IPTV] PLAYBACK RELEASED")
+
     async def pause(self) -> None:
         """Pause libVLC playback while preserving an active recording configuration."""
         async with self._play_lock:
@@ -238,6 +257,17 @@ class VlcPlayerAdapter(PlayerPort):
             raise ValueError("Recording destination contains unsupported characters")
         escaped = value.replace("\\", "\\\\").replace("'", "\\'")
         return f":sout=#duplicate{{dst=display,dst=std{{access=file,mux=ts,dst='{escaped}'}}}}"
+
+    @staticmethod
+    async def _release(target: object) -> None:
+        """Release a libVLC object when its binding exposes the expected method."""
+        release = getattr(target, "release", None)
+        if not callable(release):
+            return
+        try:
+            await asyncio.to_thread(release)
+        except Exception:  # noqa: BLE001
+            _LOG.debug("[IPTV] PLAYBACK release during shutdown failed", exc_info=True)
 
     async def _invoke(self, operation: str) -> None:
         result = await asyncio.to_thread(getattr(self._player, operation))

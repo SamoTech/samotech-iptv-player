@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING
 
-from PySide6.QtWidgets import (  # type: ignore[import-not-found]
+from PySide6.QtWidgets import (
     QDialog,
     QFormLayout,
     QLabel,
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 __all__ = ["MAGProviderDialog"]
 
 
-class MAGProviderDialog(QDialog):  # type: ignore[misc]
+class MAGProviderDialog(QDialog):
     """Collect authorized MAG/Stalker identity inputs for secure registration."""
 
     def __init__(self, register_provider: RegisterMAGProvider) -> None:

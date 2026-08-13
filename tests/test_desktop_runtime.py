@@ -5,6 +5,8 @@ import sys
 from types import ModuleType, SimpleNamespace
 from typing import TYPE_CHECKING
 
+import pytest
+
 from samotech_iptv.desktop_runtime import run_desktop_application
 
 if TYPE_CHECKING:
@@ -65,6 +67,38 @@ def test_runtime_shows_window_and_runs_qasync_loop(monkeypatch: MonkeyPatch) -> 
     assert FakeEventLoop.instances[0].ran_forever is True
     assert registered_loops == [FakeEventLoop.instances[0]]
     assert FakeEventLoop.instances[0].cleanup_calls == 0
+
+
+def test_runtime_closes_resources_when_startup_fails(monkeypatch: MonkeyPatch) -> None:
+    """A startup failure still closes the composition-owned resources."""
+    FakeEventLoop.instances.clear()
+    qasync = ModuleType("qasync")
+    qasync.QEventLoop = FakeEventLoop
+    monkeypatch.setitem(sys.modules, "qasync", qasync)
+    monkeypatch.setattr(asyncio, "set_event_loop", lambda _: None)
+    close_calls = 0
+
+    async def start() -> None:
+        raise RuntimeError("startup failed")
+
+    async def close() -> None:
+        nonlocal close_calls
+        close_calls += 1
+
+    main_window = FakeMainWindow()
+    desktop = SimpleNamespace(
+        application=object(),
+        main_window=main_window,
+        start=start,
+        close=close,
+    )
+
+    with pytest.raises(RuntimeError, match="startup failed"):
+        run_desktop_application(desktop)  # type: ignore[arg-type]
+
+    assert main_window.show_calls == 0
+    assert close_calls == 1
+    assert FakeEventLoop.instances[0].cleanup_calls == 2
 
 
 def test_runtime_closes_production_resources_after_qasync_exit(monkeypatch: MonkeyPatch) -> None:

@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from samotech_iptv.domain.value_objects.theme_preference import ThemePreference
 
 if TYPE_CHECKING:
-    from PySide6.QtWidgets import QApplication  # type: ignore[import-not-found]
+    from PySide6.QtWidgets import QApplication
 
 __all__ = ["apply_theme"]
 
