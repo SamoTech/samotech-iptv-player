@@ -40,7 +40,7 @@ The current codebase implements tested boundaries for the following capabilities
 |---|---|---|---|
 | M3U | **Partially Implemented** | Local/file/HTTP(S) source loading, extended-M3U parsing, secure tokenized-source handling, canonical live channels/search, and parsed HTTP(S) stream resolution through the registered-player path. | Non-HTTP(S) transports remain classified but are outside the current `URL`/player boundary; no VOD/series UI. XMLTV binding is registered-provider scoped and local/file only. |
 | Xtream Codes API | **Partially Implemented** | Credential validation, live channels, registered **live-category** discovery, live/VOD/series category adapter methods, movies, series, short EPG, local channel search, and live stream URL resolution. | VOD/series category families, movies, series, and episodes lack registered browse UI/resolution; live-category discovery does not select content, resolve streams, or play media. |
-| MAG/Stalker | **Partially Implemented** | Authorized MAC identity handling, session refresh, live channels, EPG, local channel search, and live stream resolution. | Canonical VOD, series, category-family, catch-up/archive, and user-facing catalogue workflows. |
+| MAG/Stalker | **Partially Implemented** | Authorized MAC identity handling, explicit session lifecycle, legacy and opt-in Stalker-query handshake profiles, live channels, EPG, local channel search, and live stream resolution. | Production portal compatibility remains provider-specific; real VLC/Windows acceptance, canonical VOD, series, category-family, catch-up/archive, and user-facing catalogue workflows remain open. |
 | Ministra | **Planned** | Compatibility assessment and a separate-adapter design decision. | Authorized sanitized fixture, approved device identity, dedicated device-facing adapter, handshake/profile/catalogue/link-resolution implementation. |
 | Trusted local provider plugins | **Implemented** | Explicit local-file loading, API version/identity/namespace validation, transactional registration, and a tested reference plugin. | Sandbox, signing, marketplace, automatic discovery, remote installation, and plugin updating are deliberately out of scope. |
 
@@ -73,7 +73,7 @@ The current codebase implements tested boundaries for the following capabilities
 
 ## Architecture overview
 
-The architecture keeps dependencies pointed inward and keeps provider protocols separate from desktop UI and player code.
+The architecture keeps dependencies pointed inward and keeps provider protocols separate from desktop UI and player code. MAG protocol construction remains in the legacy provider/profile layer; the MAG adapter owns application translation and session lifecycle.
 
 ```text
 Authorized IPTV provider or source
@@ -99,7 +99,7 @@ The `domain` package contains framework-independent business records and validat
 
 The dependency-wiring, launch-lifecycle, primary registered live-stream, provider-management, XMLTV, and user-library foundations are now delivered: `build_production_desktop_application()` initializes safe SQLite state, restores provider metadata, constructs provider services and use cases, loads the persisted theme, and shares one libVLC player with the Qt shell; `samotech-iptv` and `python -m samotech_iptv` invoke that graph, run qasync, report startup failure generically, and close the shared HTTP resource; M3U, Xtream, and MAG resolve supported HTTP(S) live streams through the registered-provider path. Favorites and History are now user-testable at their bounded library-view scope; replay/resume and non-live catalogue workflows remain future work.
 
-The detailed prioritization is maintained in [PRODUCT_GAP_ANALYSIS.md](PRODUCT_GAP_ANALYSIS.md).
+The detailed prioritization is maintained in [PRODUCT_GAP_ANALYSIS.md](PRODUCT_GAP_ANALYSIS.md). MAG protocol scope and compatibility evidence are documented in [docs/MAG_PROTOCOL.md](docs/MAG_PROTOCOL.md), [docs/MAG_FIRMWARE_COMPATIBILITY.md](docs/MAG_FIRMWARE_COMPATIBILITY.md), and [docs/MAG_TEST_LAB.md](docs/MAG_TEST_LAB.md).
 
 ## Installation
 
@@ -133,7 +133,7 @@ pytest -q
 git diff --check
 ```
 
-The GitHub CI workflow also verifies the project on Python 3.13 and runs a best-effort Windows PyInstaller build. See [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+The GitHub CI workflow also verifies the project on Python 3.13 and runs a best-effort Windows PyInstaller build. The deterministic MAG protocol lab is included in the pytest suite; it is a local protocol simulation and does not claim production portal compatibility. See [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
 ## Running the application
 

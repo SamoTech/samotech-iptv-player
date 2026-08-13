@@ -14,6 +14,11 @@ from .connection import MAGConnection
 from .constants import DEFAULT_MAX_RETRIES, DEFAULT_TIMEOUT_S
 from .credentials import MAGCredentials
 from .profile import MAGProfile
+from .protocol_profile import (
+    LegacyMAGProtocolProfile,
+    MAGProtocolProfile,
+    StalkerQueryProtocolProfile,
+)
 from .session import MAGSession
 from .stream import MAGStream
 
@@ -59,7 +64,15 @@ class MAGProvider(BaseProvider):
             max_retries=int(config.get("max_retries", DEFAULT_MAX_RETRIES)),
             dev_mode=bool(config.get("dev_mode", False)),
         )
-        self._session = MAGSession(self._connection, creds)
+        profile_name = str(config.get("protocol_profile", "legacy")).casefold()
+        protocol_profile: MAGProtocolProfile
+        if profile_name == "legacy":
+            protocol_profile = LegacyMAGProtocolProfile()
+        elif profile_name == "stalker_query":
+            protocol_profile = StalkerQueryProtocolProfile()
+        else:
+            raise ValueError(f"Unsupported MAG protocol profile: {profile_name!r}")
+        self._session = MAGSession(self._connection, creds, profile=protocol_profile)
         self._profile_mgr = MAGProfile(self._connection, self._session)
         self._catalogue = MAGCatalogue(self._connection, self._session)
         self._stream = MAGStream(self._connection, self._session)

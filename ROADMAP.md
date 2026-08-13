@@ -36,6 +36,7 @@ The following work is present in the repository and has focused test coverage. �
 | M3U source foundation | M3U parser and adapter increments | Extended-M3U parsing, safe local/file/HTTP(S) source loading, protected tokenized sources, canonical live channels, and local search. |
 | HLS/DASH/XMLTV foundations | Manifest and XMLTV parser increments | Bounded HLS and MPD metadata parsers, transport/manifest classification, and bounded secure XMLTV parsing with explicit mappings. |
 | MAG/Stalker live-TV foundation | MAG provider recovery and adapter work | Authorized MAC handling, private session state, live catalogue, local search, EPG, stream resolution, and session refresh through the canonical adapter boundary. |
+| MAG/Stalker compatibility lab | Protocol profile and local fixture increment | Legacy and opt-in Stalker-query handshake profiles, deterministic response/error fixtures, controlled session re-authentication tests, redacted protocol diagnostics, and documented firmware/middleware evidence boundaries. Production portal compatibility remains unresolved until an authorized portal trace proves a profile. |
 | Xtream Codes foundation | Xtream request/client/translator/adapter increments | Authentication, live channels, category families, movie/series catalogues, short EPG, local search, and live stream resolution. |
 | Playback engine | libVLC adapter, composition, and recording work | Sole libVLC player backend with play/pause/resume/stop, Qt output attachment, and local MPEG transport-stream recording. |
 | Desktop foundation | PySide6, qasync, provider-entry, browser, EPG, and library increments | Qt video surface, main window, provider registration/listing, live-channel browser/search/playback action, EPG grid, favorites insertion, history recording, and recording controls. |
@@ -99,6 +100,16 @@ The application can now launch from source. The next product milestone completes
 
 Favorites now provides safe listing, empty state, refresh, generic errors, and single-record removal. History now provides recent listing, duration, persisted playback-position display, recency, refresh, generic errors, and confirmation-protected clear-all. History per-record deletion, replay, resume, provider reconstruction, and stream reconstruction remain out of scope.
 
+## Current acceptance gate — live-provider runtime validation
+
+The deterministic MAG compatibility lab is **implemented and tested**. The next gate is real Windows/libVLC acceptance for M3U and Xtream playback and an authorized MAG portal/profile trace. Passing a fixture does not establish production portal support.
+
+| Provider path | Current state | Required next evidence |
+|---|---|---|
+| M3U → channels → stream resolution → VLC | Channels and stream resolution verified; real VLC/UI not verified. | Windows actual audio/video and playback-recovery run. |
+| Xtream → channels → stream resolution → VLC | Authentication, categories, channels, and stream resolution verified; real VLC/UI not verified. | Windows actual audio/video and playback-recovery run. |
+| MAG → authentication → channels → stream resolution → VLC | Local profiles and fixture stack tested; supplied real portal unresolved at authentication. | Authorized portal base path/profile trace, then Windows playback validation. |
+
 ## Future milestones
 
 The items below should be sequenced only after the product-blocking lifecycle and usable live-TV workflow have progressed.
@@ -106,7 +117,7 @@ The items below should be sequenced only after the product-blocking lifecycle an
 | Milestone | Scope | Dependency notes |
 |---|---|---|
 | Catalogue expansion | Xtream VOD/movie/series/episode browsing and playback; provider-specific category navigation. | Requires registered-provider resolver/use-case/UI extensions and player behavior for non-live content. |
-| MAG/Stalker expansion | Category, VOD, series, archive/catch-up capabilities where authorized fixtures prove behavior. | Requires protocol-specific evidence and capability-by-capability delivery. |
+| MAG/Stalker expansion | Category, VOD, series, archive/catch-up capabilities where authorized fixtures prove behavior. | Requires protocol-specific evidence and capability-by-capability delivery; current MAG category browsing is typed unsupported. |
 | Ministra adapter | Separate device-facing Ministra integration. | Gated on authorized sanitized fixtures and approved device identity; see [MINISTRA_COMPATIBILITY_ASSESSMENT.md](MINISTRA_COMPATIBILITY_ASSESSMENT.md). |
 | Library completion | Favorites and history lists, removal, resume behavior, and recording metadata management. | Builds on stable IDs, player-state events, and runnable lifecycle. |
 | Playback experience | Subtitle/audio-track controls, aspect ratio/fullscreen, picture-in-picture, player capability negotiation, and transport diagnostics. | Must remain libVLC-only unless the product makes an explicit backend decision. |

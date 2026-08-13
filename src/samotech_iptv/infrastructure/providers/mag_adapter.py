@@ -38,6 +38,7 @@ from samotech_iptv.infrastructure.providers.mag_error_translator import (
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable, Mapping, Sequence
 
+    from samotech_iptv.domain.entities.category import Category
     from samotech_iptv.domain.entities.channel import Channel
     from samotech_iptv.domain.entities.epg_entry import EPGEntry
     from samotech_iptv.domain.value_objects.channel_id import ChannelId
@@ -167,6 +168,10 @@ class MagProviderAdapter(
             self._is_authenticated = False
             self._session_token = None
             self._session_state = "no_session"
+
+    async def load_live_categories(self) -> Sequence[Category]:
+        """MAG portals do not expose category browsing through this adapter."""
+        raise ProviderError("Provider does not support category browsing")
 
     async def load_channels(self) -> Sequence[Channel]:
         """Fetch and translate the MAG live-TV catalogue."""

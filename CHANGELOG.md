@@ -6,6 +6,10 @@ This file records concise historical delivery milestones. It is **not** the curr
 
 ### Added
 
+- Deterministic MAG/Stalker compatibility lab using a local aiohttp protocol fixture and the real adapter → legacy provider → HTTP/session/parser boundaries.
+- Explicit legacy and opt-in Stalker-query handshake profiles based on repository and secondary implementation evidence.
+- Fixture coverage for successful authentication, empty/malformed/status failures, missing tokens, TTL, session expiration/re-authentication, unsupported categories, channels, and stream resolution.
+- MAG protocol, firmware/middleware compatibility, and test-lab documentation.
 - Production desktop composition root that initializes non-secret SQLite repositories, restores safe provider metadata, registers M3U/Xtream/MAG provider constructors, constructs existing provider services/use cases, loads the persisted theme, and injects one shared libVLC player into the Qt shell.
 - Supported `samotech-iptv` console command and `python -m samotech_iptv` module entry point that invoke production composition, run the qasync desktop loop, report generic startup failures, and close the shared HTTP resource after the window loop exits.
 - Fake-backed integration coverage for safe metadata restoration, factory registration, persisted-theme loading, shared-player wiring, lifecycle cleanup, and entry-point error safety.
@@ -27,6 +31,8 @@ This file records concise historical delivery milestones. It is **not** the curr
 
 ### Scope limits
 
+- Passing local MAG fixtures is simulation only and does not establish compatibility with a production portal or any MAG hardware family.
+- The supplied real MAG portal remains unresolved at authentication; Windows/libVLC playback remains pending on a real desktop.
 - History per-record deletion, replay, resume, provider reconstruction, and stream reconstruction remain out of scope.
 
 ## Runtime QA fix — 2026-08-13

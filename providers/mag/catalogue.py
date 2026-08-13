@@ -6,6 +6,7 @@ import logging
 from collections.abc import Mapping
 from typing import TYPE_CHECKING
 
+from ..base.errors import AuthError
 from .constants import ENDPOINT_CHANNELS, ENDPOINT_EPG, ENDPOINT_SERIES, ENDPOINT_VOD
 
 if TYPE_CHECKING:
@@ -78,8 +79,12 @@ class MAGCatalogue:
 
     @staticmethod
     def _records_from_response(data: object) -> list[MagRecord]:
-        """Extract list-shaped payload data while rejecting malformed records."""
-        return MAGCatalogue._records(MAGCatalogue._js_payload(data).get("data", []))
+        """Extract list-shaped payload data and classify session errors."""
+        payload = MAGCatalogue._js_payload(data)
+        error = payload.get("error")
+        if error:
+            raise AuthError("MAG catalogue response indicated an expired session")
+        return MAGCatalogue._records(payload.get("data", []))
 
     @staticmethod
     def _js_payload(data: object) -> Mapping[str, object]:

@@ -15,11 +15,11 @@ from typing import TYPE_CHECKING
 from ..base.errors import AuthError, NetworkError
 from .constants import (
     DEFAULT_TOKEN_TTL_S,
-    ENDPOINT_HANDSHAKE,
     MAX_RECONNECT_TRIES,
     RECONNECT_BASE_DELAY,
     RECONNECT_MAX_DELAY,
 )
+from .protocol_profile import LegacyMAGProtocolProfile, MAGProtocolProfile
 
 if TYPE_CHECKING:
     from samotech_iptv.core.typing import JSON
@@ -31,9 +31,15 @@ log = logging.getLogger(__name__)
 
 
 class MAGSession:
-    def __init__(self, connection: MAGConnection, credentials: MAGCredentials) -> None:
+    def __init__(
+        self,
+        connection: MAGConnection,
+        credentials: MAGCredentials,
+        profile: MAGProtocolProfile | None = None,
+    ) -> None:
         self._conn = connection
         self._creds = credentials
+        self._profile = profile
         self._token_expires_at: float = 0.0
         self._refresh_task: asyncio.Task[None] | None = None
 
@@ -47,10 +53,10 @@ class MAGSession:
 
     async def authenticate(self) -> None:
         log.info("Authenticating with portal %s", self._creds.portal_url)
-        payload = await self._conn.get(
-            ENDPOINT_HANDSHAKE,
-            headers=self._auth_headers(),
-        )
+        profile = self._profile or LegacyMAGProtocolProfile()
+        endpoint, params, profile_headers = profile.handshake_request(self._creds.portal_url)
+        headers = {**profile_headers, **self._auth_headers()}
+        payload = await self._conn.get(endpoint, params=params, headers=headers)
         self._store_token(payload)
         self._schedule_refresh()
         log.info("Authentication successful — token acquired")
@@ -58,10 +64,10 @@ class MAGSession:
     async def refresh(self) -> None:
         log.debug("Refreshing portal token")
         try:
-            payload = await self._conn.get(
-                ENDPOINT_HANDSHAKE,
-                headers=self._auth_headers(),
-            )
+            profile = self._profile or LegacyMAGProtocolProfile()
+            endpoint, params, profile_headers = profile.handshake_request(self._creds.portal_url)
+            headers = {**profile_headers, **self._auth_headers()}
+            payload = await self._conn.get(endpoint, params=params, headers=headers)
             self._store_token(payload)
             log.debug("Token refreshed")
         except NetworkError as exc:
