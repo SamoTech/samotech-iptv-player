@@ -24,7 +24,7 @@ The compatibility lab deliberately does not infer support for a hardware family 
 
 ## Current profiles
 
-The `legacy` profile is the default and preserves the existing provider behavior. The `stalker_query` profile is an opt-in simulation of a commonly observed Stalker client request variant. Neither profile is automatically inferred from a portal URL or device identity.
+The `legacy` profile preserves the existing provider behavior. The `stalker_query` profile models a commonly observed Stalker client request variant. The canonical MAG path now uses a bounded auto-discovery mode that probes only four documented candidate families and selects one only after a structurally valid token-bearing response; it never infers arbitrary paths or compatibility from a URL, device identity, or HTTP 200 alone.
 
 ## Real-world acceptance gap
 

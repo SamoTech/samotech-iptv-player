@@ -6,7 +6,7 @@ import logging
 from collections.abc import Mapping
 from typing import TYPE_CHECKING
 
-from .constants import ENDPOINT_PROFILE
+from .protocol_profile import MAGOperation
 
 if TYPE_CHECKING:
     from .connection import MAGConnection
@@ -17,13 +17,15 @@ log = logging.getLogger(__name__)
 
 class MAGProfile:
     def __init__(self, connection: MAGConnection, session: MAGSession) -> None:
+        # The connection remains constructor-injected for legacy compatibility;
+        # profile-owned requests are issued through the session.
         self._conn = connection
         self._sess = session
 
     async def get_profile(self) -> dict[str, object]:
-        """Return a validated profile record from the MAG ``js`` envelope."""
-        log.info("Fetching account profile")
-        data = await self._conn.get(ENDPOINT_PROFILE, headers=self._sess.get_headers())
+        """Return a validated account profile through the selected protocol family."""
+        log.info("Fetching MAG account profile")
+        data = await self._sess.request(MAGOperation.ACCOUNT_INFO)
         if not isinstance(data, Mapping):
             return {}
         raw_profile = data.get("js", {})
@@ -32,5 +34,5 @@ class MAGProfile:
             if isinstance(raw_profile, Mapping)
             else {}
         )
-        log.debug("Profile keys: %s", list(profile.keys()))
+        log.debug("MAG account profile keys: %s", list(profile.keys()))
         return profile

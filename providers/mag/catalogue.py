@@ -7,7 +7,7 @@ from collections.abc import Mapping
 from typing import TYPE_CHECKING
 
 from ..base.errors import AuthError
-from .constants import ENDPOINT_CHANNELS, ENDPOINT_EPG, ENDPOINT_SERIES, ENDPOINT_VOD
+from .protocol_profile import MAGOperation
 
 if TYPE_CHECKING:
     from .connection import MAGConnection
@@ -20,40 +20,34 @@ type MagRecord = dict[str, object]
 
 class MAGCatalogue:
     def __init__(self, connection: MAGConnection, session: MAGSession) -> None:
+        # The connection remains constructor-injected for legacy compatibility;
+        # profile-owned requests are issued through the session.
         self._conn = connection
         self._sess = session
 
     async def get_channels(self) -> list[MagRecord]:
-        """Return the portal's live-TV records."""
-        log.info("Fetching channel catalogue")
-        data = await self._conn.get(ENDPOINT_CHANNELS, headers=self._sess.get_headers())
+        """Return the portal's live-TV records through the selected profile."""
+        log.info("Fetching MAG channel catalogue")
+        data = await self._sess.request(MAGOperation.CHANNELS)
         items = self._records_from_response(data)
-        log.info("Retrieved %d channels", len(items))
+        log.info("Retrieved %d MAG channels", len(items))
         return items
 
     async def get_vod(self, page: int = 0, category_id: int | None = None) -> list[MagRecord]:
-        """Return a page of MAG VOD records."""
-        log.info("Fetching VOD catalogue (page=%d, category=%s)", page, category_id)
+        """Return a page of MAG VOD records through the selected profile."""
         params: dict[str, str | int] = {"p": page, "items_num": 100, "sortby": "added"}
         if category_id is not None:
             params["category"] = category_id
-        data = await self._conn.get(ENDPOINT_VOD, params=params, headers=self._sess.get_headers())
-        items = self._records_from_response(data)
-        log.info("Retrieved %d VOD items", len(items))
-        return items
+        data = await self._sess.request(MAGOperation.VOD, params=params)
+        return self._records_from_response(data)
 
     async def get_series(self, page: int = 0, category_id: int | None = None) -> list[MagRecord]:
-        """Return a page of MAG series records."""
-        log.info("Fetching series catalogue (page=%d, category=%s)", page, category_id)
+        """Return a page of MAG series records through the selected profile."""
         params: dict[str, str | int] = {"p": page, "items_num": 100, "sortby": "added"}
         if category_id is not None:
             params["category"] = category_id
-        data = await self._conn.get(
-            ENDPOINT_SERIES, params=params, headers=self._sess.get_headers()
-        )
-        items = self._records_from_response(data)
-        log.info("Retrieved %d series", len(items))
-        return items
+        data = await self._sess.request(MAGOperation.SERIES, params=params)
+        return self._records_from_response(data)
 
     async def get_epg(
         self,
@@ -61,11 +55,10 @@ class MAGCatalogue:
         period: int = 3,
     ) -> dict[int, list[MagRecord]]:
         """Return EPG records keyed by numeric MAG channel ID."""
-        log.info("Fetching EPG (channels=%s, period=%d days)", channel_ids, period)
         params: dict[str, str | int] = {"period": period}
         if channel_ids:
             params["ch_id"] = ",".join(str(channel_id) for channel_id in channel_ids)
-        data = await self._conn.get(ENDPOINT_EPG, params=params, headers=self._sess.get_headers())
+        data = await self._sess.request(MAGOperation.EPG, params=params)
         raw = self._js_payload(data)
         result: dict[int, list[MagRecord]] = {}
         for raw_channel_id, programmes in raw.items():
@@ -74,7 +67,7 @@ class MAGCatalogue:
             except ValueError:
                 continue
             result[channel_id] = self._records(programmes)
-        log.info("EPG fetched for %d channels", len(result))
+        log.info("MAG EPG fetched for %d channels", len(result))
         return result
 
     @staticmethod

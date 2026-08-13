@@ -11,13 +11,14 @@ The repository contains two explicit, evidence-based handshake profiles:
 | Profile | Status | Behavior |
 |---|---|---|
 | `legacy` | **IMPLEMENTED and TESTED** | Bare `/server/load.php` handshake relative to the configured portal base, using the existing MAG User-Agent and device identity headers. This remains the default. |
-| `stalker_query` | **IMPLEMENTED and SIMULATED** | Observed Stalker client variant using `type=stb`, `action=handshake`, empty `token`, `JsHttpRequest=1-xml`, X-User-Agent, and Referer headers. It is opt-in and is not automatically selected for real portals. |
+| `stalker_query` | **IMPLEMENTED and SIMULATED** | Observed Stalker client variant using `type=stb`, `action=handshake`, empty `token`, `JsHttpRequest=1-xml`, X-User-Agent, and Referer headers. It remains available as an explicit profile. |
+| `auto` | **IMPLEMENTED and TESTED against local fixtures** | Runs a closed, deterministic discovery set: configured-base `server/load.php`, origin `stalker_portal/server/load.php`, origin `stb/server/load.php`, and origin `portal.php`. The probe uses the Stalker query handshake and may add one `prehash=false` retry only after an HTTP-200 JSON response without a token. It selects the first structurally valid token-bearing response by the documented priority and reuses that profile for the normal session. |
 
-The existence of a profile does not imply universal portal compatibility. Firmware, middleware, portal base path, and provider-specific behavior must be established by authorized evidence.
+Discovery retains only candidate name, status, content type, response size, elapsed time, JSON/token flags, and classification. It neither stores a token nor treats HTTP 200 as authentication. The existence or selection of a profile does not imply universal portal compatibility. Firmware, middleware, portal base path, and provider-specific behavior must be established by authorized evidence.
 
 ## Authentication contract
 
-A successful handshake must return a JSON object containing either `js.token` or a top-level `token`. `js.token_TTL` is accepted when present; otherwise the legacy default TTL is used. Empty bodies, malformed JSON, HTTP 4xx responses, missing tokens, and explicit session-error envelopes fail safely. The adapter never invents a token and never proceeds through authenticated operations without a valid session.
+A successful handshake must return a JSON object containing either `js.token` or a top-level `token`. `js.token_TTL` is accepted when present; otherwise the legacy default TTL is used. Empty bodies, malformed JSON, HTTP 4xx responses, missing tokens, and explicit session-error envelopes fail safely. Discovery classifies network failure, 401, 403, 404, other HTTP status, empty response, malformed JSON, JSON without token, valid Stalker handshake, and unknown protocol before normal authentication can proceed. The adapter never invents a token and never proceeds through authenticated operations without a valid session.
 
 ## Session lifecycle
 

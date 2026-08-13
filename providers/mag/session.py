@@ -1,29 +1,17 @@
-"""
-Stalker portal session management.
-
-Handles the Stalker handshake, token issuance and automatic refresh.
-"""
+"""Stalker portal session management."""
 
 from __future__ import annotations
 
 import asyncio
 import logging
 import time
-from collections.abc import Mapping
 from typing import TYPE_CHECKING
 
 from ..base.errors import AuthError, NetworkError
-from .constants import (
-    DEFAULT_TOKEN_TTL_S,
-    MAX_RECONNECT_TRIES,
-    RECONNECT_BASE_DELAY,
-    RECONNECT_MAX_DELAY,
-)
-from .protocol_profile import LegacyMAGProtocolProfile, MAGProtocolProfile
+from .constants import MAX_RECONNECT_TRIES, RECONNECT_BASE_DELAY, RECONNECT_MAX_DELAY
+from .protocol_profile import LegacyMAGProtocolProfile, MAGOperation, MAGProtocolProfile
 
 if TYPE_CHECKING:
-    from samotech_iptv.core.typing import JSON
-
     from .connection import MAGConnection
     from .credentials import MAGCredentials
 
@@ -31,6 +19,8 @@ log = logging.getLogger(__name__)
 
 
 class MAGSession:
+    """Own a private MAG token and send requests through one selected profile."""
+
     def __init__(
         self,
         connection: MAGConnection,
@@ -39,7 +29,7 @@ class MAGSession:
     ) -> None:
         self._conn = connection
         self._creds = credentials
-        self._profile = profile
+        self._profile = profile or LegacyMAGProtocolProfile()
         self._token_expires_at: float = 0.0
         self._refresh_task: asyncio.Task[None] | None = None
 
@@ -48,31 +38,68 @@ class MAGSession:
         return self._creds.token
 
     @property
+    def profile(self) -> MAGProtocolProfile:
+        """Return the current fixed protocol profile without credential data."""
+        return self._profile
+
+    @property
+    def credentials(self) -> MAGCredentials:
+        """Return legacy-layer credentials only for local protocol discovery."""
+        return self._creds
+
+    @property
     def is_authenticated(self) -> bool:
         return bool(self._creds.token) and time.monotonic() < self._token_expires_at
 
+    def select_profile(self, profile: MAGProtocolProfile) -> None:
+        """Select a discovery-verified profile before authentication starts."""
+        if self._creds.token:
+            raise AuthError("MAG protocol profile cannot change during an active session")
+        self._profile = profile
+
     async def authenticate(self) -> None:
-        log.info("Authenticating with portal %s", self._creds.portal_url)
-        profile = self._profile or LegacyMAGProtocolProfile()
-        endpoint, params, profile_headers = profile.handshake_request(self._creds.portal_url)
-        headers = {**profile_headers, **self._auth_headers()}
-        payload = await self._conn.get(endpoint, params=params, headers=headers)
+        """Perform one profile-owned handshake and retain its token privately."""
+        request = self._profile.build_request(self._creds.portal_url, MAGOperation.HANDSHAKE)
+        payload = await self._conn.get(
+            request.endpoint,
+            params=request.params,
+            headers={**request.headers, **self._auth_headers()},
+            base_url=request.base_url,
+        )
         self._store_token(payload)
         self._schedule_refresh()
-        log.info("Authentication successful — token acquired")
+        log.info("MAG authentication successful")
 
     async def refresh(self) -> None:
-        log.debug("Refreshing portal token")
+        """Refresh the token through the same selected protocol profile."""
         try:
-            profile = self._profile or LegacyMAGProtocolProfile()
-            endpoint, params, profile_headers = profile.handshake_request(self._creds.portal_url)
-            headers = {**profile_headers, **self._auth_headers()}
-            payload = await self._conn.get(endpoint, params=params, headers=headers)
+            request = self._profile.build_request(self._creds.portal_url, MAGOperation.HANDSHAKE)
+            payload = await self._conn.get(
+                request.endpoint,
+                params=request.params,
+                headers={**request.headers, **self._auth_headers()},
+                base_url=request.base_url,
+            )
             self._store_token(payload)
-            log.debug("Token refreshed")
-        except NetworkError as exc:
-            log.warning("Token refresh failed: %s — will retry", exc)
+            log.debug("MAG token refreshed")
+        except NetworkError:
+            log.warning("MAG token refresh failed; will retry")
             raise
+
+    async def request(
+        self,
+        operation: MAGOperation,
+        *,
+        params: dict[str, str | int] | None = None,
+    ) -> object:
+        """Perform a selected-profile operation with the current session headers."""
+        request = self._profile.build_request(self._creds.portal_url, operation, params=params)
+        return await self._conn.get(
+            request.endpoint,
+            params=request.params,
+            headers={**request.headers, **self._auth_headers()},
+            base_url=request.base_url,
+        )
 
     async def close(self) -> None:
         if self._refresh_task and not self._refresh_task.done():
@@ -96,13 +123,13 @@ class MAGSession:
                 await self.refresh()
                 self._schedule_refresh()
                 return
-            except (NetworkError, AuthError) as exc:
-                log.warning("Auto-refresh attempt %d failed: %s", attempt, exc)
+            except (NetworkError, AuthError):
+                log.warning("MAG auto-refresh attempt %d failed", attempt)
                 if attempt < MAX_RECONNECT_TRIES:
                     sleep_for = min(delay, RECONNECT_MAX_DELAY)
                     await asyncio.sleep(sleep_for)
                     delay *= 2
-        log.error("All token refresh attempts exhausted")
+        log.error("All MAG token refresh attempts exhausted")
 
     def _auth_headers(self) -> dict[str, str]:
         headers: dict[str, str] = {
@@ -115,28 +142,14 @@ class MAGSession:
             headers["X-Device-ID"] = self._creds.device_id
         if self._creds.device_id2:
             headers["X-Device-ID2"] = self._creds.device_id2
-        return {k: v for k, v in headers.items() if v}
+        return {key: value for key, value in headers.items() if value}
 
-    def _store_token(self, payload: JSON) -> None:
-        if not isinstance(payload, Mapping):
-            raise AuthError("Portal handshake response did not contain a JSON object")
-        raw_js = payload.get("js", {})
-        js = raw_js if isinstance(raw_js, Mapping) else {}
-        token = js.get("token") or payload.get("token")
-        if not token:
-            raise AuthError(
-                "Portal handshake response did not contain a token. "
-                "Check that your credentials are correct and that you are "
-                "authorised to access this portal."
-            )
-        self._creds.token = str(token)
-        raw_ttl = js.get("token_TTL")
-        try:
-            ttl = int(str(raw_ttl)) if raw_ttl else DEFAULT_TOKEN_TTL_S
-        except ValueError as exc:
-            raise AuthError("Portal handshake response contained an invalid token TTL") from exc
-        self._token_expires_at = time.monotonic() + ttl
-        log.debug("Token stored (TTL=%ds)", ttl)
+    def _store_token(self, payload: object) -> None:
+        handshake = self._profile.parse_handshake(payload)
+        self._creds.token = handshake.token
+        self._token_expires_at = time.monotonic() + handshake.ttl_seconds
+        log.debug("MAG token stored (TTL=%ds)", handshake.ttl_seconds)
 
     def get_headers(self) -> dict[str, str]:
+        """Return current auth headers for compatibility with older callers."""
         return self._auth_headers()

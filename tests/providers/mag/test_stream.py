@@ -11,7 +11,7 @@ def _make_stream(cmd: str = "ffmpeg http://cdn.example.com/live/1.m3u8") -> MAGS
     conn = AsyncMock()
     conn.get = AsyncMock(return_value={"js": {"cmd": cmd}})
     sess = MagicMock()
-    sess.get_headers.return_value = {}
+    sess.request = AsyncMock(return_value={"js": {"cmd": cmd}})
     return MAGStream(conn, sess)
 
 

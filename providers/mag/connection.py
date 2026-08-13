@@ -6,6 +6,8 @@ import asyncio
 import json
 import logging
 import ssl
+import time
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, cast
 from urllib.parse import urljoin, urlparse
 
@@ -26,6 +28,23 @@ from .constants import (
 )
 
 log = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True, repr=False)
+class MAGProbeResponse:
+    """One transient handshake-probe response.
+
+    The payload is deliberately excluded from ``repr`` and must be consumed only
+    for structural classification. Discovery results retain safe metadata, never
+    this response body or any token value.
+    """
+
+    status: int
+    content_type: str
+    response_size: int
+    elapsed_seconds: float
+    payload: JSON | None = field(default=None, repr=False)
+    malformed_json: bool = False
 
 
 def _sanitise_url(base: str, path: str) -> str:
@@ -51,6 +70,11 @@ class MAGConnection:
         self._max_retries = max_retries
         self._dev_mode = dev_mode
         self._session: aiohttp.ClientSession | None = None
+
+    @property
+    def portal_url(self) -> str:
+        """Return the configured portal URL for profile-owned request construction."""
+        return self._portal_url
 
     async def open(self) -> None:
         """Open the underlying HTTP session if it is not already active."""
@@ -85,10 +109,58 @@ class MAGConnection:
         *,
         params: Mapping[str, str | int] | None = None,
         headers: dict[str, str] | None = None,
+        base_url: str | None = None,
     ) -> JSON:
-        """Issue a GET request relative to the registered portal URL."""
-        url = _sanitise_url(self._portal_url, path)
+        """Issue an authenticated GET relative to the configured or approved profile base."""
+        url = _sanitise_url(base_url or self._portal_url, path)
         return await self._request_with_retry("GET", url, params=params, headers=headers)
+
+    async def probe_get(
+        self,
+        path: str,
+        *,
+        params: Mapping[str, str | int] | None = None,
+        headers: dict[str, str] | None = None,
+        base_url: str | None = None,
+    ) -> MAGProbeResponse:
+        """Make exactly one transient handshake probe without logging its response body.
+
+        This API intentionally does not retry, raise on HTTP status, or retain the
+        raw URL in its result. Callers must convert the result into a safe discovery
+        classification and discard the payload immediately.
+        """
+        session = self._session
+        if session is None or session.closed:
+            raise RuntimeError("Call open() before making requests")
+        url = _sanitise_url(base_url or self._portal_url, path)
+        started = time.perf_counter()
+        try:
+            async with session.request(
+                "GET",
+                url,
+                params=params,
+                headers=headers,
+                allow_redirects=True,
+            ) as response:
+                body = await response.read()
+                content_type = response.headers.get("Content-Type", "").split(";", 1)[0]
+                payload: JSON | None = None
+                malformed_json = False
+                if body:
+                    try:
+                        payload = cast("JSON", json.loads(body))
+                    except (json.JSONDecodeError, UnicodeDecodeError):
+                        malformed_json = True
+                return MAGProbeResponse(
+                    status=response.status,
+                    content_type=content_type or "<missing>",
+                    response_size=len(body),
+                    elapsed_seconds=time.perf_counter() - started,
+                    payload=payload,
+                    malformed_json=malformed_json,
+                )
+        except (TimeoutError, aiohttp.ClientError) as exc:
+            raise NetworkError("MAG handshake probe did not complete") from exc
 
     async def _request_with_retry(
         self,

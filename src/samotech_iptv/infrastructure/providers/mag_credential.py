@@ -74,6 +74,7 @@ class MagCredential:
             "device_id2": self.device_id2,
             "timeout_s": timeout_s,
             "max_retries": max_retries,
+            "protocol_profile": "auto",
             "use_keyring": False,
         }
 

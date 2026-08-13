@@ -7,12 +7,14 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from ..base.errors import AuthError
 from ..base.provider import BaseProvider
 from ..registry import register
 from .catalogue import MAGCatalogue
 from .connection import MAGConnection
 from .constants import DEFAULT_MAX_RETRIES, DEFAULT_TIMEOUT_S
 from .credentials import MAGCredentials
+from .discovery import MAGProtocolDiscovery
 from .profile import MAGProfile
 from .protocol_profile import (
     LegacyMAGProtocolProfile,
@@ -42,6 +44,7 @@ class MAGProvider(BaseProvider):
     max_retries : int          (default 3)
     dev_mode : bool            (default False)
     use_keyring : bool         (default False)
+    protocol_profile : str     (`legacy`, `stalker_query`, or bounded `auto`)
     """
 
     def __init__(self, config: dict[str, Any]) -> None:
@@ -66,7 +69,8 @@ class MAGProvider(BaseProvider):
         )
         profile_name = str(config.get("protocol_profile", "legacy")).casefold()
         protocol_profile: MAGProtocolProfile
-        if profile_name == "legacy":
+        self._auto_discover = profile_name == "auto"
+        if profile_name in {"legacy", "auto"}:
             protocol_profile = LegacyMAGProtocolProfile()
         elif profile_name == "stalker_query":
             protocol_profile = StalkerQueryProtocolProfile()
@@ -79,13 +83,34 @@ class MAGProvider(BaseProvider):
 
     async def connect(self) -> None:
         await self._connection.open()
+        if self._auto_discover:
+            results, profile = await MAGProtocolDiscovery(
+                self._connection, self._session.credentials
+            ).discover()
+            for result in results:
+                log.info(
+                    "[IPTV] PROVIDER=MAG OPERATION=DISCOVERY CANDIDATE=%s "
+                    "HTTP_STATUS=%s CONTENT_TYPE=%s RESPONSE_BYTES=%s JSON=%s "
+                    "TOKEN_PRESENT=%s CLASSIFICATION=%s ELAPSED=%.3fs",
+                    result.candidate_name,
+                    result.status if result.status is not None else "<none>",
+                    result.content_type or "<missing>",
+                    result.response_size if result.response_size is not None else "<none>",
+                    result.is_json,
+                    result.token_present,
+                    result.classification,
+                    result.elapsed_seconds,
+                )
+            if profile is None:
+                raise AuthError("MAG protocol discovery did not establish a valid handshake")
+            self._session.select_profile(profile)
         await self._session.authenticate()
-        log.info("MAGProvider connected to %s", self._config["portal_url"])
+        log.info("MAG provider session connected")
 
     async def close(self) -> None:
         await self._session.close()
         await self._connection.close()
-        log.info("MAGProvider disconnected")
+        log.info("MAG provider session disconnected")
 
     async def authenticate(self) -> None:
         await self._session.authenticate()

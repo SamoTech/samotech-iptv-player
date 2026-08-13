@@ -6,6 +6,8 @@ This file records concise historical delivery milestones. It is **not** the curr
 
 ### Added
 
+- Bounded MAG/Stalker handshake discovery for exactly four approved endpoint families, safe response classification, deterministic priority, and a conditional `prehash=false` retry only after a JSON response without a token. Discovery retains no token or raw payload and selected profiles are reused by the established session, catalogue, and stream boundaries.
+- Deterministic local fixture coverage for bounded candidate construction, 401/403/404/empty/malformed/missing-token classifications, valid handshake selection, safe result redaction, conditional prehash behavior, and selected-endpoint reuse.
 - Deterministic MAG/Stalker compatibility lab using a local aiohttp protocol fixture and the real adapter → legacy provider → HTTP/session/parser boundaries.
 - Explicit legacy and opt-in Stalker-query handshake profiles based on repository and secondary implementation evidence.
 - Fixture coverage for successful authentication, empty/malformed/status failures, missing tokens, TTL, session expiration/re-authentication, unsupported categories, channels, and stream resolution.
@@ -32,7 +34,7 @@ This file records concise historical delivery milestones. It is **not** the curr
 ### Scope limits
 
 - Passing local MAG fixtures is simulation only and does not establish compatibility with a production portal or any MAG hardware family.
-- The supplied real MAG portal remains unresolved at authentication; Windows/libVLC playback remains pending on a real desktop.
+- The supplied real MAG portal remains unresolved at authentication unless an authorized discovery run yields a structurally valid token-bearing handshake; Windows/libVLC playback remains pending on a real desktop.
 - History per-record deletion, replay, resume, provider reconstruction, and stream reconstruction remain out of scope.
 
 ## Runtime QA fix — 2026-08-13
