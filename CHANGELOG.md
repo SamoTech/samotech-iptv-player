@@ -29,6 +29,12 @@ This file records concise historical delivery milestones. It is **not** the curr
 
 - History per-record deletion, replay, resume, provider reconstruction, and stream reconstruction remain out of scope.
 
+## Runtime QA fix — 2026-08-13
+
+- Fixed the P0/P1 provider-management defect where Add M3U, Add Xtream, and Add MAG/Stalker dialogs rendered input fields without usable Save/Cancel actions.
+- Save now validates required fields, delegates to the existing secure registration/application boundary, closes only after successful registration, and reports generic failures. Cancel closes without invoking persistence. Secret and identity inputs remain transient and are cleared after submission.
+- Added regression coverage for all currently exposed provider-add dialogs. This fix does not constitute verification of real IPTV playback.
+
 ### Changed
 
 - Desktop bootstrap can accept a caller-owned shared player, preventing production composition from constructing multiple libVLC adapters.
