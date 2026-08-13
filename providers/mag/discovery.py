@@ -188,6 +188,7 @@ class MAGProtocolDiscovery:
                 device_id=self._credentials.device_id,
                 device_id2=self._credentials.device_id2,
                 token="",
+                mag_model=self._credentials.mag_model,
             ),
         }
         started = time.perf_counter()

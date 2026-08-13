@@ -77,6 +77,8 @@ class MAGProtocolProfile:
     handshake_params: Mapping[str, str] = field(default_factory=dict)
     http_user_agent: str | None = None
     user_agent: str | None = None
+    model_x_user_agent: bool = False
+    model_link: str = "WiFi"
     referer_suffix: str | None = None
     extra_headers: Mapping[str, str] = field(default_factory=dict)
     uses_stalker_cookies: bool = False
@@ -117,9 +119,12 @@ class MAGProtocolProfile:
         device_id: str,
         device_id2: str,
         token: str,
+        mag_model: str = "",
     ) -> dict[str, str]:
         """Build one private request-header set without logging sensitive values."""
         headers = self.protocol_headers(portal_url)
+        if self.model_x_user_agent and mag_model.strip():
+            headers["X-User-Agent"] = f"Model: {mag_model.strip()}; Link: {self.model_link}"
         if self.uses_stalker_cookies:
             encoded_mac = (
                 quote(mac_address.strip()) if self.quote_mac_cookie else mac_address.strip()
@@ -258,7 +263,7 @@ class StalkerQueryProtocolProfile(MAGProtocolProfile):
             "JsHttpRequest": "1-xml",
         }
     )
-    user_agent: str | None = "Model: MAG254; Link: WiFi"
+    model_x_user_agent: bool = True
     referer_suffix: str | None = "/c/"
 
 
@@ -268,7 +273,8 @@ class StalkerClientCompatibilityProfile(MAGProtocolProfile):
 
     The GUI source sends the MAG200 User-Agent and pre-authentication MAC/language/
     London-timezone cookies but does not send an empty ``token`` parameter,
-    X-User-Agent, Referer, or the helper-only browser-style headers.
+    X-User-Agent, Referer, or the helper-only browser-style headers. Model-dependent
+    X-User-Agent values are never inferred by this implementation.
     """
 
     name: str = "stalker_gui_compatibility"
@@ -294,7 +300,9 @@ class StalkerHelperCompatibilityProfile(MAGProtocolProfile):
     """Exact observed helper ``stalker_portal/server/load.php`` profile.
 
     This profile deliberately omits the helper's unverified random-token/prehash
-    retry and never fabricates serial or device identity values.
+    retry and never fabricates serial, device identity, or model values. Its
+    model-dependent X-User-Agent is emitted only when ``mag_model`` is explicitly
+    supplied by authorized configuration.
     """
 
     name: str = "stalker_helper_compatibility"
@@ -309,7 +317,7 @@ class StalkerHelperCompatibilityProfile(MAGProtocolProfile):
         }
     )
     http_user_agent: str | None = USER_AGENT
-    user_agent: str | None = "Model: MAG250; Link: WiFi"
+    model_x_user_agent: bool = True
     referer_suffix: str | None = "/stalker_portal/c/index.html"
     extra_headers: Mapping[str, str] = field(
         default_factory=lambda: {

@@ -360,10 +360,15 @@ def test_gui_and_helper_profiles_preserve_observed_mac_cookie_encodings() -> Non
 
     gui_headers = StalkerClientCompatibilityProfile().request_headers(**identity)
     helper_headers = StalkerHelperCompatibilityProfile().request_headers(**identity)
+    helper_model_headers = StalkerHelperCompatibilityProfile().request_headers(
+        **identity, mag_model="MAG250"
+    )
 
     assert "mac=00:11:22:33:44:55" in gui_headers["Cookie"]
     assert "%3A" not in gui_headers["Cookie"]
     assert "mac=00%3A11%3A22%3A33%3A44%3A55" in helper_headers["Cookie"]
+    assert "X-User-Agent" not in helper_headers
+    assert helper_model_headers["X-User-Agent"] == "Model: MAG250; Link: WiFi"
 
 
 @dataclass
@@ -535,6 +540,7 @@ async def test_stalker_helper_profile_runs_adapter_fixture_flow_from_page_one(
             "portal_url": base_url,
             "mac_address": "00:11:22:33:44:55",
             "protocol_profile": "stalker_helper_compatibility",
+            "mag_model": "MAG250",
             "timeout_s": 2.0,
             "max_retries": 1,
             "use_keyring": False,

@@ -42,7 +42,7 @@ class MAGProvider(BaseProvider):
 
     Optional config keys
     --------------------
-    serial_number, device_id, device_id2 : str
+    serial_number, device_id, device_id2, mag_model : str
     timeout_s : float          (default 30)
     max_retries : int          (default 3)
     dev_mode : bool            (default False)
@@ -62,6 +62,7 @@ class MAGProvider(BaseProvider):
                 serial_number=config.get("serial_number", ""),
                 device_id=config.get("device_id", ""),
                 device_id2=config.get("device_id2", ""),
+                mag_model=config.get("mag_model", ""),
             )
 
         self._connection = MAGConnection(

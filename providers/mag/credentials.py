@@ -40,6 +40,7 @@ class MAGCredentials:
     serial_number: str = ""
     device_id: str = ""
     device_id2: str = ""
+    mag_model: str = ""
     _token: str = field(default="", repr=False, compare=False)
 
     @classmethod
@@ -54,7 +55,8 @@ class MAGCredentials:
                 "Store them first with MAGCredentials.save_to_keyring()."
             )
         serial = _keyring.get_password(SERVICE_NAME, f"{portal_url}:serial") or ""
-        return cls(portal_url=portal_url, mac_address=mac, serial_number=serial)
+        model = _keyring.get_password(SERVICE_NAME, f"{portal_url}:model") or ""
+        return cls(portal_url=portal_url, mac_address=mac, serial_number=serial, mag_model=model)
 
     def save_to_keyring(self) -> None:
         """Persist credentials to the OS keyring (never plaintext on disk)."""
@@ -63,6 +65,8 @@ class MAGCredentials:
         _keyring.set_password(SERVICE_NAME, f"{self.portal_url}:mac", self.mac_address)
         if self.serial_number:
             _keyring.set_password(SERVICE_NAME, f"{self.portal_url}:serial", self.serial_number)
+        if self.mag_model:
+            _keyring.set_password(SERVICE_NAME, f"{self.portal_url}:model", self.mag_model)
         log.info("Credentials saved to OS keyring")
 
     def delete_from_keyring(self) -> None:

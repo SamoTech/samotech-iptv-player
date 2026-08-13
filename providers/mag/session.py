@@ -140,6 +140,7 @@ class MAGSession:
             device_id=self._creds.device_id,
             device_id2=self._creds.device_id2,
             token=self._creds.token,
+            mag_model=self._creds.mag_model,
         )
 
     def _store_token(self, payload: object) -> None:

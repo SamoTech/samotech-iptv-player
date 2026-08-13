@@ -118,6 +118,7 @@ async def test_samotech_authenticates_against_known_good_stalker_middleware_lab(
             "portal_url": base_url,
             "mac_address": "00:11:22:33:44:55",
             "protocol_profile": "stalker_helper_compatibility",
+            "mag_model": "MAG250",
             "timeout_s": 2.0,
             "max_retries": 1,
             "use_keyring": False,
