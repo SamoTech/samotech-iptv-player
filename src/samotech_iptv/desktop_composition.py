@@ -166,4 +166,8 @@ async def build_production_desktop_application(
         load_history=load_history,
         clear_history=clear_history,
     )
-    return replace(desktop, close=context.http_client.close)
+    return replace(
+        desktop,
+        start=context.http_client.open,
+        close=context.http_client.close,
+    )

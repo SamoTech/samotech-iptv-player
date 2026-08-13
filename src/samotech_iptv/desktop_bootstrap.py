@@ -61,6 +61,7 @@ class DesktopApplication:
 
     application: QApplication
     main_window: MainWindow
+    start: Callable[[], Awaitable[None]] | None = None
     close: Callable[[], Awaitable[None]] | None = None
 
 

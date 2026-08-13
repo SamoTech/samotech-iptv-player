@@ -35,6 +35,12 @@ This file records concise historical delivery milestones. It is **not** the curr
 - Save now validates required fields, delegates to the existing secure registration/application boundary, closes only after successful registration, and reports generic failures. Cancel closes without invoking persistence. Secret and identity inputs remain transient and are cleared after submission.
 - Added regression coverage for all currently exposed provider-add dialogs. This fix does not constitute verification of real IPTV playback.
 
+## Runtime QA fix — HTTP session lifecycle — 2026-08-13
+
+- Fixed the confirmed `HttpSession is not open — call open() first` failure affecting remote M3U channel loading and registered-provider category loading.
+- The composed desktop application now owns the shared HTTP client lifecycle explicitly: the qasync runtime opens it after the Qt-aware event loop is available and closes it during shutdown. Provider adapters continue to use the existing HTTP abstraction; no UI-level or per-request `open()` calls were added.
+- Added deterministic local HTTP regression coverage for closed-session failure, open/use/close behavior, and real M3U channel loading through the provider boundary. VLC stale-plugin-cache messages remain a separate warning and were not changed. Real IPTV playback remains unverified.
+
 ### Changed
 
 - Desktop bootstrap can accept a caller-owned shared player, preventing production composition from constructing multiple libVLC adapters.

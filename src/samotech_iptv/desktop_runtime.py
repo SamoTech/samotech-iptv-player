@@ -1,5 +1,4 @@
-"""Supported Qt and asyncio runtime for the desktop application shell."""
-
+"""Run the Qt/qasync desktop event loop and own runtime lifecycle callbacks."""
 from __future__ import annotations
 
 import asyncio
@@ -17,8 +16,11 @@ def run_desktop_application(desktop: DesktopApplication) -> int:
 
     event_loop = QEventLoop(desktop.application)
     asyncio.set_event_loop(event_loop)
-    desktop.main_window.show()
     with event_loop:
+        start_callback = getattr(desktop, "start", None)
+        if start_callback is not None:
+            event_loop.run_until_complete(start_callback())
+        desktop.main_window.show()
         try:
             event_loop.run_forever()
         finally:
