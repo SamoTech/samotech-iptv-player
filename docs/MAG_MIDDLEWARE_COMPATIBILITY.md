@@ -55,6 +55,16 @@ The lab drives the real MAG provider, connection, session, profile, catalogue, a
 
 The authorized real portal remains **UNRESOLVED**. The bounded candidate set returned four HTTP 404 responses, one empty HTTP-200 `text/javascript` response, and one HTTP-404 GUI fingerprint response. The corrected raw GUI MAC-cookie representation was revalidated and remained HTTP 404. No candidate returned structurally valid JSON with a token. Consequently, no evidence identifies the real portal as Stalker 4.x, Stalker 5.x, Ministra 5.x, a middleware fork, or a non-Ministra implementation.
 
+The safe differential metadata probe found the following additional boundary:
+
+| Comparison | Safe metadata |
+|---|---|
+| Real server-path requests | `Server: nginx`; no redirect; `text/html`; HTTP 404; 146 bytes; no `WWW-Authenticate`. |
+| Real root `portal.php` request | `Server: nginx`; no redirect; `text/javascript`; HTTP 200; zero bytes; `Cache-Control: no-store, no-cache, must-revalidate`. |
+| Local source-derived classic route without credentials | No redirect; `application/json`; HTTP 401; deterministic local body size; no `WWW-Authenticate`. |
+
+This is evidence of a **deployment/routing/response-boundary difference**, not proof of a specific middleware version or authorization policy. It does not justify additional arbitrary paths, fabricated identity fields, or authentication retries.
+
 The exact next evidence boundary is a current Windows application run using the committed build and safe diagnostics, or provider-supplied middleware/version/authorization details. Neither path justifies additional arbitrary endpoint permutations.
 
 ## References
