@@ -30,6 +30,8 @@ The lab declares these 15 scenarios:
 
 The fixture uses fake identities and local loopback URLs only. No real account or provider payload is committed. Helper-profile tests that assert the source-observed model-dependent X-User-Agent supply `mag_model` explicitly; the production credential bridge defaults to MODEL UNKNOWN and never fabricates MAG250/MAG254.
 
+The deterministic state-machine coverage includes: handshake-only; handshake plus `get_profile`; handshake plus `get_profile` plus explicit POST `do_auth`; missing login/password; missing authorization key; model rejection; device-ID requirement; explicit identity pass-through; and existing session-expiry/re-authentication behavior. Policy markers are normalized safely and are never inferred from a bare HTTP 404.
+
 ## Boundaries exercised
 
 The principal tests execute:
@@ -47,9 +49,13 @@ MAG adapter
 
 Authentication tests verify token extraction, TTL-compatible success, empty/malformed/status failures, and safe failure states. Discovery tests verify that the candidate list is finite, every result retains safe metadata only, HTTP success alone is insufficient, and the selected endpoint family is reused by normal session and live-channel operations. Resource-lifecycle tests verify that the legacy provider closes its owned aiohttp resources after failed discovery/authentication, does not accumulate sessions across repeated failures, keeps a successful session reusable until explicit provider close, and does not emit a `ResourceWarning` in the fixture failure path. Live-path tests verify channel translation, stream-link resolution, and typed unsupported-category behavior. Expiry tests verify one controlled re-authentication and session reuse rather than authentication on every operation.
 
+## Differential request lab
+
+`tests/providers/mag/test_differential_lab.py` defines exactly six fixed source-backed cases: T01 GUI GET handshake; T02 GUI POST handshake; T03 helper GET with empty token and `prehash=false`; T04 helper GET with empty token and `prehash=0`; T05 GUI POST with `prehash=false`; and T06 helper POST with `prehash=0`. Each case retains only test ID, profile, endpoint, method, safe response metadata, JSON/token/profile/error flags, and classification. It is not a generic scanner.
+
 ## Real portal distinction
 
-Passing a fixture profile proves only that the application handles that modeled protocol response. It does not prove compatibility with a production portal. The supplied real portal remains unresolved because the bounded six-candidate set returned four HTTP 404 responses, one HTTP 200 empty `text/javascript` response, and one HTTP 404 GUI fingerprint response. A corrected GUI-cookie revalidation also returned HTTP 404.
+Passing a fixture profile proves only that the application handles that modeled protocol response. It does not prove compatibility with a production portal. The supplied real portal remains unresolved because the bounded six-candidate set returned four HTTP 404 responses, one HTTP 200 empty `text/javascript` response, and one HTTP 404 GUI fingerprint response. A corrected GUI-cookie revalidation also returned HTTP 404. The new T01–T06 differential matrix returned HTTP 404 for every case; GUI cases were `text/javascript` with zero bytes and helper cases were `text/html` with 146 bytes. One explicit MAG254 helper request also returned HTTP 404. No JSON, token, profile, or machine-readable policy marker was returned.
 
 
 ## Source-derived middleware laboratory
