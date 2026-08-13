@@ -118,6 +118,7 @@ async def test_discovery_probes_only_fixed_candidates_and_uses_deterministic_pri
     assert [result.candidate_name for result in results] == [
         "configured_base_server",
         "origin_stalker_portal",
+        "origin_stalker_portal_helper",
         "origin_stb_server",
         "origin_portal_php",
         "origin_portal_php_stalker_client",
@@ -131,19 +132,25 @@ async def test_discovery_probes_only_fixed_candidates_and_uses_deterministic_pri
     assert [request["path"] for request in state.requests] == [
         "/c/server/load.php",
         "/stalker_portal/server/load.php",
+        "/stalker_portal/server/load.php",
         "/stb/server/load.php",
         "/portal.php",
         "/portal.php",
     ]
-    assert all(request["has_mac_header"] is True for request in state.requests[:4])
-    assert state.requests[4]["has_mac_header"] is False
-    assert state.requests[4]["has_cookie"] is True
+    assert all(state.requests[index]["has_mac_header"] is True for index in (0, 1, 3, 4))
+    assert all(state.requests[index]["has_mac_header"] is False for index in (2, 5))
+    assert all(state.requests[index]["has_cookie"] is True for index in (2, 5))
     assert all(request["has_authorization"] is False for request in state.requests)
     assert all(
-        request["query"]
+        state.requests[index]["query"]
         == {"type": "stb", "action": "handshake", "token": "", "JsHttpRequest": "1-xml"}
-        for request in state.requests
+        for index in (0, 1, 2, 3, 4)
     )
+    assert state.requests[5]["query"] == {
+        "type": "stb",
+        "action": "handshake",
+        "JsHttpRequest": "1-xml",
+    }
     assert "00:11:22:33:44:55" not in repr(results)
     assert "fixture-token" not in repr(results)
 
@@ -300,6 +307,7 @@ async def test_discovery_classifies_http_empty_and_malformed_boundaries(
     assert [result.classification for result in results] == [
         MAGDiscoveryClassification.HTTP_404,
         MAGDiscoveryClassification.HTTP_401,
+        MAGDiscoveryClassification.HTTP_401,
         MAGDiscoveryClassification.EMPTY_RESPONSE,
         MAGDiscoveryClassification.MALFORMED_JSON,
         MAGDiscoveryClassification.MALFORMED_JSON,
@@ -349,13 +357,11 @@ async def stalker_client_portal() -> tuple[str, StalkerClientPortalState]:
     async def handler(request: web.Request) -> web.StreamResponse:
         query = dict(request.query)
         is_client_fingerprint = (
-            request.headers.get("X-User-Agent") == "Model: MAG250; Link: WiFi"
-            and request.headers.get("Referer", "").endswith("/stalker_portal/c/index.html")
-            and request.headers.get("Accept") == "*/*"
-            and request.headers.get("Accept-Language") == "en-US,en;q=0.5"
-            and request.headers.get("Pragma") == "no-cache"
-            and request.headers.get("Connection") == "Close"
-            and request.headers.get("Accept-Encoding") == "gzip, deflate"
+            request.headers.get("User-Agent") == "Mozilla/5.0 (QtEmbedded; U; Linux; C) "
+            "AppleWebKit/533.3 (KHTML, like Gecko) "
+            "MAG200 stbapp ver: 2 rev: 250 Safari/533.3"
+            and "X-User-Agent" not in request.headers
+            and "Referer" not in request.headers
             and "mac=" in request.headers.get("Cookie", "")
         )
         state.requests.append(
@@ -445,7 +451,7 @@ async def test_stalker_client_profile_runs_adapter_fixture_flow_with_safe_finger
     )
     try:
         assert await adapter.authenticate(Credential("00:11:22:33:44:55", "fixture"))
-        assert provider._session.profile.name == "stalker_client_compatibility"
+        assert provider._session.profile.name == "stalker_gui_compatibility"
         categories = await adapter.load_live_categories()
         channels = await adapter.load_channels()
         resolved = await adapter.resolve_stream(channels[0].id)

@@ -22,6 +22,7 @@ __all__ = [
     "MAGProtocolProfile",
     "MAGProtocolRequest",
     "StalkerClientCompatibilityProfile",
+    "StalkerHelperCompatibilityProfile",
     "StalkerQueryProtocolProfile",
 ]
 
@@ -258,15 +259,40 @@ class StalkerQueryProtocolProfile(MAGProtocolProfile):
 
 @dataclass(frozen=True)
 class StalkerClientCompatibilityProfile(MAGProtocolProfile):
-    """One bounded portal.php profile based on a concrete client request fingerprint.
+    """Exact observed GUI ``portal.php`` request profile.
 
-    It uses no fabricated device identity and deliberately excludes the reference
-    client's unverified 404 random-token/prehash behavior. A valid JSON token is
-    still required before every authenticated operation.
+    The GUI source sends the MAG200 User-Agent and pre-authentication MAC/language/
+    London-timezone cookies but does not send an empty ``token`` parameter,
+    X-User-Agent, Referer, or the helper-only browser-style headers.
     """
 
-    name: str = "stalker_client_compatibility"
+    name: str = "stalker_gui_compatibility"
     handshake_endpoint: str = "portal.php"
+    use_origin_base: bool = True
+    handshake_params: Mapping[str, str] = field(
+        default_factory=lambda: {
+            "type": "stb",
+            "action": "handshake",
+            "JsHttpRequest": "1-xml",
+        }
+    )
+    http_user_agent: str | None = USER_AGENT
+    cookie_timezone: str = "Europe/London"
+    uses_stalker_cookies: bool = True
+    uses_ordered_live_catalogue: bool = True
+    uses_channel_command_for_live_link: bool = True
+
+
+@dataclass(frozen=True)
+class StalkerHelperCompatibilityProfile(MAGProtocolProfile):
+    """Exact observed helper ``stalker_portal/server/load.php`` profile.
+
+    This profile deliberately omits the helper's unverified random-token/prehash
+    retry and never fabricates serial or device identity values.
+    """
+
+    name: str = "stalker_helper_compatibility"
+    handshake_endpoint: str = "stalker_portal/server/load.php"
     use_origin_base: bool = True
     handshake_params: Mapping[str, str] = field(
         default_factory=lambda: {

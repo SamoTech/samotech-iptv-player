@@ -18,6 +18,7 @@ from .protocol_profile import (
     MAGOperation,
     MAGProtocolProfile,
     StalkerClientCompatibilityProfile,
+    StalkerHelperCompatibilityProfile,
     StalkerQueryProtocolProfile,
 )
 
@@ -95,6 +96,10 @@ class MAGProtocolDiscovery:
                 ),
             ),
             MAGDiscoveryCandidate(
+                "origin_stalker_portal_helper",
+                StalkerHelperCompatibilityProfile(),
+            ),
+            MAGDiscoveryCandidate(
                 "origin_stb_server",
                 StalkerQueryProtocolProfile(
                     name="discovered_stb_server",
@@ -135,7 +140,8 @@ class MAGProtocolDiscovery:
                 selected = candidate.profile
                 continue
             if self._should_probe_prehash(primary) and not isinstance(
-                candidate.profile, StalkerClientCompatibilityProfile
+                candidate.profile,
+                (StalkerClientCompatibilityProfile, StalkerHelperCompatibilityProfile),
             ):
                 with_prehash = await self._probe(candidate, prehash=True)
                 results.append(with_prehash)
