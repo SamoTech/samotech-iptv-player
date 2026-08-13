@@ -278,9 +278,9 @@ class MAGProtocolDiscovery:
     async def discover(self) -> tuple[tuple[MAGDiscoveryResult, ...], MAGProtocolProfile | None]:
         """Probe the fixed candidates and return safe outcomes plus one selected profile.
 
-        At most eight requests are made: one primary handshake per candidate and,
+        At most eleven requests are made: one primary handshake per candidate and,
         only after an HTTP-200 JSON response without a token, one `prehash=false`
-        retry for that same candidate.
+        retry for that same generic candidate.
         """
         results: list[MAGDiscoveryResult] = []
         selected: MAGProtocolProfile | None = None
