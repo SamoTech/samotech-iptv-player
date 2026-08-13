@@ -5,6 +5,8 @@ from typing import Any
 
 import pytest
 from aiohttp import web
+from providers.mag.catalogue import MAGCatalogue
+from providers.mag.errors import ProviderError
 from providers.mag.provider import MAGProvider
 
 from samotech_iptv.domain.value_objects.channel_id import ChannelId
@@ -71,7 +73,7 @@ async def portal_php_lab() -> tuple[str, PortalPhpLabState]:
                             {
                                 "id": "1",
                                 "name": "Channel A",
-                                "logo": "http://127.0.0.1/lab/a.png",
+                                "logo": "-http://127.0.0.1/lab/a.png",
                                 "tv_genre_id": "1",
                                 "cmds": [{"url": "ffmpeg http://127.0.0.1/lab/a.ts"}],
                             },
@@ -135,6 +137,7 @@ async def test_portal_php_legacy_contract_through_full_adapter_stack(
         ("1", "Channel A"),
         ("2", "Channel B"),
     ]
+    assert str(channels[0].logo_url) == "http://127.0.0.1/lab/a.png"
     assert str(resolved) == "http://127.0.0.1/lab/a.ts"
     assert provider.live_catalogue_stats == {"received": 3, "accepted": 2, "rejected": 1}
 
@@ -166,5 +169,21 @@ async def test_portal_php_legacy_contract_through_full_adapter_stack(
     assert genres[0]["has_bearer"] is True
     assert len(channels_requests) == 1
     assert channels_requests[0]["path"] == "/portal.php"
+    assert all(request["query"].get("action") != "get_ordered_list" for request in state.requests)
     assert channels_requests[0]["has_bearer"] is True
     assert "fixture-portal-token" not in repr(state.requests)
+
+
+def test_concrete_catalogue_parsers_reject_missing_or_invalid_response_shapes() -> None:
+    with pytest.raises(ProviderError, match="missing js category data"):
+        MAGCatalogue._records_from_js_list({})
+    with pytest.raises(ProviderError, match="category data was not a list"):
+        MAGCatalogue._records_from_js_list({"js": {}})
+    with pytest.raises(ProviderError, match="missing js.data"):
+        MAGCatalogue._records_from_direct_response({"js": {}})
+    with pytest.raises(ProviderError, match="data was not a list"):
+        MAGCatalogue._records_from_direct_response({"js": {"data": {}}})
+
+
+def test_concrete_catalogue_parser_accepts_empty_channel_collection() -> None:
+    assert MAGCatalogue._records_from_direct_response({"js": {"data": []}}) == []
