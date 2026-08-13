@@ -5,7 +5,7 @@
 **Repository:** `SamoTech/samotech-iptv-player`
 **Status:** **UNRESOLVED — no real token-bearing handshake**
 
-This report records the final evidence-backed phase after the original bounded endpoint set had already been exhausted. It does not claim production MAG support from local fixtures, HTTP 200, application startup, or VLC initialization.
+This report records the final evidence-backed phase after the original bounded endpoint set had already been exhausted. It includes the post-commit revalidation using configured-path preservation and safe response-header metadata. It does not claim production MAG support from local fixtures, HTTP 200, application startup, or VLC initialization.
 
 ## 1. Exact tests executed
 
@@ -15,6 +15,7 @@ This report records the final evidence-backed phase after the original bounded e
 | `tests/providers/mag/test_auth_state_machine.py` | Handshake-only, optional `get_profile`, explicit POST `do_auth`, missing login, missing key, policy markers, explicit identity fields | PASS |
 | `tests/providers/mag/test_differential_lab.py` | Fixed local T01–T06 differential matrix | PASS |
 | `tests/providers/mag/test_middleware_lab.py` | Source-derived classic middleware handshake → genres → ordered list → command → `create_link` | PASS |
+| Complete quality gate | `black --check`, `ruff check`, `mypy`, `pytest -q`, and `git diff --check` | PASS |
 | Authorized T01 | GUI GET handshake | HTTP 404 |
 | Authorized T02 | GUI POST handshake | HTTP 404 |
 | Authorized T03 | Helper GET, empty token, `prehash=false` | HTTP 404 |
@@ -33,21 +34,21 @@ The archived source independently documents a GET handshake using `prehash=0` an
 
 ## 3. Real response classifications
 
-| Test | Endpoint family | Method | Content-Type | Bytes | JSON | Token | Profile | Error field | Classification |
-|---|---|---:|---|---:|---|---|---|---|---|
-| T01 | `portal.php` GUI | GET | `text/javascript` | 0 | No | No | No | No | `HTTP_404` |
-| T02 | `portal.php` GUI | POST | `text/javascript` | 0 | No | No | No | No | `HTTP_404` |
-| T03 | `stalker_portal/server/load.php` helper | GET | `text/html` | 146 | No | No | No | No | `HTTP_404` |
-| T04 | `stalker_portal/server/load.php` helper | GET | `text/html` | 146 | No | No | No | No | `HTTP_404` |
-| T05 | `portal.php` GUI | POST | `text/javascript` | 0 | No | No | No | No | `HTTP_404` |
-| T06 | `stalker_portal/server/load.php` helper | POST | `text/html` | 146 | No | No | No | No | `HTTP_404` |
-| MODEL-01 | `stalker_portal/server/load.php` helper, explicit model | GET | `text/html` | 146 | No | No | No | No | `HTTP_404` |
+| Test | Endpoint family | Method | Content-Type | Bytes | Redirects | Server | Allow | WWW-Authenticate | JSON | Token | Profile | Error field | Classification |
+|---|---|---:|---|---:|---:|---|---|---|---|---|---|---|---|
+| T01 | `portal.php` GUI | GET | `text/javascript` | 0 | 0 | `nginx` | No | No | No | No | No | No | `HTTP_404` |
+| T02 | `portal.php` GUI | POST | `text/javascript` | 0 | 0 | `nginx` | No | No | No | No | No | No | `HTTP_404` |
+| T03 | `stalker_portal/server/load.php` helper | GET | `text/html` | 146 | 0 | `nginx` | No | No | No | No | No | No | `HTTP_404` |
+| T04 | `stalker_portal/server/load.php` helper | GET | `text/html` | 146 | 0 | `nginx` | No | No | No | No | No | No | `HTTP_404` |
+| T05 | `portal.php` GUI | POST | `text/javascript` | 0 | 0 | `nginx` | No | No | No | No | No | No | `HTTP_404` |
+| T06 | `stalker_portal/server/load.php` helper | POST | `text/html` | 146 | 0 | `nginx` | No | No | No | No | No | No | `HTTP_404` |
+| MODEL-01 | `stalker_portal/server/load.php` helper, explicit model | GET | `text/html` | 146 | 0 | `nginx` | No | No | No | No | No | No | `HTTP_404` |
 
 No machine-readable response was returned, so no policy classification such as `STB_NOT_AUTHORIZED`, `STB_MODEL_REJECTED`, `LOGIN_REQUIRED`, `DEVICE_ID_REQUIRED`, or `AUTH_KEY_REQUIRED` is asserted.
 
 ## 4. Authentication state transition
 
-The real portal state transition was:
+The combined authorized evidence set has the following state transition:
 
 ```text
 DISCOVERY
@@ -56,6 +57,8 @@ DISCOVERY
   → SESSION_VALIDATED NOT REACHED
   → CATALOGUE NOT REACHED
 ```
+
+The post-commit T01–T06 rerun used the corrected configured-base URL behavior for helper requests. It still produced six HTTP 404 responses, so no continuation request was made.
 
 The implemented state machine supports the following explicit paths when the portal returns machine-readable success/policy data:
 
@@ -70,7 +73,7 @@ No path is selected automatically from a bare HTTP status.
 
 ## 5. Whether a token was received
 
-**No.** None of T01–T06 or MODEL-01 returned JSON or a token. No token was fabricated, cached, logged, or reused. The application’s strict token gate correctly stopped authentication.
+**No.** None of the post-commit T01–T06 rerun or the earlier MODEL-01 request returned JSON or a token. No token was fabricated, cached, logged, or reused. The application’s strict token gate correctly stopped authentication.
 
 ## 6. Whether `get_profile` was required
 
@@ -120,7 +123,7 @@ The deterministic tests prove the stage locally; they do not prove that the real
 
 ## 17. Final root cause
 
-**UNRESOLVED: routing/deployment/provider-side policy boundary.** Every evidence-backed differential request returned an Nginx-style HTTP 404: GUI cases returned zero-byte `text/javascript`; helper cases returned 146-byte `text/html`. No response contained JSON, an error field, a token, a profile, or an authorization marker. Therefore the evidence does not distinguish disabled classic routing, reverse-proxy/rewrite behavior, middleware-family/version mismatch, gateway filtering, MAC registration/new-STB status, login/key policy, or model policy.
+**UNRESOLVED: routing/deployment/provider-side policy boundary.** Every post-commit evidence-backed differential request returned an Nginx-style HTTP 404: GUI cases returned zero-byte `text/javascript`; helper cases returned 146-byte `text/html`; all had zero redirects, no `Allow` header, and no `WWW-Authenticate` header. No response contained JSON, an error field, a token, a profile, or an authorization marker. Therefore the evidence does not distinguish disabled classic routing, reverse-proxy/rewrite behavior, middleware-family/version mismatch, gateway filtering, MAC registration/new-STB status, login/key policy, or model policy.
 
 A bare 404 is deliberately not classified as STB-not-authorized. The result also does not prove the portal is incompatible with all Stalker/Ministra implementations.
 
@@ -130,7 +133,7 @@ The exact blocker is **absence of a machine-readable handshake response from eve
 
 ## Security status
 
-No credential, MAC, token, cookie, Authorization value, device identity, raw response body, or stream URL is present in this report. No fake identity, token, authorization key, password guess, brute force, WAF bypass, or arbitrary scanning was performed.
+No credential, MAC, token, cookie, Authorization value, device identity, raw response body, or stream URL is present in this report. Only safe response metadata was retained: case ID, profile, method, status, content type, byte count, redirect count, selected header presence/value, JSON/token flags, and classification. No fake identity, token, authorization key, password guess, brute force, WAF bypass, or arbitrary scanning was performed.
 
 ## References
 
