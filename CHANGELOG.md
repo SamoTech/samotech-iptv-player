@@ -41,6 +41,11 @@ This file records concise historical delivery milestones. It is **not** the curr
 - The composed desktop application now owns the shared HTTP client lifecycle explicitly: the qasync runtime opens it after the Qt-aware event loop is available and closes it during shutdown. Provider adapters continue to use the existing HTTP abstraction; no UI-level or per-request `open()` calls were added.
 - Added deterministic local HTTP regression coverage for closed-session failure, open/use/close behavior, and real M3U channel loading through the provider boundary. VLC stale-plugin-cache messages remain a separate warning and were not changed. Real IPTV playback remains unverified.
 
+## M3U diagnostics — 2026-08-13
+
+- Added stage-specific M3U diagnostics for source resolution, credential retrieval, HTTP/URL handling, content retrieval, parser input, and channel translation. Diagnostics include exception type and traceback while retaining the generic `Unable to load channels` presentation message.
+- M3U remote-source failures now return controlled redacted errors without query tokens or userinfo. Added regression coverage for secure registered-source restoration and HTTP failure redaction. Real Windows M3U channel loading remains pending manual acceptance; no unrelated feature work was started.
+
 ### Changed
 
 - Desktop bootstrap can accept a caller-owned shared player, preventing production composition from constructing multiple libVLC adapters.

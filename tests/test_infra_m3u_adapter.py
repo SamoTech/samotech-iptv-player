@@ -7,6 +7,8 @@ from typing import TYPE_CHECKING
 import pytest
 
 from samotech_iptv.core.exceptions import ProviderError
+from samotech_iptv.domain.value_objects.credential import Credential
+from samotech_iptv.infrastructure.network.exceptions import HttpClientError
 from samotech_iptv.domain.value_objects.provider_capability import ProviderCapability
 from samotech_iptv.domain.value_objects.url import URL
 from samotech_iptv.infrastructure.parsing.m3u_source_loader import (
@@ -35,6 +37,35 @@ class FakeHttpClient:
     async def get_text(self, url: str) -> str:
         self.urls.append(url)
         return self.text
+
+
+class FailingHttpClient(FakeHttpClient):
+    """Remote fake that exposes a deterministic HTTP failure."""
+
+    async def get_text(self, url: str) -> str:
+        self.urls.append(url)
+        raise HttpClientError("HTTP 403", status_code=403)
+
+
+class FakeCredentialStore:
+    """Credential fake for restored secure M3U source coverage."""
+
+    def __init__(self, credential: Credential | None) -> None:
+        self.credential = credential
+
+    async def retrieve(self, _provider_id: object) -> Credential | None:
+        return self.credential
+
+
+class RecordingSourceLoader:
+    """Source loader fake recording the source recovered by the adapter."""
+
+    def __init__(self) -> None:
+        self.sources: list[str] = []
+
+    async def load(self, source: str) -> str:
+        self.sources.append(source)
+        return _PLAYLIST
 
 
 class FakeSourceLoader:
@@ -76,6 +107,47 @@ async def test_source_loader_rejects_unsupported_source_scheme() -> None:
 
     with pytest.raises(M3USourceError, match="Unsupported M3U source scheme"):
         await loader.load("ftp://playlist.example.test/list.m3u")
+
+
+@pytest.mark.asyncio
+async def test_source_loader_hides_tokenized_source_when_http_fails() -> None:
+    """HTTP failures remain controlled and never return query tokens in diagnostics."""
+    loader = M3USourceLoader(FailingHttpClient())  # type: ignore[arg-type]
+
+    with pytest.raises(M3USourceError, match="Unable to load remote M3U source") as error:
+        await loader.load("https://playlist.example.test/list.m3u?username=user&token=secret")
+
+    assert "secret" not in str(error.value)
+    assert "username" not in str(error.value)
+
+
+@pytest.mark.asyncio
+async def test_secure_registered_m3u_source_is_retrieved_before_loading() -> None:
+    """Restored secure M3U metadata uses the credential-backed full source URL."""
+    source = "https://playlist.example.test/list.m3u?username=user&token=secret"
+    metadata = InfraProviderMetadata(
+        provider_id="m3u-secure",
+        provider_type="m3u",
+        base_url="https://playlist.example.test/list.m3u",
+        source_is_secure=True,
+    )
+    source_loader = RecordingSourceLoader()
+    context = type(
+        "Context",
+        (),
+        {
+            "http_client": FakeHttpClient(),
+            "credential_store": FakeCredentialStore(
+                Credential(username="m3u-source", _password=source)
+            ),
+        },
+    )()
+    adapter = M3UProviderAdapter(metadata, context, source_loader=source_loader)  # type: ignore[arg-type]
+
+    channels = await adapter.load_channels()
+
+    assert [channel.name for channel in channels] == ["One"]
+    assert source_loader.sources == [source]
 
 
 @pytest.mark.asyncio

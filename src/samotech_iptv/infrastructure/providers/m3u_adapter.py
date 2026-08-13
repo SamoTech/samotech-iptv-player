@@ -11,6 +11,7 @@ from samotech_iptv.application.ports.provider_capabilities import (
     SearchProvider,
 )
 from samotech_iptv.core.exceptions import ProviderError, ValidationError
+from samotech_iptv.core.logging import get_logger
 from samotech_iptv.domain.value_objects.provider_capability import ProviderCapability
 from samotech_iptv.domain.value_objects.provider_id import ProviderId
 from samotech_iptv.domain.value_objects.url import URL
@@ -31,6 +32,8 @@ if TYPE_CHECKING:
     from samotech_iptv.infrastructure.providers.provider_metadata import InfraProviderMetadata
 
 __all__ = ["M3UProviderAdapter", "register_m3u_with_factory"]
+
+_LOG = get_logger(__name__)
 
 _CAPABILITIES = frozenset(
     {
@@ -85,16 +88,29 @@ class M3UProviderAdapter(CatalogProvider, PlaybackProvider, SearchProvider, Capa
 
     async def _load_playlist(self) -> ParsedM3UPlaylist:
         """Fetch and parse the current playlist without retaining sensitive stream URLs."""
-        source_text = await self._source_loader.load(await self._resolve_source())
-        return self._parser.parse(source_text, self.provider_id)
+        source = await self._resolve_source()
+        _LOG.debug("M3U provider stage=source_resolved provider_id=%s", self._metadata.provider_id)
+        source_text = await self._source_loader.load(source)
+        _LOG.debug("M3U provider stage=parser_input provider_id=%s bytes=%d", self._metadata.provider_id, len(source_text))
+        playlist = self._parser.parse(source_text, self.provider_id)
+        _LOG.debug(
+            "M3U provider stage=translation provider_id=%s channels=%d",
+            self._metadata.provider_id,
+            len(playlist.channels),
+        )
+        return playlist
 
     async def _resolve_source(self) -> str:
         """Return a securely stored tokenized M3U source when one is configured."""
         if not self._metadata.source_is_secure:
+            _LOG.debug("M3U provider stage=source_metadata provider_id=%s secure=false", self._metadata.provider_id)
             return self._source
+        _LOG.debug("M3U provider stage=credential_retrieval provider_id=%s", self._metadata.provider_id)
         credential = await self._context.credential_store.retrieve(self.provider_id)
         if credential is not None and credential.username == "m3u-source":
+            _LOG.debug("M3U provider stage=credential_retrieval provider_id=%s result=found", self._metadata.provider_id)
             return credential.password
+        _LOG.error("M3U provider stage=credential_retrieval provider_id=%s result=missing", self._metadata.provider_id)
         return self._source
 
     async def search_channels(self, query: str, limit: int = 100) -> Sequence[Channel]:

@@ -28,7 +28,11 @@ class LoadChannels:
         try:
             channels = await self._provider.load_channels()
         except Exception as exc:  # noqa: BLE001
-            _log.error("LoadChannels error: %s", exc)
+            _log.exception(
+                "LoadChannels error provider_id=%s error_type=%s",
+                request.provider_id,
+                type(exc).__name__,
+            )
             return LoadChannelsResponse(error=str(exc))
         dtos = [
             ChannelDTO(
