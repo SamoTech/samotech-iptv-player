@@ -8,6 +8,7 @@ from pathlib import PurePosixPath
 from typing import TYPE_CHECKING
 
 from samotech_iptv.core.exceptions import ValidationError
+from samotech_iptv.core.logging import get_logger
 from samotech_iptv.domain.entities.channel import Channel
 from samotech_iptv.domain.entities.stream import Stream
 from samotech_iptv.domain.value_objects.channel_id import ChannelId
@@ -22,6 +23,7 @@ __all__ = ["M3UParser", "M3UParserError", "ParsedM3UPlaylist"]
 
 _ATTRIBUTE_RE = re.compile(r"([\w-]+)=(?:\"([^\"]*)\"|'([^']*)'|([^\s,]+))")
 _SAFE_IDENTIFIER_RE = re.compile(r"[^a-z0-9]+")
+_LOG = get_logger(__name__)
 
 
 class M3UParserError(ValueError):
@@ -180,8 +182,9 @@ class M3UParser:
             return None
         try:
             return URL(value)
-        except ValidationError as exc:
-            raise M3UParserError(f"Line {line_number} has an invalid logo URL") from exc
+        except ValidationError:
+            _LOG.warning("Ignoring invalid optional M3U logo URL at line=%d", line_number)
+            return None
 
     @staticmethod
     def _channel_number(value: str | None, line_number: int) -> int | None:

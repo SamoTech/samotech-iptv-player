@@ -34,7 +34,7 @@ class FakeHttpClient:
         self.text = text
         self.urls: list[str] = []
 
-    async def get_text(self, url: str) -> str:
+    async def get_text(self, url: str, **_: object) -> str:
         self.urls.append(url)
         return self.text
 
@@ -42,7 +42,7 @@ class FakeHttpClient:
 class FailingHttpClient(FakeHttpClient):
     """Remote fake that exposes a deterministic HTTP failure."""
 
-    async def get_text(self, url: str) -> str:
+    async def get_text(self, url: str, **_: object) -> str:
         self.urls.append(url)
         raise HttpClientError("HTTP 403", status_code=403)
 

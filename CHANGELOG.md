@@ -46,6 +46,12 @@ This file records concise historical delivery milestones. It is **not** the curr
 - Added stage-specific M3U diagnostics for source resolution, credential retrieval, HTTP/URL handling, content retrieval, parser input, and channel translation. Diagnostics include exception type and traceback while retaining the generic `Unable to load channels` presentation message.
 - M3U remote-source failures now return controlled redacted errors without query tokens or userinfo. Added regression coverage for secure registered-source restoration and HTTP failure redaction. Real Windows M3U channel loading remains pending manual acceptance; no unrelated feature work was started.
 
+## Real M3U integration fix — 2026-08-13
+
+- A real network diagnostic established that the supplied M3U endpoint returned HTTP 200 with a 5.16 MB `application/octet-stream` playlist and a valid `#EXTM3U` first chunk, but the default HTTP body-read timeout expired before the complete response was consumed.
+- With an evidence-based extended per-request M3U timeout, the existing application path completed against the real server and produced 21,786 canonical channel entities. The real playlist also contained malformed optional `tvg-logo` values; the parser now ignores only invalid optional logos while retaining valid channels.
+- The real Xtream adapter authenticated and loaded 187 live categories. Live-channel loading remains separately unverified because the existing adapter received an invalid stream URL from the provider response. Playback was not tested.
+
 ### Changed
 
 - Desktop bootstrap can accept a caller-owned shared player, preventing production composition from constructing multiple libVLC adapters.

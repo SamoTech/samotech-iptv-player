@@ -10,6 +10,7 @@ from samotech_iptv.core.exceptions import ValidationError
 from samotech_iptv.core.logging import get_logger
 from samotech_iptv.domain.value_objects.url import URL
 from samotech_iptv.infrastructure.network.exceptions import HttpError
+from samotech_iptv.infrastructure.network.timeouts import TimeoutConfig
 
 if TYPE_CHECKING:
     from samotech_iptv.infrastructure.network.http_client import AsyncHttpClient
@@ -17,6 +18,7 @@ if TYPE_CHECKING:
 __all__ = ["M3USourceError", "M3USourceLoader", "M3USourceLoaderPort"]
 
 _LOG = get_logger(__name__)
+_M3U_REMOTE_TIMEOUT = TimeoutConfig(connect=20.0, read=180.0, total=240.0)
 
 
 class M3USourceError(ValueError):
@@ -51,7 +53,10 @@ class M3USourceLoader:
         _LOG.debug("M3U source stage=http_request source=%s", safe_source)
         try:
             remote_url = URL(source)
-            text = await self._http_client.get_text(str(remote_url))
+            text = await self._http_client.get_text(
+                str(remote_url),
+                timeout=_M3U_REMOTE_TIMEOUT,
+            )
             _LOG.debug("M3U source stage=content_retrieval source=%s bytes=%d", safe_source, len(text))
             return text
         except asyncio.CancelledError:

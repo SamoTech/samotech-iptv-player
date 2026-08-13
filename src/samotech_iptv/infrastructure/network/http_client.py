@@ -133,12 +133,18 @@ class AsyncHttpClient:
         *,
         params: dict[str, str] | None = None,
         headers: dict[str, str] | None = None,
+        timeout: TimeoutConfig | None = None,
     ) -> str:
         """Perform a GET request and return the raw response body as text."""
         return cast(
             "str",
             await self._request_with_retry(
-                "GET", url, params=params, headers=headers, as_text=True
+                "GET",
+                url,
+                params=params,
+                headers=headers,
+                as_text=True,
+                timeout=timeout,
             ),
         )
 
@@ -154,6 +160,7 @@ class AsyncHttpClient:
         json: JSON | None = None,
         data: dict[str, str] | None = None,
         as_text: bool = False,
+        timeout: TimeoutConfig | None = None,
     ) -> JSON | str:
         last_exc: Exception = RuntimeError("No attempts made")
 
@@ -167,6 +174,7 @@ class AsyncHttpClient:
                     json=json,
                     data=data,
                     as_text=as_text,
+                    timeout=timeout,
                 )
                 if attempt > 0:
                     _log.info("%s %s succeeded on attempt %d", method, url, attempt + 1)
@@ -230,6 +238,7 @@ class AsyncHttpClient:
         json: JSON | None = None,
         data: dict[str, str] | None = None,
         as_text: bool = False,
+        timeout: TimeoutConfig | None = None,
     ) -> JSON | str:
         try:
             import aiohttp  # noqa: PLC0415
@@ -242,6 +251,7 @@ class AsyncHttpClient:
                 headers=headers,
                 json=json,
                 data=data,
+                timeout=timeout.to_aiohttp() if timeout is not None else None,
             ) as resp:
                 if resp.status >= 500:
                     body = await resp.text()
