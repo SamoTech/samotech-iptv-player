@@ -44,6 +44,7 @@ from samotech_iptv.application.use_cases.search_registered_channels import (
 )
 from samotech_iptv.application.use_cases.start_recording import StartRecording
 from samotech_iptv.application.use_cases.stop_recording import StopRecording
+from samotech_iptv.core.logging import configure_logging
 from samotech_iptv.desktop_bootstrap import DesktopApplication, build_desktop_application
 from samotech_iptv.infrastructure.database.sqlite_favorite_repository import (
     SQLiteFavoriteRepository,
@@ -96,6 +97,10 @@ async def build_production_desktop_application(
     registry = ProviderRegistry()
     context = ProviderContext.build(overrides=config_overrides, registry=registry)
     application_config = context.config.app_config()
+    configure_logging(
+        application_config.log_level,
+        debug=application_config.debug,
+    )
     data_directory = Path(application_config.data_dir).expanduser()
     database_path = data_directory / _DATABASE_FILENAME
 

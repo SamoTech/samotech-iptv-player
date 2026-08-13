@@ -94,6 +94,43 @@ def test_channel_maps_xtream_live_stream_record() -> None:
 
 
 @pytest.mark.parametrize(
+    "logo",
+    [
+        "",
+        "https://assets.example.test/logo.png",
+        "https://docdog.top/logo/countries/ar/\u00a0ALFADY_TV.png",
+        "https://lo1.in/sp/LA 1 FHD.png",
+    ],
+)
+def test_channel_tolerates_optional_logo_metadata(logo: str) -> None:
+    channel = XtreamDomainTranslator.channel(
+        {"stream_id": 101, "name": "News", "stream_icon": logo},
+        ProviderId("xtream-demo"),
+    )
+
+    if logo == "https://assets.example.test/logo.png":
+        assert str(channel.logo_url) == logo
+    else:
+        assert channel.logo_url is None
+
+
+def test_channel_keeps_valid_channels_when_one_logo_is_invalid() -> None:
+    records = [
+        {"stream_id": 1, "name": "Good", "stream_icon": "https://assets.example.test/good.png"},
+        {"stream_id": 2, "name": "Bad Logo", "stream_icon": "https://lo1.in/sp/LA 1 FHD.png"},
+    ]
+
+    channels = [
+        XtreamDomainTranslator.channel(record, ProviderId("xtream-demo"), record_index=index)
+        for index, record in enumerate(records, start=1)
+    ]
+
+    assert [channel.name for channel in channels] == ["Good", "Bad Logo"]
+    assert channels[0].logo_url is not None
+    assert channels[1].logo_url is None
+
+
+@pytest.mark.parametrize(
     "record", [{"name": "News"}, {"stream_id": 1}, {"stream_id": 1, "name": "News", "num": "x"}]
 )
 def test_channel_rejects_malformed_xtream_live_stream(record: dict[str, object]) -> None:

@@ -147,6 +147,22 @@ python -m samotech_iptv
 
 The entry point composes safe local state, restores registered provider metadata, loads the theme, starts the qasync runtime, and closes the shared HTTP resource when the window loop exits. Startup failures are reported generically so exception details do not expose provider information. A standalone installer, auto-updater, crash-reporting policy, and release distribution remain future work.
 
+### Windows development diagnostics
+
+For a detailed, timed provider-operation trace in PowerShell, enable the existing debug configuration before launching:
+
+```powershell
+$env:IPTV_DEBUG="1"
+samotech-iptv
+```
+
+With debug enabled, the console shows provider operation stages, elapsed timing, HTTP status and response-size metadata, parser/translation summaries, safe optional-field warnings, and redacted full tracebacks. Credentials, tokens, cookies, authorization headers, and credential-bearing URLs are not logged. To return to normal concise behavior, use:
+
+```powershell
+$env:IPTV_DEBUG="0"
+samotech-iptv
+```
+
 ## Project structure
 
 ```text

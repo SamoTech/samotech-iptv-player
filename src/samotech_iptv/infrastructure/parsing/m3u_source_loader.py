@@ -1,4 +1,5 @@
 """Load M3U source text through local-file or shared HTTP boundaries."""
+
 from __future__ import annotations
 
 import asyncio
@@ -6,6 +7,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
 from urllib.parse import unquote, urlsplit, urlunsplit
 
+from samotech_iptv.core.diagnostics import log_exception
 from samotech_iptv.core.exceptions import ValidationError
 from samotech_iptv.core.logging import get_logger
 from samotech_iptv.domain.value_objects.url import URL
@@ -57,19 +59,17 @@ class M3USourceLoader:
                 str(remote_url),
                 timeout=_M3U_REMOTE_TIMEOUT,
             )
-            _LOG.debug("M3U source stage=content_retrieval source=%s bytes=%d", safe_source, len(text))
+            _LOG.debug(
+                "M3U source stage=content_retrieval source=%s bytes=%d", safe_source, len(text)
+            )
             return text
         except asyncio.CancelledError:
             raise
         except (HttpError, ValidationError) as exc:
-            _LOG.exception("M3U source stage=http_or_url source=%s", safe_source)
+            log_exception(_LOG, "M3U source stage=http_or_url", exc, source=safe_source)
             raise M3USourceError("Unable to load remote M3U source") from exc
         except Exception as exc:  # noqa: BLE001
-            _LOG.exception(
-                "M3U source stage=unexpected_transport source=%s error_type=%s",
-                safe_source,
-                type(exc).__name__,
-            )
+            log_exception(_LOG, "M3U source stage=unexpected_transport", exc, source=safe_source)
             raise M3USourceError("Unable to load remote M3U source") from exc
 
     @staticmethod
@@ -79,7 +79,7 @@ class M3USourceLoader:
             _LOG.debug("M3U source stage=content_retrieval local_path=%s bytes=%d", path, len(text))
             return text
         except (OSError, UnicodeDecodeError) as exc:
-            _LOG.exception("M3U source stage=local_read path=%s", path)
+            log_exception(_LOG, "M3U source stage=local_read", exc, path=path)
             raise M3USourceError("Unable to read local M3U source") from exc
 
     @staticmethod

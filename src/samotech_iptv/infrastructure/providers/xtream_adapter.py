@@ -15,6 +15,7 @@ from samotech_iptv.application.ports.provider_capabilities import (
     SeriesProvider,
     VodProvider,
 )
+from samotech_iptv.core.diagnostics import DiagnosticTrace
 from samotech_iptv.core.exceptions import AuthenticationError, ValidationError
 from samotech_iptv.domain.value_objects.provider_capability import ProviderCapability
 from samotech_iptv.domain.value_objects.provider_id import ProviderId
@@ -95,16 +96,34 @@ class XtreamProviderAdapter(
 
     async def load_channels(self) -> Sequence[Channel]:
         """Retrieve the stored credential and translate Xtream live DTOs into channels."""
-        client = await self._stored_client()
-        return [
-            XtreamDomainTranslator.channel(record, self.provider_id)
-            for record in await client.live_streams()
-        ]
+        trace = DiagnosticTrace("LOAD_CHANNELS", str(self.provider_id), "XtreamProviderAdapter")
+        trace.start()
+        with trace.stage("Credential retrieval", provider_id=self._metadata.provider_id):
+            client = await self._stored_client()
+        with trace.stage("Response processing", provider_id=self._metadata.provider_id):
+            records = await client.live_streams()
+        with trace.stage("Domain translation", records_received=len(records)):
+            channels = [
+                XtreamDomainTranslator.channel(record, self.provider_id, record_index=index)
+                for index, record in enumerate(records, start=1)
+            ]
+        trace.result("PASS", records_received=len(records), records_translated=len(channels))
+        return channels
 
     async def load_live_categories(self) -> Sequence[Category]:
         """Retrieve stored credentials then translate Xtream live categories."""
-        client = await self._stored_client()
-        return XtreamDomainTranslator.categories(await client.live_categories(), self.provider_id)
+        trace = DiagnosticTrace(
+            "LOAD_LIVE_CATEGORIES", str(self.provider_id), "XtreamProviderAdapter"
+        )
+        trace.start()
+        with trace.stage("Credential retrieval", provider_id=self._metadata.provider_id):
+            client = await self._stored_client()
+        with trace.stage("Response processing", provider_id=self._metadata.provider_id):
+            records = await client.live_categories()
+        with trace.stage("Domain translation", records_received=len(records)):
+            categories = XtreamDomainTranslator.categories(records, self.provider_id)
+        trace.result("PASS", categories_received=len(categories))
+        return categories
 
     async def load_vod_categories(self) -> Sequence[Category]:
         """Retrieve stored credentials then translate Xtream VOD categories."""

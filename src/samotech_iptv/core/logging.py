@@ -15,16 +15,25 @@ _FORMATTER = logging.Formatter(
     fmt="%(asctime)s %(levelname)-8s %(name)s — %(message)s",
     datefmt="%Y-%m-%dT%H:%M:%S",
 )
+_DEBUG_FORMATTER = logging.Formatter(
+    fmt="%(asctime)s %(levelname)-8s %(name)s — %(message)s",
+    datefmt="%Y-%m-%dT%H:%M:%S",
+)
 
 
-def configure_logging(level: str = "INFO", *, stream: bool = True) -> None:
-    """Bootstrap root logger.  Call once at application startup."""
+def configure_logging(level: str = "INFO", *, stream: bool = True, debug: bool = False) -> None:
+    """Bootstrap root logger with optional detailed development diagnostics."""
     root = logging.getLogger()
-    root.setLevel(getattr(logging, level.upper(), logging.INFO))
+    effective_level = "DEBUG" if debug else level.upper()
+    root.setLevel(getattr(logging, effective_level, logging.INFO))
     if stream and not root.handlers:
         handler = logging.StreamHandler(sys.stdout)
-        handler.setFormatter(_FORMATTER)
+        handler.setFormatter(_DEBUG_FORMATTER if debug else _FORMATTER)
         root.addHandler(handler)
+    elif debug:
+        for handler in root.handlers:
+            handler.setLevel(logging.DEBUG)
+            handler.setFormatter(_DEBUG_FORMATTER)
 
 
 def get_logger(name: str | None = None) -> logging.Logger:

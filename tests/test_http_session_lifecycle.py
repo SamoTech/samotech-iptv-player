@@ -1,4 +1,5 @@
 """Regression tests for application-owned HTTP session lifecycle."""
+
 from __future__ import annotations
 
 import pytest

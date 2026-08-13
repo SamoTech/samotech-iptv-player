@@ -1,4 +1,5 @@
 """Regression coverage for provider-add Save/Cancel actions and safe submission."""
+
 from __future__ import annotations
 
 import sys
@@ -148,8 +149,12 @@ async def test_provider_add_dialogs_have_save_cancel_and_successful_save_closes(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("dialog_type", [M3UProviderDialog, XtreamProviderDialog, MAGProviderDialog])
-async def test_provider_add_dialog_validation_does_not_persist_or_close(dialog_type: type[object]) -> None:
+@pytest.mark.parametrize(
+    "dialog_type", [M3UProviderDialog, XtreamProviderDialog, MAGProviderDialog]
+)
+async def test_provider_add_dialog_validation_does_not_persist_or_close(
+    dialog_type: type[object],
+) -> None:
     registration = FakeRegistration()
     dialog = dialog_type(registration)  # type: ignore[call-arg]
 

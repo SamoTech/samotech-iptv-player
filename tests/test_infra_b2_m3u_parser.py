@@ -48,7 +48,9 @@ def test_parse_extended_m3u_maps_metadata_and_streams(
     assert parsed.streams[1].container == "ts"
 
 
-def test_parse_ignores_invalid_optional_logo_url(parser: M3UParser, provider_id: ProviderId) -> None:
+def test_parse_ignores_invalid_optional_logo_url(
+    parser: M3UParser, provider_id: ProviderId
+) -> None:
     """A malformed optional logo must not discard an otherwise valid channel."""
     parsed = parser.parse(
         '#EXTM3U\n#EXTINF:-1 tvg-logo="not-a-url",Test Channel\n'

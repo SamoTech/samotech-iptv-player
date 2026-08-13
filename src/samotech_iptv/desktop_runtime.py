@@ -1,4 +1,5 @@
 """Run the Qt/qasync desktop event loop and own runtime lifecycle callbacks."""
+
 from __future__ import annotations
 
 import asyncio

@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from samotech_iptv.core.exceptions import ValidationError
+from samotech_iptv.core.logging import get_logger
 from samotech_iptv.domain.entities.category import Category
 from samotech_iptv.domain.entities.channel import Channel
 from samotech_iptv.domain.entities.epg_entry import EPGEntry
@@ -22,6 +23,8 @@ if TYPE_CHECKING:
     from samotech_iptv.domain.value_objects.provider_id import ProviderId
 
 __all__ = ["XtreamDomainTranslator"]
+
+_LOG = get_logger(__name__)
 
 
 class XtreamDomainTranslator:
@@ -45,11 +48,15 @@ class XtreamDomainTranslator:
         )
 
     @staticmethod
-    def channel(raw: Mapping[str, object], provider_id: ProviderId) -> Channel:
-        """Map a live-stream record returned by ``get_live_streams``."""
+    def channel(
+        raw: Mapping[str, object], provider_id: ProviderId, record_index: int | None = None
+    ) -> Channel:
+        """Map a live-stream record while tolerating invalid optional logo metadata."""
         stream_id = XtreamDomainTranslator._required_text(raw, "stream_id")
         name = XtreamDomainTranslator._required_text(raw, "name")
-        logo = str(raw.get("stream_icon") or "").strip()
+        logo = XtreamDomainTranslator._optional_logo(
+            raw.get("stream_icon"), provider_id, name, record_index
+        )
         category_id = str(raw.get("category_id") or "").strip() or None
         epg_channel_id = str(raw.get("epg_channel_id") or "").strip() or None
         number = XtreamDomainTranslator._optional_int(raw.get("num"))
@@ -59,10 +66,38 @@ class XtreamDomainTranslator:
             provider_id=provider_id,
             stream_id=StreamId(stream_id),
             category_id=category_id,
-            logo_url=URL(logo) if logo else None,
+            logo_url=logo,
             epg_channel_id=epg_channel_id,
             number=number,
         )
+
+    @staticmethod
+    def _optional_logo(
+        value: object,
+        provider_id: ProviderId,
+        channel_name: str,
+        record_index: int | None,
+    ) -> URL | None:
+        """Validate optional logo metadata without allowing it to abort a channel."""
+        logo = str(value or "").replace("\u00a0", " ").strip()
+        if not logo:
+            return None
+        try:
+            return URL(logo)
+        except ValidationError:
+            _LOG.warning(
+                "[IPTV][WARN] Provider=%s Record=%s Field=logo_url Reason=invalid URL "
+                "Action=ignored Channel=%s",
+                provider_id.value,
+                record_index if record_index is not None else "unknown",
+                XtreamDomainTranslator._safe_label(channel_name),
+            )
+            return None
+
+    @staticmethod
+    def _safe_label(value: str) -> str:
+        """Keep diagnostic labels short and free from control characters."""
+        return " ".join(value.split())[:120]
 
     @staticmethod
     def movie(raw: Mapping[str, object], provider_id: ProviderId) -> Movie:

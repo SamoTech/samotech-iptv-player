@@ -9,6 +9,7 @@ from samotech_iptv.application.dtos import (
     LoadChannelsRequest,
     LoadChannelsResponse,
 )
+from samotech_iptv.core.diagnostics import DiagnosticTrace, log_exception, safe_label
 from samotech_iptv.core.logging import get_logger
 
 if TYPE_CHECKING:
@@ -25,13 +26,27 @@ class LoadChannels:
 
     async def execute(self, request: LoadChannelsRequest) -> LoadChannelsResponse:
         _log.info("Loading channels for provider %s", request.provider_id)
+        trace = DiagnosticTrace(
+            "LOAD_CHANNELS",
+            str(request.provider_id),
+            type(self._provider).__name__,
+        )
+        trace.start()
         try:
-            channels = await self._provider.load_channels()
+            with trace.stage("Provider resolution", provider=str(request.provider_id)):
+                channels = await self._provider.load_channels()
         except Exception as exc:  # noqa: BLE001
-            _log.exception(
-                "LoadChannels error provider_id=%s error_type=%s",
-                request.provider_id,
-                type(exc).__name__,
+            log_exception(
+                _log,
+                "LoadChannels error",
+                exc,
+                provider_id=request.provider_id,
+            )
+            trace.result(
+                "FAIL",
+                error_type=type(exc).__name__,
+                error=safe_label(exc),
+                records_received=0,
             )
             return LoadChannelsResponse(error=str(exc))
         dtos = [
@@ -47,4 +62,10 @@ class LoadChannels:
             for ch in channels
             if request.category_id is None or ch.category_id == request.category_id
         ]
+        trace.result(
+            "PASS",
+            records_received=len(channels),
+            records_translated=len(dtos),
+            records_rejected=len(channels) - len(dtos),
+        )
         return LoadChannelsResponse(channels=dtos, total=len(dtos))

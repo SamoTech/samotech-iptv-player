@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING, cast
 
+from samotech_iptv.core.diagnostics import redact_url
 from samotech_iptv.core.logging import get_logger
 
 if TYPE_CHECKING:
@@ -177,7 +178,7 @@ class AsyncHttpClient:
                     timeout=timeout,
                 )
                 if attempt > 0:
-                    _log.info("%s %s succeeded on attempt %d", method, url, attempt + 1)
+                    _log.info("%s %s succeeded on attempt %d", method, redact_url(url), attempt + 1)
                 return result
 
             except asyncio.CancelledError:
@@ -188,7 +189,7 @@ class AsyncHttpClient:
                 _log.warning(
                     "%s %s timed out (attempt %d/%d)",
                     method,
-                    url,
+                    redact_url(url),
                     attempt + 1,
                     self._retry.max_attempts,
                 )
@@ -200,7 +201,7 @@ class AsyncHttpClient:
                 _log.warning(
                     "%s %s connection error (attempt %d/%d): %s",
                     method,
-                    url,
+                    redact_url(url),
                     attempt + 1,
                     self._retry.max_attempts,
                     exc,
@@ -213,7 +214,7 @@ class AsyncHttpClient:
                 _log.warning(
                     "%s %s server error %s (attempt %d/%d)",
                     method,
-                    url,
+                    redact_url(url),
                     exc.status_code,
                     attempt + 1,
                     self._retry.max_attempts,
@@ -243,7 +244,12 @@ class AsyncHttpClient:
         try:
             import aiohttp  # noqa: PLC0415
 
-            _log.debug("%s %s params=%s", method, url, params)
+            _log.debug(
+                "%s %s params=%s",
+                method,
+                redact_url(url),
+                "<redacted>" if params else None,
+            )
             async with self._session.raw.request(
                 method,
                 url,
@@ -265,14 +271,14 @@ class AsyncHttpClient:
                         f"{method} {url} -> {resp.status}: {body[:200]}",
                         status_code=resp.status,
                     )
-                _log.debug("%s %s -> %d", method, url, resp.status)
+                _log.debug("%s %s -> %d", method, redact_url(url), resp.status)
                 if as_text:
                     return await resp.text()
                 return cast("JSON", await resp.json(content_type=None))
 
         except TimeoutError as exc:
-            raise HttpTimeoutError(f"{method} {url} timed out") from exc
+            raise HttpTimeoutError(f"{method} {redact_url(url)} timed out") from exc
         except aiohttp.ClientConnectorError as exc:
-            raise HttpConnectionError(f"Cannot connect to {url}: {exc}") from exc
+            raise HttpConnectionError(f"Cannot connect to {redact_url(url)}") from exc
         except aiohttp.ClientError as exc:
-            raise HttpConnectionError(f"{method} {url} client error: {exc}") from exc
+            raise HttpConnectionError(f"{method} {redact_url(url)} client error") from exc

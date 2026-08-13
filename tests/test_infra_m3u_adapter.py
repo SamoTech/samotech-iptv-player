@@ -8,9 +8,9 @@ import pytest
 
 from samotech_iptv.core.exceptions import ProviderError
 from samotech_iptv.domain.value_objects.credential import Credential
-from samotech_iptv.infrastructure.network.exceptions import HttpClientError
 from samotech_iptv.domain.value_objects.provider_capability import ProviderCapability
 from samotech_iptv.domain.value_objects.url import URL
+from samotech_iptv.infrastructure.network.exceptions import HttpClientError
 from samotech_iptv.infrastructure.parsing.m3u_source_loader import (
     M3USourceError,
     M3USourceLoader,
