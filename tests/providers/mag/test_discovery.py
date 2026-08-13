@@ -368,6 +368,7 @@ def test_gui_and_helper_profiles_preserve_observed_mac_cookie_encodings() -> Non
 
 @dataclass
 class StalkerClientPortalState:
+    mode: str = "gui"
     requests: list[dict[str, object]] = field(default_factory=list)
 
 
@@ -387,22 +388,43 @@ async def stalker_client_portal() -> tuple[str, StalkerClientPortalState]:
             and "mac=00:11:22:33:44:55" in request.headers.get("Cookie", "")
             and "%3A" not in request.headers.get("Cookie", "")
         )
+        is_helper_fingerprint = (
+            request.headers.get("User-Agent") == "Mozilla/5.0 (QtEmbedded; U; Linux; C) "
+            "AppleWebKit/533.3 (KHTML, like Gecko) "
+            "MAG200 stbapp ver: 2 rev: 250 Safari/533.3"
+            and request.headers.get("X-User-Agent") == "Model: MAG250; Link: WiFi"
+            and request.headers.get("Referer")
+            == f"http://{request.host}/stalker_portal/c/index.html"
+            and "mac=00%3A11%3A22%3A33%3A44%3A55" in request.headers.get("Cookie", "")
+            and request.headers.get("Accept") == "*/*"
+            and request.headers.get("Accept-Language") == "en-US,en;q=0.5"
+            and request.headers.get("Pragma") == "no-cache"
+            and request.headers.get("Connection") == "Close"
+            and request.headers.get("Accept-Encoding") == "gzip, deflate"
+        )
+        expected_path = (
+            "/stalker_portal/server/load.php" if state.mode == "helper" else "/portal.php"
+        )
+        expected_fingerprint = (
+            is_helper_fingerprint if state.mode == "helper" else is_client_fingerprint
+        )
         state.requests.append(
             {
                 "path": request.path,
                 "query": query,
                 "client_fingerprint": is_client_fingerprint,
+                "helper_fingerprint": is_helper_fingerprint,
                 "has_authorization": "Authorization" in request.headers,
                 "has_cookie": "Cookie" in request.headers,
             }
         )
-        if request.path != "/portal.php":
+        if request.path != expected_path:
             return web.Response(status=404, text="not found")
         if query.get("action") == "handshake":
-            if is_client_fingerprint:
+            if expected_fingerprint:
                 return web.json_response({"js": {"token": "fixture-token", "token_TTL": "120"}})
             return web.Response(status=404, text="not found")
-        if not is_client_fingerprint or "Authorization" not in request.headers:
+        if not expected_fingerprint or "Authorization" not in request.headers:
             return web.Response(status=401, text="missing session")
         if query.get("action") == "get_genres":
             return web.json_response({"js": [{"id": "10", "title": "Fixture Live"}]})
@@ -412,7 +434,7 @@ async def stalker_client_portal() -> tuple[str, StalkerClientPortalState]:
                 "action": "get_ordered_list",
                 "JsHttpRequest": "1-xml",
                 "genre": "10",
-                "p": "0",
+                "p": "1" if state.mode == "helper" else "0",
             }
             return web.json_response(
                 {
@@ -497,6 +519,67 @@ async def test_stalker_client_profile_runs_adapter_fixture_flow_with_safe_finger
     assert all(request["has_cookie"] is True for request in client_handshakes)
     assert not any(
         request["query"].get("prehash") for request in client_handshakes  # type: ignore[index]
+    )
+    assert "00:11:22:33:44:55" not in repr(state.requests)
+    assert "fixture-token" not in repr(state.requests)
+
+
+@pytest.mark.asyncio
+async def test_stalker_helper_profile_runs_adapter_fixture_flow_from_page_one(
+    stalker_client_portal: tuple[str, StalkerClientPortalState],
+) -> None:
+    base_url, state = stalker_client_portal
+    state.mode = "helper"
+    provider = MAGProvider(
+        {
+            "portal_url": base_url,
+            "mac_address": "00:11:22:33:44:55",
+            "protocol_profile": "stalker_helper_compatibility",
+            "timeout_s": 2.0,
+            "max_retries": 1,
+            "use_keyring": False,
+        }
+    )
+    adapter = MagProviderAdapter(
+        InfraProviderMetadata("fixture-stalker-helper", "mag", base_url),
+        ProviderContext.build(overrides={"connect_timeout": 1.0, "read_timeout": 1.0}),
+        legacy_provider=provider,
+    )
+    try:
+        assert await adapter.authenticate(Credential("00:11:22:33:44:55", "fixture"))
+        assert provider._session.profile.name == "stalker_helper_compatibility"
+        categories = await adapter.load_live_categories()
+        channels = await adapter.load_channels()
+        resolved = await adapter.resolve_stream(channels[0].id)
+    finally:
+        await adapter.close_session()
+
+    assert [(category.id, category.name) for category in categories] == [("10", "Fixture Live")]
+    assert [(str(channel.id), channel.name) for channel in channels] == [("1", "Fixture News")]
+    assert str(resolved).startswith("https://")
+    helper_handshakes = [
+        request
+        for request in state.requests
+        if request["path"] == "/stalker_portal/server/load.php"
+        and request["query"].get("action") == "handshake"  # type: ignore[index]
+        and request["helper_fingerprint"] is True
+    ]
+    ordered_list_requests = [
+        request
+        for request in state.requests
+        if request["query"].get("action") == "get_ordered_list"  # type: ignore[index]
+    ]
+    assert len(helper_handshakes) == 1
+    assert helper_handshakes[0]["query"] == {
+        "type": "stb",
+        "action": "handshake",
+        "token": "",
+        "JsHttpRequest": "1-xml",
+    }
+    assert len(ordered_list_requests) == 1
+    assert ordered_list_requests[0]["query"].get("p") == "1"  # type: ignore[index]
+    assert not any(
+        request["query"].get("prehash") for request in helper_handshakes  # type: ignore[index]
     )
     assert "00:11:22:33:44:55" not in repr(state.requests)
     assert "fixture-token" not in repr(state.requests)

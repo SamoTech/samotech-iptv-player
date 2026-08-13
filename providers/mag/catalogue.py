@@ -59,7 +59,8 @@ class MAGCatalogue:
             if not genre_id:
                 rejected += 1
                 continue
-            page = 0
+            page = self._sess.profile.ordered_live_start_page
+            fetched_for_genre = 0
             while True:
                 data = await self._sess.request(
                     MAGOperation.LIVE_ORDERED_LIST,
@@ -69,6 +70,7 @@ class MAGCatalogue:
                 if envelope.get("error"):
                     raise AuthError("MAG catalogue response indicated an expired session")
                 page_records = self._records(envelope.get("data", []))
+                fetched_for_genre += len(page_records)
                 received += len(page_records)
                 for record in page_records:
                     channel_id = str(record.get("id") or "").strip()
@@ -91,7 +93,7 @@ class MAGCatalogue:
                 total_items = self._as_nonnegative_int(
                     envelope.get("total_items"), len(page_records)
                 )
-                if not page_records or (page + 1) * len(page_records) >= total_items:
+                if not page_records or fetched_for_genre >= total_items:
                     break
                 page += 1
         self._last_live_stats = {"received": received, "accepted": accepted, "rejected": rejected}

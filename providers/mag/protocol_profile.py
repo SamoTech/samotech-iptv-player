@@ -84,6 +84,7 @@ class MAGProtocolProfile:
     cookie_language: str = "en"
     cookie_timezone: str = "Europe/Paris"
     uses_ordered_live_catalogue: bool = False
+    ordered_live_start_page: int = 0
     uses_channel_command_for_live_link: bool = False
 
     def request_base_url(self, portal_url: str) -> str:
@@ -321,4 +322,5 @@ class StalkerHelperCompatibilityProfile(MAGProtocolProfile):
     )
     uses_stalker_cookies: bool = True
     uses_ordered_live_catalogue: bool = True
+    ordered_live_start_page: int = 1
     uses_channel_command_for_live_link: bool = True

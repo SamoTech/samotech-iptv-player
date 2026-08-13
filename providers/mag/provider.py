@@ -20,6 +20,8 @@ from .profile import MAGProfile
 from .protocol_profile import (
     LegacyMAGProtocolProfile,
     MAGProtocolProfile,
+    StalkerClientCompatibilityProfile,
+    StalkerHelperCompatibilityProfile,
     StalkerQueryProtocolProfile,
 )
 from .session import MAGSession
@@ -75,6 +77,10 @@ class MAGProvider(BaseProvider):
             protocol_profile = LegacyMAGProtocolProfile()
         elif profile_name == "stalker_query":
             protocol_profile = StalkerQueryProtocolProfile()
+        elif profile_name == "stalker_gui_compatibility":
+            protocol_profile = StalkerClientCompatibilityProfile()
+        elif profile_name == "stalker_helper_compatibility":
+            protocol_profile = StalkerHelperCompatibilityProfile()
         else:
             raise ValueError(f"Unsupported MAG protocol profile: {profile_name!r}")
         self._session = MAGSession(self._connection, creds, profile=protocol_profile)
