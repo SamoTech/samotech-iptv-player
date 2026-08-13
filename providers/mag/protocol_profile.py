@@ -80,6 +80,7 @@ class MAGProtocolProfile:
     referer_suffix: str | None = None
     extra_headers: Mapping[str, str] = field(default_factory=dict)
     uses_stalker_cookies: bool = False
+    quote_mac_cookie: bool = True
     cookie_language: str = "en"
     cookie_timezone: str = "Europe/Paris"
     uses_ordered_live_catalogue: bool = False
@@ -119,8 +120,11 @@ class MAGProtocolProfile:
         """Build one private request-header set without logging sensitive values."""
         headers = self.protocol_headers(portal_url)
         if self.uses_stalker_cookies:
+            encoded_mac = (
+                quote(mac_address.strip()) if self.quote_mac_cookie else mac_address.strip()
+            )
             cookies = {
-                "mac": quote(mac_address.strip()),
+                "mac": encoded_mac,
                 "stb_lang": quote(self.cookie_language),
                 "timezone": quote(self.cookie_timezone),
             }
@@ -277,6 +281,7 @@ class StalkerClientCompatibilityProfile(MAGProtocolProfile):
         }
     )
     http_user_agent: str | None = USER_AGENT
+    quote_mac_cookie: bool = False
     cookie_timezone: str = "Europe/London"
     uses_stalker_cookies: bool = True
     uses_ordered_live_catalogue: bool = True

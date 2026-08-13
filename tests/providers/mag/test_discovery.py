@@ -16,6 +16,10 @@ from providers.mag.discovery import (
     MAGDiscoveryResult,
     MAGProtocolDiscovery,
 )
+from providers.mag.protocol_profile import (
+    StalkerClientCompatibilityProfile,
+    StalkerHelperCompatibilityProfile,
+)
 from providers.mag.provider import MAGProvider
 
 from samotech_iptv.core.exceptions import AuthenticationError
@@ -344,6 +348,24 @@ def test_discovery_classifies_remaining_safe_probe_outcomes(
     assert result.token_present is False
 
 
+def test_gui_and_helper_profiles_preserve_observed_mac_cookie_encodings() -> None:
+    identity = {
+        "portal_url": "http://fixture.test/c/",
+        "mac_address": "00:11:22:33:44:55",
+        "serial_number": "",
+        "device_id": "",
+        "device_id2": "",
+        "token": "",
+    }
+
+    gui_headers = StalkerClientCompatibilityProfile().request_headers(**identity)
+    helper_headers = StalkerHelperCompatibilityProfile().request_headers(**identity)
+
+    assert "mac=00:11:22:33:44:55" in gui_headers["Cookie"]
+    assert "%3A" not in gui_headers["Cookie"]
+    assert "mac=00%3A11%3A22%3A33%3A44%3A55" in helper_headers["Cookie"]
+
+
 @dataclass
 class StalkerClientPortalState:
     requests: list[dict[str, object]] = field(default_factory=list)
@@ -362,7 +384,8 @@ async def stalker_client_portal() -> tuple[str, StalkerClientPortalState]:
             "MAG200 stbapp ver: 2 rev: 250 Safari/533.3"
             and "X-User-Agent" not in request.headers
             and "Referer" not in request.headers
-            and "mac=" in request.headers.get("Cookie", "")
+            and "mac=00:11:22:33:44:55" in request.headers.get("Cookie", "")
+            and "%3A" not in request.headers.get("Cookie", "")
         )
         state.requests.append(
             {
