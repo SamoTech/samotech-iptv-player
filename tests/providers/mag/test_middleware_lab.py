@@ -14,6 +14,7 @@ from typing import Any
 
 import pytest
 from aiohttp import web
+from providers.mag.errors import ProviderError
 from providers.mag.provider import MAGProvider
 
 from samotech_iptv.domain.value_objects.channel_id import ChannelId
@@ -26,6 +27,7 @@ from samotech_iptv.infrastructure.providers.provider_metadata import InfraProvid
 @dataclass
 class MiddlewareLabState:
     requests: list[dict[str, Any]] = field(default_factory=list)
+    ordered_mode: str = "finite"
 
 
 @pytest.fixture
@@ -89,6 +91,21 @@ async def middleware_lab() -> tuple[str, MiddlewareLabState]:
                 ],
             }
             page = query.get("p", "")
+            if state.ordered_mode == "non_terminating":
+                return web.json_response(
+                    {
+                        "js": {
+                            "total_items": "1000000",
+                            "data": [
+                                {
+                                    "id": page,
+                                    "name": f"Repeating {page}",
+                                    "cmd": "ffmpeg http://127.0.0.1/lab/repeating.ts",
+                                }
+                            ],
+                        }
+                    }
+                )
             return web.json_response({"js": {"total_items": "3", "data": pages.get(page, [])}})
         if action == "create_link":
             if query.get("type") != "itv" or query.get("JsHttpRequest") != "1-xml":
@@ -170,3 +187,38 @@ async def test_samotech_authenticates_against_known_good_stalker_middleware_lab(
     assert create_link[0]["has_token_cookie"] is True
     assert all(request["path"] == "/stalker_portal/server/load.php" for request in state.requests)
     assert "lab-token" not in repr(state.requests)
+
+
+@pytest.mark.asyncio
+async def test_ordered_catalogue_stops_pathological_pagination_with_safety_guard(
+    middleware_lab: tuple[str, MiddlewareLabState],
+) -> None:
+    base_url, state = middleware_lab
+    state.ordered_mode = "non_terminating"
+
+    provider = MAGProvider(
+        {
+            "portal_url": base_url,
+            "mac_address": "00:11:22:33:44:55",
+            "protocol_profile": "stalker_helper_compatibility",
+            "timeout_s": 2.0,
+            "max_retries": 1,
+            "use_keyring": False,
+        }
+    )
+
+    try:
+        await provider.connect()
+        with pytest.raises(ProviderError, match="pagination exceeded the safety limit"):
+            await provider.get_channels()
+    finally:
+        await provider.close()
+
+    ordered = [
+        request
+        for request in state.requests
+        if request["query"].get("action") == "get_ordered_list"
+    ]
+    assert [request["query"].get("p") for request in ordered] == [
+        str(index) for index in range(1, 1001)
+    ]

@@ -180,12 +180,12 @@ class MAGProtocolDiscovery:
                 ),
             ),
             MAGDiscoveryCandidate(
-                "origin_portal_php_stalker_client",
-                StalkerClientCompatibilityProfile(),
-            ),
-            MAGDiscoveryCandidate(
                 "origin_portal_php_mac_client",
                 StalkerPortalPhpLegacyProfile(),
+            ),
+            MAGDiscoveryCandidate(
+                "origin_portal_php_stalker_client",
+                StalkerClientCompatibilityProfile(),
             ),
         )
 

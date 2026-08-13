@@ -54,6 +54,8 @@ async def discovery_portal() -> tuple[str, DiscoveryPortalState]:
                 "has_authorization": "Authorization" in request.headers,
             }
         )
+        if state.mode == "portal_php_tie" and request.path != "/portal.php":
+            return web.Response(status=404, text="not found", content_type="text/plain")
         if request.path == "/c/server/load.php":
             state.configured_calls += 1
             if request.query.get("action") == "get_all_channels":
@@ -76,6 +78,12 @@ async def discovery_portal() -> tuple[str, DiscoveryPortalState]:
                 return web.Response(status=200, body=b"", content_type="text/javascript")
             return web.json_response({"js": {"token": "fixture-token"}})
         if request.path == "/portal.php":
+            if (
+                state.mode == "portal_php_tie"
+                and "token" in request.query
+                and not request.headers.get("Authorization", "").startswith("MAC ")
+            ):
+                return web.Response(status=404, text="not found", content_type="text/plain")
             if state.mode == "classifications":
                 return web.Response(status=200, body=b"not-json", content_type="text/javascript")
             return web.json_response({"js": {"token": "fixture-token"}})
@@ -125,8 +133,8 @@ async def test_discovery_probes_only_fixed_candidates_and_uses_deterministic_pri
         "origin_stalker_portal_helper",
         "origin_stb_server",
         "origin_portal_php",
-        "origin_portal_php_stalker_client",
         "origin_portal_php_mac_client",
+        "origin_portal_php_stalker_client",
     ]
     assert all(
         result.classification is MAGDiscoveryClassification.VALID_STALKER_HANDSHAKE
@@ -146,25 +154,45 @@ async def test_discovery_probes_only_fixed_candidates_and_uses_deterministic_pri
     assert all(state.requests[index]["has_mac_header"] is True for index in (0, 1, 3, 4))
     assert all(state.requests[index]["has_mac_header"] is False for index in (2, 5, 6))
     assert all(state.requests[index]["has_cookie"] is True for index in (2, 5, 6))
-    assert all(state.requests[index]["has_authorization"] is False for index in range(6))
-    assert state.requests[6]["has_authorization"] is True
+    assert all(state.requests[index]["has_authorization"] is False for index in (0, 1, 2, 3, 4, 6))
+    assert state.requests[5]["has_authorization"] is True
     assert all(
         state.requests[index]["query"]
         == {"type": "stb", "action": "handshake", "token": "", "JsHttpRequest": "1-xml"}
-        for index in (0, 1, 2, 3, 4)
+        for index in (0, 1, 2, 3, 4, 5)
     )
-    assert state.requests[5]["query"] == {
-        "type": "stb",
-        "action": "handshake",
-        "JsHttpRequest": "1-xml",
-    }
     assert state.requests[6]["query"] == {
-        "action": "handshake",
         "type": "stb",
-        "token": "",
+        "action": "handshake",
         "JsHttpRequest": "1-xml",
     }
+
+
+@pytest.mark.asyncio
+async def test_discovery_prefers_concrete_portal_php_mac_profile_when_both_are_valid(
+    discovery_portal: tuple[str, DiscoveryPortalState],
+) -> None:
+    base_url, state = discovery_portal
+    state.mode = "portal_php_tie"
+
+    results, profile = await _discover(base_url)
+
+    assert [result.candidate_name for result in results] == [
+        "configured_base_server",
+        "origin_stalker_portal",
+        "origin_stalker_portal_helper",
+        "origin_stb_server",
+        "origin_portal_php",
+        "origin_portal_php_mac_client",
+        "origin_portal_php_stalker_client",
+    ]
+    assert profile is not None
+    assert profile.name == "stalker_portal_php_legacy"
+    assert results[4].classification is MAGDiscoveryClassification.HTTP_404
+    assert results[-2].classification is MAGDiscoveryClassification.VALID_STALKER_HANDSHAKE
+    assert results[-1].classification is MAGDiscoveryClassification.VALID_STALKER_HANDSHAKE
     assert "00:11:22:33:44:55" not in repr(results)
+
     assert "fixture-token" not in repr(results)
 
 

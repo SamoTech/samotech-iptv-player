@@ -15,6 +15,9 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
+# Safety guard only: the profile-priority fix selects the correct finite contract.
+MAX_ORDERED_LIVE_PAGES_PER_GENRE = 1000
+
 type MagRecord = dict[str, object]
 
 
@@ -86,11 +89,15 @@ class MAGCatalogue:
                 continue
             page = self._sess.profile.ordered_live_start_page
             fetched_for_genre = 0
+            pages_for_genre = 0
             while True:
+                if pages_for_genre >= MAX_ORDERED_LIVE_PAGES_PER_GENRE:
+                    raise ProviderError("MAG ordered-list pagination exceeded the safety limit")
                 data = await self._sess.request(
                     MAGOperation.LIVE_ORDERED_LIST,
                     params={"genre": genre_id, "p": page},
                 )
+                pages_for_genre += 1
                 envelope = self._js_payload(data)
                 if envelope.get("error"):
                     raise AuthError("MAG catalogue response indicated an expired session")
