@@ -74,6 +74,7 @@ from samotech_iptv.infrastructure.providers.provider_registry import ProviderReg
 from samotech_iptv.infrastructure.providers.provider_resolution_service import (
     ProviderResolutionService,
 )
+from samotech_iptv.infrastructure.providers.provider_runtime_cache import ProviderRuntimeCache
 from samotech_iptv.infrastructure.providers.xtream_adapter import register_xtream_with_factory
 
 if TYPE_CHECKING:
@@ -121,14 +122,21 @@ async def build_production_desktop_application(
     register_xtream_with_factory(factory)
     register_with_factory(factory)
 
+    runtime_cache = ProviderRuntimeCache(factory, context)
     registration_service = ProviderRegistrationService(
         registry,
         context.credential_store,
         provider_metadata_repository,
         xmltv_binding_repository,
+        runtime_cache,
     )
     provider_catalog_service = ProviderCatalogService(registry)
-    provider_resolution_service = ProviderResolutionService(registry, factory, context)
+    provider_resolution_service = ProviderResolutionService(
+        registry,
+        factory,
+        context,
+        runtime_cache,
+    )
     player = build_player(
         buffer_size_mb=application_config.player.buffer_size_mb,
         hardware_decode=application_config.player.hardware_decode,
@@ -176,11 +184,14 @@ async def build_production_desktop_application(
     )
 
     async def close() -> None:
-        """Release the player before closing the shared HTTP client."""
+        """Release provider runtimes before the existing player and HTTP shutdown."""
         try:
-            await player.close()
+            await runtime_cache.close_all()
         finally:
-            await context.http_client.close()
+            try:
+                await player.close()
+            finally:
+                await context.http_client.close()
 
     return replace(
         desktop,

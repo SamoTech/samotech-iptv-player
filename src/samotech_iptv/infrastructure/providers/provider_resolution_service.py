@@ -13,6 +13,7 @@ from samotech_iptv.application.ports.provider_capabilities import (
 )
 from samotech_iptv.application.ports.provider_resolver_port import ProviderResolverPort
 from samotech_iptv.core.exceptions import ProviderError
+from samotech_iptv.infrastructure.providers.provider_runtime_cache import ProviderRuntimeCache
 
 if TYPE_CHECKING:
     from samotech_iptv.infrastructure.providers.provider_context import ProviderContext
@@ -30,10 +31,17 @@ class ProviderResolutionService(ProviderResolverPort):
         registry: ProviderRegistry,
         factory: ProviderFactory,
         context: ProviderContext,
+        runtime_cache: ProviderRuntimeCache | None = None,
     ) -> None:
         self._registry = registry
         self._factory = factory
         self._context = context
+        self._runtime_cache = runtime_cache or ProviderRuntimeCache(factory, context)
+
+    @property
+    def runtime_cache(self) -> ProviderRuntimeCache:
+        """Return the live-provider owner for lifecycle composition and shutdown."""
+        return self._runtime_cache
 
     def resolve_catalog_provider(self, provider_id: str) -> CatalogProvider:
         """Build the requested provider and verify channel-catalogue support."""
@@ -73,4 +81,4 @@ class ProviderResolutionService(ProviderResolverPort):
     def _resolve(self, provider_id: str) -> object:
         """Create a provider only after locating its registered non-secret metadata."""
         metadata = self._registry.get(provider_id)
-        return self._factory.create(metadata, context=self._context)
+        return self._runtime_cache.get_or_create(metadata)

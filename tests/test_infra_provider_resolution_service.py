@@ -9,6 +9,7 @@ from samotech_iptv.application.ports.provider_capabilities import (
     CategoryProvider,
     EPGProvider,
     PlaybackProvider,
+    SearchProvider,
 )
 from samotech_iptv.core.exceptions import ProviderError
 from samotech_iptv.domain.entities.category import Category
@@ -69,6 +70,70 @@ class FakeEPGProvider(EPGProvider):
 
     async def load_epg(self, _: ChannelId) -> list[EPGEntry]:
         return []
+
+
+class FakeAllCapabilitiesProvider(
+    CatalogProvider,
+    CategoryProvider,
+    SearchProvider,
+    PlaybackProvider,
+    EPGProvider,
+):
+    """Provider double implementing every capability resolved by the service."""
+
+    async def load_channels(self) -> list[Channel]:
+        return []
+
+    async def load_live_categories(self) -> list[Category]:
+        return []
+
+    async def load_vod_categories(self) -> list[Category]:
+        return []
+
+    async def load_series_categories(self) -> list[Category]:
+        return []
+
+    async def search_channels(self, _: str, limit: int = 100) -> list[Channel]:
+        return []
+
+    async def resolve_stream(self, _: ChannelId) -> URL:
+        return URL("https://example.invalid/live.m3u8")
+
+    async def load_epg(self, _: ChannelId) -> list[EPGEntry]:
+        return []
+
+
+def test_resolver_reuses_one_provider_across_all_capabilities() -> None:
+    registry = ProviderRegistry()
+    registry.register(
+        InfraProviderMetadata(
+            provider_id="all-demo",
+            provider_type="all",
+            base_url="https://example.invalid",
+        )
+    )
+    factory = ProviderFactory()
+    provider = FakeAllCapabilitiesProvider()
+    construction_count = 0
+
+    def build(_: InfraProviderMetadata, **__: object) -> FakeAllCapabilitiesProvider:
+        nonlocal construction_count
+        construction_count += 1
+        return provider
+
+    factory.register_type("all", build)
+    resolver = ProviderResolutionService(registry, factory, object())  # type: ignore[arg-type]
+
+    resolved = [
+        resolver.resolve_catalog_provider("all-demo"),
+        resolver.resolve_category_provider("all-demo"),
+        resolver.resolve_search_provider("all-demo"),
+        resolver.resolve_playback_provider("all-demo"),
+        resolver.resolve_epg_provider("all-demo"),
+    ]
+
+    assert all(item is provider for item in resolved)
+    assert construction_count == 1
 
 
 def test_resolver_builds_catalogue_provider_with_shared_context() -> None:

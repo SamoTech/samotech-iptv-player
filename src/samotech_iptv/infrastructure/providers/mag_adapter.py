@@ -31,10 +31,7 @@ from samotech_iptv.infrastructure.providers.mag_credential import MagCredential
 from samotech_iptv.infrastructure.providers.mag_domain_translator import (
     MagDomainTranslator,
 )
-from samotech_iptv.infrastructure.providers.mag_error_translator import (
-    translate_mag_and_raise,
-    translate_mag_error,
-)
+from samotech_iptv.infrastructure.providers.mag_error_translator import translate_mag_error
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable, Mapping, Sequence
@@ -121,6 +118,14 @@ class MagProviderAdapter(
         self._is_authenticated = False
         self._session_state: MagSessionState = "no_session"
         self._auth_lock = asyncio.Lock()
+        self._runtime_failure_callback: Callable[[str], Awaitable[None]] | None = None
+
+    def set_runtime_failure_callback(
+        self,
+        callback: Callable[[str], Awaitable[None]],
+    ) -> None:
+        """Register an infrastructure-only callback for terminal session failures."""
+        self._runtime_failure_callback = callback
 
     @property
     def provider_id(self) -> ProviderId:
@@ -151,7 +156,11 @@ class MagProviderAdapter(
     async def refresh_session(self) -> bool:
         """Refresh the active MAG session token without exposing it."""
         await self._ensure_authenticated()
-        await self._call_once(lambda provider: provider.refresh_token())
+        try:
+            await self._call_once(lambda provider: provider.refresh_token())
+        except AuthenticationError:
+            await self._notify_runtime_failure("authentication_failure")
+            raise
         self._session_token = self._read_session_token(self._ensure_provider())
         self._is_authenticated = True
         self._session_state = "authenticated"
@@ -177,7 +186,11 @@ class MagProviderAdapter(
         provider = self._ensure_provider()
         if not bool(getattr(provider, "supports_live_categories", False)):
             raise ProviderError("Provider does not support category browsing")
-        raw = await self._call_once(lambda current: current.get_live_categories())
+        try:
+            raw = await self._call_once(lambda current: current.get_live_categories())
+        except AuthenticationError:
+            await self._notify_runtime_failure("authentication_failure")
+            raise
         categories: list[Category] = []
         for record in raw:
             category_id = str(record.get("id") or "").strip()
@@ -309,6 +322,7 @@ class MagProviderAdapter(
             stored = await self._ctx.credential_store.retrieve(self.provider_id)
             if stored is None:
                 self._session_state = "authentication_failed"
+                await self._notify_runtime_failure("authentication_failure")
                 raise AuthenticationError("MAG credentials are not available")
             self._set_credential(
                 MagCredential.from_application_credential(stored, self._meta.base_url)
@@ -318,6 +332,7 @@ class MagProviderAdapter(
     async def _authenticate_current(self) -> bool:
         if self._credential is None:
             self._session_state = "authentication_failed"
+            await self._notify_runtime_failure("authentication_failure")
             raise AuthenticationError("MAG credentials are not available")
         async with self._auth_lock:
             if self._is_authenticated and self._session_token:
@@ -354,9 +369,21 @@ class MagProviderAdapter(
                     exc,
                     provider_id=self._meta.provider_id,
                 )
-                if isinstance(exc, AuthenticationError):
-                    raise
-                translate_mag_and_raise(exc)
+                translated = translate_mag_error(exc)
+                if isinstance(translated, AuthenticationError):
+                    await self._notify_runtime_failure("authentication_failure")
+                raise translated from exc
+
+    async def _notify_runtime_failure(self, reason: str) -> None:
+        callback = self._runtime_failure_callback
+        if callback is None:
+            return
+        try:
+            await callback(reason)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            _LOG.debug("MAG runtime failure callback was unavailable", exc_info=True)
 
     @staticmethod
     def _as_mag_numeric_id(channel_id: ChannelId) -> int:

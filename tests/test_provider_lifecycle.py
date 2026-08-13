@@ -54,6 +54,16 @@ class FakeCredentialStore:
         return provider_id.value in self._credentials
 
 
+class FakeRuntimeCache:
+    """Runtime-cache double recording safe invalidation requests."""
+
+    def __init__(self) -> None:
+        self.invalidations: list[tuple[str, str]] = []
+
+    async def invalidate(self, provider_id: str, reason: str) -> None:
+        self.invalidations.append((provider_id, reason))
+
+
 class FakeRegistration:
     """Provider lifecycle port double with optional controlled failure."""
 
@@ -99,10 +109,12 @@ async def test_remove_provider_deletes_metadata_credentials_and_runtime_registra
     provider_id = ProviderId("profile")
     test_credential = Credential("user", _password="test-only-secret")  # noqa: S106
     await credentials.store(provider_id, test_credential)
+    runtime_cache = FakeRuntimeCache()
     service = ProviderRegistrationService(
         registry,
         cast("CredentialStorePort", credentials),
         repository,
+        runtime_cache=runtime_cache,  # type: ignore[arg-type]
     )
 
     response = await RemoveProvider(cast("ProviderRegistrationPort", service)).execute("profile")
@@ -113,6 +125,7 @@ async def test_remove_provider_deletes_metadata_credentials_and_runtime_registra
     assert await repository.list_all() == []
     assert not await credentials.exists(provider_id)
     assert credentials.delete_calls == 1
+    assert runtime_cache.invalidations == [("profile", "provider_remove")]
 
 
 @pytest.mark.asyncio
@@ -169,10 +182,12 @@ async def test_update_xtream_preserves_blank_credentials_and_updates_safe_metada
     original_credential = Credential("user", _password="test-only-secret")  # noqa: S106
     await credentials.store(provider_id, original_credential)
     credentials.store_calls = 0
+    runtime_cache = FakeRuntimeCache()
     service = ProviderRegistrationService(
         registry,
         cast("CredentialStorePort", credentials),
         repository,
+        runtime_cache=runtime_cache,  # type: ignore[arg-type]
     )
 
     response = await UpdateProvider(cast("ProviderRegistrationPort", service)).execute(
@@ -190,6 +205,7 @@ async def test_update_xtream_preserves_blank_credentials_and_updates_safe_metada
     assert await credentials.retrieve(provider_id) == original_credential
     assert registry.get("profile").base_url == "https://new.example.test"
     assert (await repository.list_all())[0].base_url == "https://new.example.test"
+    assert runtime_cache.invalidations == [("profile", "provider_update")]
 
 
 @pytest.mark.asyncio

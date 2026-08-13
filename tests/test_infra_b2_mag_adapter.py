@@ -186,9 +186,16 @@ class TestAuthentication:
                 raise AuthError("invalid subscription")
 
         failing_adapter = MagProviderAdapter(metadata, context, FailingMagProvider())
+        failure_reasons: list[str] = []
+
+        async def on_runtime_failure(reason: str) -> None:
+            failure_reasons.append(reason)
+
+        failing_adapter.set_runtime_failure_callback(on_runtime_failure)
         with pytest.raises(AuthenticationError):
             await failing_adapter.authenticate(credential)
         assert failing_adapter.is_authenticated is False
+        assert failure_reasons == ["authentication_failure"]
 
 
 class TestProviderCapabilities:

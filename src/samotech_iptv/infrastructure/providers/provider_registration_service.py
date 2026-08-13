@@ -26,6 +26,7 @@ if TYPE_CHECKING:
         SQLiteProviderMetadataRepository,
     )
     from samotech_iptv.infrastructure.providers.provider_registry import ProviderRegistry
+    from samotech_iptv.infrastructure.providers.provider_runtime_cache import ProviderRuntimeCache
 
 __all__ = ["ProviderRegistrationService"]
 
@@ -41,11 +42,13 @@ class ProviderRegistrationService(ProviderRegistrationPort):
         credential_store: CredentialStorePort,
         metadata_repository: SQLiteProviderMetadataRepository | None = None,
         xmltv_binding_repository: XMLTVBindingRepository | None = None,
+        runtime_cache: ProviderRuntimeCache | None = None,
     ) -> None:
         self._registry = registry
         self._credential_store = credential_store
         self._metadata_repository = metadata_repository
         self._xmltv_binding_repository = xmltv_binding_repository
+        self._runtime_cache = runtime_cache
 
     async def register_mag(self, request: RegisterMAGProviderRequest) -> str:
         """Register a MAG/Stalker portal while retaining its MAC only in secure storage."""
@@ -126,6 +129,8 @@ class ProviderRegistrationService(ProviderRegistrationPort):
         existing = self._registry.find(provider_id.value)
         if existing is None:
             raise NotFoundError("Provider", provider_id.value)
+        if self._runtime_cache is not None:
+            await self._runtime_cache.invalidate(provider_id.value, "provider_update")
         if existing.provider_type == "m3u":
             return await self._update_m3u(provider_id, existing, request)
         if existing.provider_type == "mag":
@@ -140,6 +145,8 @@ class ProviderRegistrationService(ProviderRegistrationPort):
         existing = self._registry.find(validated_provider_id.value)
         if existing is None:
             raise NotFoundError("Provider", validated_provider_id.value)
+        if self._runtime_cache is not None:
+            await self._runtime_cache.invalidate(validated_provider_id.value, "provider_remove")
         binding = None
         if self._xmltv_binding_repository is not None:
             binding = await self._xmltv_binding_repository.load(validated_provider_id)
