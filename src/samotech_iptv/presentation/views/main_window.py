@@ -13,6 +13,7 @@ from samotech_iptv.presentation.widgets.vlc_video_surface import VlcVideoSurface
 if TYPE_CHECKING:
     from samotech_iptv.application.ports.player_port import PlayerPort
     from samotech_iptv.application.use_cases.browse_channels import BrowseChannels
+    from samotech_iptv.application.use_cases.configure_xmltv_binding import ConfigureXMLTVBinding
     from samotech_iptv.application.use_cases.list_providers import ListProviders
     from samotech_iptv.application.use_cases.load_categories import LoadCategories
     from samotech_iptv.application.use_cases.load_registered_epg import LoadRegisteredEPG
@@ -29,6 +30,7 @@ if TYPE_CHECKING:
         RemoveProvider,
         UpdateProvider,
     )
+    from samotech_iptv.application.use_cases.refresh_xmltv_guide import RefreshXMLTVGuide
     from samotech_iptv.application.use_cases.register_m3u_provider import RegisterM3UProvider
     from samotech_iptv.application.use_cases.register_mag_provider import RegisterMAGProvider
     from samotech_iptv.application.use_cases.register_xtream_provider import (
@@ -52,6 +54,7 @@ if TYPE_CHECKING:
     from samotech_iptv.presentation.dialogs.mag_provider_dialog import MAGProviderDialog
     from samotech_iptv.presentation.dialogs.provider_list_dialog import ProviderListDialog
     from samotech_iptv.presentation.dialogs.theme_settings_dialog import ThemeSettingsDialog
+    from samotech_iptv.presentation.dialogs.xmltv_guide_dialog import XMLTVGuideDialog
     from samotech_iptv.presentation.dialogs.xtream_provider_dialog import XtreamProviderDialog
 
 __all__ = ["MainWindow"]
@@ -75,6 +78,8 @@ class MainWindow(QMainWindow):  # type: ignore[misc]
         search_registered_channels: SearchRegisteredChannels,
         save_favorite: SaveFavorite,
         load_registered_epg: LoadRegisteredEPG,
+        configure_xmltv_binding: ConfigureXMLTVBinding,
+        refresh_xmltv_guide: RefreshXMLTVGuide,
         load_theme_preference: LoadThemePreference,
         save_theme_preference: SaveThemePreference,
         start_recording: StartRecording,
@@ -96,6 +101,8 @@ class MainWindow(QMainWindow):  # type: ignore[misc]
         self._search_registered_channels = search_registered_channels
         self._save_favorite = save_favorite
         self._load_registered_epg = load_registered_epg
+        self._configure_xmltv_binding = configure_xmltv_binding
+        self._refresh_xmltv_guide = refresh_xmltv_guide
         self._load_theme_preference = load_theme_preference
         self._save_theme_preference = save_theme_preference
         self._start_recording = start_recording
@@ -118,6 +125,8 @@ class MainWindow(QMainWindow):  # type: ignore[misc]
         self.browse_live_categories_action.triggered.connect(self.open_category_browser_dialog)
         self.show_epg_action = QAction("Show EPG…", self)
         self.show_epg_action.triggered.connect(self.open_epg_grid_dialog)
+        self.xmltv_guide_action = QAction("Configure XMLTV Guide…", self)
+        self.xmltv_guide_action.triggered.connect(self.open_xmltv_guide_dialog)
         self.show_provider_list_action = QAction("Show Registered Providers", self)
         self.show_provider_list_action.triggered.connect(self.open_provider_list_dialog)
         self.settings_action = QAction("Settings…", self)
@@ -139,6 +148,7 @@ class MainWindow(QMainWindow):  # type: ignore[misc]
         providers_menu.addAction(self.browse_channels_action)
         providers_menu.addAction(self.browse_live_categories_action)
         providers_menu.addAction(self.show_epg_action)
+        providers_menu.addAction(self.xmltv_guide_action)
         providers_menu.addAction(self.show_provider_list_action)
         playback_menu = self.menuBar().addMenu("Playback")
         playback_menu.addAction(self.pause_playback_action)
@@ -154,6 +164,7 @@ class MainWindow(QMainWindow):  # type: ignore[misc]
         self._active_channel_browser_dialog: ChannelBrowserDialog | None = None
         self._active_category_browser_dialog: CategoryBrowserDialog | None = None
         self._active_epg_grid_dialog: EPGGridDialog | None = None
+        self._active_xmltv_guide_dialog: XMLTVGuideDialog | None = None
         self._active_provider_list_dialog: ProviderListDialog | None = None
         self._active_settings_dialog: ThemeSettingsDialog | None = None
 
@@ -218,6 +229,15 @@ class MainWindow(QMainWindow):  # type: ignore[misc]
         dialog = EPGGridDialog(self._load_registered_epg)
         dialog.show()
         self._active_epg_grid_dialog = dialog
+        return dialog
+
+    def open_xmltv_guide_dialog(self) -> XMLTVGuideDialog:
+        """Create and show local XMLTV binding and manual-refresh controls."""
+        from samotech_iptv.presentation.dialogs.xmltv_guide_dialog import XMLTVGuideDialog
+
+        dialog = XMLTVGuideDialog(self._configure_xmltv_binding, self._refresh_xmltv_guide)
+        dialog.show()
+        self._active_xmltv_guide_dialog = dialog
         return dialog
 
     def open_provider_list_dialog(self) -> ProviderListDialog:

@@ -20,6 +20,7 @@ from samotech_iptv.domain.entities.playlist import Playlist
 from samotech_iptv.domain.entities.provider import Provider
 from samotech_iptv.domain.entities.series import Series
 from samotech_iptv.domain.entities.stream import Stream
+from samotech_iptv.domain.entities.xmltv_binding import XMLTVBinding, XMLTVChannelMapping
 
 __all__ = [
     "Channel",
@@ -33,4 +34,6 @@ __all__ = [
     "EPGEntry",
     "Favorite",
     "History",
+    "XMLTVBinding",
+    "XMLTVChannelMapping",
 ]

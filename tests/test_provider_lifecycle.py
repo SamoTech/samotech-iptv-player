@@ -8,10 +8,15 @@ import pytest
 
 from samotech_iptv.application.dtos.provider_registration import UpdateProviderRequest
 from samotech_iptv.application.use_cases.provider_lifecycle import RemoveProvider, UpdateProvider
+from samotech_iptv.domain.entities.xmltv_binding import XMLTVBinding, XMLTVChannelMapping
+from samotech_iptv.domain.value_objects.channel_id import ChannelId
 from samotech_iptv.domain.value_objects.credential import Credential
 from samotech_iptv.domain.value_objects.provider_id import ProviderId
 from samotech_iptv.infrastructure.database.sqlite_provider_metadata_repository import (
     SQLiteProviderMetadataRepository,
+)
+from samotech_iptv.infrastructure.database.sqlite_xmltv_binding_repository import (
+    SQLiteXMLTVBindingRepository,
 )
 from samotech_iptv.infrastructure.providers.provider_metadata import InfraProviderMetadata
 from samotech_iptv.infrastructure.providers.provider_registration_service import (
@@ -108,6 +113,44 @@ async def test_remove_provider_deletes_metadata_credentials_and_runtime_registra
     assert await repository.list_all() == []
     assert not await credentials.exists(provider_id)
     assert credentials.delete_calls == 1
+
+
+@pytest.mark.asyncio
+async def test_remove_provider_deletes_associated_xmltv_binding(tmp_path: Path) -> None:
+    """Provider removal deletes persisted XMLTV mappings along with the profile."""
+    metadata_repository = SQLiteProviderMetadataRepository(tmp_path / "providers.sqlite3")
+    binding_repository = SQLiteXMLTVBindingRepository(tmp_path / "providers.sqlite3")
+    await metadata_repository.initialise()
+    await binding_repository.initialise()
+    registry = ProviderRegistry()
+    metadata = _metadata()
+    registry.register(metadata)
+    await metadata_repository.save(metadata)
+    provider_id = ProviderId("profile")
+    await binding_repository.save(
+        XMLTVBinding(
+            provider_id=provider_id,
+            source="/guides/profile.xml",
+            mappings=(
+                XMLTVChannelMapping(
+                    source_channel_id="source.news",
+                    channel_id=ChannelId("profile:news"),
+                ),
+            ),
+        )
+    )
+    credentials = FakeCredentialStore()
+    service = ProviderRegistrationService(
+        registry,
+        cast("CredentialStorePort", credentials),
+        metadata_repository,
+        binding_repository,
+    )
+
+    response = await RemoveProvider(cast("ProviderRegistrationPort", service)).execute("profile")
+
+    assert response.error is None
+    assert await binding_repository.load(provider_id) is None
 
 
 @pytest.mark.asyncio

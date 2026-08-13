@@ -21,6 +21,7 @@ if TYPE_CHECKING:
         UpdateProviderRequest,
     )
     from samotech_iptv.application.ports.credential_store_port import CredentialStorePort
+    from samotech_iptv.domain.repositories.xmltv_binding_repository import XMLTVBindingRepository
     from samotech_iptv.infrastructure.database.sqlite_provider_metadata_repository import (
         SQLiteProviderMetadataRepository,
     )
@@ -39,10 +40,12 @@ class ProviderRegistrationService(ProviderRegistrationPort):
         registry: ProviderRegistry,
         credential_store: CredentialStorePort,
         metadata_repository: SQLiteProviderMetadataRepository | None = None,
+        xmltv_binding_repository: XMLTVBindingRepository | None = None,
     ) -> None:
         self._registry = registry
         self._credential_store = credential_store
         self._metadata_repository = metadata_repository
+        self._xmltv_binding_repository = xmltv_binding_repository
 
     async def register_mag(self, request: RegisterMAGProviderRequest) -> str:
         """Register a MAG/Stalker portal while retaining its MAC only in secure storage."""
@@ -137,14 +140,21 @@ class ProviderRegistrationService(ProviderRegistrationPort):
         existing = self._registry.find(validated_provider_id.value)
         if existing is None:
             raise NotFoundError("Provider", validated_provider_id.value)
+        binding = None
+        if self._xmltv_binding_repository is not None:
+            binding = await self._xmltv_binding_repository.load(validated_provider_id)
         if self._metadata_repository is not None:
             deleted = await self._metadata_repository.delete(validated_provider_id.value)
             if not deleted:
                 raise StorageError("Provider metadata is unavailable")
         try:
+            if self._xmltv_binding_repository is not None and binding is not None:
+                await self._xmltv_binding_repository.delete(validated_provider_id)
             await self._credential_store.delete(validated_provider_id)
         except Exception:
             await self._restore_metadata_after_failed_removal(existing)
+            if self._xmltv_binding_repository is not None and binding is not None:
+                await self._xmltv_binding_repository.save(binding)
             raise
         self._registry.deregister(validated_provider_id.value)
         return validated_provider_id.value

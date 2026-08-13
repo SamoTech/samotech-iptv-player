@@ -59,6 +59,13 @@ from samotech_iptv.application.dtos.stream import (
     ResolveStreamRequest,
     ResolveStreamResponse,
 )
+from samotech_iptv.application.dtos.xmltv import (
+    ConfigureXMLTVBindingRequest,
+    ConfigureXMLTVBindingResponse,
+    RefreshXMLTVGuideRequest,
+    RefreshXMLTVGuideResponse,
+    XMLTVChannelMappingRequest,
+)
 
 __all__ = [
     "ProviderMetadata",
@@ -93,4 +100,9 @@ __all__ = [
     "SaveFavoriteResponse",
     "SearchChannelsRequest",
     "SearchChannelsResponse",
+    "XMLTVChannelMappingRequest",
+    "ConfigureXMLTVBindingRequest",
+    "ConfigureXMLTVBindingResponse",
+    "RefreshXMLTVGuideRequest",
+    "RefreshXMLTVGuideResponse",
 ]

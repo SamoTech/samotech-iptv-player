@@ -15,6 +15,7 @@ from samotech_iptv.domain.repositories.favorite_repository import FavoriteReposi
 from samotech_iptv.domain.repositories.history_repository import HistoryRepository
 from samotech_iptv.domain.repositories.playlist_repository import PlaylistRepository
 from samotech_iptv.domain.repositories.provider_repository import ProviderRepository
+from samotech_iptv.domain.repositories.xmltv_binding_repository import XMLTVBindingRepository
 
 __all__ = [
     "ChannelRepository",
@@ -23,4 +24,5 @@ __all__ = [
     "EPGRepository",
     "HistoryRepository",
     "FavoriteRepository",
+    "XMLTVBindingRepository",
 ]

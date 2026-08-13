@@ -29,9 +29,9 @@ The repository has a tested Clean Architecture foundation and executable pieces 
 
 | Priority | Gap | Why it is partial | Recommended completion direction |
 |---|---|---|---|
-| **P1** | EPG source integration is incomplete | MAG/Xtream EPG and safe grid work; XMLTV parsing has explicit mapping but no provider source binding, fetch, persistence, or refresh. | Define XMLTV source/mapping lifecycle and expose it only after bounded integration tests. |
-| **P1** | Detailed player-state and active-item UX is absent | The desktop menu now has generic pause/resume/stop actions, but `PlayerPort` does not expose a full paused/stopped state model or active-item context. | Add state/capability contracts only when they are proven necessary by a bounded workflow; do not inspect libVLC from the UI. |
 | **P1** | Favorites and history lack complete user workflows | Persistence/use cases exist, and a selected channel can be favorited, but no library pages/removal/history/resume UX exists. | Add safe list/remove/history views and separate progress/resume policy. |
+| **P1** | Detailed player-state and active-item UX is absent | The desktop menu now has generic pause/resume/stop actions, but `PlayerPort` does not expose a full paused/stopped state model or active-item context. | Add state/capability contracts only when they are proven necessary by a bounded workflow; do not inspect libVLC from the UI. |
+| **P2** | Remote and retained XMLTV guide delivery is incomplete | A registered provider can save a local path or local `file:` source with explicit mappings and manually refresh bounded entries. Remote/tokenized sources, cached programme persistence, source discovery, and scheduling are deliberately absent. | First add redacted HTTP logging and a safe secure-source boundary; then choose cache, retention, and scheduling policy separately. |
 | **P2** | Xtream VOD/series do not reach application/UI workflows | The tested registered **live-category** flow is browse-only. VOD/series category families, movies, series, and episodes still lack resolver ports, use cases, and UI workflows. | Add capability-specific browse-only workflows one at a time; only then add playback where provider contracts are verified. |
 | **P2** | MAG non-live content is absent | No canonical MAG VOD, series, category, or archive execution path is implemented. | Deliver only against authorized fixtures, one capability at a time. |
 | **P2** | Runtime media capability negotiation is absent | Stream transport/manifest types are classified, but the application cannot state whether the actual libVLC runtime supports a resolved stream or selected tracks. | Add player capability/state contracts once the runnable lifecycle is stable. |
@@ -61,9 +61,13 @@ Registered providers can now be edited and removed through type-aware Qt dialogs
 
 Registered Xtream live categories now resolve through the existing provider registry, factory, typed `CategoryProvider`, canonical `Category` translation, registered resolver, `LoadCategories` use case, and a minimal Qt dialog. The deterministic integration test covers registry-to-factory-to-adapter-to-canonical DTO flow. The UI accepts a provider ID, renders category names, and reports empty/error states safely; it does not select a category, resolve a stream, or invoke libVLC. VOD categories, series categories, movies, series, episodes, and every non-live playback workflow remain out of scope.
 
-### P1 — Complete EPG and personal library workflows
+### Completed — Local XMLTV source binding and manual refresh
 
-Guide parsing, favorites, and history exist as component foundations. A usable player needs a reliable path to configure/update guide sources and navigate, remove, and resume personal library state without leaking provider secrets.
+A registered provider can now save one local path or local `file:` XMLTV source together with explicit source-channel mappings. The binding and mappings are persisted without credentials; manual refresh loads the file off the Qt event loop, applies the bounded `defusedxml` parser, and displays safe title/time rows only. Provider removal cleans the binding. Remote/tokenized sources, programme-entry caching, automatic refresh, source discovery, catch-up linkage, and playback remain intentionally absent.
+
+### P1 — Complete personal library workflows
+
+Favorites and history exist as component foundations. The highest-value remaining user-state work is safe list/remove/history UI and a separately defined progress/resume policy without leaking provider secrets.
 
 ## Production hardening
 
@@ -97,9 +101,9 @@ Guide parsing, favorites, and history exist as component foundations. A usable p
 | 4 | Playback controls and safe status | **Completed.** Pause, resume, and stop actions delegate through `PlayerPort` with generic Qt feedback and one shared libVLC player. |
 | 5 | Provider lifecycle management | **Completed.** Type-aware edit/removal safely preserves blank credential fields, cleans keyring entries, updates metadata, and synchronizes the registry. |
 | 6 | Registered live-category discovery | **Completed.** Xtream live categories use the registered resolver/factory path and a browse-only Qt dialog, with no content-selection, stream-resolution, or playback path. |
-| 7 | XMLTV source binding and refresh | **Current P1.** Define one safe registered-provider XMLTV source lifecycle, mapping persistence, bounded fetch/refresh, and tests before exposing it to users. |
-| 8 | Library completion | Users can configure guide sources and maintain personal state safely. |
-| 9 | VOD/series playback, protocol breadth, and hardening | Higher-breadth capabilities build on a viable product lifecycle. |
+| 7 | Local XMLTV source binding and manual refresh | **Completed.** Registered-provider local/file XMLTV binding, explicit mappings, SQLite persistence, manual bounded refresh, provider-removal cleanup, and a safe Qt dialog are delivered. |
+| 8 | Library completion | **Current P1.** Provide safe favorites/history list and removal workflows, then define resume behavior separately. |
+| 9 | VOD/series playback, protocol breadth, remote XMLTV delivery, and hardening | Higher-breadth capabilities build on a viable product lifecycle and a deliberate secure-source/cache policy. |
 
 ## Non-negotiable constraints for future work
 

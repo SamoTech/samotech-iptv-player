@@ -28,7 +28,7 @@ The current codebase implements tested boundaries for the following capabilities
 | Provider isolation | Provider adapters translate protocol data to canonical domain records and keep credentials/session state in infrastructure. |
 | Live-TV workflow | Registered-provider browsing, channel search, provider-specific live stream resolution where supported, libVLC playback orchestration, and Qt native video-surface attachment. |
 | Library state | SQLite persistence foundations for provider metadata, favorites, history, and non-secret theme preferences. |
-| Programme guide | Provider EPG grid for MAG/Stalker and Xtream short EPG; bounded secure XMLTV parsing with explicit source-channel mappings. |
+| Programme guide | Provider EPG grid for MAG/Stalker and Xtream short EPG; bounded secure XMLTV parsing; registered-provider local/file XMLTV binding with explicit source-channel mappings and manual safe refresh. |
 | Player controls | libVLC play, pause, resume, stop, native video output, and local MPEG transport-stream recording. |
 | Desktop shell | PySide6 dialogs for provider entry, provider listing/management, channel browsing, browse-only registered live-category discovery, EPG display, recording actions, and theme settings; qasync runtime support; production composition of safe state, provider services, use cases, theme, and one libVLC player. |
 | Theme settings | Persisted system/light/dark preference, deterministic Qt stylesheet application, startup initial-theme support, and a Settings menu/dialog. |
@@ -38,7 +38,7 @@ The current codebase implements tested boundaries for the following capabilities
 
 | Provider or source | Status | What is available now | What remains |
 |---|---|---|---|
-| M3U | **Partially Implemented** | Local/file/HTTP(S) source loading, extended-M3U parsing, secure tokenized-source handling, canonical live channels/search, and parsed HTTP(S) stream resolution through the registered-player path. | Non-HTTP(S) transports remain classified but are outside the current `URL`/player boundary; no VOD/series UI or XMLTV source binding. |
+| M3U | **Partially Implemented** | Local/file/HTTP(S) source loading, extended-M3U parsing, secure tokenized-source handling, canonical live channels/search, and parsed HTTP(S) stream resolution through the registered-player path. | Non-HTTP(S) transports remain classified but are outside the current `URL`/player boundary; no VOD/series UI. XMLTV binding is registered-provider scoped and local/file only. |
 | Xtream Codes API | **Partially Implemented** | Credential validation, live channels, registered **live-category** discovery, live/VOD/series category adapter methods, movies, series, short EPG, local channel search, and live stream URL resolution. | VOD/series category families, movies, series, and episodes lack registered browse UI/resolution; live-category discovery does not select content, resolve streams, or play media. |
 | MAG/Stalker | **Partially Implemented** | Authorized MAC identity handling, session refresh, live channels, EPG, local channel search, and live stream resolution. | Canonical VOD, series, category-family, catch-up/archive, and user-facing catalogue workflows. |
 | Ministra | **Planned** | Compatibility assessment and a separate-adapter design decision. | Authorized sanitized fixture, approved device identity, dedicated device-facing adapter, handshake/profile/catalogue/link-resolution implementation. |
@@ -51,7 +51,7 @@ The current codebase implements tested boundaries for the following capabilities
 | Extended M3U | **Implemented** | Parses channel metadata and stream URIs into canonical `Channel` and `Stream` records, then resolves parsed HTTP(S) streams through the registered-player path. |
 | M3U8/HLS manifest | **Partially Implemented** | Bounded parser handles HLS master/media manifest metadata; adaptive playback logic is delegated to libVLC rather than implemented in Python. |
 | MPEG-DASH MPD | **Partially Implemented** | Bounded safe parser reads MPD live/VOD type and representation metadata; no adaptive playback logic exists in the application. |
-| XMLTV | **Partially Implemented** | Bounded `defusedxml` parser creates canonical EPG records for explicit source-channel mappings; source discovery/fetching and binding are not composed. |
+| XMLTV | **Partially Implemented** | Bounded `defusedxml` parser creates canonical EPG records for explicit source-channel mappings. Registered providers can persist a local path or local `file:` source and manually refresh safe title/time rows. | Remote/tokenized source storage or retrieval, source discovery, programme-entry caching/retention, scheduled refresh, catch-up linkage, and playback are not implemented. |
 | HTTP and HTTPS | **Partially Implemented** | Canonical stream-URI validation/classification; actual playback relies on libVLC and provider-resolved URLs. |
 | RTMP, RTMPS, RTSP, UDP, RTP, SRT | **Partially Implemented** | Canonical URI validation/classification exists; no application-level transport capability negotiation or dedicated user experience exists. |
 
@@ -62,7 +62,7 @@ The current codebase implements tested boundaries for the following capabilities
 | Live TV | **Partially Implemented** | M3U, Xtream, and MAG adapters can model live channels and resolve supported HTTP(S) streams through the registered-provider path. Xtream live categories can be browsed through a separate registered-provider dialog; this path has no content-selection or player operation. |
 | Movies/VOD | **Partially Implemented** | Canonical domain records and Xtream provider catalogue methods exist. No registered-provider movie browsing/playback UI is present. |
 | Series and episodes | **Partially Implemented** | Canonical domain records and Xtream series catalogue methods exist. No series/episode browse/playback workflow is present. |
-| EPG | **Partially Implemented** | MAG/Stalker and Xtream adapter EPG plus a safe Qt grid are implemented. XMLTV integration and catch-up/archive behavior are not wired. |
+| EPG | **Partially Implemented** | MAG/Stalker and Xtream adapter EPG plus a safe Qt grid are implemented. A separate Qt dialog configures local/file XMLTV mappings and manually displays bounded title/time entries. | Remote/tokenized XMLTV delivery, persisted guide cache, scheduled refresh, and catch-up/archive behavior are not wired. |
 | Catch-up/archive | **Planned** | Capability vocabulary exists, but no executable provider or UI workflow exists. |
 | Favorites | **Partially Implemented** | SQLite persistence and adding a selected channel from the browser are implemented. Listing/removal UI is absent. |
 | History | **Partially Implemented** | SQLite persistence and playback-time recording use case are implemented. History UI and resume workflow are absent. |

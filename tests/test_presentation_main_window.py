@@ -289,6 +289,8 @@ async def test_main_window_reports_safe_recording_status() -> None:
         FakeRegistration(),
         FakeRegistration(),
         FakeRegistration(),
+        FakeRegistration(),
+        FakeRegistration(),
         FakeThemeLoad(),
         FakeThemeSave(),
         start_recording,
@@ -334,6 +336,8 @@ async def test_main_window_hides_recording_failure_details() -> None:
         FakeRegistration(),
         FakeRegistration(),
         FakeRegistration(),
+        FakeRegistration(),
+        FakeRegistration(),
         FakeThemeLoad(),
         FakeThemeSave(),
         FakeRecording(should_fail=True),
@@ -375,6 +379,8 @@ def test_main_window_exposes_xtream_provider_menu_action() -> None:
         FakeRegistration(),
         FakeRegistration(),
         FakeRegistration(),
+        FakeRegistration(),
+        FakeRegistration(),
         FakeThemeLoad(),
         FakeThemeSave(),
         FakeRegistration(),
@@ -392,6 +398,7 @@ def test_main_window_exposes_xtream_provider_menu_action() -> None:
         window.browse_channels_action,
         window.browse_live_categories_action,
         window.show_epg_action,
+        window.xmltv_guide_action,
         window.show_provider_list_action,
     ]
     assert window.add_xtream_provider_action.text == "Add Xtream Provider…"
@@ -410,6 +417,8 @@ def test_main_window_exposes_xtream_provider_menu_action() -> None:
     ]
     assert window.show_epg_action.text == "Show EPG…"
     assert window.show_epg_action.triggered.callbacks == [window.open_epg_grid_dialog]
+    assert window.xmltv_guide_action.text == "Configure XMLTV Guide…"
+    assert window.xmltv_guide_action.triggered.callbacks == [window.open_xmltv_guide_dialog]
     assert window.show_provider_list_action.text == "Show Registered Providers"
     assert window.show_provider_list_action.triggered.callbacks == [
         window.open_provider_list_dialog
@@ -453,6 +462,8 @@ async def test_main_window_opens_and_loads_theme_settings_dialog() -> None:
         FakeRegistration(),
         FakeRegistration(),
         FakePlayChannel(),
+        FakeRegistration(),
+        FakeRegistration(),
         FakeRegistration(),
         FakeRegistration(),
         FakeRegistration(),

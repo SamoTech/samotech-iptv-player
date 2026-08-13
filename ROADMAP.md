@@ -92,7 +92,8 @@ The application can now launch from source. The next product milestone completes
 | Completed | Playback controls and safe status | The Qt Playback menu provides generic pause, resume, and stop actions through `PlayerPort` and the shared libVLC instance; detailed state is not inferred because the current port has no full paused/stopped state model. |
 | Completed | Provider lifecycle management UI | Type-aware edit/removal dialogs preserve blank credentials, update safe metadata through the secure boundary, clean keyring entries on deletion, refresh the list, and keep the registry synchronized. |
 | Completed | Registered live-category discovery | Registered Xtream live categories now use the typed category capability through the existing provider registry/factory path and render in a browse-only Qt dialog; they do not select content, resolve a stream, or play media. |
-| P1 | EPG-source binding | XMLTV parser capability must be connected to provider/source configuration before it becomes a user-facing guide source. |
+| Completed | Local XMLTV source binding and manual refresh | Registered providers can save a local path or local `file:` XMLTV source with explicit mappings, refresh it manually through the bounded parser, and view safe title/time rows. Remote/tokenized sources, cached guide persistence, and scheduled refresh are intentionally excluded. |
+| P1 | User-library views | Existing favorites/history persistence and use cases need safe list, removal, and history views before resume behavior or non-live playback work. |
 
 ## Future milestones
 

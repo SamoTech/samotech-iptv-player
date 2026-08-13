@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from samotech_iptv.application.use_cases.browse_channels import BrowseChannels
+from samotech_iptv.application.use_cases.configure_xmltv_binding import ConfigureXMLTVBinding
 from samotech_iptv.application.use_cases.list_providers import ListProviders
 from samotech_iptv.application.use_cases.load_categories import LoadCategories
 from samotech_iptv.application.use_cases.load_registered_epg import LoadRegisteredEPG
@@ -28,6 +29,7 @@ from samotech_iptv.application.use_cases.provider_lifecycle import (
     UpdateProvider,
 )
 from samotech_iptv.application.use_cases.record_history import RecordHistory
+from samotech_iptv.application.use_cases.refresh_xmltv_guide import RefreshXMLTVGuide
 from samotech_iptv.application.use_cases.register_m3u_provider import RegisterM3UProvider
 from samotech_iptv.application.use_cases.register_mag_provider import RegisterMAGProvider
 from samotech_iptv.application.use_cases.register_xtream_provider import RegisterXtreamProvider
@@ -49,6 +51,11 @@ from samotech_iptv.infrastructure.database.sqlite_provider_metadata_repository i
 from samotech_iptv.infrastructure.database.sqlite_theme_preference_repository import (
     SQLiteThemePreferenceRepository,
 )
+from samotech_iptv.infrastructure.database.sqlite_xmltv_binding_repository import (
+    SQLiteXMLTVBindingRepository,
+)
+from samotech_iptv.infrastructure.parsing.xmltv_guide_service import XMLTVGuideService
+from samotech_iptv.infrastructure.parsing.xmltv_source_loader import LocalXMLTVSourceLoader
 from samotech_iptv.infrastructure.player.composition import build_player
 from samotech_iptv.infrastructure.providers.m3u_adapter import register_m3u_with_factory
 from samotech_iptv.infrastructure.providers.mag_adapter import register_with_factory
@@ -92,10 +99,12 @@ async def build_production_desktop_application(
     favorite_repository = SQLiteFavoriteRepository(database_path)
     history_repository = SQLiteHistoryRepository(database_path)
     theme_preference_repository = SQLiteThemePreferenceRepository(database_path)
+    xmltv_binding_repository = SQLiteXMLTVBindingRepository(database_path)
     await provider_metadata_repository.initialise()
     await favorite_repository.initialise()
     await history_repository.initialise()
     await theme_preference_repository.initialise()
+    await xmltv_binding_repository.initialise()
     await provider_metadata_repository.restore_into(registry)
 
     factory = ProviderFactory()
@@ -107,6 +116,7 @@ async def build_production_desktop_application(
         registry,
         context.credential_store,
         provider_metadata_repository,
+        xmltv_binding_repository,
     )
     provider_catalog_service = ProviderCatalogService(registry)
     provider_resolution_service = ProviderResolutionService(registry, factory, context)
@@ -128,6 +138,11 @@ async def build_production_desktop_application(
         SearchRegisteredChannels(provider_resolution_service),
         SaveFavorite(favorite_repository),
         LoadRegisteredEPG(provider_resolution_service),
+        ConfigureXMLTVBinding(provider_resolution_service, xmltv_binding_repository),
+        RefreshXMLTVGuide(
+            xmltv_binding_repository,
+            XMLTVGuideService(LocalXMLTVSourceLoader()),
+        ),
         load_theme_preference,
         SaveThemePreference(theme_preference_repository),
         StartRecording(player, data_directory / _RECORDINGS_DIRECTORY),

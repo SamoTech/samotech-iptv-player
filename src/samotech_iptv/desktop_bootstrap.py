@@ -17,6 +17,7 @@ if TYPE_CHECKING:
 
     from samotech_iptv.application.ports.player_port import PlayerPort
     from samotech_iptv.application.use_cases.browse_channels import BrowseChannels
+    from samotech_iptv.application.use_cases.configure_xmltv_binding import ConfigureXMLTVBinding
     from samotech_iptv.application.use_cases.list_providers import ListProviders
     from samotech_iptv.application.use_cases.load_categories import LoadCategories
     from samotech_iptv.application.use_cases.load_registered_epg import LoadRegisteredEPG
@@ -33,6 +34,7 @@ if TYPE_CHECKING:
         RemoveProvider,
         UpdateProvider,
     )
+    from samotech_iptv.application.use_cases.refresh_xmltv_guide import RefreshXMLTVGuide
     from samotech_iptv.application.use_cases.register_m3u_provider import RegisterM3UProvider
     from samotech_iptv.application.use_cases.register_mag_provider import RegisterMAGProvider
     from samotech_iptv.application.use_cases.register_xtream_provider import (
@@ -71,6 +73,8 @@ def build_desktop_application(
     search_registered_channels: SearchRegisteredChannels,
     save_favorite: SaveFavorite,
     load_registered_epg: LoadRegisteredEPG,
+    configure_xmltv_binding: ConfigureXMLTVBinding,
+    refresh_xmltv_guide: RefreshXMLTVGuide,
     load_theme_preference: LoadThemePreference,
     save_theme_preference: SaveThemePreference,
     start_recording: StartRecording,
@@ -100,6 +104,8 @@ def build_desktop_application(
         search_registered_channels,
         save_favorite,
         load_registered_epg,
+        configure_xmltv_binding,
+        refresh_xmltv_guide,
         load_theme_preference,
         save_theme_preference,
         start_recording,

@@ -18,6 +18,9 @@ This file records concise historical delivery milestones. It is **not** the curr
 - Focused lifecycle and presentation coverage for metadata deletion, credential cleanup, blank-field preservation, registry synchronization, safe status copy, and production composition wiring.
 - Registered Xtream **live-category** discovery through the existing registry/factory path, typed `CategoryProvider`, canonical category translation, `LoadCategories` application use case, and a minimal Qt browse dialog.
 - Deterministic resolver and registry-to-factory-to-adapter integration coverage for live-category discovery, plus presentation tests for provider selection, rendered categories, empty state, and generic failure feedback.
+- Registered-provider local XMLTV source binding with immutable canonical source/mapping records, SQLite persistence, atomic replacement, and cleanup during provider removal.
+- Local-path and local-`file:` XMLTV loading with manual bounded refresh through the existing `defusedxml` parser, canonical EPG translation, generic safe failures, and a PySide6 configuration/dialog surface that renders title/time rows only.
+- Focused domain, repository, local loader/service, application, provider-lifecycle, dialog, bootstrap, and composition tests for XMLTV binding; remote/tokenized sources, cached programme persistence, and scheduled refresh remain explicitly excluded.
 
 ### Changed
 
@@ -27,7 +30,7 @@ This file records concise historical delivery milestones. It is **not** the curr
 ### Documentation
 
 - Rebaselined product purpose, architecture terminology, support matrices, roadmap, gap analysis, security model, and direct-to-main development guidance against the repository’s verified implementation.
-- Recorded the delivered composition-root, lifecycle, M3U registered-playback, generic desktop playback-control, secure provider lifecycle, and browse-only registered live-category discovery increments; prioritized XMLTV source binding and refresh next.
+- Recorded the delivered composition-root, lifecycle, M3U registered-playback, generic desktop playback-control, secure provider lifecycle, browse-only registered live-category discovery, and local XMLTV binding/manual-refresh increments; prioritized user-library views next.
 
 ## [0.1.0] — 2026-08-12
 
