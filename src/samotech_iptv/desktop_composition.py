@@ -13,9 +13,12 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from samotech_iptv.application.use_cases.browse_channels import BrowseChannels
+from samotech_iptv.application.use_cases.clear_history import ClearHistory
 from samotech_iptv.application.use_cases.configure_xmltv_binding import ConfigureXMLTVBinding
+from samotech_iptv.application.use_cases.list_favorites import ListFavorites
 from samotech_iptv.application.use_cases.list_providers import ListProviders
 from samotech_iptv.application.use_cases.load_categories import LoadCategories
+from samotech_iptv.application.use_cases.load_history import LoadHistory
 from samotech_iptv.application.use_cases.load_registered_epg import LoadRegisteredEPG
 from samotech_iptv.application.use_cases.load_theme_preference import LoadThemePreference
 from samotech_iptv.application.use_cases.play_registered_channel import PlayRegisteredChannel
@@ -33,6 +36,7 @@ from samotech_iptv.application.use_cases.refresh_xmltv_guide import RefreshXMLTV
 from samotech_iptv.application.use_cases.register_m3u_provider import RegisterM3UProvider
 from samotech_iptv.application.use_cases.register_mag_provider import RegisterMAGProvider
 from samotech_iptv.application.use_cases.register_xtream_provider import RegisterXtreamProvider
+from samotech_iptv.application.use_cases.remove_favorite import RemoveFavorite
 from samotech_iptv.application.use_cases.save_favorite import SaveFavorite
 from samotech_iptv.application.use_cases.save_theme_preference import SaveThemePreference
 from samotech_iptv.application.use_cases.search_registered_channels import (
@@ -122,6 +126,10 @@ async def build_production_desktop_application(
     provider_resolution_service = ProviderResolutionService(registry, factory, context)
     player = build_player()
     record_history = RecordHistory(history_repository)
+    list_favorites = ListFavorites(favorite_repository)
+    remove_favorite = RemoveFavorite(favorite_repository)
+    load_history = LoadHistory(history_repository)
+    clear_history = ClearHistory(history_repository)
     load_theme_preference = LoadThemePreference(theme_preference_repository)
     initial_theme = await load_theme_preference.execute()
 
@@ -153,5 +161,9 @@ async def build_production_desktop_application(
         initial_theme=initial_theme,
         argv=argv,
         player=player,
+        list_favorites=list_favorites,
+        remove_favorite=remove_favorite,
+        load_history=load_history,
+        clear_history=clear_history,
     )
     return replace(desktop, close=context.http_client.close)

@@ -21,6 +21,13 @@ This file records concise historical delivery milestones. It is **not** the curr
 - Registered-provider local XMLTV source binding with immutable canonical source/mapping records, SQLite persistence, atomic replacement, and cleanup during provider removal.
 - Local-path and local-`file:` XMLTV loading with manual bounded refresh through the existing `defusedxml` parser, canonical EPG translation, generic safe failures, and a PySide6 configuration/dialog surface that renders title/time rows only.
 - Focused domain, repository, local loader/service, application, provider-lifecycle, dialog, bootstrap, and composition tests for XMLTV binding; remote/tokenized sources, cached programme persistence, and scheduled refresh remain explicitly excluded.
+- Favorites library view with safe listing, empty state, refresh, generic error feedback, and single-record removal.
+- History library view with recent listing, duration, persisted playback-position display, recency, refresh, generic error feedback, and confirmation-protected clear-all.
+- Production composition wiring and Library menu actions for the existing SQLite-backed user-library use cases.
+
+### Scope limits
+
+- History per-record deletion, replay, resume, provider reconstruction, and stream reconstruction remain out of scope.
 
 ### Changed
 

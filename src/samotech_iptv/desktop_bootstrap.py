@@ -17,9 +17,12 @@ if TYPE_CHECKING:
 
     from samotech_iptv.application.ports.player_port import PlayerPort
     from samotech_iptv.application.use_cases.browse_channels import BrowseChannels
+    from samotech_iptv.application.use_cases.clear_history import ClearHistory
     from samotech_iptv.application.use_cases.configure_xmltv_binding import ConfigureXMLTVBinding
+    from samotech_iptv.application.use_cases.list_favorites import ListFavorites
     from samotech_iptv.application.use_cases.list_providers import ListProviders
     from samotech_iptv.application.use_cases.load_categories import LoadCategories
+    from samotech_iptv.application.use_cases.load_history import LoadHistory
     from samotech_iptv.application.use_cases.load_registered_epg import LoadRegisteredEPG
     from samotech_iptv.application.use_cases.load_theme_preference import LoadThemePreference
     from samotech_iptv.application.use_cases.play_registered_channel import (
@@ -40,6 +43,7 @@ if TYPE_CHECKING:
     from samotech_iptv.application.use_cases.register_xtream_provider import (
         RegisterXtreamProvider,
     )
+    from samotech_iptv.application.use_cases.remove_favorite import RemoveFavorite
     from samotech_iptv.application.use_cases.save_favorite import SaveFavorite
     from samotech_iptv.application.use_cases.save_theme_preference import SaveThemePreference
     from samotech_iptv.application.use_cases.search_registered_channels import (
@@ -85,6 +89,10 @@ def build_desktop_application(
     initial_theme: ThemePreference = ThemePreference.SYSTEM,
     argv: Sequence[str] | None = None,
     player: PlayerPort | None = None,
+    list_favorites: ListFavorites | None = None,
+    remove_favorite: RemoveFavorite | None = None,
+    load_history: LoadHistory | None = None,
+    clear_history: ClearHistory | None = None,
 ) -> DesktopApplication:
     """Compose the Qt shell around externally configured registered-provider logic."""
     application = QApplication.instance() or QApplication(list(argv or []))
@@ -113,5 +121,9 @@ def build_desktop_application(
         pause_playback,
         resume_playback,
         stop_playback,
+        list_favorites=list_favorites,
+        remove_favorite=remove_favorite,
+        load_history=load_history,
+        clear_history=clear_history,
     )
     return DesktopApplication(application=application, main_window=main_window)

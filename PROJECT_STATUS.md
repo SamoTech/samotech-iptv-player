@@ -173,3 +173,10 @@ The documentation rebaseline must run the same quality gate before publication. 
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Current dependency boundaries and terminology. |
 | [SECURITY.md](SECURITY.md) | Security policy and the current repository security model. |
 | [MINISTRA_COMPATIBILITY_ASSESSMENT.md](MINISTRA_COMPATIBILITY_ASSESSMENT.md) | Historical, date-scoped Ministra decision gate and implementation prerequisites. |
+
+
+## User-library increment — 2026-08-13
+
+**Implemented:** Favorites library listing with empty state, refresh, generic error feedback, and single-record removal; History recent listing with duration, persisted playback position, watched timestamp, refresh, generic error feedback, and confirmation-protected clear-all; production SQLite wiring and Qt Library menu actions.
+
+**Not implemented:** History per-record deletion, replay, resume, provider reconstruction, stream reconstruction, a new playback-position model, and a new player resume API.

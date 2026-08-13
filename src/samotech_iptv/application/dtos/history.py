@@ -25,6 +25,7 @@ class HistoryItemDTO:
     item_type: str
     watched_at: str  # ISO-8601
     duration_seconds: int = 0
+    position_seconds: int = 0
 
 
 @dataclass(frozen=True)

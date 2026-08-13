@@ -95,6 +95,10 @@ The application can now launch from source. The next product milestone completes
 | Completed | Local XMLTV source binding and manual refresh | Registered providers can save a local path or local `file:` XMLTV source with explicit mappings, refresh it manually through the bounded parser, and view safe title/time rows. Remote/tokenized sources, cached guide persistence, and scheduled refresh are intentionally excluded. |
 | P1 | User-library views | Existing favorites/history persistence and use cases need safe list, removal, and history views before resume behavior or non-live playback work. |
 
+## Completed milestone — Favorites and History library views (2026-08-13)
+
+Favorites now provides safe listing, empty state, refresh, generic errors, and single-record removal. History now provides recent listing, duration, persisted playback-position display, recency, refresh, generic errors, and confirmation-protected clear-all. History per-record deletion, replay, resume, provider reconstruction, and stream reconstruction remain out of scope.
+
 ## Future milestones
 
 The items below should be sequenced only after the product-blocking lifecycle and usable live-TV workflow have progressed.

@@ -27,7 +27,7 @@ The current codebase implements tested boundaries for the following capabilities
 | Provider registration | Credential-safe manual registration flows for M3U, Xtream Codes, and MAG/Stalker profiles. |
 | Provider isolation | Provider adapters translate protocol data to canonical domain records and keep credentials/session state in infrastructure. |
 | Live-TV workflow | Registered-provider browsing, channel search, provider-specific live stream resolution where supported, libVLC playback orchestration, and Qt native video-surface attachment. |
-| Library state | SQLite persistence foundations for provider metadata, favorites, history, and non-secret theme preferences. |
+| Library state | SQLite-backed Favorites and History libraries with safe listing, refresh, Favorite single-record removal, History clear-all confirmation, duration, recency, and persisted playback-position display. |
 | Programme guide | Provider EPG grid for MAG/Stalker and Xtream short EPG; bounded secure XMLTV parsing; registered-provider local/file XMLTV binding with explicit source-channel mappings and manual safe refresh. |
 | Player controls | libVLC play, pause, resume, stop, native video output, and local MPEG transport-stream recording. |
 | Desktop shell | PySide6 dialogs for provider entry, provider listing/management, channel browsing, browse-only registered live-category discovery, EPG display, recording actions, and theme settings; qasync runtime support; production composition of safe state, provider services, use cases, theme, and one libVLC player. |
@@ -64,8 +64,8 @@ The current codebase implements tested boundaries for the following capabilities
 | Series and episodes | **Partially Implemented** | Canonical domain records and Xtream series catalogue methods exist. No series/episode browse/playback workflow is present. |
 | EPG | **Partially Implemented** | MAG/Stalker and Xtream adapter EPG plus a safe Qt grid are implemented. A separate Qt dialog configures local/file XMLTV mappings and manually displays bounded title/time entries. | Remote/tokenized XMLTV delivery, persisted guide cache, scheduled refresh, and catch-up/archive behavior are not wired. |
 | Catch-up/archive | **Planned** | Capability vocabulary exists, but no executable provider or UI workflow exists. |
-| Favorites | **Partially Implemented** | SQLite persistence and adding a selected channel from the browser are implemented. Listing/removal UI is absent. |
-| History | **Partially Implemented** | SQLite persistence and playback-time recording use case are implemented. History UI and resume workflow are absent. |
+| Favorites | **Implemented** | SQLite persistence, browser insertion, library listing, empty state, refresh, generic errors, and single-record removal are implemented. |
+| History | **Implemented** | SQLite persistence, recent library listing, duration, recency, persisted playback-position display, refresh, generic errors, and confirmation-protected clear-all are implemented. Per-record deletion, replay, and resume are not implemented. |
 | Provider management | **Implemented for registered profiles** | Add/list/edit/remove flows, safe metadata restoration, blank-credential preservation, and keyring cleanup on removal are implemented. Confirmation UX and operational diagnostics remain limited. |
 | Search | **Implemented** | Provider-scoped live-channel search is available through M3U, Xtream, and MAG adapters and the channel browser. |
 | Recording | **Implemented** | libVLC duplicate-output recording to a timestamped local `.ts` file with generic UI feedback. |
@@ -97,7 +97,7 @@ The `domain` package contains framework-independent business records and validat
 
 ## Current implementation status and limitation
 
-The dependency-wiring, launch-lifecycle, and primary registered live-stream foundations are now delivered: `build_production_desktop_application()` initializes safe SQLite state, restores provider metadata, constructs provider services and use cases, loads the persisted theme, and shares one libVLC player with the Qt shell; `samotech-iptv` and `python -m samotech_iptv` invoke that graph, run qasync, report startup failure generically, and close the shared HTTP resource; M3U, Xtream, and MAG resolve supported HTTP(S) live streams through the registered-provider path. The next focused usability gap is playback-state controls, followed by provider and library workflows.
+The dependency-wiring, launch-lifecycle, primary registered live-stream, provider-management, XMLTV, and user-library foundations are now delivered: `build_production_desktop_application()` initializes safe SQLite state, restores provider metadata, constructs provider services and use cases, loads the persisted theme, and shares one libVLC player with the Qt shell; `samotech-iptv` and `python -m samotech_iptv` invoke that graph, run qasync, report startup failure generically, and close the shared HTTP resource; M3U, Xtream, and MAG resolve supported HTTP(S) live streams through the registered-provider path. Favorites and History are now user-testable at their bounded library-view scope; replay/resume and non-live catalogue workflows remain future work.
 
 The detailed prioritization is maintained in [PRODUCT_GAP_ANALYSIS.md](PRODUCT_GAP_ANALYSIS.md).
 

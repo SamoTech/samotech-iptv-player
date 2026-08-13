@@ -13,9 +13,12 @@ from samotech_iptv.presentation.widgets.vlc_video_surface import VlcVideoSurface
 if TYPE_CHECKING:
     from samotech_iptv.application.ports.player_port import PlayerPort
     from samotech_iptv.application.use_cases.browse_channels import BrowseChannels
+    from samotech_iptv.application.use_cases.clear_history import ClearHistory
     from samotech_iptv.application.use_cases.configure_xmltv_binding import ConfigureXMLTVBinding
+    from samotech_iptv.application.use_cases.list_favorites import ListFavorites
     from samotech_iptv.application.use_cases.list_providers import ListProviders
     from samotech_iptv.application.use_cases.load_categories import LoadCategories
+    from samotech_iptv.application.use_cases.load_history import LoadHistory
     from samotech_iptv.application.use_cases.load_registered_epg import LoadRegisteredEPG
     from samotech_iptv.application.use_cases.load_theme_preference import LoadThemePreference
     from samotech_iptv.application.use_cases.play_registered_channel import (
@@ -36,6 +39,7 @@ if TYPE_CHECKING:
     from samotech_iptv.application.use_cases.register_xtream_provider import (
         RegisterXtreamProvider,
     )
+    from samotech_iptv.application.use_cases.remove_favorite import RemoveFavorite
     from samotech_iptv.application.use_cases.save_favorite import SaveFavorite
     from samotech_iptv.application.use_cases.save_theme_preference import SaveThemePreference
     from samotech_iptv.application.use_cases.search_registered_channels import (
@@ -50,6 +54,8 @@ if TYPE_CHECKING:
         ChannelBrowserDialog,
     )
     from samotech_iptv.presentation.dialogs.epg_grid_dialog import EPGGridDialog
+    from samotech_iptv.presentation.dialogs.favorite_library_dialog import FavoriteLibraryDialog
+    from samotech_iptv.presentation.dialogs.history_library_dialog import HistoryLibraryDialog
     from samotech_iptv.presentation.dialogs.m3u_provider_dialog import M3UProviderDialog
     from samotech_iptv.presentation.dialogs.mag_provider_dialog import MAGProviderDialog
     from samotech_iptv.presentation.dialogs.provider_list_dialog import ProviderListDialog
@@ -87,6 +93,10 @@ class MainWindow(QMainWindow):  # type: ignore[misc]
         pause_playback: PausePlayback,
         resume_playback: ResumePlayback,
         stop_playback: StopPlayback,
+        list_favorites: ListFavorites | None = None,
+        remove_favorite: RemoveFavorite | None = None,
+        load_history: LoadHistory | None = None,
+        clear_history: ClearHistory | None = None,
     ) -> None:
         super().__init__()
         self._register_xtream_provider = register_xtream_provider
@@ -100,6 +110,10 @@ class MainWindow(QMainWindow):  # type: ignore[misc]
         self._play_registered_channel = play_registered_channel
         self._search_registered_channels = search_registered_channels
         self._save_favorite = save_favorite
+        self._list_favorites = list_favorites
+        self._remove_favorite = remove_favorite
+        self._load_history = load_history
+        self._clear_history = clear_history
         self._load_registered_epg = load_registered_epg
         self._configure_xmltv_binding = configure_xmltv_binding
         self._refresh_xmltv_guide = refresh_xmltv_guide
@@ -129,6 +143,10 @@ class MainWindow(QMainWindow):  # type: ignore[misc]
         self.xmltv_guide_action.triggered.connect(self.open_xmltv_guide_dialog)
         self.show_provider_list_action = QAction("Show Registered Providers", self)
         self.show_provider_list_action.triggered.connect(self.open_provider_list_dialog)
+        self.show_favorites_action = QAction("Favorites", self)
+        self.show_favorites_action.triggered.connect(self.open_favorites_dialog)
+        self.show_history_action = QAction("History", self)
+        self.show_history_action.triggered.connect(self.open_history_dialog)
         self.settings_action = QAction("Settings…", self)
         self.settings_action.triggered.connect(self.open_settings_dialog)
         self.pause_playback_action = QAction("Pause", self)
@@ -158,6 +176,9 @@ class MainWindow(QMainWindow):  # type: ignore[misc]
         playback_menu.addAction(self.stop_recording_action)
         settings_menu = self.menuBar().addMenu("Settings")
         settings_menu.addAction(self.settings_action)
+        library_menu = self.menuBar().addMenu("Library")
+        library_menu.addAction(self.show_favorites_action)
+        library_menu.addAction(self.show_history_action)
         self._active_xtream_provider_dialog: XtreamProviderDialog | None = None
         self._active_m3u_provider_dialog: M3UProviderDialog | None = None
         self._active_mag_provider_dialog: MAGProviderDialog | None = None
@@ -166,6 +187,8 @@ class MainWindow(QMainWindow):  # type: ignore[misc]
         self._active_epg_grid_dialog: EPGGridDialog | None = None
         self._active_xmltv_guide_dialog: XMLTVGuideDialog | None = None
         self._active_provider_list_dialog: ProviderListDialog | None = None
+        self._active_favorites_dialog: FavoriteLibraryDialog | None = None
+        self._active_history_dialog: HistoryLibraryDialog | None = None
         self._active_settings_dialog: ThemeSettingsDialog | None = None
 
     def open_xtream_provider_dialog(self) -> XtreamProviderDialog:
@@ -252,6 +275,30 @@ class MainWindow(QMainWindow):  # type: ignore[misc]
         dialog.show()
         asyncio.create_task(dialog.refresh())
         self._active_provider_list_dialog = dialog
+        return dialog
+
+    def open_favorites_dialog(self) -> FavoriteLibraryDialog:
+        """Create, show, and initially refresh the Favorites library."""
+        from samotech_iptv.presentation.dialogs.favorite_library_dialog import FavoriteLibraryDialog
+
+        if self._list_favorites is None or self._remove_favorite is None:
+            raise RuntimeError("Favorites library is not configured")
+        dialog = FavoriteLibraryDialog(self._list_favorites, self._remove_favorite)
+        dialog.show()
+        asyncio.create_task(dialog.refresh())
+        self._active_favorites_dialog = dialog
+        return dialog
+
+    def open_history_dialog(self) -> HistoryLibraryDialog:
+        """Create, show, and initially refresh the History library."""
+        from samotech_iptv.presentation.dialogs.history_library_dialog import HistoryLibraryDialog
+
+        if self._load_history is None or self._clear_history is None:
+            raise RuntimeError("History library is not configured")
+        dialog = HistoryLibraryDialog(self._load_history, self._clear_history)
+        dialog.show()
+        asyncio.create_task(dialog.refresh())
+        self._active_history_dialog = dialog
         return dialog
 
     def open_settings_dialog(self) -> ThemeSettingsDialog:

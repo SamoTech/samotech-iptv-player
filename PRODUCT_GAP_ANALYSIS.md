@@ -112,3 +112,8 @@ Favorites and history exist as component foundations. The highest-value remainin
 - Do not infer Ministra compatibility from MAG/Stalker; follow the dedicated assessment gate.
 - Do not claim HLS/DASH, catch-up, VOD, series, favorites, history, or transport playback is complete unless a tested end-to-end path exists.
 - Continue the direct-to-`main` workflow with the required full quality gate before every commit.
+
+
+## Current library status — 2026-08-13
+
+The prior comprehensive Favorites/History presentation gap is now reduced: Favorites listing, empty state, refresh, generic errors, and single-record removal are implemented; History recent listing, duration, persisted playback-position display, recency, refresh, generic errors, and confirmation-protected clear-all are implemented. History per-record deletion, replay, resume, provider reconstruction, and stream reconstruction remain out of scope.

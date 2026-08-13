@@ -37,6 +37,7 @@ class LoadHistory:
                 item_type=h.item_type,
                 watched_at=h.watched_at.isoformat(),
                 duration_seconds=h.duration_seconds,
+                position_seconds=h.position_seconds,
             )
             for h in items
         ]
