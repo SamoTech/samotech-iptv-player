@@ -113,8 +113,8 @@ The requested complete Windows debug-output review could not be performed becaus
 | Branch | `main`. |
 | Commit before this report | `57539ace180fafed28876fad4d091b16d2d9e448`. |
 | Pushed | **YES** — documentation report published directly to `origin/main`. |
-| HEAD | `5f9ffbd8f911f980e553c3fadcb0df5f6fc00834`. |
-| origin/main | `5f9ffbd8f911f980e553c3fadcb0df5f6fc00834`. |
+| HEAD | `b1399973e582b55c577b00ddd81e4d6edd6a2990`. |
+| origin/main | `b1399973e582b55c577b00ddd81e4d6edd6a2990`. |
 | Remote verified | **YES** — HEAD equals origin/main after fetch. |
 | Working tree | **CLEAN** after publication. |
 
