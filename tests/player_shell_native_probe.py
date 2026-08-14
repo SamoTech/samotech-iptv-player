@@ -45,8 +45,14 @@ class FakeBrowse:
     def __init__(self, error: Exception | None = None) -> None:
         self.error = error
         self.response = LoadChannelsResponse(channels=(), total=0)
+        self.started = asyncio.Event()
+        self.release = asyncio.Event()
+        self.wait_for_release = False
 
     async def execute(self, _: object) -> LoadChannelsResponse:
+        self.started.set()
+        if self.wait_for_release:
+            await self.release.wait()
         if self.error:
             raise self.error
         return self.response
@@ -87,27 +93,43 @@ class FakeProviders:
 
 
 class FakeCategories:
-    def __init__(self, categories: tuple[CategoryDTO, ...]) -> None:
+    def __init__(
+        self,
+        categories: tuple[CategoryDTO, ...],
+        categories_by_provider: dict[str, tuple[CategoryDTO, ...]] | None = None,
+    ) -> None:
         self.categories = categories
+        self.categories_by_provider = categories_by_provider or {}
         self.started = asyncio.Event()
         self.release = asyncio.Event()
         self.wait_for_release = False
+        self.waiting_provider_id: str | None = None
 
-    async def execute(self, _: object) -> LoadCategoriesResponse:
+    async def execute(self, request: object) -> LoadCategoriesResponse:
         self.started.set()
-        if self.wait_for_release:
+        if self.wait_for_release and (
+            self.waiting_provider_id is None or request.provider_id == self.waiting_provider_id
+        ):
             await self.release.wait()
-        return LoadCategoriesResponse(categories=self.categories)
+        return LoadCategoriesResponse(
+            categories=self.categories_by_provider.get(request.provider_id, self.categories)
+        )
 
 
 class FakeContent:
     def __init__(self, items: dict[ContentType, tuple[ContentItemDTO, ...]]) -> None:
         self.items = items
         self.calls: list[ContentType] = []
+        self.started = asyncio.Event()
+        self.release = asyncio.Event()
+        self.wait_for_release = False
 
     async def execute(self, request: object) -> BrowseContentResponse:
         content_type = request.content_type
         self.calls.append(content_type)
+        self.started.set()
+        if self.wait_for_release:
+            await self.release.wait()
         items = self.items.get(content_type, ())
         return BrowseContentResponse(items=items, total=len(items))
 
@@ -251,6 +273,55 @@ async def main() -> None:
     assert category_shell.channel_model.rowCount() == 1
     assert category_shell.channel_model.channel_at(0) is b
 
+    live_only_shell = make_shell(
+        FakeBrowse(),
+        FakeSearch(),
+        FakeFavorite(),
+        play,
+        capabilities=FakeCapabilities(ProviderCapabilities(live_tv=True)),
+    )
+    live_only_shell.provider_selector.setEditText("provider-a")
+    await live_only_shell.refresh_provider_capabilities("provider-a")
+    assert "Live TV" in live_only_shell.navigation_model.stringList()
+    assert "Movies" not in live_only_shell.navigation_model.stringList()
+    assert "Series" not in live_only_shell.navigation_model.stringList()
+
+    stale_live_browse = FakeBrowse()
+    stale_live_browse.response = LoadChannelsResponse(channels=(old,), total=1)
+    stale_live_browse.wait_for_release = True
+    stale_live_shell = make_shell(stale_live_browse, FakeSearch(), FakeFavorite(), play)
+    stale_live_shell.provider_selector.setEditText("provider-a")
+    stale_live_load = asyncio.create_task(stale_live_shell.load_channels())
+    await stale_live_browse.started.wait()
+    stale_live_shell.provider_selector.setEditText("provider-b")
+    stale_live_shell._provider_changed(0)
+    stale_live_browse.release.set()
+    await stale_live_load
+    assert stale_live_shell.channel_model.rowCount() == 0
+
+    provider_categories = FakeCategories(
+        (),
+        {
+            "provider-a": (CategoryDTO("a", "Provider A", "provider-a"),),
+            "provider-b": (CategoryDTO("b", "Provider B", "provider-b"),),
+        },
+    )
+    provider_categories.wait_for_release = True
+    provider_categories.waiting_provider_id = "provider-a"
+    stale_category_shell = make_shell(
+        FakeBrowse(), FakeSearch(), FakeFavorite(), play, categories=provider_categories
+    )
+    stale_category_shell.provider_selector.setEditText("provider-a")
+    stale_category_load = asyncio.create_task(stale_category_shell.refresh_categories("provider-a"))
+    await provider_categories.started.wait()
+    stale_category_shell.provider_selector.setEditText("provider-b")
+    stale_category_shell._provider_changed(0)
+    await asyncio.sleep(0)
+    provider_categories.release.set()
+    await stale_category_load
+    await asyncio.sleep(0)
+    assert stale_category_shell.category_selector.itemText(1) == "Provider B"
+
     movie = ContentItemDTO(
         id="movie-1",
         provider_id="provider-a",
@@ -318,6 +389,17 @@ async def main() -> None:
     )
     assert played == ["b", "b"]
 
+    content_shell._active_content_type = ContentType.SERIES
+    await content_shell.load_content(ContentType.SERIES)
+    series_index = content_shell.content_model.index(0, 0)
+    content_shell._content_lists[ContentType.SERIES].setCurrentIndex(series_index)
+    content_shell._activate_content_index(ContentType.SERIES, series_index)
+    assert (
+        "Episode browsing is unavailable"
+        in content_shell._content_detail_labels[ContentType.SERIES].text()
+    )
+    assert played == ["b", "b"]
+
     stale_categories = FakeCategories((CategoryDTO("sports", "Sports", "provider-a"),))
     stale_categories.wait_for_release = True
     stale_content_shell = make_shell(
@@ -337,6 +419,59 @@ async def main() -> None:
     await stale_content_load
     assert ContentType.MOVIE not in stale_content_shell._content_catalogues
     assert stale_content_shell.content_model.rowCount() == 0
+
+    stale_series_content = FakeContent({ContentType.SERIES: (series,)})
+    stale_series_content.wait_for_release = True
+    stale_series_shell = make_shell(
+        FakeBrowse(),
+        FakeSearch(),
+        FakeFavorite(),
+        play,
+        content=stale_series_content,
+    )
+    stale_series_shell.provider_selector.setEditText("provider-a")
+    stale_series_load = asyncio.create_task(stale_series_shell.load_content(ContentType.SERIES))
+    await stale_series_content.started.wait()
+    stale_series_shell.provider_selector.setEditText("provider-b")
+    stale_series_shell._provider_changed(0)
+    stale_series_content.release.set()
+    await stale_series_load
+    assert ContentType.SERIES not in stale_series_shell._content_catalogues
+    assert stale_series_shell.content_model.rowCount() == 0
+
+    stale_provider_search = FakeSearch()
+    stale_provider_search.response = SearchChannelsResponse(channels=(old,), total=1)
+    stale_provider_search.wait_for_release = True
+    stale_search_shell = make_shell(FakeBrowse(), stale_provider_search, FakeFavorite(), play)
+    stale_search_shell.provider_selector.setEditText("provider-a")
+    stale_search_shell.search_input.setText("old")
+    stale_search_load = asyncio.create_task(stale_search_shell.search_channels())
+    await stale_provider_search.started.wait()
+    stale_search_shell.provider_selector.setEditText("provider-b")
+    stale_search_shell._provider_changed(0)
+    stale_provider_search.release.set()
+    await stale_search_load
+    assert stale_search_shell.channel_model.rowCount() == 0
+
+    playback_started = asyncio.Event()
+    playback_release = asyncio.Event()
+
+    async def delayed_play(_: str, __: str) -> None:
+        playback_started.set()
+        await playback_release.wait()
+
+    stale_playback_shell = make_shell(FakeBrowse(), FakeSearch(), FakeFavorite(), delayed_play)
+    stale_playback_shell.provider_selector.setEditText("provider-a")
+    stale_playback_shell._render_channels((a,))
+    stale_playback = asyncio.create_task(stale_playback_shell.play_channel(a))
+    await playback_started.wait()
+    stale_playback_shell.provider_selector.setEditText("provider-b")
+    stale_playback_shell._provider_changed(0)
+    playback_release.set()
+    await stale_playback
+    assert stale_playback_shell.playing_channel is None
+    assert stale_playback_shell.loading_channel is None
+    assert stale_playback_shell.playback_error_channel is None
 
     provider_shell._render_channels((a, b))
     provider_shell.channel_list.setCurrentIndex(provider_shell.channel_model.index(0, 0))
@@ -364,6 +499,8 @@ async def main() -> None:
     print("capability_navigation=PASS")
     print("content_identity_and_local_search=PASS")
     print("content_stale_provider_protection=PASS")
+    print("series_and_search_stale_provider_protection=PASS")
+    print("playback_stale_provider_protection=PASS")
     print("keyboard_accessibility=PASS")
     print("player_shell_native_probe=PASS")
     app.quit()

@@ -112,7 +112,7 @@ class M3UParser:
     @staticmethod
     def _parse_extinf(line: str, line_number: int) -> _PendingEntry:
         try:
-            metadata, name = line.split(",", maxsplit=1)
+            metadata, name = M3UParser._split_extinf_metadata_and_name(line)
         except ValueError as exc:
             raise M3UParserError(
                 f"Line {line_number} is missing the channel-name separator"
@@ -129,6 +129,22 @@ class M3UParser:
             attributes=attributes,
             name=display_name,
         )
+
+    @staticmethod
+    def _split_extinf_metadata_and_name(line: str) -> tuple[str, str]:
+        """Split EXTINF fields at the first comma outside a quoted attribute value."""
+        quote: str | None = None
+        for index, character in enumerate(line):
+            if quote is not None:
+                if character == quote:
+                    quote = None
+                continue
+            if character in {"'", '"'}:
+                quote = character
+                continue
+            if character == ",":
+                return line[:index], line[index + 1 :]
+        raise ValueError("EXTINF separator not found")
 
     @staticmethod
     def _to_domain(

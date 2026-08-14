@@ -387,6 +387,7 @@ class PlayerShell(QWidget):
         self.category_selector.blockSignals(False)
         self.selected_channel = None
         self.loading_channel = None
+        self.playing_channel = None
         self.playback_error_channel = None
         self._render_channels(())
         self._update_channel_context()
@@ -1132,6 +1133,8 @@ class PlayerShell(QWidget):
         )
 
     async def play_channel(self, channel: ChannelDTO) -> None:
+        request_generation = self._request_generation
+        provider_id = channel.provider_id
         self.selected_channel = channel
         self.loading_channel = channel
         self.playback_error_channel = None
@@ -1142,11 +1145,15 @@ class PlayerShell(QWidget):
         except asyncio.CancelledError:
             raise
         except Exception:
+            if request_generation != self._request_generation or provider_id != self._provider_id():
+                return
             self.loading_channel = None
             self.playback_error_channel = channel
             self._update_channel_context()
             self.channel_status.setText("Unable to play selected channel")
             self.status_label.setText("● Playback error")
+            return
+        if request_generation != self._request_generation or provider_id != self._provider_id():
             return
         self.loading_channel = None
         self.playback_error_channel = None

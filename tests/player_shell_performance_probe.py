@@ -26,7 +26,7 @@ from samotech_iptv.presentation.viewmodels.content_list_model import ContentList
 
 TOTAL = 39_753
 CONTENT_TOTAL = 5_000
-DYNAMIC_SIZES = (0, 1, 100, 1_000, 5_000, TOTAL, 100_000)
+DYNAMIC_SIZES = (0, 1, 10, 100, 500, 1_000, 5_000, 17_431, TOTAL, 100_000)
 
 
 class FakeBrowse:
@@ -200,7 +200,13 @@ async def main() -> None:
         replacement_ms = (perf_counter() - start) * 1000
         selection_identity: str | None = None
         selection_ms = 0.0
+        first_middle_last_identity: tuple[str, str, str] | None = None
         if dynamic_dataset:
+            first_middle_last_identity = (
+                shell.channel_model.channel_at(0).id,
+                shell.channel_model.channel_at(size // 2).id,
+                shell.channel_model.channel_at(size - 1).id,
+            )
             middle_index = shell.channel_model.index(size // 2, 0)
             start = perf_counter()
             shell.channel_list.setCurrentIndex(middle_index)
@@ -224,6 +230,12 @@ async def main() -> None:
         search_render_ms = (perf_counter() - start) * 1000
         search_rows = shell.channel_model.rowCount()
 
+        shell._search_channels_result = ()
+        start = perf_counter()
+        shell._render_active_catalogue()
+        no_match_search_ms = (perf_counter() - start) * 1000
+        no_match_rows = shell.channel_model.rowCount()
+
         shell._search_channels_result = None
         start = perf_counter()
         shell._render_active_catalogue()
@@ -232,10 +244,13 @@ async def main() -> None:
             "model_replacement_ms": round(replacement_ms, 3),
             "selection_ms": round(selection_ms, 3),
             "selection_identity": selection_identity,
+            "first_middle_last_identity": first_middle_last_identity,
             "category_filter_ms": round(category_filter_ms, 3),
             "category_rows": category_rows,
             "search_render_ms": round(search_render_ms, 3),
             "search_rows": search_rows,
+            "no_match_search_ms": round(no_match_search_ms, 3),
+            "no_match_rows": no_match_rows,
             "clear_search_ms": round(clear_search_ms, 3),
             "clear_search_rows": shell.channel_model.rowCount(),
         }
@@ -271,6 +286,13 @@ async def main() -> None:
     for size, values in dynamic_results.items():
         assert values["clear_search_rows"] == int(size)
         assert values["category_rows"] <= int(size)
+        assert values["no_match_rows"] == 0
+        if int(size) > 0:
+            assert values["first_middle_last_identity"] == (
+                "channel-00001",
+                f"channel-{int(size) // 2 + 1:05d}",
+                f"channel-{int(size):05d}",
+            )
     print(json.dumps(result, indent=2))
     application.quit()
 

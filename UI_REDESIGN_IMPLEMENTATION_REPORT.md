@@ -481,3 +481,145 @@ The final exact-39,753 run also reported 0.170 ms for initial live-model replace
 | Mypy | 11 diagnostics in 4 baseline files only; no task-introduced diagnostic remains |
 
 The four inherited `aiohttp` bare-handler deprecation warnings remain warnings only. They did not cause test failures and were not changed in this task.
+
+---
+
+# Real-Provider Acceptance and Forensic Validation Addendum
+
+## 1. Acceptance baseline
+
+The acceptance pass began from the already committed, synchronized baseline `d4f3edf4003c86f73f78192142b3012e94ab2755` on `main`. At the start of the pass, `HEAD`, `origin/main`, and the remote `main` reference matched, and the implementation working tree was clean. The temporary `todo.md` created only to track this pass is not an implementation artifact and will be removed before handoff.
+
+The previous player-first guarantees remain present. Live uses `ChannelListModel`; Movies and Series use `ContentListModel`; both are `QAbstractListModel`-based and rendered through `QListView` rather than per-row widgets. `ChannelDTO` and `ContentItemDTO` remain immutable projections; selected Live state is distinct from loading, playing, and playback-error state; Live activation remains explicit; non-live activation does not enter Live playback; runtime capability declarations gate navigation; and no production catalogue-size limit exists.
+
+| Required architectural guarantee | Classification | Evidence |
+|---|---|---|
+| Scalable Live and non-live catalogues | **PASS** | Batched Qt model resets; no `QListWidget`, `QListWidgetItem`, or row widget in the catalogue paths. |
+| Selection is separate from playback | **PASS** | Native probe verifies selection alone has no playback side effect; Enter/double-click performs explicit activation. |
+| Capability-driven navigation | **PASS** | Runtime `ProviderCapabilities` determines Live, Movies, Series, and EPG navigation visibility. |
+| Cache-first Live search; local non-live search | **PASS** | Cache probe records zero resolver/provider-search/reload calls; Movie/Series filter the loaded local snapshot. |
+| Stale async and provider-change protection | **PASS** | Direct native races cover Live, Movie, Series, categories, search, and playback state. |
+| No fixed catalogue-size assumption | **PASS** | Dynamic test covers 0, 1, 10, 100, 500, 1,000, 5,000, 17,431, 39,753, and 100,000 records. |
+
+## 2. Lawful public test data and provider capability matrix
+
+The Internet data check was intentionally limited to published test/reference material and metadata parsing. No user credentials, paid provider accounts, private portal endpoints, MAC identities, MAG handshakes, stream resolutions, or media playback requests were used. The [iptv-org repository][1] publishes its playlist URL and states that it contains links to publicly available streams rather than video files; it was therefore used only as a parser/capability reference, not as an endorsement or replay source. The published [Xtream mock API][2] was queried only through its documented test account and only for response-family counts. No official anonymous Stalker/MAG sandbox suitable for this application’s credential/MAC model was identified, so no Stalker portal was contacted.
+
+| Source or provider | Live | VOD | Series | Episodes | Categories | Search | EPG | Playback | Classification and notes |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| MAG/Stalker adapter | Yes | No | No | No | No typed `CategoryProvider` | Yes | Yes | Live only | **PASS** for actual declared runtime scope. It exposes authentication, session, Live, EPG, search, and stream resolution—not VOD/Series. |
+| M3U adapter | Yes | No | No | No | Channel metadata only; no typed category loader | Yes | No | Live only | **PASS** for declared scope. It exposes Live, search, and stream resolution. |
+| Xtream adapter | Yes | Yes | Yes | No loader | Yes, all three families | Yes | Yes | Live only at the application playback boundary | **PASS** for catalogue/navigation scope. Movie/episode stream resolution is not implemented. |
+| Public iptv-org M3U reference | Live metadata | n/a | n/a | n/a | Parsed group-title metadata | n/a | Playlist EPG URL may exist | Not attempted | **PASS** for HTTP(S) parser subset; see compatibility limitation below. |
+| Published Xtream mock API | 2 streams | 3 VOD categories | 1 series | API sample only | 3 Live, 3 VOD, 1 Series categories | API sample only | Not tested | Not attempted | **PASS** for read-only multi-family mock metadata; no real media was requested. |
+| Public Stalker/MAG endpoint | Not used | Not used | Not used | Not used | Not used | Not used | Not used | Not used | **BLOCKED**. No safe anonymous test portal was found; using arbitrary portals or MAC identities would be inappropriate. |
+
+The provider matrix is derived from executable adapter declarations and port interfaces, not from provider names. It therefore avoids assuming that every MAG/Stalker installation exposes a fixed VOD/Series model. In the current application, a MAG provider will show only the workflows its actual runtime declaration supports.
+
+## 3. Public M3U acceptance and bug fixed
+
+The documented public M3U reference returned `200 OK` as `audio/x-mpegurl`. A metadata-only parse initially found two independent compatibility facts. First, the full document contains `mmsh://` at line 17,977, which is outside the current canonical `StreamTransport` set; a full import is therefore **BLOCKED** rather than silently misrepresenting or playing that transport. Second, HTTP(S) entries whose quoted `http-user-agent` metadata contained commas were parsed incorrectly: the parser treated the comma inside the quoted value as the title separator.
+
+The quoted-comma behavior was a demonstrated parser defect, not a provider-transport change. It was fixed in `M3UParser` by locating the first comma outside quoted attribute values and covered with a deterministic regression test. The post-fix HTTP(S) metadata subset parsed **12,726 channels**, **12,726 streams**, and **175 categories**; the previously malformed titles and group categories now project correctly. No playlist was registered, stored, streamed, or played.
+
+| Public M3U result | Classification | Result |
+|---|---|---|
+| Source availability and response type | **PASS** | `200 OK`, `audio/x-mpegurl`. |
+| Quoted-comma `#EXTINF` metadata | **PASS after fix** | Title, `group-title`, and ID preserved when quoted HTTP-header metadata contains commas. |
+| HTTP(S) parser subset | **PASS** | 12,726 accepted metadata entries, no media playback. |
+| Full mixed-transport playlist | **BLOCKED** | `mmsh://` is not represented by the current transport value object; no protocol expansion was attempted. |
+
+## 4. Isolated provider simulation, content behavior, and race results
+
+The acceptance suite remains isolated from production provider accounts. The native Qt probe supplies fakes at existing use-case boundaries and verifies that each presentation state is honest. The dynamic performance probe supplies model data only and performs no row-level network work.
+
+| Acceptance case | Classification | Result |
+|---|---|---|
+| A: small Live provider, 10 channels | **PASS** | Identity, selection, category, local search, no-match, and clear-search results validated. |
+| B: medium Live provider, 500 channels | **PASS** | Same dynamic assertions; clear restores all 500 rows. |
+| C: large Live provider, 39,753 channels | **PASS** | First/middle/last identity is `channel-00001` / `channel-19877` / `channel-39753`. |
+| D: very large Live provider, 100,000 channels | **PASS** | Batched replacement, filtering, search, no-match, selection, and clear all completed without a fixed-size branch. |
+| E: Live + VOD | **PASS** | Explicit Movie load, category filter, year/title local search, selection, and Enter context are supported; Live playback is not invoked. |
+| F: Live + VOD + Series | **PASS** | Capability-rich navigation exposes both Movies and Series; Series opens an honest unsupported-episode context. |
+| G: Live-only MAG/M3U-style capability set | **PASS** | Live is present while Movies and Series are absent. |
+| H: capability-rich Xtream-style set | **PASS** | Live, Movies, and Series appear only after runtime capability loading. |
+| Episodes | **BLOCKED, honest** | No season/episode loader or episode playback resolver exists; the UI does not fabricate either. |
+
+Provider-switch races were directly tested as `A → B` transitions. Late Live-load, Movie-load, Series-load, category-load, search, and playback completions do not render A data or playing state under B. The native probe also keeps existing request-generation protection for same-provider stale searches. The generic implementation means the same generation/provider guard is applied to B → A transitions as well; no unsupported re-authentication or protocol behavior was introduced.
+
+| Content or player interaction | Classification | Result |
+|---|---|---|
+| Live categories, local filtering, query and clear | **PASS** | Local model rendering only after catalogue availability. |
+| Live selection, keyboard arrows, Enter, double-click | **PASS** | Selection does not play; explicit activation schedules existing Live playback boundary. |
+| Movie explicit load, category and title/year search | **PASS** | Local `ContentListModel` filtering; no provider call per keystroke. |
+| Movie Enter/double-click | **PASS, honest** | Opens VOD context and explicitly reports that VOD playback is not exposed. |
+| Series explicit load, category/title search, selection | **PASS** | Opens Series context without inventing episodes or playback. |
+| Search-context clarity | **PASS** | Shared control changes placeholder and accessible name for Live, Movies, and Series. |
+| Selected, loading, playing, and error labels | **PASS** | Distinct PlayerShell state and label paths remain present. |
+| Provider-switch playback state | **PASS after fix** | A late prior-provider playback completion can no longer restore stale `playing_channel` state. |
+
+## 5. Dynamic catalogue and performance results
+
+All dynamic sizes asserted first/middle/last identity when non-empty, current selection identity, local category filtering, local search, no-match result, and clear-search restoration. The results below are local offscreen measurements, not end-user performance guarantees.
+
+| Records | Model replacement | Selection | Category filter | Search render | No-match | Clear restore |
+|---:|---:|---:|---:|---:|---:|---:|
+| 0 | 0.012 ms | n/a | 0.150 ms | 0.002 ms | 0.002 ms | 0 |
+| 10 | 0.001 ms | 0.005 ms | 0.004 ms | 0.002 ms | 0.002 ms | 10 |
+| 500 | 0.003 ms | 0.008 ms | 0.021 ms | 0.002 ms | 0.002 ms | 500 |
+| 17,431 | 0.077 ms | 0.021 ms | 0.661 ms | 0.013 ms | 0.004 ms | 17,431 |
+| 39,753 | 0.182 ms | 0.046 ms | 2.021 ms | 0.031 ms | 0.008 ms | 39,753 |
+| 100,000 | 0.353 ms | 0.058 ms | 4.717 ms | 0.088 ms | 0.027 ms | 100,000 |
+
+The exact 39,753-record cache-first probe measured 0.196 ms initial model replacement, 0.030 ms selection, 1.470 ms filtered-result replacement, and 0.020 ms 5,000-item content-model replacement. Empty, common, rare, no-match, repeated, and clear search requests reported zero resolver calls, zero provider search calls, and zero catalogue reload calls.
+
+## 6. Final quality and regression evidence
+
+| Gate | Classification | Result |
+|---|---|---|
+| Full `pytest` | **PASS** | **689 tests collected; 0 failures**. |
+| Native Qt/offscreen probe | **PASS** | Live, Movie, Series, capabilities, keyboard behavior, stale identity, and all provider-switch races pass. |
+| Dynamic 0-to-100,000 performance probe | **PASS** | Includes 10, 500, and 17,431 acceptance cases. |
+| Black | **PASS** | 297 source/test files would remain unchanged. |
+| Ruff | **PASS** | No diagnostics. |
+| `git diff --check` | **PASS** | No whitespace diagnostics. |
+| Mypy | **INHERITED** | 11 diagnostics in 4 pre-existing files only; no acceptance-pass source file appears in the result. |
+| Warnings | **INHERITED** | Four `aiohttp` bare-handler deprecation warnings; no test failure. |
+
+## 7. Evidence-based IPTV player gap analysis
+
+The following items are gaps evidenced by current source/UI behavior. They are not implemented by this acceptance pass.
+
+| Priority | Gap | Evidence and decision |
+|---|---|---|
+| P0 | None identified | Core Live browse, explicit activation, capability navigation, and stale-state behavior pass the acceptance suite. |
+| P1 | Episode/season browsing and VOD/episode playback | Existing content DTO declares `EPISODE`, but no loader, season flow, or VOD/episode stream resolver exists. Keep the current honest UI until a separate provider/application contract change is approved. |
+| P1 | M3U mixed-transport compatibility | The public reference includes unsupported `mmsh://`; the current domain rejects the complete playlist. A future design must decide whether to skip unsupported entries or support additional transports without weakening validation. |
+| P1 | Channel next/previous, numeric entry, volume/mute, and subtitle/audio controls | No corresponding PlayerShell controls or keyboard paths were found. These require product and player-port design, not a presentation-only patch. |
+| P2 | M3U category navigation from parsed metadata | M3U channels retain `group-title`, but the adapter does not expose typed category loading; the persistent selector therefore has no provider category API for M3U. |
+| P2 | Movie/Series poster and rich metadata presentation | `ContentItemDTO` preserves poster/plot/rating/year, but the current list renders title/year/rating text only. |
+| P2 | EPG interaction depth | Capability-driven EPG navigation exists, but this acceptance pass did not establish programme-grid or programme-action parity with a mature desktop IPTV player. |
+| P3 | Remote-control style focus/shortcut polish and responsive-detail refinements | Arrow, Enter, F, and Escape behavior is covered; broader remote-style mappings and visual polish require user-experience decisions. |
+
+## 8. Scope, security, and uncommitted handoff
+
+The only production changes in this acceptance pass are a quote-aware `#EXTINF` separator in `m3u_parser.py` and provider-generation protection around the presentation playback result in `player_shell.py`. Neither change alters MAG/Stalker authentication, MAC handling, portal transport, M3U source registration, Xtream transport, credential storage, stream URL construction, or VLC internals. The remaining changes are isolated tests/probes and this report.
+
+| Final handoff field | Value at report preparation |
+|---|---|
+| Current HEAD | `d4f3edf4003c86f73f78192142b3012e94ab2755` |
+| Origin/main | `d4f3edf4003c86f73f78192142b3012e94ab2755` |
+| Working tree | Intentionally uncommitted acceptance fixes and report only; no commit or push performed. |
+| Files changed | `UI_REDESIGN_IMPLEMENTATION_REPORT.md`; `src/samotech_iptv/infrastructure/parsing/m3u_parser.py`; `src/samotech_iptv/presentation/player_shell.py`; `tests/test_infra_b2_m3u_parser.py`; `tests/player_shell_native_probe.py`; `tests/player_shell_performance_probe.py`; `tests/test_presentation_01_player_shell_performance.py`. |
+| Files intentionally untouched | MAG/Stalker adapter and protocol, MAC/credential/session code, M3U adapter/source registration, Xtream adapter/transport, stream resolution, VLC/player internals, deployment/CI configuration, persistence implementation. |
+| Bugs found | Quoted-comma M3U EXTINF parsing; stale playback state after provider switch; full public playlist transport incompatibility. |
+| Bugs fixed | Quote-aware EXTINF split; stale playback result guard. |
+| Remaining P0 | None identified. |
+| Remaining P1 | Episodes/VOD playback, mixed M3U transport decision, richer player transport controls. |
+| Remaining P2 | M3U category API, poster/metadata UI, deeper EPG workflow. |
+| Recommended next step | Obtain a licensed provider test account or an organisation-owned local Xtream/Stalker fixture, then approve a separately scoped application-contract increment for episode/VOD playback and any supported transport expansion. |
+
+## References
+
+[1]: https://github.com/iptv-org/iptv "iptv-org public IPTV playlist repository"
+[2]: https://github.com/j2jstudio/xtream-codes-mock-api "Published Xtream mock API documentation"

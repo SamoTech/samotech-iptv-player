@@ -42,13 +42,18 @@ def test_player_shell_39753_channel_performance_probe() -> None:
     assert list(payload["dynamic_catalogue_results"]) == [
         "0",
         "1",
+        "10",
         "100",
+        "500",
         "1000",
         "5000",
+        "17431",
         "39753",
         "100000",
     ]
     assert payload["dynamic_catalogue_results"]["0"]["clear_search_rows"] == 0
+    assert payload["dynamic_catalogue_results"]["10"]["no_match_rows"] == 0
+    assert payload["dynamic_catalogue_results"]["17431"]["clear_search_rows"] == 17_431
     assert payload["dynamic_catalogue_results"]["100000"]["clear_search_rows"] == 100_000
     assert payload["resolver_calls"] == 0
     assert payload["provider_search_calls"] == 0

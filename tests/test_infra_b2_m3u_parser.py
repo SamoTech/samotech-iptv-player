@@ -62,6 +62,25 @@ def test_parse_ignores_invalid_optional_logo_url(
     assert parsed.channels[0].logo_url is None
 
 
+def test_parse_preserves_title_and_category_when_quoted_attribute_contains_comma(
+    parser: M3UParser, provider_id: ProviderId
+) -> None:
+    """Quoted HTTP header metadata must not be mistaken for the EXTINF title separator."""
+    parsed = parser.parse(
+        "#EXTM3U\n"
+        '#EXTINF:-1 tvg-id="public.demo" '
+        'http-user-agent="Mozilla/5.0 (X11, Linux x86_64)" '
+        'group-title="News",Public Demo\n'
+        "https://stream.example.test/live/public-demo.m3u8\n",
+        provider_id,
+    )
+
+    assert len(parsed.channels) == 1
+    assert parsed.channels[0].name == "Public Demo"
+    assert parsed.channels[0].category_id == "News"
+    assert parsed.channels[0].epg_channel_id == "public.demo"
+
+
 def test_parse_preserves_supported_udp_streams(parser: M3UParser, provider_id: ProviderId) -> None:
     """M3U content entries can carry supported non-HTTP media transports."""
     parsed = parser.parse(
