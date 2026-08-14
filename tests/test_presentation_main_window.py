@@ -435,8 +435,13 @@ def test_main_window_exposes_xtream_provider_menu_action() -> None:
     assert window.show_provider_list_action.triggered.callbacks == [
         window.open_provider_list_dialog
     ]
-    assert window.menu_bar.menus[1].title == "Playback"
+    assert window.menu_bar.menus[1].title == "Library"
     assert window.menu_bar.menus[1].actions == [
+        window.show_favorites_action,
+        window.show_history_action,
+    ]
+    assert window.menu_bar.menus[2].title == "Playback"
+    assert window.menu_bar.menus[2].actions == [
         window.pause_playback_action,
         window.resume_playback_action,
         window.stop_playback_action,
@@ -453,8 +458,8 @@ def test_main_window_exposes_xtream_provider_menu_action() -> None:
     assert window.start_recording_action.triggered.callbacks == [window._schedule_start_recording]
     assert window.stop_recording_action.text == "Stop Recording"
     assert window.stop_recording_action.triggered.callbacks == [window._schedule_stop_recording]
-    assert window.menu_bar.menus[2].title == "Settings"
-    assert window.menu_bar.menus[2].actions == [window.settings_action]
+    assert window.menu_bar.menus[3].title == "Settings"
+    assert window.menu_bar.menus[3].actions == [window.settings_action]
     assert window.settings_action.text == "Settings…"
     assert window.settings_action.triggered.callbacks == [window.open_settings_dialog]
 

@@ -276,14 +276,14 @@ async def test_production_composition_initialises_state_restores_metadata_and_wi
         "mag",
         "xtream",
     }
-    assert arguments[12]._provider_resolver is arguments[7]._provider_resolver  # noqa: SLF001
-    assert arguments[12]._binding_repository is arguments[13]._binding_repository  # noqa: SLF001
+    assert arguments[16]._provider_resolver is arguments[7]._provider_resolver  # noqa: SLF001
+    assert arguments[16]._binding_repository is arguments[17]._binding_repository  # noqa: SLF001
     assert arguments[8]._player is player  # noqa: SLF001
-    assert arguments[16]._player is player  # noqa: SLF001
-    assert arguments[17]._player is player  # noqa: SLF001
-    assert arguments[18]._player is player  # noqa: SLF001
-    assert arguments[19]._player is player  # noqa: SLF001
     assert arguments[20]._player is player  # noqa: SLF001
+    assert arguments[21]._player is player  # noqa: SLF001
+    assert arguments[22]._player is player  # noqa: SLF001
+    assert arguments[23]._player is player  # noqa: SLF001
+    assert arguments[24]._player is player  # noqa: SLF001
 
     await result.close()
     assert player.close_calls == 1

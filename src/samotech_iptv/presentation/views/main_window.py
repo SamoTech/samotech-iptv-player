@@ -64,6 +64,7 @@ if TYPE_CHECKING:
     from samotech_iptv.presentation.dialogs.theme_settings_dialog import ThemeSettingsDialog
     from samotech_iptv.presentation.dialogs.xmltv_guide_dialog import XMLTVGuideDialog
     from samotech_iptv.presentation.dialogs.xtream_provider_dialog import XtreamProviderDialog
+    from samotech_iptv.presentation.player_shell import PlayerShell
 
 __all__ = ["MainWindow"]
 
@@ -127,8 +128,18 @@ class MainWindow(QMainWindow):  # type: ignore[misc]
         self._resume_playback = resume_playback
         self._stop_playback = stop_playback
         self.video_surface = VlcVideoSurface(player)
-        self.setCentralWidget(self.video_surface)
         self.setWindowTitle("SamoTech IPTV Player")
+        if hasattr(self, "setStyleSheet"):
+            self.setStyleSheet("""
+                QMainWindow { background: #0b0f14; }
+                QMenuBar { background: #0b0f14; color: #aab7c6; padding: 4px 8px; }
+                QMenuBar::item { padding: 5px 9px; border-radius: 5px; }
+                QMenuBar::item:selected { background: #1d3a57; color: #f6f8fb; }
+                QMenu { background: #121a23; color: #e9eef5; border: 1px solid #2a394b; }
+                QMenu::item { padding: 7px 22px 7px 12px; }
+                QMenu::item:selected { background: #1d3a57; }
+                QStatusBar { background: #0b0f14; color: #8f9daf; }
+                """)
         self.add_xtream_provider_action = QAction("Add Xtream Provider…", self)
         self.add_xtream_provider_action.triggered.connect(self.open_xtream_provider_dialog)
         self.add_m3u_provider_action = QAction("Add M3U Provider…", self)
@@ -192,6 +203,32 @@ class MainWindow(QMainWindow):  # type: ignore[misc]
         self._active_favorites_library_dialog: FavoritesLibraryDialog | None = None
         self._active_history_library_dialog: HistoryLibraryDialog | None = None
         self._active_settings_dialog: ThemeSettingsDialog | None = None
+        self.player_shell: PlayerShell | None = None
+        try:
+            from samotech_iptv.presentation.player_shell import PlayerShell
+
+            self.player_shell = PlayerShell(
+                self.video_surface,
+                self._browse_channels,
+                self.play_registered_channel,
+                self._search_registered_channels,
+                self._save_favorite,
+                self.pause_playback,
+                self.resume_playback,
+                self.stop_playback,
+                self._list_providers,
+                self.open_favorites_library_dialog,
+                self.open_history_library_dialog,
+                self.open_category_browser_dialog,
+                self.open_epg_grid_dialog,
+                self.open_provider_list_dialog,
+                self.open_settings_dialog,
+            )
+            self.setCentralWidget(self.player_shell)
+        except ImportError:
+            # Reduced fake-Qt test doubles do not provide the shell's full widget set.
+            self.player_shell = None
+            self.setCentralWidget(self.video_surface)
 
     def open_xtream_provider_dialog(self) -> XtreamProviderDialog:
         """Create and show the secure manual Xtream-entry dialog."""
