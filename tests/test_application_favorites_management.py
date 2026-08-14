@@ -63,3 +63,16 @@ async def test_remove_favorite_delegates_opaque_favorite_identifier() -> None:
     assert response.removed is False
     assert response.error is None
     assert repository.deleted_ids == ["favorite-1"]
+
+
+@pytest.mark.asyncio
+async def test_list_favorites_returns_generic_failure_without_storage_details() -> None:
+    class FailingFavoriteRepository(FakeFavoriteRepository):
+        async def list_all(self) -> list[Favorite]:
+            raise RuntimeError("private storage path unavailable")
+
+    response = await ListFavorites(FailingFavoriteRepository([])).execute()  # type: ignore[arg-type]
+
+    assert response.favorites == []
+    assert response.error == "Unable to load favorites"
+    assert "private" not in response.error

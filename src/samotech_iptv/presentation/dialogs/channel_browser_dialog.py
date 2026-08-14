@@ -10,11 +10,12 @@ from PySide6.QtWidgets import (
     QFormLayout,
     QLabel,
     QLineEdit,
-    QListWidget,
+    QListView,
     QPushButton,
 )
 
 from samotech_iptv.application.dtos import ChannelDTO, LoadChannelsRequest, LoadChannelsResponse
+from samotech_iptv.presentation.viewmodels.channel_list_model import ChannelListModel
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable, Sequence
@@ -46,14 +47,16 @@ class ChannelBrowserDialog(QDialog):
         self._channels: list[ChannelDTO] = []
         self.provider_id_input = QLineEdit()
         self.search_query_input = QLineEdit()
-        self.channel_list = QListWidget()
+        self.channel_list = QListView()
+        self.channel_model = ChannelListModel()
+        self.channel_list.setModel(self.channel_model)
         self.load_channels_button = QPushButton("Load Channels")
         self.search_channels_button = QPushButton("Search")
         self.add_favorite_button = QPushButton("Add Favorite")
         self.load_channels_button.clicked.connect(self._schedule_channel_load)
         self.search_channels_button.clicked.connect(self._schedule_channel_search)
         self.add_favorite_button.clicked.connect(self._schedule_add_favorite)
-        self.channel_list.itemDoubleClicked.connect(self._schedule_selected_channel)
+        self.channel_list.doubleClicked.connect(self._schedule_selected_channel)
         self.status_label = QLabel()
         layout = QFormLayout(self)
         layout.addRow("Provider ID", self.provider_id_input)
@@ -76,13 +79,13 @@ class ChannelBrowserDialog(QDialog):
 
     def _schedule_add_favorite(self) -> None:
         """Queue saving the current selected channel as a user favorite."""
-        row = self.channel_list.currentRow()
+        row = self.channel_list.currentIndex().row()
         if self._save_favorite is not None and 0 <= row < len(self._channels):
             asyncio.create_task(self.add_favorite(row))
 
     def _schedule_selected_channel(self, _: object) -> None:
         """Queue playback for the current safe channel row when playback is configured."""
-        row = self.channel_list.currentRow()
+        row = self.channel_list.currentIndex().row()
         if self._play_selected_channel is None or row < 0 or row >= len(self._channels):
             return
         asyncio.create_task(self._play_channel(row))
@@ -154,7 +157,5 @@ class ChannelBrowserDialog(QDialog):
 
     def _render_channels(self, channels: Sequence[ChannelDTO]) -> None:
         """Render only channel names and stream IDs, retaining IDs in private dialog state."""
-        self.channel_list.clear()
         self._channels = list(channels)
-        for channel in self._channels:
-            self.channel_list.addItem(f"{channel.name} · {channel.stream_id}")
+        self.channel_model.replace_channels(self._channels)

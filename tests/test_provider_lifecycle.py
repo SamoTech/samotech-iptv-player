@@ -6,6 +6,8 @@ from typing import TYPE_CHECKING, cast
 
 import pytest
 
+from samotech_iptv.application.channel_catalogue_cache import ChannelCatalogueCache
+from samotech_iptv.application.dtos import ChannelDTO
 from samotech_iptv.application.dtos.provider_registration import UpdateProviderRequest
 from samotech_iptv.application.use_cases.provider_lifecycle import RemoveProvider, UpdateProvider
 from samotech_iptv.domain.entities.xmltv_binding import XMLTVBinding, XMLTVChannelMapping
@@ -206,6 +208,65 @@ async def test_update_xtream_preserves_blank_credentials_and_updates_safe_metada
     assert registry.get("profile").base_url == "https://new.example.test"
     assert (await repository.list_all())[0].base_url == "https://new.example.test"
     assert runtime_cache.invalidations == [("profile", "provider_update")]
+
+
+@pytest.mark.asyncio
+async def test_provider_update_invalidates_only_affected_catalogue_snapshot() -> None:
+    registration = FakeRegistration()
+    cache = ChannelCatalogueCache()
+    cache.replace(
+        "profile",
+        (ChannelDTO("profile-channel", "Profile", "profile", "profile-stream"),),
+    )
+    cache.replace(
+        "other",
+        (ChannelDTO("other-channel", "Other", "other", "other-stream"),),
+    )
+
+    response = await UpdateProvider(cast("ProviderRegistrationPort", registration), cache).execute(
+        UpdateProviderRequest(provider_id="profile")
+    )
+
+    assert response.error is None
+    assert cache.search("profile", "", 10) is None
+    assert cache.search("other", "", 10) is not None
+
+
+@pytest.mark.asyncio
+async def test_provider_removal_invalidates_only_affected_catalogue_snapshot() -> None:
+    registration = FakeRegistration()
+    cache = ChannelCatalogueCache()
+    cache.replace(
+        "profile",
+        (ChannelDTO("profile-channel", "Profile", "profile", "profile-stream"),),
+    )
+    cache.replace(
+        "other",
+        (ChannelDTO("other-channel", "Other", "other", "other-stream"),),
+    )
+
+    response = await RemoveProvider(cast("ProviderRegistrationPort", registration), cache).execute(
+        "profile"
+    )
+
+    assert response.error is None
+    assert cache.search("profile", "", 10) is None
+    assert cache.search("other", "", 10) is not None
+
+
+@pytest.mark.asyncio
+async def test_failed_provider_lifecycle_preserves_catalogue_snapshot() -> None:
+    registration = FakeRegistration(should_fail=True)
+    cache = ChannelCatalogueCache()
+    snapshot = (ChannelDTO("profile-channel", "Profile", "profile", "profile-stream"),)
+    cache.replace("profile", snapshot)
+    update = UpdateProvider(cast("ProviderRegistrationPort", registration), cache)
+    remove = RemoveProvider(cast("ProviderRegistrationPort", registration), cache)
+
+    await update.execute(UpdateProviderRequest(provider_id="profile"))
+    await remove.execute("profile")
+
+    assert cache.search("profile", "", 10) == snapshot
 
 
 @pytest.mark.asyncio

@@ -1,37 +1,42 @@
+"""Qt dialog for safe persisted playback-history browsing and clearing."""
+
 from __future__ import annotations
 
 import asyncio
 from typing import TYPE_CHECKING
 
-from PySide6.QtWidgets import (
+from PySide6.QtWidgets import (  # type: ignore[import-not-found]
     QDialog,
     QFormLayout,
     QLabel,
-    QMessageBox,
     QPushButton,
 )
 
-from samotech_iptv.application.dtos.history import LoadHistoryRequest
+from samotech_iptv.application.dtos import LoadHistoryRequest
 
 if TYPE_CHECKING:
+    from samotech_iptv.application.dtos import HistoryItemDTO
     from samotech_iptv.application.use_cases.clear_history import ClearHistory
     from samotech_iptv.application.use_cases.load_history import LoadHistory
 
 __all__ = ["HistoryLibraryDialog"]
 
+_LOAD_ERROR = "Unable to load history"
+_CLEAR_ERROR = "Unable to clear history"
 
-class HistoryLibraryDialog(QDialog):
-    """Render recent history and support bounded clear-all behavior."""
+
+class HistoryLibraryDialog(QDialog):  # type: ignore[misc]
+    """Render safe history summaries and offer only the existing clear-all operation."""
 
     def __init__(self, load_history: LoadHistory, clear_history: ClearHistory) -> None:
         super().__init__()
         self._load_history = load_history
         self._clear_history = clear_history
         self.history_summary_label = QLabel()
-        self.refresh_button = QPushButton("Refresh")
+        self.refresh_button = QPushButton("Refresh History")
         self.refresh_button.clicked.connect(self._schedule_refresh)
-        self.clear_button = QPushButton("Clear All History")
-        self.clear_button.clicked.connect(self._schedule_clear_all)
+        self.clear_button = QPushButton("Clear History")
+        self.clear_button.clicked.connect(self._schedule_clear)
         self.status_label = QLabel()
         layout = QFormLayout(self)
         layout.addRow(self.history_summary_label)
@@ -40,53 +45,42 @@ class HistoryLibraryDialog(QDialog):
         layout.addRow(self.status_label)
         self.setWindowTitle("History")
 
-    def _schedule_refresh(self) -> None:
-        asyncio.create_task(self.refresh())
-
     async def refresh(self) -> None:
-        """Reload recent history and render safe playback metadata."""
-        try:
-            response = await self._load_history.execute(LoadHistoryRequest())
-        except Exception:  # noqa: BLE001
-            self._show_error("Unable to load history")
-            return
-        if response.error:
-            self._show_error(response.error)
+        """Refresh presentation-safe history records through the application boundary."""
+        response = await self._load_history.execute(LoadHistoryRequest())
+        if response.error is not None:
+            self.history_summary_label.setText("No history available")
+            self.status_label.setText(_LOAD_ERROR)
             return
         self.history_summary_label.setText(
-            "\n".join(
-                f"{item.item_id} · {item.item_type} · watched {item.watched_at} · "
-                f"position {item.position_seconds}s / duration {item.duration_seconds}s"
-                for item in response.items
-            )
-            or "No viewing history"
+            "\n".join(self._format_history_item(item) for item in response.items)
+            or "No history recorded"
         )
-        self.status_label.setText("")
+        self.status_label.setText("" if response.items else "No history recorded")
 
-    def _schedule_clear_all(self) -> None:
-        asyncio.create_task(self.clear_all())
-
-    async def clear_all(self) -> None:
-        """Confirm and clear all history; per-record deletion is intentionally absent."""
-        confirmation = QMessageBox.question(
-            self,
-            "Clear History",
-            "Clear all viewing history?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No,
-        )
-        if confirmation != QMessageBox.StandardButton.Yes:
+    async def clear(self) -> None:
+        """Clear all history only through the existing safe clear-all use case."""
+        response = await self._clear_history.execute()
+        if response.error is not None:
+            self.status_label.setText(_CLEAR_ERROR)
             return
-        try:
-            response = await self._clear_history.execute()
-        except Exception:  # noqa: BLE001
-            self._show_error("Unable to clear history")
-            return
-        if response.error:
-            self._show_error(response.error)
-            return
-        self.status_label.setText(f"Cleared {response.cleared} history records")
+        self.status_label.setText(f"Cleared {response.cleared} history entries")
         await self.refresh()
 
-    def _show_error(self, message: str) -> None:
-        self.status_label.setText(message or "Unable to load history")
+    @staticmethod
+    def _format_history_item(item: HistoryItemDTO) -> str:
+        """Render canonical identity, watched time, and the existing stored progress values."""
+        progress = (
+            f"{item.position_seconds}s / {item.duration_seconds}s"
+            if item.duration_seconds > 0
+            else f"{item.position_seconds}s"
+        )
+        return f"{item.id} · {item.item_type} · {item.item_id} · {progress} · {item.watched_at}"
+
+    def _schedule_refresh(self) -> None:
+        """Queue history refresh on the supported Qt-aware event loop."""
+        asyncio.create_task(self.refresh())
+
+    def _schedule_clear(self) -> None:
+        """Queue clear-all on the supported Qt-aware event loop."""
+        asyncio.create_task(self.clear())

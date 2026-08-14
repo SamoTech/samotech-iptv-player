@@ -5,8 +5,8 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING
 
-from PySide6.QtGui import QAction
-from PySide6.QtWidgets import QMainWindow
+from PySide6.QtGui import QAction  # type: ignore[import-not-found]
+from PySide6.QtWidgets import QMainWindow  # type: ignore[import-not-found]
 
 from samotech_iptv.presentation.widgets.vlc_video_surface import VlcVideoSurface
 
@@ -54,7 +54,9 @@ if TYPE_CHECKING:
         ChannelBrowserDialog,
     )
     from samotech_iptv.presentation.dialogs.epg_grid_dialog import EPGGridDialog
-    from samotech_iptv.presentation.dialogs.favorite_library_dialog import FavoriteLibraryDialog
+    from samotech_iptv.presentation.dialogs.favorites_library_dialog import (
+        FavoritesLibraryDialog,
+    )
     from samotech_iptv.presentation.dialogs.history_library_dialog import HistoryLibraryDialog
     from samotech_iptv.presentation.dialogs.m3u_provider_dialog import M3UProviderDialog
     from samotech_iptv.presentation.dialogs.mag_provider_dialog import MAGProviderDialog
@@ -66,7 +68,7 @@ if TYPE_CHECKING:
 __all__ = ["MainWindow"]
 
 
-class MainWindow(QMainWindow):
+class MainWindow(QMainWindow):  # type: ignore[misc]
     """Own the Qt video surface and delegate playback to application orchestration."""
 
     def __init__(
@@ -83,6 +85,10 @@ class MainWindow(QMainWindow):
         play_registered_channel: PlayRegisteredChannel,
         search_registered_channels: SearchRegisteredChannels,
         save_favorite: SaveFavorite,
+        list_favorites: ListFavorites,
+        remove_favorite: RemoveFavorite,
+        load_history: LoadHistory,
+        clear_history: ClearHistory,
         load_registered_epg: LoadRegisteredEPG,
         configure_xmltv_binding: ConfigureXMLTVBinding,
         refresh_xmltv_guide: RefreshXMLTVGuide,
@@ -93,10 +99,6 @@ class MainWindow(QMainWindow):
         pause_playback: PausePlayback,
         resume_playback: ResumePlayback,
         stop_playback: StopPlayback,
-        list_favorites: ListFavorites | None = None,
-        remove_favorite: RemoveFavorite | None = None,
-        load_history: LoadHistory | None = None,
-        clear_history: ClearHistory | None = None,
     ) -> None:
         super().__init__()
         self._register_xtream_provider = register_xtream_provider
@@ -143,10 +145,10 @@ class MainWindow(QMainWindow):
         self.xmltv_guide_action.triggered.connect(self.open_xmltv_guide_dialog)
         self.show_provider_list_action = QAction("Show Registered Providers", self)
         self.show_provider_list_action.triggered.connect(self.open_provider_list_dialog)
-        self.show_favorites_action = QAction("Favorites", self)
-        self.show_favorites_action.triggered.connect(self.open_favorites_dialog)
-        self.show_history_action = QAction("History", self)
-        self.show_history_action.triggered.connect(self.open_history_dialog)
+        self.show_favorites_action = QAction("Favorites…", self)
+        self.show_favorites_action.triggered.connect(self.open_favorites_library_dialog)
+        self.show_history_action = QAction("History…", self)
+        self.show_history_action.triggered.connect(self.open_history_library_dialog)
         self.settings_action = QAction("Settings…", self)
         self.settings_action.triggered.connect(self.open_settings_dialog)
         self.pause_playback_action = QAction("Pause", self)
@@ -168,6 +170,9 @@ class MainWindow(QMainWindow):
         providers_menu.addAction(self.show_epg_action)
         providers_menu.addAction(self.xmltv_guide_action)
         providers_menu.addAction(self.show_provider_list_action)
+        library_menu = self.menuBar().addMenu("Library")
+        library_menu.addAction(self.show_favorites_action)
+        library_menu.addAction(self.show_history_action)
         playback_menu = self.menuBar().addMenu("Playback")
         playback_menu.addAction(self.pause_playback_action)
         playback_menu.addAction(self.resume_playback_action)
@@ -176,9 +181,6 @@ class MainWindow(QMainWindow):
         playback_menu.addAction(self.stop_recording_action)
         settings_menu = self.menuBar().addMenu("Settings")
         settings_menu.addAction(self.settings_action)
-        library_menu = self.menuBar().addMenu("Library")
-        library_menu.addAction(self.show_favorites_action)
-        library_menu.addAction(self.show_history_action)
         self._active_xtream_provider_dialog: XtreamProviderDialog | None = None
         self._active_m3u_provider_dialog: M3UProviderDialog | None = None
         self._active_mag_provider_dialog: MAGProviderDialog | None = None
@@ -187,8 +189,8 @@ class MainWindow(QMainWindow):
         self._active_epg_grid_dialog: EPGGridDialog | None = None
         self._active_xmltv_guide_dialog: XMLTVGuideDialog | None = None
         self._active_provider_list_dialog: ProviderListDialog | None = None
-        self._active_favorites_dialog: FavoriteLibraryDialog | None = None
-        self._active_history_dialog: HistoryLibraryDialog | None = None
+        self._active_favorites_library_dialog: FavoritesLibraryDialog | None = None
+        self._active_history_library_dialog: HistoryLibraryDialog | None = None
         self._active_settings_dialog: ThemeSettingsDialog | None = None
 
     def open_xtream_provider_dialog(self) -> XtreamProviderDialog:
@@ -277,28 +279,26 @@ class MainWindow(QMainWindow):
         self._active_provider_list_dialog = dialog
         return dialog
 
-    def open_favorites_dialog(self) -> FavoriteLibraryDialog:
-        """Create, show, and initially refresh the Favorites library."""
-        from samotech_iptv.presentation.dialogs.favorite_library_dialog import FavoriteLibraryDialog
+    def open_favorites_library_dialog(self) -> FavoritesLibraryDialog:
+        """Create, refresh, and show safe persisted-favorites controls."""
+        from samotech_iptv.presentation.dialogs.favorites_library_dialog import (
+            FavoritesLibraryDialog,
+        )
 
-        if self._list_favorites is None or self._remove_favorite is None:
-            raise RuntimeError("Favorites library is not configured")
-        dialog = FavoriteLibraryDialog(self._list_favorites, self._remove_favorite)
+        dialog = FavoritesLibraryDialog(self._list_favorites, self._remove_favorite)
         dialog.show()
         asyncio.create_task(dialog.refresh())
-        self._active_favorites_dialog = dialog
+        self._active_favorites_library_dialog = dialog
         return dialog
 
-    def open_history_dialog(self) -> HistoryLibraryDialog:
-        """Create, show, and initially refresh the History library."""
+    def open_history_library_dialog(self) -> HistoryLibraryDialog:
+        """Create, refresh, and show existing persisted-history controls."""
         from samotech_iptv.presentation.dialogs.history_library_dialog import HistoryLibraryDialog
 
-        if self._load_history is None or self._clear_history is None:
-            raise RuntimeError("History library is not configured")
         dialog = HistoryLibraryDialog(self._load_history, self._clear_history)
         dialog.show()
         asyncio.create_task(dialog.refresh())
-        self._active_history_dialog = dialog
+        self._active_history_library_dialog = dialog
         return dialog
 
     def open_settings_dialog(self) -> ThemeSettingsDialog:

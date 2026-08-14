@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from samotech_iptv.domain.repositories import HistoryRepository
 
 _log = get_logger("use_cases.load_history")
+_ERROR = "Unable to load history"
 
 
 class LoadHistory:
@@ -27,9 +28,9 @@ class LoadHistory:
         _log.info("Loading history (limit=%d)", request.limit)
         try:
             items = await self._repo.list_recent(limit=request.limit)
-        except Exception as exc:  # noqa: BLE001
-            _log.error("LoadHistory error: %s", exc)
-            return LoadHistoryResponse(error=str(exc))
+        except Exception:  # noqa: BLE001
+            _log.error("Unable to load history")
+            return LoadHistoryResponse(error=_ERROR)
         dtos = [
             HistoryItemDTO(
                 id=h.id,

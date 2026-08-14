@@ -143,23 +143,46 @@ class FakeLineEdit:
         return self.value
 
 
-class FakeListWidget:
-    """Minimal QListWidget double recording selectable channel summary rows."""
+class FakeModelIndex:
+    """Minimal QModelIndex double for model and selection tests."""
+
+    def __init__(self, row: int = -1, valid: bool | None = None) -> None:
+        self._row = row
+        self._valid = row >= 0 if valid is None else valid
+
+    def isValid(self) -> bool:  # noqa: N802
+        return self._valid
+
+    def row(self) -> int:
+        return self._row
+
+
+class FakeAbstractListModel:
+    """Minimal QAbstractListModel double recording reset batches."""
 
     def __init__(self) -> None:
-        self.items: list[str] = []
+        self.reset_count = 0
+
+    def beginResetModel(self) -> None:  # noqa: N802
+        self.reset_count += 1
+
+    def endResetModel(self) -> None:  # noqa: N802
+        return None
+
+
+class FakeListView:
+    """Minimal QListView double exposing model-backed selection."""
+
+    def __init__(self) -> None:
+        self.model: object | None = None
         self.current_row = -1
-        self.itemDoubleClicked = FakeSignal()  # noqa: N815
+        self.doubleClicked = FakeSignal()  # noqa: N815
 
-    def addItem(self, item: str) -> None:  # noqa: N802
-        self.items.append(item)
+    def setModel(self, model: object) -> None:  # noqa: N802
+        self.model = model
 
-    def clear(self) -> None:
-        self.items.clear()
-        self.current_row = -1
-
-    def currentRow(self) -> int:  # noqa: N802
-        return self.current_row
+    def currentIndex(self) -> FakeModelIndex:  # noqa: N802
+        return FakeModelIndex(self.current_row)
 
 
 class FakePushButton:
@@ -172,8 +195,15 @@ class FakePushButton:
 
 def _install_fake_pyside6() -> None:
     qtcore = ModuleType("PySide6.QtCore")
+    qtcore.QAbstractListModel = FakeAbstractListModel
+    qtcore.QModelIndex = FakeModelIndex
     qtcore.Qt = type(
-        "Qt", (), {"WidgetAttribute": type("WidgetAttribute", (), {"WA_NativeWindow": object()})}
+        "Qt",
+        (),
+        {
+            "ItemDataRole": type("ItemDataRole", (), {"DisplayRole": 0}),
+            "WidgetAttribute": type("WidgetAttribute", (), {"WA_NativeWindow": object()}),
+        },
     )
     qtgui = ModuleType("PySide6.QtGui")
     qtgui.QAction = FakeAction
@@ -185,7 +215,7 @@ def _install_fake_pyside6() -> None:
     qtwidgets.QFrame = FakeFrame
     qtwidgets.QLabel = FakeLabel
     qtwidgets.QLineEdit = FakeLineEdit
-    qtwidgets.QListWidget = FakeListWidget
+    qtwidgets.QListView = FakeListView
     qtwidgets.QMainWindow = FakeMainWindow
     qtwidgets.QPushButton = FakePushButton
     sys.modules["PySide6"] = ModuleType("PySide6")
@@ -236,10 +266,75 @@ async def test_channel_browser_renders_only_channel_name_and_stream_id() -> None
 
     assert response.total == 1
     assert browser.provider_ids == ["provider-one"]
-    assert dialog.channel_list.items == ["News HD · 1234"]
+    assert dialog.channel_model.rowCount(FakeModelIndex(valid=False)) == 1
+    assert dialog.channel_model.data(FakeModelIndex(0), 0) == "News HD · 1234"
     assert dialog.status_label.value == "1 channels loaded"
-    assert "internal-channel-id" not in dialog.channel_list.items[0]
-    assert "https://" not in dialog.channel_list.items[0]
+    assert "internal-channel-id" not in dialog.channel_model.data(FakeModelIndex(0), 0)
+    assert "https://" not in dialog.channel_model.data(FakeModelIndex(0), 0)
+    assert dialog.channel_model.reset_count == 1
+
+
+@pytest.mark.asyncio
+async def test_channel_browser_model_handles_39753_rows_in_one_reset() -> None:
+    channel = ChannelDTO(
+        id="channel-1",
+        name="Large Catalogue Channel",
+        provider_id="provider-one",
+        stream_id="stream-1",
+    )
+    channels = [channel] * 39_753
+    dialog = ChannelBrowserDialog(
+        FakeBrowseChannels(LoadChannelsResponse(channels=channels, total=len(channels)))
+    )  # type: ignore[arg-type]
+    dialog.provider_id_input.value = "provider-one"
+
+    response = await dialog.load_channels()
+
+    assert response.total == 39_753
+    assert dialog.channel_model.rowCount(FakeModelIndex(valid=False)) == 39_753
+    assert dialog.channel_model.reset_count == 1
+    assert dialog.channel_model.data(FakeModelIndex(0), 0) == ("Large Catalogue Channel · stream-1")
+    assert dialog.channel_model.data(FakeModelIndex(19_876), 0) == (
+        "Large Catalogue Channel · stream-1"
+    )
+    assert dialog.channel_model.data(FakeModelIndex(39_752), 0) == (
+        "Large Catalogue Channel · stream-1"
+    )
+    for row in (0, 19_876, 39_752):
+        selected = dialog.channel_model.channel_at(row)
+        assert selected.provider_id == "provider-one"
+        assert selected.id == "channel-1"
+    dialog.channel_model.replace_channels([channel])
+    assert dialog.channel_model.rowCount(FakeModelIndex(valid=False)) == 1
+    assert dialog.channel_model.reset_count == 2
+    assert not hasattr(dialog.channel_list, "addItem")
+
+
+@pytest.mark.asyncio
+async def test_channel_browser_model_handles_empty_and_blank_display_values() -> None:
+    dialog = ChannelBrowserDialog(
+        FakeBrowseChannels(
+            LoadChannelsResponse(
+                channels=[
+                    ChannelDTO(
+                        id="blank-channel",
+                        name="",
+                        provider_id="provider-one",
+                        stream_id="",
+                    )
+                ],
+                total=1,
+            )
+        )
+    )  # type: ignore[arg-type]
+
+    await dialog.load_channels()
+    assert dialog.channel_model.rowCount(FakeModelIndex(valid=False)) == 1
+    assert dialog.channel_model.data(FakeModelIndex(0), 0) == " · "
+
+    dialog.channel_model.replace_channels([])
+    assert dialog.channel_model.rowCount(FakeModelIndex(valid=False)) == 0
+    assert dialog.channel_model.reset_count == 2
 
 
 @pytest.mark.asyncio
@@ -251,7 +346,7 @@ async def test_channel_browser_hides_provider_error_details() -> None:
 
     await dialog.load_channels()
 
-    assert dialog.channel_list.items == []
+    assert dialog.channel_model.rowCount(FakeModelIndex(valid=False)) == 0
     assert dialog.status_label.value == "Unable to load channels"
     assert "secret" not in dialog.status_label.value
 
@@ -332,9 +427,10 @@ async def test_channel_browser_search_renders_safe_matching_rows() -> None:
     await dialog.search_channels()
 
     assert search.requests == [("provider-one", "sports")]
-    assert dialog.channel_list.items == ["Sports News · 900"]
+    assert dialog.channel_model.rowCount(FakeModelIndex(valid=False)) == 1
+    assert dialog.channel_model.data(FakeModelIndex(0), 0) == "Sports News · 900"
     assert dialog.status_label.value == "1 channels found"
-    assert "internal-channel-id" not in dialog.channel_list.items[0]
+    assert "internal-channel-id" not in dialog.channel_model.data(FakeModelIndex(0), 0)
 
 
 class FakeSaveFavorite:

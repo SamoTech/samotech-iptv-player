@@ -4,7 +4,8 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from samotech_iptv.application.dtos import LoadChannelsRequest
+from samotech_iptv.application.channel_catalogue_cache import ChannelCatalogueCache
+from samotech_iptv.application.dtos import ChannelDTO, LoadChannelsRequest
 from samotech_iptv.application.ports.provider_capabilities import CatalogProvider
 
 if TYPE_CHECKING:
@@ -71,6 +72,41 @@ async def test_browse_channels_resolves_provider_then_returns_channel_dtos() -> 
     assert response.total == 1
     assert response.channels[0].name == "Demo Channel"
     assert response.channels[0].stream_id == "stream-1"
+
+
+@pytest.mark.asyncio
+async def test_browse_channels_replaces_complete_catalogue_cache() -> None:
+    resolver = FakeResolver(FakeCatalogProvider())
+    cache = ChannelCatalogueCache()
+
+    response = await BrowseChannels(resolver, cache).execute(
+        LoadChannelsRequest(provider_id="demo")
+    )
+
+    cached = cache.search("demo", "", limit=10)
+    assert cached is not None
+    assert cached[0] is response.channels[0]
+
+
+@pytest.mark.asyncio
+async def test_browse_after_invalidation_replaces_fresh_snapshot() -> None:
+    resolver = FakeResolver(FakeCatalogProvider())
+    cache = ChannelCatalogueCache()
+    cache.replace(
+        "demo",
+        (ChannelDTO("stale", "Stale", "demo", "stale-stream"),),
+    )
+    cache.invalidate("demo")
+
+    response = await BrowseChannels(resolver, cache).execute(
+        LoadChannelsRequest(provider_id="demo")
+    )
+
+    cached = cache.search("demo", "", limit=10)
+    assert response.error is None
+    assert cached is not None
+    assert cached[0].id == "channel-1"
+    assert cached[0] is response.channels[0]
 
 
 @pytest.mark.asyncio

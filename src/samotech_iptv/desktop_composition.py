@@ -12,6 +12,7 @@ from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from samotech_iptv.application.channel_catalogue_cache import ChannelCatalogueCache
 from samotech_iptv.application.use_cases.browse_channels import BrowseChannels
 from samotech_iptv.application.use_cases.clear_history import ClearHistory
 from samotech_iptv.application.use_cases.configure_xmltv_binding import ConfigureXMLTVBinding
@@ -149,18 +150,23 @@ async def build_production_desktop_application(
     load_theme_preference = LoadThemePreference(theme_preference_repository)
     initial_theme = await load_theme_preference.execute()
 
+    catalogue_cache = ChannelCatalogueCache()
     desktop = build_desktop_application(
         RegisterXtreamProvider(registration_service),
         RegisterM3UProvider(registration_service),
         RegisterMAGProvider(registration_service),
         ListProviders(provider_catalog_service),
         LoadCategories(provider_resolution_service),
-        UpdateProvider(registration_service),
-        RemoveProvider(registration_service),
-        BrowseChannels(provider_resolution_service),
+        UpdateProvider(registration_service, catalogue_cache),
+        RemoveProvider(registration_service, catalogue_cache),
+        BrowseChannels(provider_resolution_service, catalogue_cache),
         PlayRegisteredChannel(provider_resolution_service, player, record_history),
-        SearchRegisteredChannels(provider_resolution_service),
+        SearchRegisteredChannels(provider_resolution_service, catalogue_cache),
         SaveFavorite(favorite_repository),
+        ListFavorites(favorite_repository),
+        RemoveFavorite(favorite_repository),
+        LoadHistory(history_repository),
+        ClearHistory(history_repository),
         LoadRegisteredEPG(provider_resolution_service),
         ConfigureXMLTVBinding(provider_resolution_service, xmltv_binding_repository),
         RefreshXMLTVGuide(
