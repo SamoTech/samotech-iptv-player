@@ -13,12 +13,16 @@ from samotech_iptv.presentation.widgets.vlc_video_surface import VlcVideoSurface
 if TYPE_CHECKING:
     from samotech_iptv.application.ports.player_port import PlayerPort
     from samotech_iptv.application.use_cases.browse_channels import BrowseChannels
+    from samotech_iptv.application.use_cases.browse_content import BrowseContent
     from samotech_iptv.application.use_cases.clear_history import ClearHistory
     from samotech_iptv.application.use_cases.configure_xmltv_binding import ConfigureXMLTVBinding
     from samotech_iptv.application.use_cases.list_favorites import ListFavorites
     from samotech_iptv.application.use_cases.list_providers import ListProviders
     from samotech_iptv.application.use_cases.load_categories import LoadCategories
     from samotech_iptv.application.use_cases.load_history import LoadHistory
+    from samotech_iptv.application.use_cases.load_provider_capabilities import (
+        LoadProviderCapabilities,
+    )
     from samotech_iptv.application.use_cases.load_registered_epg import LoadRegisteredEPG
     from samotech_iptv.application.use_cases.load_theme_preference import LoadThemePreference
     from samotech_iptv.application.use_cases.play_registered_channel import (
@@ -100,6 +104,8 @@ class MainWindow(QMainWindow):  # type: ignore[misc]
         pause_playback: PausePlayback,
         resume_playback: ResumePlayback,
         stop_playback: StopPlayback,
+        browse_content: BrowseContent | None = None,
+        load_provider_capabilities: LoadProviderCapabilities | None = None,
     ) -> None:
         super().__init__()
         self._register_xtream_provider = register_xtream_provider
@@ -127,6 +133,8 @@ class MainWindow(QMainWindow):  # type: ignore[misc]
         self._pause_playback = pause_playback
         self._resume_playback = resume_playback
         self._stop_playback = stop_playback
+        self._browse_content = browse_content
+        self._load_provider_capabilities = load_provider_capabilities
         self.video_surface = VlcVideoSurface(player)
         self.setWindowTitle("SamoTech IPTV Player")
         if hasattr(self, "setStyleSheet"):
@@ -223,6 +231,9 @@ class MainWindow(QMainWindow):  # type: ignore[misc]
                 self.open_epg_grid_dialog,
                 self.open_provider_list_dialog,
                 self.open_settings_dialog,
+                load_categories=self._load_categories,
+                browse_content=self._browse_content,
+                load_provider_capabilities=self._load_provider_capabilities,
             )
             self.setCentralWidget(self.player_shell)
         except ImportError:

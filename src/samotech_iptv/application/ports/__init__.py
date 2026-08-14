@@ -34,6 +34,9 @@ from samotech_iptv.application.ports.provider_capabilities import (
     SessionProvider,
     VodProvider,
 )
+from samotech_iptv.application.ports.provider_content_resolver_port import (
+    ProviderContentResolverPort,
+)
 from samotech_iptv.application.ports.provider_port import ProviderPort
 from samotech_iptv.application.ports.provider_registration_port import ProviderRegistrationPort
 from samotech_iptv.application.ports.provider_resolver_port import ProviderResolverPort
@@ -47,6 +50,7 @@ __all__ = [
     "PlayerPort",
     "ProviderRegistrationPort",
     "ProviderResolverPort",
+    "ProviderContentResolverPort",
     "StoragePort",
     "CredentialStorePort",
     "NotificationPort",

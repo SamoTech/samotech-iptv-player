@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from samotech_iptv.application.dtos.categories import CategoryDTO, LoadCategoriesResponse
+from samotech_iptv.application.dtos.content import ContentType
 from samotech_iptv.core.diagnostics import DiagnosticTrace, log_exception, safe_label
 from samotech_iptv.core.exceptions import ProviderError
 from samotech_iptv.core.logging import get_logger
@@ -26,13 +27,25 @@ class LoadCategories:
 
     async def execute(self, request: LoadCategoriesRequest) -> LoadCategoriesResponse:
         """Resolve a registered category provider and return only safe category data."""
-        trace = DiagnosticTrace("LOAD_LIVE_CATEGORIES", str(request.provider_id), "registered")
+        trace = DiagnosticTrace(
+            f"LOAD_{request.content_type.value.upper()}_CATEGORIES",
+            str(request.provider_id),
+            "registered",
+        )
         trace.start()
         try:
             with trace.stage("Provider resolution", provider=str(request.provider_id)):
                 provider = self._provider_resolver.resolve_category_provider(request.provider_id)
             with trace.stage("Category request", provider=type(provider).__name__):
-                categories = await provider.load_live_categories()
+                if request.content_type is ContentType.LIVE:
+                    categories = await provider.load_live_categories()
+                elif request.content_type is ContentType.MOVIE:
+                    categories = await provider.load_vod_categories()
+                elif request.content_type is ContentType.SERIES:
+                    categories = await provider.load_series_categories()
+                else:
+                    trace.result("UNSUPPORTED", reason=request.content_type.value)
+                    return LoadCategoriesResponse(unsupported=True)
         except ProviderError as exc:
             if str(exc) == "Provider does not support category browsing":
                 trace.result("UNSUPPORTED", reason="category_browsing")

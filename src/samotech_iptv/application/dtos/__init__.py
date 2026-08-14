@@ -24,6 +24,12 @@ from samotech_iptv.application.dtos.channels import (
     LoadChannelsResponse,
     SearchRegisteredChannelsRequest,
 )
+from samotech_iptv.application.dtos.content import (
+    BrowseContentRequest,
+    BrowseContentResponse,
+    ContentItemDTO,
+    ContentType,
+)
 from samotech_iptv.application.dtos.epg import (
     EPGEntryDTO,
     LoadEPGRequest,
@@ -78,6 +84,10 @@ __all__ = [
     "LoadChannelsRequest",
     "LoadChannelsResponse",
     "SearchRegisteredChannelsRequest",
+    "ContentType",
+    "ContentItemDTO",
+    "BrowseContentRequest",
+    "BrowseContentResponse",
     "CategoryDTO",
     "LoadCategoriesRequest",
     "LoadCategoriesResponse",

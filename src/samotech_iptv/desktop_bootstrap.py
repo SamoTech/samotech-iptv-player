@@ -17,12 +17,16 @@ if TYPE_CHECKING:
 
     from samotech_iptv.application.ports.player_port import PlayerPort
     from samotech_iptv.application.use_cases.browse_channels import BrowseChannels
+    from samotech_iptv.application.use_cases.browse_content import BrowseContent
     from samotech_iptv.application.use_cases.clear_history import ClearHistory
     from samotech_iptv.application.use_cases.configure_xmltv_binding import ConfigureXMLTVBinding
     from samotech_iptv.application.use_cases.list_favorites import ListFavorites
     from samotech_iptv.application.use_cases.list_providers import ListProviders
     from samotech_iptv.application.use_cases.load_categories import LoadCategories
     from samotech_iptv.application.use_cases.load_history import LoadHistory
+    from samotech_iptv.application.use_cases.load_provider_capabilities import (
+        LoadProviderCapabilities,
+    )
     from samotech_iptv.application.use_cases.load_registered_epg import LoadRegisteredEPG
     from samotech_iptv.application.use_cases.load_theme_preference import LoadThemePreference
     from samotech_iptv.application.use_cases.play_registered_channel import (
@@ -94,6 +98,9 @@ def build_desktop_application(
     initial_theme: ThemePreference = ThemePreference.SYSTEM,
     argv: Sequence[str] | None = None,
     player: PlayerPort | None = None,
+    *,
+    browse_content: BrowseContent | None = None,
+    load_provider_capabilities: LoadProviderCapabilities | None = None,
 ) -> DesktopApplication:
     """Compose the Qt shell around externally configured registered-provider logic."""
     existing_application = QApplication.instance()
@@ -132,5 +139,7 @@ def build_desktop_application(
         pause_playback,
         resume_playback,
         stop_playback,
+        browse_content=browse_content,
+        load_provider_capabilities=load_provider_capabilities,
     )
     return DesktopApplication(application=application, main_window=main_window)

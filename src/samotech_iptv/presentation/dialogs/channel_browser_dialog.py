@@ -81,41 +81,44 @@ class ChannelBrowserDialog(QDialog):
         """Queue saving the current selected channel as a user favorite."""
         row = self.channel_list.currentIndex().row()
         if self._save_favorite is not None and 0 <= row < len(self._channels):
-            asyncio.create_task(self.add_favorite(row))
+            channel = self.channel_model.channel_at(row)
+            asyncio.create_task(self.add_favorite(channel))
 
     def _schedule_selected_channel(self, _: object) -> None:
         """Queue playback for the current safe channel row when playback is configured."""
         row = self.channel_list.currentIndex().row()
         if self._play_selected_channel is None or row < 0 or row >= len(self._channels):
             return
-        asyncio.create_task(self._play_channel(row))
+        channel = self.channel_model.channel_at(row)
+        asyncio.create_task(self._play_channel(channel))
 
-    async def add_favorite(self, row: int) -> None:
+    async def add_favorite(self, channel: ChannelDTO | int) -> None:
         """Save only the selected channel identifier through the application boundary."""
         save_favorite = self._save_favorite
         if save_favorite is None:
             return
+        target = self.channel_model.channel_at(channel) if isinstance(channel, int) else channel
         from samotech_iptv.application.dtos import SaveFavoriteRequest
 
         response = await save_favorite.execute(
-            SaveFavoriteRequest(item_id=self._channels[row].id, item_type="channel")
+            SaveFavoriteRequest(item_id=target.id, item_type="channel")
         )
         self.status_label.setText(
             "Channel added to favorites" if response.success else "Unable to add favorite"
         )
 
-    async def _play_channel(self, row: int) -> None:
+    async def _play_channel(self, channel: ChannelDTO | int) -> None:
         """Delegate the selected channel identifiers without exposing stream URLs."""
-        channel = self._channels[row]
+        target = self.channel_model.channel_at(channel) if isinstance(channel, int) else channel
         callback = self._play_selected_channel
         if callback is None:
             return
         try:
-            await callback(channel.provider_id, channel.id)
+            await callback(target.provider_id, target.id)
         except Exception:  # noqa: BLE001
             self.status_label.setText("Unable to play selected channel")
             return
-        self.status_label.setText(f"Playing {channel.name}")
+        self.status_label.setText(f"Playing {target.name}")
 
     async def load_channels(self) -> LoadChannelsResponse:
         """Load and render safe channel summary rows for the requested provider."""

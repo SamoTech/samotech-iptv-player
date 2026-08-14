@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
+from samotech_iptv.application.dtos.content import ContentType
+
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
@@ -22,6 +24,7 @@ class CategoryDTO:
 @dataclass(frozen=True)
 class LoadCategoriesRequest:
     provider_id: str
+    content_type: ContentType = ContentType.LIVE
 
 
 @dataclass(frozen=True)

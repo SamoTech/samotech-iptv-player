@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, cast
 import pytest
 
 from samotech_iptv.application.dtos.categories import LoadCategoriesRequest
+from samotech_iptv.application.dtos.content import ContentType
 from samotech_iptv.application.use_cases.load_categories import LoadCategories
 from samotech_iptv.core.exceptions import ProviderError
 from samotech_iptv.domain.entities.category import Category
@@ -28,6 +29,14 @@ class FakeCategoryProvider:
         self.calls += 1
         if self.should_fail:
             raise RuntimeError("credential-bearing provider failure")
+        return self.categories
+
+    async def load_vod_categories(self) -> list[Category]:
+        self.calls += 1
+        return self.categories
+
+    async def load_series_categories(self) -> list[Category]:
+        self.calls += 1
         return self.categories
 
 
@@ -116,3 +125,20 @@ async def test_load_categories_returns_generic_failure_without_provider_details(
     assert response.categories == []
     assert response.error == "Unable to load categories"
     assert "credential" not in response.error
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("content_type", [ContentType.MOVIE, ContentType.SERIES])
+async def test_load_categories_dispatches_existing_non_live_category_families(
+    content_type: ContentType,
+) -> None:
+    provider = FakeCategoryProvider(
+        [Category(id="drama", name="Drama", provider_id=ProviderId("xtream-demo"))]
+    )
+
+    response = await LoadCategories(cast("ProviderResolverPort", FakeResolver(provider))).execute(
+        LoadCategoriesRequest(provider_id="xtream-demo", content_type=content_type)
+    )
+
+    assert [(item.id, item.name) for item in response.categories] == [("drama", "Drama")]
+    assert provider.calls == 1

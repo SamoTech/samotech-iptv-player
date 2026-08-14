@@ -5,11 +5,17 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from samotech_iptv.application.ports.provider_capabilities import (
+    CapabilityProvider,
     CatalogProvider,
     CategoryProvider,
     EPGProvider,
     PlaybackProvider,
     SearchProvider,
+    SeriesProvider,
+    VodProvider,
+)
+from samotech_iptv.application.ports.provider_content_resolver_port import (
+    ProviderContentResolverPort,
 )
 from samotech_iptv.application.ports.provider_resolver_port import ProviderResolverPort
 from samotech_iptv.core.exceptions import ProviderError
@@ -23,7 +29,7 @@ if TYPE_CHECKING:
 __all__ = ["ProviderResolutionService"]
 
 
-class ProviderResolutionService(ProviderResolverPort):
+class ProviderResolutionService(ProviderResolverPort, ProviderContentResolverPort):
     """Resolve a registered provider while keeping credentials inside infrastructure."""
 
     def __init__(
@@ -76,6 +82,27 @@ class ProviderResolutionService(ProviderResolverPort):
         provider = self._resolve(provider_id)
         if not isinstance(provider, EPGProvider):
             raise ProviderError("Provider does not support EPG")
+        return provider
+
+    def resolve_vod_provider(self, provider_id: str) -> VodProvider:
+        """Build the requested provider and verify VOD catalogue support."""
+        provider = self._resolve(provider_id)
+        if not isinstance(provider, VodProvider):
+            raise ProviderError("Provider does not support VOD browsing")
+        return provider
+
+    def resolve_series_provider(self, provider_id: str) -> SeriesProvider:
+        """Build the requested provider and verify series catalogue support."""
+        provider = self._resolve(provider_id)
+        if not isinstance(provider, SeriesProvider):
+            raise ProviderError("Provider does not support series browsing")
+        return provider
+
+    def resolve_capability_provider(self, provider_id: str) -> CapabilityProvider:
+        """Build the requested provider and read its executable capability declaration."""
+        provider = self._resolve(provider_id)
+        if not isinstance(provider, CapabilityProvider):
+            raise ProviderError("Provider does not expose capabilities")
         return provider
 
     def _resolve(self, provider_id: str) -> object:

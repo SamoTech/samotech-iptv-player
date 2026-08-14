@@ -14,12 +14,16 @@ from typing import TYPE_CHECKING
 
 from samotech_iptv.application.channel_catalogue_cache import ChannelCatalogueCache
 from samotech_iptv.application.use_cases.browse_channels import BrowseChannels
+from samotech_iptv.application.use_cases.browse_content import BrowseContent
 from samotech_iptv.application.use_cases.clear_history import ClearHistory
 from samotech_iptv.application.use_cases.configure_xmltv_binding import ConfigureXMLTVBinding
 from samotech_iptv.application.use_cases.list_favorites import ListFavorites
 from samotech_iptv.application.use_cases.list_providers import ListProviders
 from samotech_iptv.application.use_cases.load_categories import LoadCategories
 from samotech_iptv.application.use_cases.load_history import LoadHistory
+from samotech_iptv.application.use_cases.load_provider_capabilities import (
+    LoadProviderCapabilities,
+)
 from samotech_iptv.application.use_cases.load_registered_epg import LoadRegisteredEPG
 from samotech_iptv.application.use_cases.load_theme_preference import LoadThemePreference
 from samotech_iptv.application.use_cases.play_registered_channel import PlayRegisteredChannel
@@ -183,6 +187,8 @@ async def build_production_desktop_application(
         initial_theme=initial_theme,
         argv=argv,
         player=player,
+        browse_content=BrowseContent(provider_resolution_service),
+        load_provider_capabilities=LoadProviderCapabilities(provider_resolution_service),
     )
 
     async def close() -> None:
