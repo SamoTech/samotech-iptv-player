@@ -94,10 +94,6 @@ def build_desktop_application(
     initial_theme: ThemePreference = ThemePreference.SYSTEM,
     argv: Sequence[str] | None = None,
     player: PlayerPort | None = None,
-    list_favorites: ListFavorites | None = None,
-    remove_favorite: RemoveFavorite | None = None,
-    load_history: LoadHistory | None = None,
-    clear_history: ClearHistory | None = None,
 ) -> DesktopApplication:
     """Compose the Qt shell around externally configured registered-provider logic."""
     existing_application = QApplication.instance()
@@ -136,9 +132,5 @@ def build_desktop_application(
         pause_playback,
         resume_playback,
         stop_playback,
-        list_favorites=list_favorites,
-        remove_favorite=remove_favorite,
-        load_history=load_history,
-        clear_history=clear_history,
     )
     return DesktopApplication(application=application, main_window=main_window)

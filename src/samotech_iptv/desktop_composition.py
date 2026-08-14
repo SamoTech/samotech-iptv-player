@@ -183,10 +183,6 @@ async def build_production_desktop_application(
         initial_theme=initial_theme,
         argv=argv,
         player=player,
-        list_favorites=list_favorites,
-        remove_favorite=remove_favorite,
-        load_history=load_history,
-        clear_history=clear_history,
     )
 
     async def close() -> None:
