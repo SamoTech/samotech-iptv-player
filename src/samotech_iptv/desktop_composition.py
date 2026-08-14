@@ -163,10 +163,10 @@ async def build_production_desktop_application(
         PlayRegisteredChannel(provider_resolution_service, player, record_history),
         SearchRegisteredChannels(provider_resolution_service, catalogue_cache),
         SaveFavorite(favorite_repository),
-        ListFavorites(favorite_repository),
-        RemoveFavorite(favorite_repository),
-        LoadHistory(history_repository),
-        ClearHistory(history_repository),
+        list_favorites,
+        remove_favorite,
+        load_history,
+        clear_history,
         LoadRegisteredEPG(provider_resolution_service),
         ConfigureXMLTVBinding(provider_resolution_service, xmltv_binding_repository),
         RefreshXMLTVGuide(
@@ -183,10 +183,6 @@ async def build_production_desktop_application(
         initial_theme=initial_theme,
         argv=argv,
         player=player,
-        list_favorites=list_favorites,
-        remove_favorite=remove_favorite,
-        load_history=load_history,
-        clear_history=clear_history,
     )
 
     async def close() -> None:
