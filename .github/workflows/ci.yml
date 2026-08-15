@@ -24,8 +24,29 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v4
 
+      - name: Install Qt offscreen runtime dependency
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends libegl1
+
       - name: Install dependencies
         run: uv sync --extra dev
+
+      - name: Verify PySide6 offscreen runtime
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: >
+          uv run python -c "from PySide6.QtGui import QKeyEvent;
+          from PySide6.QtWidgets import QApplication, QLabel;
+          app = QApplication([]); print('pyside6_offscreen_import=PASS'); app.quit()"
+
+      - name: Run native Qt probes
+        env:
+          QT_QPA_PLATFORM: offscreen
+          PYTHONPATH: src
+        run: |
+          uv run python tests/player_shell_native_probe.py
+          uv run python tests/player_shell_performance_probe.py
 
       - name: Ruff lint
         run: uv run ruff check src/ tests/ providers/
