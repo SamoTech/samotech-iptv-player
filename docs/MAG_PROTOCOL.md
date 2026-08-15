@@ -46,6 +46,14 @@ The supplied real portal remains **UNRESOLVED** for compatibility. After the ded
 
 Diagnostics include only safe endpoint paths, methods, statuses, content types, response sizes, elapsed timing, redirect counts, selected response headers (`Server`, `Allow`, and `WWW-Authenticate` presence), and classifications. MAC addresses, passwords, tokens, cookies, Authorization headers, credential-bearing URLs, payloads, and resolved stream URLs are not logged.
 
+## Catalogue response-boundary diagnostics
+
+Catalogue requests now emit three safe, aggregate-only response-boundary records. `CATALOGUE_HTTP_RESPONSE` is written after response headers arrive and records the attempt, active total timeout, HTTP status, content type, declared content length, transfer encoding, and elapsed time. `CATALOGUE_BODY_COMPLETE` is written only after the complete body has been collected and records the received byte count, chunk count, first and last body-byte timing, and body elapsed time.
+
+If body collection does not complete, `CATALOGUE_BODY_INCOMPLETE` records only the same safe response metadata when available, aggregate received bytes and chunk count, first-body-byte timing, last-chunk age, body elapsed time, and one classification: `TIMEOUT`, `PAYLOAD_ERROR`, or `NETWORK_ERROR`. A pre-response failure uses explicit `<none>` placeholders for unavailable response metadata; a partial body is never parsed or accepted as a catalogue.
+
+This instrumentation retains the existing configured timeout object, retry count, retry delays, request construction, endpoints, authentication state machine, response acceptance rules, and provider/session lifecycle. It replaces `response.read()` with ordered aggregate chunk collection so incomplete-body progress is observable while successful JSON decoding receives the same complete byte sequence. The diagnostics are evidence collection only: they do not prove a provider is slow, a response is truncated, or Windows lifecycle behavior is correct without repeated authorized runtime measurements.
+
 ## References
 
 [1]: https://wiki.infomir.eu/eng/ministra-tv-platform/changelog/stalker-middleware-4-8 "Infomir Stalker Middleware changelog"

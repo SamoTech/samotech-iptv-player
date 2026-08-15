@@ -260,6 +260,16 @@ class MAGSession:
             params=request.params,
             headers={**request.headers, **self._request_headers()},
             base_url=request.base_url,
+            diagnostic_stage=(
+                "CATALOGUE"
+                if operation
+                in {
+                    MAGOperation.CHANNELS,
+                    MAGOperation.LIVE_GENRES,
+                    MAGOperation.LIVE_ORDERED_LIST,
+                }
+                else "AUTHENTICATED_REQUEST"
+            ),
         )
 
     async def close(self) -> None:

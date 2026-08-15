@@ -29,6 +29,8 @@ from .constants import (
 
 log = logging.getLogger(__name__)
 
+_BODY_READ_CHUNK_SIZE = 64 * 1024
+
 
 @dataclass(frozen=True, repr=False)
 class MAGProbeResponse:
@@ -121,10 +123,17 @@ class MAGConnection:
         params: Mapping[str, str | int] | None = None,
         headers: dict[str, str] | None = None,
         base_url: str | None = None,
+        diagnostic_stage: str = "AUTHENTICATION",
     ) -> JSON:
         """Issue an authenticated GET relative to the configured or approved profile base."""
         url = _sanitise_url(base_url or self._portal_url, path)
-        return await self._request_with_retry("GET", url, params=params, headers=headers)
+        return await self._request_with_retry(
+            "GET",
+            url,
+            params=params,
+            headers=headers,
+            diagnostic_stage=diagnostic_stage,
+        )
 
     async def post(
         self,
@@ -133,14 +142,17 @@ class MAGConnection:
         data: Mapping[str, str | int] | None = None,
         headers: dict[str, str] | None = None,
         base_url: str | None = None,
+        diagnostic_stage: str = "AUTHENTICATION",
     ) -> JSON:
         """Issue one authenticated form POST relative to an approved profile base."""
         url = _sanitise_url(base_url or self._portal_url, path)
         return await self._request_with_retry(
             "POST",
             url,
+            params=None,
             data={key: str(value) for key, value in (data or {}).items()},
             headers=headers,
+            diagnostic_stage=diagnostic_stage,
         )
 
     async def probe(
@@ -251,6 +263,7 @@ class MAGConnection:
         params: Mapping[str, str | int] | None = None,
         data: Mapping[str, str | int] | None = None,
         headers: dict[str, str] | None = None,
+        diagnostic_stage: str,
     ) -> JSON:
         session = self._session
         if session is None or session.closed:
@@ -259,6 +272,8 @@ class MAGConnection:
         delay = RETRY_BASE_DELAY
         last_exc: Exception | None = None
         for attempt in range(1, self._max_retries + 1):
+            request_started = time.perf_counter()
+            body_failure_logged = False
             try:
                 log.debug(
                     "%s %s (attempt %d/%d)",
@@ -275,10 +290,115 @@ class MAGConnection:
                     headers=headers,
                     allow_redirects=True,
                 ) as response:
-                    body = await response.read()
                     content_type = response.headers.get("Content-Type", "").split(";", 1)[0]
                     safe_path = urlparse(url).path or "/"
+                    content_length = getattr(response, "content_length", None)
+                    transfer_encoding = (
+                        "chunked"
+                        if "chunked" in response.headers.get("Transfer-Encoding", "").casefold()
+                        else "identity"
+                    )
+                    log.info(
+                        "[IPTV] PROVIDER=MAG OPERATION=HTTP_REQUEST STAGE=%s_HTTP_RESPONSE "
+                        "METHOD=%s PATH=%s ATTEMPT=%d/%d TOTAL_TIMEOUT=%ss HTTP_STATUS=%d "
+                        "CONTENT_TYPE=%s CONTENT_LENGTH=%s TRANSFER_ENCODING=%s "
+                        "ELAPSED=%.3fs RESULT=STARTED",
+                        diagnostic_stage,
+                        method,
+                        safe_path,
+                        attempt,
+                        self._max_retries,
+                        self._timeout.total if self._timeout.total is not None else "<none>",
+                        response.status,
+                        content_type or "<missing>",
+                        content_length if content_length is not None else "<missing>",
+                        transfer_encoding,
+                        time.perf_counter() - request_started,
+                    )
+                    body = bytearray()
+                    chunk_count = 0
+                    first_chunk_elapsed: float | None = None
+                    last_chunk_elapsed: float | None = None
+                    try:
+                        async for chunk in response.content.iter_chunked(_BODY_READ_CHUNK_SIZE):
+                            if not chunk:
+                                continue
+                            chunk_elapsed = time.perf_counter() - request_started
+                            if first_chunk_elapsed is None:
+                                first_chunk_elapsed = chunk_elapsed
+                            last_chunk_elapsed = chunk_elapsed
+                            body.extend(chunk)
+                            chunk_count += 1
+                    except (TimeoutError, aiohttp.ClientError) as exc:
+                        body_failure_logged = True
+                        error_kind = (
+                            "TIMEOUT"
+                            if isinstance(exc, TimeoutError)
+                            else (
+                                "PAYLOAD_ERROR"
+                                if isinstance(exc, aiohttp.ClientPayloadError)
+                                else "NETWORK_ERROR"
+                            )
+                        )
+                        elapsed = time.perf_counter() - request_started
+                        last_chunk_age = (
+                            elapsed - last_chunk_elapsed if last_chunk_elapsed is not None else None
+                        )
+                        log.warning(
+                            "[IPTV] PROVIDER=MAG OPERATION=HTTP_REQUEST STAGE=%s_BODY_INCOMPLETE "
+                            "METHOD=%s PATH=%s ATTEMPT=%d/%d TOTAL_TIMEOUT=%ss HTTP_STATUS=%d "
+                            "CONTENT_TYPE=%s CONTENT_LENGTH=%s TRANSFER_ENCODING=%s "
+                            "RECEIVED_BYTES=%d CHUNKS=%d "
+                            "FIRST_BODY_BYTE=%s LAST_CHUNK_AGE=%s BODY_ELAPSED=%.3fs "
+                            "RESULT=FAIL ERROR=%s",
+                            diagnostic_stage,
+                            method,
+                            safe_path,
+                            attempt,
+                            self._max_retries,
+                            self._timeout.total if self._timeout.total is not None else "<none>",
+                            response.status,
+                            content_type or "<missing>",
+                            content_length if content_length is not None else "<missing>",
+                            transfer_encoding,
+                            len(body),
+                            chunk_count,
+                            (
+                                f"{first_chunk_elapsed:.3f}s"
+                                if first_chunk_elapsed is not None
+                                else "<none>"
+                            ),
+                            f"{last_chunk_age:.3f}s" if last_chunk_age is not None else "<none>",
+                            elapsed,
+                            error_kind,
+                        )
+                        raise
                     response_size = len(body)
+                    log.info(
+                        "[IPTV] PROVIDER=MAG OPERATION=HTTP_REQUEST STAGE=%s_BODY_COMPLETE "
+                        "METHOD=%s PATH=%s ATTEMPT=%d/%d TOTAL_TIMEOUT=%ss RESPONSE_BYTES=%d "
+                        "CHUNKS=%d FIRST_BODY_BYTE=%s LAST_BODY_BYTE=%s BODY_ELAPSED=%.3fs "
+                        "RESULT=RECEIVED",
+                        diagnostic_stage,
+                        method,
+                        safe_path,
+                        attempt,
+                        self._max_retries,
+                        self._timeout.total if self._timeout.total is not None else "<none>",
+                        response_size,
+                        chunk_count,
+                        (
+                            f"{first_chunk_elapsed:.3f}s"
+                            if first_chunk_elapsed is not None
+                            else "<none>"
+                        ),
+                        (
+                            f"{last_chunk_elapsed:.3f}s"
+                            if last_chunk_elapsed is not None
+                            else "<none>"
+                        ),
+                        time.perf_counter() - request_started,
+                    )
                     if response.status >= 400:
                         log.warning(
                             "[IPTV] PROVIDER=MAG OPERATION=HTTP_REQUEST STAGE=AUTHENTICATION "
@@ -337,6 +457,31 @@ class MAGConnection:
                 log.warning("HTTP %d on attempt %d — %s", exc.status, attempt, exc.message)
                 last_exc = exc
             except (TimeoutError, aiohttp.ClientError) as exc:
+                error_kind = (
+                    "TIMEOUT"
+                    if isinstance(exc, TimeoutError)
+                    else (
+                        "PAYLOAD_ERROR"
+                        if isinstance(exc, aiohttp.ClientPayloadError)
+                        else "NETWORK_ERROR"
+                    )
+                )
+                if not body_failure_logged:
+                    log.warning(
+                        "[IPTV] PROVIDER=MAG OPERATION=HTTP_REQUEST STAGE=%s_BODY_INCOMPLETE "
+                        "METHOD=%s PATH=%s ATTEMPT=%d/%d TOTAL_TIMEOUT=%ss HTTP_STATUS=<none> "
+                        "CONTENT_TYPE=<none> CONTENT_LENGTH=<none> TRANSFER_ENCODING=<none> "
+                        "RECEIVED_BYTES=0 CHUNKS=0 FIRST_BODY_BYTE=<none> "
+                        "LAST_CHUNK_AGE=<none> BODY_ELAPSED=%.3fs RESULT=FAIL ERROR=%s",
+                        diagnostic_stage,
+                        method,
+                        urlparse(url).path or "/",
+                        attempt,
+                        self._max_retries,
+                        self._timeout.total if self._timeout.total is not None else "<none>",
+                        time.perf_counter() - request_started,
+                        error_kind,
+                    )
                 log.warning("Network error on attempt %d: %s", attempt, exc)
                 last_exc = exc
 

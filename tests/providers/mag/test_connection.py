@@ -1,7 +1,10 @@
 """Unit tests for MAGConnection."""
 
+import asyncio
+import logging
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import aiohttp
 import pytest
 from providers.base.errors import NetworkError
 from providers.mag.connection import MAGConnection, _sanitise_url
@@ -28,11 +31,32 @@ async def test_open_creates_session() -> None:
         assert conn._session is mock_sess
 
 
+class _BodyContent:
+    def __init__(self, chunks: list[bytes], error: Exception | None = None) -> None:
+        self._chunks = chunks
+        self._error = error
+
+    async def iter_chunked(self, _: int) -> object:
+        for chunk in self._chunks:
+            await asyncio.sleep(0)
+            yield chunk
+        if self._error is not None:
+            raise self._error
+
+
 class _Response:
-    def __init__(self, body: bytes, *, content_type: str = "text/javascript") -> None:
+    def __init__(
+        self,
+        body: bytes,
+        *,
+        content_type: str = "text/javascript",
+        transfer_encoding: str = "",
+    ) -> None:
         self.status = 200
-        self.headers = {"Content-Type": content_type}
+        self.headers = {"Content-Type": content_type, "Transfer-Encoding": transfer_encoding}
+        self.content_length = len(body)
         self._body = body
+        self.content = _BodyContent([body] if body else [])
 
     async def __aenter__(self) -> "_Response":
         return self
@@ -47,13 +71,58 @@ class _Response:
         return None
 
 
+class _TimedOutResponse(_Response):
+    def __init__(self, body: bytes = b"") -> None:
+        super().__init__(body)
+        self.content = _BodyContent([body] if body else [], TimeoutError())
+
+
+class _PartialTimedOutResponse(_Response):
+    def __init__(self, body: bytes, declared_length: int) -> None:
+        super().__init__(body)
+        self.content_length = declared_length
+        self.content = _BodyContent([body], TimeoutError())
+
+
+class _PartialPayloadErrorResponse(_Response):
+    def __init__(self, body: bytes) -> None:
+        super().__init__(body)
+        self.content = _BodyContent([body], aiohttp.ClientPayloadError("synthetic payload error"))
+
+
 class _Session:
     def __init__(self, response: _Response) -> None:
         self.response = response
         self.closed = False
+        self.request_count = 0
 
     def request(self, *_: object, **__: object) -> _Response:
+        self.request_count += 1
         return self.response
+
+
+class _NetworkErrorSession:
+    closed = False
+
+    def request(self, *_: object, **__: object) -> _Response:
+        raise aiohttp.ClientConnectionError("synthetic network error")
+
+
+@pytest.mark.asyncio
+async def test_post_preserves_the_sanitised_request_url() -> None:
+    conn = MAGConnection("https://portal.example.test/c/")
+    request = AsyncMock(return_value={"js": {}})
+    with patch.object(conn, "_request_with_retry", request):
+        await conn.post("/portal.php", diagnostic_stage="CATALOGUE")
+
+    request.assert_awaited_once_with(
+        "POST",
+        "https://portal.example.test/c/portal.php",
+        params=None,
+        data={},
+        headers=None,
+        diagnostic_stage="CATALOGUE",
+    )
 
 
 @pytest.mark.asyncio
@@ -71,6 +140,152 @@ async def test_json_response_is_returned_without_logging_payload(
     messages = " ".join(record.getMessage() for record in caplog.records)
     assert "secret-token" not in messages
     assert "portal.example.test" not in messages
+
+
+@pytest.mark.asyncio
+async def test_catalogue_response_logs_safe_completion_metadata(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level(logging.INFO, logger="providers.mag.connection")
+    conn = MAGConnection("https://portal.example.test/c/")
+    conn._session = _Session(
+        _Response(
+            b'{"js":{"data":[]}}',
+            content_type="application/json",
+            transfer_encoding="chunked",
+        )
+    )
+
+    result = await conn.get("/portal.php", diagnostic_stage="CATALOGUE")
+
+    assert result == {"js": {"data": []}}
+    messages = " ".join(record.getMessage() for record in caplog.records)
+    assert "STAGE=CATALOGUE_HTTP_RESPONSE" in messages
+    assert "ATTEMPT=1/3" in messages
+    assert "TOTAL_TIMEOUT=30s" in messages
+    assert "CONTENT_LENGTH=18" in messages
+    assert "TRANSFER_ENCODING=chunked" in messages
+    assert "STAGE=CATALOGUE_BODY_COMPLETE" in messages
+    assert "RESPONSE_BYTES=18" in messages
+    assert "CHUNKS=1" in messages
+    assert "portal.example.test" not in messages
+
+
+@pytest.mark.asyncio
+async def test_catalogue_body_timeout_is_classified_without_sensitive_context(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level(logging.WARNING, logger="providers.mag.connection")
+    conn = MAGConnection("https://portal.example.test/c/", max_retries=1)
+    conn._session = _Session(_TimedOutResponse(b""))
+
+    with pytest.raises(NetworkError, match="failed after 1 attempts"):
+        await conn.get("/portal.php", diagnostic_stage="CATALOGUE")
+
+    messages = " ".join(record.getMessage() for record in caplog.records)
+    assert "STAGE=CATALOGUE_BODY_INCOMPLETE" in messages
+    assert "ERROR=TIMEOUT" in messages
+    assert "ATTEMPT=1/1" in messages
+    assert "TOTAL_TIMEOUT=30s" in messages
+    assert "RECEIVED_BYTES=0" in messages
+    assert "portal.example.test" not in messages
+
+
+@pytest.mark.asyncio
+async def test_catalogue_partial_body_timeout_logs_aggregate_progress_without_payload(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level(logging.WARNING, logger="providers.mag.connection")
+    conn = MAGConnection("https://portal.example.test/c/", max_retries=1)
+    conn._session = _Session(_PartialTimedOutResponse(b"partial", declared_length=64))
+
+    with pytest.raises(NetworkError, match="failed after 1 attempts"):
+        await conn.get("/portal.php", diagnostic_stage="CATALOGUE")
+
+    messages = " ".join(record.getMessage() for record in caplog.records)
+    assert "STAGE=CATALOGUE_BODY_INCOMPLETE" in messages
+    assert "CONTENT_LENGTH=64" in messages
+    assert "ATTEMPT=1/1" in messages
+    assert "TOTAL_TIMEOUT=30s" in messages
+    assert "RECEIVED_BYTES=7" in messages
+    assert "CHUNKS=1" in messages
+    assert "FIRST_BODY_BYTE=" in messages
+    assert "LAST_CHUNK_AGE=" in messages
+    assert "partial" not in messages
+    assert "portal.example.test" not in messages
+
+
+@pytest.mark.asyncio
+async def test_catalogue_payload_error_is_classified_without_sensitive_context(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level(logging.WARNING, logger="providers.mag.connection")
+    conn = MAGConnection("https://portal.example.test/c/", max_retries=1)
+    conn._session = _Session(_PartialPayloadErrorResponse(b"partial"))
+
+    with pytest.raises(NetworkError, match="failed after 1 attempts"):
+        await conn.get("/portal.php", diagnostic_stage="CATALOGUE")
+
+    messages = " ".join(record.getMessage() for record in caplog.records)
+    assert "STAGE=CATALOGUE_BODY_INCOMPLETE" in messages
+    assert "ERROR=PAYLOAD_ERROR" in messages
+    assert "RECEIVED_BYTES=7" in messages
+    assert "partial" not in messages
+    assert "portal.example.test" not in messages
+
+
+@pytest.mark.asyncio
+async def test_catalogue_pre_response_network_error_logs_safe_aggregate_placeholders(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level(logging.WARNING, logger="providers.mag.connection")
+    conn = MAGConnection("https://portal.example.test/c/", max_retries=1)
+    conn._session = _NetworkErrorSession()
+
+    with pytest.raises(NetworkError, match="failed after 1 attempts"):
+        await conn.get("/portal.php", diagnostic_stage="CATALOGUE")
+
+    messages = " ".join(record.getMessage() for record in caplog.records)
+    assert "STAGE=CATALOGUE_BODY_INCOMPLETE" in messages
+    assert "ERROR=NETWORK_ERROR" in messages
+    assert "HTTP_STATUS=<none>" in messages
+    assert "RECEIVED_BYTES=0" in messages
+    assert "portal.example.test" not in messages
+
+
+@pytest.mark.asyncio
+async def test_catalogue_timeout_retries_the_configured_request_count() -> None:
+    conn = MAGConnection("https://portal.example.test/c/", max_retries=3)
+    session = _Session(_TimedOutResponse())
+    conn._session = session
+
+    with patch("providers.mag.connection.asyncio.sleep", new=AsyncMock()):
+        with pytest.raises(NetworkError, match="failed after 3 attempts"):
+            await conn.get("/portal.php", diagnostic_stage="CATALOGUE")
+
+    assert session.request_count == 3
+
+
+@pytest.mark.asyncio
+async def test_catalogue_chunked_body_completes_after_multiple_progressing_chunks(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level(logging.INFO, logger="providers.mag.connection")
+    response = _Response(b'{"js":{"data":[]}}', transfer_encoding="chunked")
+    response.content = _BodyContent([b'{"js":', b'{"data":[]}}'])
+    conn = MAGConnection("https://portal.example.test/c/")
+    conn._session = _Session(response)
+
+    result = await conn.get("/portal.php", diagnostic_stage="CATALOGUE")
+
+    assert result == {"js": {"data": []}}
+    messages = " ".join(record.getMessage() for record in caplog.records)
+    assert "STAGE=CATALOGUE_BODY_COMPLETE" in messages
+    assert "ATTEMPT=1/3" in messages
+    assert "TOTAL_TIMEOUT=30s" in messages
+    assert "CHUNKS=2" in messages
+    assert "FIRST_BODY_BYTE=" in messages
+    assert "LAST_BODY_BYTE=" in messages
 
 
 @pytest.mark.asyncio

@@ -148,7 +148,7 @@ python -m samotech_iptv
 
 The entry point composes safe local state, restores registered provider metadata, loads the theme, starts the qasync runtime, and closes the shared HTTP resource when the window loop exits. Startup failures are reported generically so exception details do not expose provider information. A standalone installer, auto-updater, crash-reporting policy, and release distribution remain future work.
 
-### Windows development diagnostics
+### Windows development and safe MAG transport diagnostics
 
 For a detailed, timed provider-operation trace in PowerShell, enable the existing debug configuration before launching:
 
@@ -163,6 +163,15 @@ With debug enabled, the console shows provider operation stages, elapsed timing,
 $env:IPTV_DEBUG="0"
 samotech-iptv
 ```
+
+For an authorized MAG catalogue measurement, `INFO` logging is sufficient to emit three aggregate-only transport records: `CATALOGUE_HTTP_RESPONSE` after response headers, `CATALOGUE_BODY_COMPLETE` after the full body, and `CATALOGUE_BODY_INCOMPLETE` when collection fails. They include only attempt/timeout metadata, HTTP metadata, aggregate byte and chunk counts, body timing, and a `TIMEOUT`, `PAYLOAD_ERROR`, or `NETWORK_ERROR` classification. They never include portal URLs, MAC identities, tokens, cookies, authorization headers, credentials, response bodies, or stream URLs.
+
+```powershell
+$env:IPTV_LOG_LEVEL="INFO"
+python -m samotech_iptv
+```
+
+Perform one normal catalogue load in the application, then collect only those `CATALOGUE_*` records together with the existing safe catalogue shape/parse and `MAG LOAD_CHANNELS` lines. Reset the process-local diagnostic level or close the PowerShell window when finished. The records establish response-boundary facts only; do not infer a provider or qasync root cause from a single run.
 
 ## Project structure
 

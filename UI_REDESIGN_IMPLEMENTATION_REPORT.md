@@ -949,3 +949,63 @@ Phase 9 is a contract and controlled-discovery increment, not non-live product d
 | Push method | Normal `git push origin main`; no force push, reset, amend, or history rewrite. |
 | Remote verification | `HEAD` and `origin/main` both resolved to `ade9c1e7545bcedd56307269bc842afe64c36c41`; ahead/behind was `0/0` immediately after push. |
 | Post-push worktree | Clean immediately after the implementation push. A report-only follow-up commit is required to include this final delivery record in the consolidated report. |
+
+---
+
+## 12. MAG Catalogue Response-Boundary Diagnostic Release
+
+### 12.1 Purpose and evidence gate
+
+This increment makes the previously reviewed MAG response-boundary instrumentation part of the canonical source tree. It is **diagnostic-only**. It does not attempt to cure the intermittent catalogue timeout or suppress Windows `WinError 995`; both require repeated authorized runtime evidence after this release is available on `origin/main`.
+
+The source/runtime reconciliation established that the earlier Windows process used the expected project virtual environment and imported `providers.mag.connection` from the expected project directory, but the executed source predated the uncommitted diagnostic markers. The absence of the markers therefore identified a source-revision mismatch rather than an HTTP, provider, or qasync root cause.
+
+### 12.2 Exact diagnostic behavior
+
+| Record | Emission boundary | Safe fields |
+|---|---|---|
+| `CATALOGUE_HTTP_RESPONSE` | Response headers are available, before body collection | Attempt, active total timeout, HTTP status, content type, declared content length, transfer encoding, and elapsed time. |
+| `CATALOGUE_BODY_COMPLETE` | The full ordered response body is collected, before existing status/empty/JSON handling | Response byte count, chunk count, first and last body-byte timing, and body elapsed time. |
+| `CATALOGUE_BODY_INCOMPLETE` | Body collection fails, or a request fails before a response exists | Available response metadata, aggregate received bytes/chunks, first-body-byte timing, last-chunk age, body elapsed time, and `TIMEOUT`, `PAYLOAD_ERROR`, or `NETWORK_ERROR`. Unavailable pre-response fields are explicit `<none>` values. |
+
+`response.read()` is replaced by ordered `iter_chunked()` collection into one `bytearray`. Successful JSON decoding still receives the complete body in byte order. Partial bodies raise through the existing retry/error path and are never parsed or accepted. Existing malformed JSON and empty response behavior remains strict.
+
+The release does not intentionally change timeout values, retry count or delays, profile selection, endpoints, authentication, response acceptance rules, provider configuration, playback, VLC, UI behavior, or qasync/session shutdown behavior. Its three touched runtime paths are limited to the legacy MAG transport, catalogue-stage tagging from the legacy session, and deterministic regression tests. The logs include endpoint paths but never full portal URLs, device identities, tokens, cookies, authorization headers, credentials, response bodies, or stream URLs.
+
+### 12.3 Deterministic validation
+
+| Gate | Result |
+|---|---|
+| Focused MAG provider, adapter, and integration regressions | **PASS**; includes response-boundary completion/incomplete-body, redaction, retry-count, POST-routing, session, profile, stream, and adapter coverage. |
+| Full offscreen pytest regression | **PASS**; exited successfully. Four existing `aiohttp` bare-handler deprecation warnings remain non-fatal. |
+| `black --check src tests providers` | **PASS**; 326 files unchanged. |
+| `ruff check src tests providers` | **PASS**. |
+| `mypy src` | **PASS**; no issues in 200 source files. |
+| `git diff --check` | **PASS** before documentation finalization; rerun before commit. |
+
+### 12.4 Next authorized Windows measurement
+
+After updating from the canonical commit recorded below, use the source-installed virtual environment and launch one normal catalogue load with process-local INFO logging:
+
+```powershell
+Set-Location 'C:\samotech-iptv-player'
+$py = 'C:\samotech-iptv-player\.venv\Scripts\python.exe'
+$priorLogLevel = $env:IPTV_LOG_LEVEL
+$env:IPTV_LOG_LEVEL = 'INFO'
+try {
+    & $py -m samotech_iptv
+}
+finally {
+    $env:IPTV_LOG_LEVEL = $priorLogLevel
+}
+```
+
+Collect only `CATALOGUE_HTTP_RESPONSE`, `CATALOGUE_BODY_COMPLETE`, `CATALOGUE_BODY_INCOMPLETE`, `CATALOGUE SHAPE`, `CATALOGUE PARSED`, and `MAG LOAD_CHANNELS` lines. Do not include any portal URL, provider identity, MAC address, token, cookie, authorization header, credential, response body, stream URL, or personal data. Run five consecutive loads with unchanged provider configuration before selecting a runtime classification. No timeout or lifecycle repair is justified by this release alone.
+
+### 12.5 Delivery record
+
+| Field | Value |
+|---|---|
+| Commit | `test(mag): add safe catalogue transport diagnostics`; the immutable commit ID is reported after the final amend and normal push because a Git commit cannot self-reference its own content hash. |
+| Commit scope | Safe MAG transport diagnostics, deterministic tests, and directly related MAG/README/changelog/consolidated-report documentation only. |
+| Push status | Pending the required normal `git push origin main` and remote verification. |
