@@ -55,6 +55,29 @@ def test_player_shell_39753_channel_performance_probe() -> None:
     assert payload["dynamic_catalogue_results"]["10"]["no_match_rows"] == 0
     assert payload["dynamic_catalogue_results"]["17431"]["clear_search_rows"] == 17_431
     assert payload["dynamic_catalogue_results"]["100000"]["clear_search_rows"] == 100_000
+    for content_type in ("movie", "series"):
+        family = payload["dynamic_content_results"][content_type]
+        assert list(family) == [
+            "0",
+            "1",
+            "10",
+            "100",
+            "500",
+            "1000",
+            "5000",
+            "17431",
+            "39753",
+            "100000",
+        ]
+        assert family["0"]["clear_search_rows"] == 0
+        assert family["10"]["no_match_rows"] == 0
+        assert family["17431"]["clear_search_rows"] == 17_431
+        assert family["100000"]["clear_search_rows"] == 100_000
+        assert family["100000"]["first_middle_last_identity"] == [
+            f"{content_type}-00001",
+            f"{content_type}-50001",
+            f"{content_type}-100000",
+        ]
     assert payload["resolver_calls"] == 0
     assert payload["provider_search_calls"] == 0
     assert payload["catalogue_reload_calls"] == 0

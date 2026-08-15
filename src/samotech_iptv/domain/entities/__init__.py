@@ -18,6 +18,7 @@ from samotech_iptv.domain.entities.history import History
 from samotech_iptv.domain.entities.movie import Movie
 from samotech_iptv.domain.entities.playlist import Playlist
 from samotech_iptv.domain.entities.provider import Provider
+from samotech_iptv.domain.entities.season import Season
 from samotech_iptv.domain.entities.series import Series
 from samotech_iptv.domain.entities.stream import Stream
 from samotech_iptv.domain.entities.xmltv_binding import XMLTVBinding, XMLTVChannelMapping
@@ -28,6 +29,7 @@ __all__ = [
     "Playlist",
     "Movie",
     "Series",
+    "Season",
     "Episode",
     "Stream",
     "Provider",

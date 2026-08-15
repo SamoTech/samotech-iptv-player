@@ -32,6 +32,11 @@ from samotech_iptv.application.use_cases.search_channels import SearchChannels
 from samotech_iptv.application.use_cases.search_registered_channels import (
     SearchRegisteredChannels,
 )
+from samotech_iptv.application.use_cases.series_discovery import (
+    DiscoveryAttemptRegistry,
+    LoadSeasonEpisodes,
+    LoadSeriesSeasons,
+)
 from samotech_iptv.application.use_cases.start_recording import StartRecording
 from samotech_iptv.application.use_cases.stop_recording import StopRecording
 
@@ -44,6 +49,9 @@ __all__ = [
     "LoadCategories",
     "LoadEPG",
     "LoadRegisteredEPG",
+    "DiscoveryAttemptRegistry",
+    "LoadSeriesSeasons",
+    "LoadSeasonEpisodes",
     "LoadThemePreference",
     "ResolveStream",
     "PlayChannel",

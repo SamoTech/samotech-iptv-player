@@ -5,8 +5,8 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING
 
-from PySide6.QtGui import QAction  # type: ignore[import-not-found]
-from PySide6.QtWidgets import QMainWindow  # type: ignore[import-not-found]
+from PySide6.QtGui import QAction
+from PySide6.QtWidgets import QMainWindow
 
 from samotech_iptv.presentation.widgets.vlc_video_surface import VlcVideoSurface
 
@@ -74,7 +74,7 @@ if TYPE_CHECKING:
 __all__ = ["MainWindow"]
 
 
-class MainWindow(QMainWindow):  # type: ignore[misc]
+class MainWindow(QMainWindow):
     """Own the Qt video surface and delegate playback to application orchestration."""
 
     def __init__(

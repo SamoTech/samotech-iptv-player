@@ -5,16 +5,23 @@ from typing import TYPE_CHECKING
 import pytest
 
 from samotech_iptv.application.ports.provider_capabilities import (
+    CapabilityProvider,
     CatalogProvider,
     CategoryProvider,
     EPGProvider,
+    EpisodePlaybackProvider,
+    MoviePlaybackProvider,
     PlaybackProvider,
     SearchProvider,
+    SeriesDetailProvider,
 )
 from samotech_iptv.core.exceptions import ProviderError
 from samotech_iptv.domain.entities.category import Category
 from samotech_iptv.domain.entities.channel import Channel
+from samotech_iptv.domain.entities.episode import Episode
+from samotech_iptv.domain.entities.season import Season
 from samotech_iptv.domain.value_objects.channel_id import ChannelId
+from samotech_iptv.domain.value_objects.provider_capability import ProviderCapability
 from samotech_iptv.domain.value_objects.provider_id import ProviderId
 from samotech_iptv.domain.value_objects.stream_id import StreamId
 from samotech_iptv.domain.value_objects.url import URL
@@ -103,6 +110,59 @@ class FakeAllCapabilitiesProvider(
         return []
 
 
+class FakeNonLiveCapabilityProvider(
+    CapabilityProvider,
+    MoviePlaybackProvider,
+    SeriesDetailProvider,
+    EpisodePlaybackProvider,
+):
+    """Fake provider proving new non-live seams require declared capabilities."""
+
+    def supported_capabilities(self) -> frozenset[ProviderCapability]:
+        return frozenset(
+            {
+                ProviderCapability.MOVIE_PLAYBACK,
+                ProviderCapability.SERIES_DETAILS,
+                ProviderCapability.EPISODE_PLAYBACK,
+            }
+        )
+
+    async def resolve_movie_stream(self, _: str, __: str) -> URL:
+        return URL("https://example.invalid/movie")
+
+    async def load_seasons(self, series_id: str) -> list[Season]:
+        return [
+            Season(
+                id=f"nonlive-demo:{series_id}:season-1",
+                provider_id=ProviderId("nonlive-demo"),
+                series_id=series_id,
+                number=1,
+            )
+        ]
+
+    async def load_episodes(self, series_id: str, season_number: int) -> list[Episode]:
+        return [
+            Episode(
+                id=f"nonlive-demo:{series_id}:season-{season_number}:episode-1",
+                series_id=series_id,
+                title="Episode 1",
+                stream_id=StreamId("episode-resource-1"),
+                season=season_number,
+                episode_number=1,
+            )
+        ]
+
+    async def resolve_episode_stream(self, _: str, __: str) -> URL:
+        return URL("https://example.invalid/episode")
+
+
+class FakeUndeclaredNonLiveProvider(FakeNonLiveCapabilityProvider):
+    """A structural implementation that must remain unsupported without declarations."""
+
+    def supported_capabilities(self) -> frozenset[ProviderCapability]:
+        return frozenset()
+
+
 def test_resolver_reuses_one_provider_across_all_capabilities() -> None:
     registry = ProviderRegistry()
     registry.register(
@@ -134,6 +194,58 @@ def test_resolver_reuses_one_provider_across_all_capabilities() -> None:
 
     assert all(item is provider for item in resolved)
     assert construction_count == 1
+
+
+def test_resolver_reuses_one_declared_provider_for_all_new_nonlive_capabilities() -> None:
+    registry = ProviderRegistry()
+    registry.register(
+        InfraProviderMetadata(
+            provider_id="nonlive-demo",
+            provider_type="nonlive",
+            base_url="https://example.invalid",
+        )
+    )
+    factory = ProviderFactory()
+    provider = FakeNonLiveCapabilityProvider()
+    construction_count = 0
+
+    def build(_: InfraProviderMetadata, **__: object) -> FakeNonLiveCapabilityProvider:
+        nonlocal construction_count
+        construction_count += 1
+        return provider
+
+    factory.register_type("nonlive", build)
+    resolver = ProviderResolutionService(registry, factory, object())  # type: ignore[arg-type]
+
+    resolved = [
+        resolver.resolve_movie_playback_provider("nonlive-demo"),
+        resolver.resolve_series_detail_provider("nonlive-demo"),
+        resolver.resolve_episode_playback_provider("nonlive-demo"),
+    ]
+
+    assert all(item is provider for item in resolved)
+    assert construction_count == 1
+
+
+def test_resolver_rejects_new_nonlive_interfaces_without_runtime_declarations() -> None:
+    registry = ProviderRegistry()
+    registry.register(
+        InfraProviderMetadata(
+            provider_id="undeclared-demo",
+            provider_type="undeclared",
+            base_url="https://example.invalid",
+        )
+    )
+    factory = ProviderFactory()
+    factory.register_type("undeclared", lambda _, **__: FakeUndeclaredNonLiveProvider())
+    resolver = ProviderResolutionService(registry, factory, object())  # type: ignore[arg-type]
+
+    with pytest.raises(ProviderError, match="does not support movie playback"):
+        resolver.resolve_movie_playback_provider("undeclared-demo")
+    with pytest.raises(ProviderError, match="does not support series details"):
+        resolver.resolve_series_detail_provider("undeclared-demo")
+    with pytest.raises(ProviderError, match="does not support episode playback"):
+        resolver.resolve_episode_playback_provider("undeclared-demo")
 
 
 def test_resolver_builds_catalogue_provider_with_shared_context() -> None:
@@ -261,3 +373,9 @@ def test_resolver_rejects_provider_without_catalogue_capability() -> None:
         resolver.resolve_playback_provider("unsupported")
     with pytest.raises(ProviderError, match="does not support EPG"):
         resolver.resolve_epg_provider("unsupported")
+    with pytest.raises(ProviderError, match="does not support movie playback"):
+        resolver.resolve_movie_playback_provider("unsupported")
+    with pytest.raises(ProviderError, match="does not support series details"):
+        resolver.resolve_series_detail_provider("unsupported")
+    with pytest.raises(ProviderError, match="does not support episode playback"):
+        resolver.resolve_episode_playback_provider("unsupported")

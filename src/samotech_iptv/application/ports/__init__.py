@@ -28,14 +28,21 @@ from samotech_iptv.application.ports.provider_capabilities import (
     CatalogProvider,
     CategoryProvider,
     EPGProvider,
+    EpisodePlaybackProvider,
+    MoviePlaybackProvider,
     PlaybackProvider,
     SearchProvider,
+    SeriesDetailProvider,
     SeriesProvider,
     SessionProvider,
     VodProvider,
 )
 from samotech_iptv.application.ports.provider_content_resolver_port import (
     ProviderContentResolverPort,
+)
+from samotech_iptv.application.ports.provider_non_live_resolver_port import (
+    ProviderNonLivePlaybackResolverPort,
+    ProviderSeriesDiscoveryResolverPort,
 )
 from samotech_iptv.application.ports.provider_port import ProviderPort
 from samotech_iptv.application.ports.provider_registration_port import ProviderRegistrationPort
@@ -51,6 +58,8 @@ __all__ = [
     "ProviderRegistrationPort",
     "ProviderResolverPort",
     "ProviderContentResolverPort",
+    "ProviderNonLivePlaybackResolverPort",
+    "ProviderSeriesDiscoveryResolverPort",
     "StoragePort",
     "CredentialStorePort",
     "NotificationPort",
@@ -62,6 +71,9 @@ __all__ = [
     "CategoryProvider",
     "VodProvider",
     "SeriesProvider",
+    "MoviePlaybackProvider",
+    "SeriesDetailProvider",
+    "EpisodePlaybackProvider",
     "EPGProvider",
     "SearchProvider",
     "PlaybackProvider",

@@ -6,6 +6,7 @@ import pytest
 
 from samotech_iptv.core.exceptions import ValidationError
 from samotech_iptv.domain.entities.movie import Movie
+from samotech_iptv.domain.entities.season import Season
 from samotech_iptv.domain.entities.series import Series
 from samotech_iptv.domain.value_objects.provider_id import ProviderId
 from samotech_iptv.domain.value_objects.stream_id import StreamId
@@ -48,6 +49,19 @@ def test_series_accepts_complete_valid_catalogue_metadata(provider_id: ProviderI
 
     assert series.title == "The Example Series"
     assert series.rating == 10.0
+
+
+def test_season_accepts_provider_scoped_series_identity(provider_id: ProviderId) -> None:
+    season = Season(
+        id="catalogue-provider:series-42:season-1",
+        provider_id=provider_id,
+        series_id="catalogue-provider:series-42",
+        number=1,
+        title="Season 1",
+    )
+
+    assert season.series_id == "catalogue-provider:series-42"
+    assert season.number == 1
 
 
 @pytest.mark.parametrize(
@@ -104,3 +118,28 @@ def test_series_rejects_invalid_catalogue_metadata(
 
     with pytest.raises(ValidationError, match=message):
         Series(**values)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    [
+        ("id", " ", "Season ID"),
+        ("series_id", " ", "Series ID"),
+        ("number", 0, "Season number"),
+        ("title", " ", "Season title"),
+    ],
+)
+def test_season_rejects_invalid_provider_scoped_identity(
+    provider_id: ProviderId, field: str, value: str | int, message: str
+) -> None:
+    values: dict[str, str | int | ProviderId | None] = {
+        "id": "catalogue-provider:series-42:season-1",
+        "provider_id": provider_id,
+        "series_id": "catalogue-provider:series-42",
+        "number": 1,
+        "title": "Season 1",
+    }
+    values[field] = value
+
+    with pytest.raises(ValidationError, match=message):
+        Season(**values)  # type: ignore[arg-type]

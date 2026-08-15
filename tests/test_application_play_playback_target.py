@@ -98,6 +98,12 @@ class FixedResolver(ProviderResolverPort):
         self.provider_ids.append(provider_id)
         return self.provider
 
+    def resolve_movie_playback_provider(self, provider_id: str) -> object:
+        raise AssertionError(f"Unexpected movie playback resolution for {provider_id}")
+
+    def resolve_episode_playback_provider(self, provider_id: str) -> object:
+        raise AssertionError(f"Unexpected episode playback resolution for {provider_id}")
+
     def resolve_search_provider(self, provider_id: str) -> object:
         raise AssertionError(f"Unexpected search resolution for {provider_id}")
 
@@ -337,15 +343,15 @@ async def test_unsupported_movie_target_returns_safe_outcome_without_resolution(
 
 def test_same_provider_different_content_types_have_distinct_identities() -> None:
     live_target = PlaybackTarget.live("provider-a", "shared-id")
-    movie_target = PlaybackTarget("provider-a", ContentType.MOVIE, "shared-id")
+    movie_target = PlaybackTarget.movie("provider-a", "shared-id", "movie-resource")
 
     assert live_target != movie_target
     assert len({live_target, movie_target}) == 2
 
 
 def test_same_movie_identifier_on_different_providers_has_distinct_identities() -> None:
-    provider_a = PlaybackTarget("provider-a", ContentType.MOVIE, "movie-a")
-    provider_b = PlaybackTarget("provider-b", ContentType.MOVIE, "movie-a")
+    provider_a = PlaybackTarget.movie("provider-a", "movie-a", "movie-resource")
+    provider_b = PlaybackTarget.movie("provider-b", "movie-a", "movie-resource")
 
     assert provider_a != provider_b
     assert len({provider_a, provider_b}) == 2

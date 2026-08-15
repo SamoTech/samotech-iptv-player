@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING
 
-from PySide6.QtWidgets import (  # type: ignore[import-not-found]
+from PySide6.QtWidgets import (
     QDialog,
     QFormLayout,
     QLabel,
@@ -25,7 +25,7 @@ _LOAD_ERROR = "Unable to load history"
 _CLEAR_ERROR = "Unable to clear history"
 
 
-class HistoryLibraryDialog(QDialog):  # type: ignore[misc]
+class HistoryLibraryDialog(QDialog):
     """Render safe history summaries and offer only the existing clear-all operation."""
 
     def __init__(self, load_history: LoadHistory, clear_history: ClearHistory) -> None:

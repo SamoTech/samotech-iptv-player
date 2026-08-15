@@ -26,7 +26,9 @@ if TYPE_CHECKING:
     from samotech_iptv.domain.entities.category import Category
     from samotech_iptv.domain.entities.channel import Channel
     from samotech_iptv.domain.entities.epg_entry import EPGEntry
+    from samotech_iptv.domain.entities.episode import Episode
     from samotech_iptv.domain.entities.movie import Movie
+    from samotech_iptv.domain.entities.season import Season
     from samotech_iptv.domain.entities.series import Series
     from samotech_iptv.domain.value_objects.channel_id import ChannelId
     from samotech_iptv.domain.value_objects.credential import Credential
@@ -40,6 +42,9 @@ __all__ = [
     "CategoryProvider",
     "VodProvider",
     "SeriesProvider",
+    "MoviePlaybackProvider",
+    "SeriesDetailProvider",
+    "EpisodePlaybackProvider",
     "EPGProvider",
     "SearchProvider",
     "PlaybackProvider",
@@ -121,6 +126,38 @@ class SeriesProvider(ABC):
     @abstractmethod
     async def load_series(self) -> Sequence[Series]:
         """Return the full series catalogue available to this provider."""
+        ...
+
+
+class MoviePlaybackProvider(ABC):
+    """Capability: resolve one canonical movie only at the provider-to-player boundary."""
+
+    @abstractmethod
+    async def resolve_movie_stream(self, movie_id: str, resource_id: str) -> URL:
+        """Return a playable URL for a validated opaque movie identity."""
+        ...
+
+
+class SeriesDetailProvider(ABC):
+    """Capability: discover canonical seasons and episodes for one series."""
+
+    @abstractmethod
+    async def load_seasons(self, series_id: str) -> Sequence[Season]:
+        """Return provider-scoped seasons for the requested canonical series."""
+        ...
+
+    @abstractmethod
+    async def load_episodes(self, series_id: str, season_number: int) -> Sequence[Episode]:
+        """Return canonical episodes for one requested series season."""
+        ...
+
+
+class EpisodePlaybackProvider(ABC):
+    """Capability: resolve one canonical episode only at the provider-to-player boundary."""
+
+    @abstractmethod
+    async def resolve_episode_stream(self, episode_id: str, resource_id: str) -> URL:
+        """Return a playable URL for a validated opaque episode identity."""
         ...
 
 

@@ -30,6 +30,14 @@ from samotech_iptv.application.dtos.content import (
     ContentItemDTO,
     ContentType,
 )
+from samotech_iptv.application.dtos.discovery import (
+    EpisodeDTO,
+    LoadSeasonEpisodesRequest,
+    LoadSeasonEpisodesResponse,
+    LoadSeriesSeasonsRequest,
+    LoadSeriesSeasonsResponse,
+    SeasonDTO,
+)
 from samotech_iptv.application.dtos.epg import (
     EPGEntryDTO,
     LoadEPGRequest,
@@ -94,6 +102,12 @@ __all__ = [
     "ContentItemDTO",
     "BrowseContentRequest",
     "BrowseContentResponse",
+    "SeasonDTO",
+    "EpisodeDTO",
+    "LoadSeriesSeasonsRequest",
+    "LoadSeriesSeasonsResponse",
+    "LoadSeasonEpisodesRequest",
+    "LoadSeasonEpisodesResponse",
     "PlaybackTarget",
     "PlaybackAttempt",
     "PlaybackOutcome",

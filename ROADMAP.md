@@ -42,6 +42,7 @@ The following work is present in the repository and has focused test coverage. â
 | Desktop foundation | PySide6, qasync, provider-entry, browser, EPG, and library increments | Qt video surface, main window, provider registration/listing, live-channel browser/search/playback action, EPG grid, favorites insertion, history recording, and recording controls. |
 | Theme and settings | Historical Phase 9 | Persisted system/light/dark preference, deterministic Qt styling, startup theme parameter, Settings menu, and settings dialog. |
 | Trusted local plugin SDK | Provider-plugin increment | Explicit trusted-local plugin loading, API/identity/namespace validation, transactional registration, failure isolation, and reference plugin. |
+| Provider-neutral non-live contracts | Phase 9 contract increment | Canonical provider-scoped Season plus a provider-scoped Episode DTO/request boundary, narrow Movie/Episode resolution and Series-detail discovery ports, capability-gated resolver composition, generation-safe discovery use cases, and fake-backed race coverage. No concrete adapter or non-live player/UI workflow is delivered. |
 
 ## Historical phase reconciliation
 
@@ -116,7 +117,7 @@ The items below should be sequenced only after the product-blocking lifecycle an
 
 | Milestone | Scope | Dependency notes |
 |---|---|---|
-| Catalogue expansion | Xtream VOD/movie/series/episode browsing and playback; provider-specific category navigation. | Requires registered-provider resolver/use-case/UI extensions and player behavior for non-live content. |
+| Catalogue expansion | Concrete authorized Movie resolution, Series-detail/season discovery, Episode discovery/resolution, explicit UI navigation, and playback dispatch. | Builds on the delivered provider-neutral contracts; each adapter capability requires authorized sanitized fixtures and explicit runtime advertisement. |
 | MAG/Stalker expansion | Category, VOD, series, archive/catch-up capabilities where authorized fixtures prove behavior. | Requires protocol-specific evidence and capability-by-capability delivery; current MAG category browsing is typed unsupported. |
 | Ministra adapter | Separate device-facing Ministra integration. | Gated on authorized sanitized fixtures and approved device identity; see [MINISTRA_COMPATIBILITY_ASSESSMENT.md](MINISTRA_COMPATIBILITY_ASSESSMENT.md). |
 | Library completion | Favorites and history lists, removal, resume behavior, and recording metadata management. | Builds on stable IDs, player-state events, and runnable lifecycle. |

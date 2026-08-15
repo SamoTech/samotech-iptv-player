@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING
 
-from PySide6.QtWidgets import (  # type: ignore[import-not-found]
+from PySide6.QtWidgets import (
     QDialog,
     QFormLayout,
     QLabel,
@@ -24,7 +24,7 @@ _LOAD_ERROR = "Unable to load favorites"
 _REMOVE_ERROR = "Unable to remove favorite"
 
 
-class FavoritesLibraryDialog(QDialog):  # type: ignore[misc]
+class FavoritesLibraryDialog(QDialog):
     """Render safe favorite summaries and remove one selected opaque record ID."""
 
     def __init__(

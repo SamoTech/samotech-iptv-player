@@ -4,30 +4,41 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import QAbstractListModel, QModelIndex, Qt  # type: ignore[import-not-found]
+from PySide6.QtCore import QAbstractListModel, QModelIndex, Qt
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+
+    from PySide6.QtCore import QPersistentModelIndex
 
     from samotech_iptv.application.dtos.channels import ChannelDTO
 
 __all__ = ["ChannelListModel"]
 
+_ROOT_INDEX = QModelIndex()
 
-class ChannelListModel(QAbstractListModel):  # type: ignore[misc]
+
+class ChannelListModel(QAbstractListModel):
     """Expose safe channel summaries without allocating one widget per channel."""
 
     def __init__(self) -> None:
         super().__init__()
         self._channels: list[ChannelDTO] = []
 
-    def rowCount(self, parent: QModelIndex | None = None) -> int:  # noqa: N802
+    def rowCount(  # noqa: N802
+        self,
+        parent: QModelIndex | QPersistentModelIndex = _ROOT_INDEX,
+    ) -> int:
         """Return the number of top-level channel rows."""
         if parent is not None and parent.isValid():
             return 0
         return len(self._channels)
 
-    def data(self, index: QModelIndex, role: int = int(Qt.ItemDataRole.DisplayRole)) -> str | None:
+    def data(
+        self,
+        index: QModelIndex | QPersistentModelIndex,
+        role: int = int(Qt.ItemDataRole.DisplayRole),
+    ) -> str | None:
         """Return safe display text for a valid channel row."""
         if not index.isValid() or not 0 <= index.row() < len(self._channels):
             return None

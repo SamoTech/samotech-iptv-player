@@ -48,10 +48,6 @@ class PlaybackTarget:
             ContentType.EPISODE,
         }:
             raise ValidationError("content_type", "must be live, movie, or episode")
-        if self.content_type is ContentType.LIVE and not (self.resource_id or "").strip():
-            raise ValidationError("resource_id", "is required for live playback")
-        if self.resource_id is not None and "://" in self.resource_id:
-            raise ValidationError("resource_id", "must not contain a resolved stream URL")
         if self.content_type is ContentType.EPISODE:
             if not (self.parent_series_id or "").strip():
                 raise ValidationError("parent_series_id", "is required for episode playback")
@@ -59,6 +55,13 @@ class PlaybackTarget:
                 raise ValidationError("season", "must be >= 1 for episode playback")
             if self.episode_number is None or self.episode_number < 1:
                 raise ValidationError("episode_number", "must be >= 1 for episode playback")
+        if (
+            self.content_type in {ContentType.LIVE, ContentType.MOVIE, ContentType.EPISODE}
+            and not (self.resource_id or "").strip()
+        ):
+            raise ValidationError("resource_id", "is required for playback")
+        if self.resource_id is not None and "://" in self.resource_id:
+            raise ValidationError("resource_id", "must not contain a resolved stream URL")
 
     @classmethod
     def live(
@@ -70,6 +73,37 @@ class PlaybackTarget:
             content_type=ContentType.LIVE,
             canonical_content_id=channel_id,
             resource_id=stream_id or channel_id,
+        )
+
+    @classmethod
+    def movie(cls, provider_id: str, movie_id: str, resource_id: str) -> PlaybackTarget:
+        """Build a safe Movie target without exposing a resolved stream URL."""
+        return cls(
+            provider_id=provider_id,
+            content_type=ContentType.MOVIE,
+            canonical_content_id=movie_id,
+            resource_id=resource_id,
+        )
+
+    @classmethod
+    def episode(
+        cls,
+        provider_id: str,
+        episode_id: str,
+        resource_id: str,
+        parent_series_id: str,
+        season: int,
+        episode_number: int,
+    ) -> PlaybackTarget:
+        """Build a safe Episode target without exposing a resolved stream URL."""
+        return cls(
+            provider_id=provider_id,
+            content_type=ContentType.EPISODE,
+            canonical_content_id=episode_id,
+            resource_id=resource_id,
+            parent_series_id=parent_series_id,
+            season=season,
+            episode_number=episode_number,
         )
 
 

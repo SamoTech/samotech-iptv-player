@@ -9,16 +9,24 @@ from samotech_iptv.application.ports.provider_capabilities import (
     CatalogProvider,
     CategoryProvider,
     EPGProvider,
+    EpisodePlaybackProvider,
+    MoviePlaybackProvider,
     PlaybackProvider,
     SearchProvider,
+    SeriesDetailProvider,
     SeriesProvider,
     VodProvider,
 )
 from samotech_iptv.application.ports.provider_content_resolver_port import (
     ProviderContentResolverPort,
 )
+from samotech_iptv.application.ports.provider_non_live_resolver_port import (
+    ProviderNonLivePlaybackResolverPort,
+    ProviderSeriesDiscoveryResolverPort,
+)
 from samotech_iptv.application.ports.provider_resolver_port import ProviderResolverPort
 from samotech_iptv.core.exceptions import ProviderError
+from samotech_iptv.domain.value_objects.provider_capability import ProviderCapability
 from samotech_iptv.infrastructure.providers.provider_runtime_cache import ProviderRuntimeCache
 
 if TYPE_CHECKING:
@@ -29,7 +37,12 @@ if TYPE_CHECKING:
 __all__ = ["ProviderResolutionService"]
 
 
-class ProviderResolutionService(ProviderResolverPort, ProviderContentResolverPort):
+class ProviderResolutionService(
+    ProviderResolverPort,
+    ProviderContentResolverPort,
+    ProviderNonLivePlaybackResolverPort,
+    ProviderSeriesDiscoveryResolverPort,
+):
     """Resolve a registered provider while keeping credentials inside infrastructure."""
 
     def __init__(
@@ -70,6 +83,24 @@ class ProviderResolutionService(ProviderResolverPort, ProviderContentResolverPor
             raise ProviderError("Provider does not support playback")
         return provider
 
+    def resolve_movie_playback_provider(self, provider_id: str) -> MoviePlaybackProvider:
+        """Build the provider and verify explicit movie-resolution support."""
+        provider = self._resolve(provider_id)
+        if not isinstance(provider, MoviePlaybackProvider) or not self._advertises(
+            provider, ProviderCapability.MOVIE_PLAYBACK
+        ):
+            raise ProviderError("Provider does not support movie playback")
+        return provider
+
+    def resolve_episode_playback_provider(self, provider_id: str) -> EpisodePlaybackProvider:
+        """Build the provider and verify explicit episode-resolution support."""
+        provider = self._resolve(provider_id)
+        if not isinstance(provider, EpisodePlaybackProvider) or not self._advertises(
+            provider, ProviderCapability.EPISODE_PLAYBACK
+        ):
+            raise ProviderError("Provider does not support episode playback")
+        return provider
+
     def resolve_search_provider(self, provider_id: str) -> SearchProvider:
         """Build the requested provider and verify channel-search support."""
         provider = self._resolve(provider_id)
@@ -98,6 +129,15 @@ class ProviderResolutionService(ProviderResolverPort, ProviderContentResolverPor
             raise ProviderError("Provider does not support series browsing")
         return provider
 
+    def resolve_series_detail_provider(self, provider_id: str) -> SeriesDetailProvider:
+        """Build the provider and verify explicit Series-detail discovery support."""
+        provider = self._resolve(provider_id)
+        if not isinstance(provider, SeriesDetailProvider) or not self._advertises(
+            provider, ProviderCapability.SERIES_DETAILS
+        ):
+            raise ProviderError("Provider does not support series details")
+        return provider
+
     def resolve_capability_provider(self, provider_id: str) -> CapabilityProvider:
         """Build the requested provider and read its executable capability declaration."""
         provider = self._resolve(provider_id)
@@ -109,3 +149,11 @@ class ProviderResolutionService(ProviderResolverPort, ProviderContentResolverPor
         """Create a provider only after locating its registered non-secret metadata."""
         metadata = self._registry.get(provider_id)
         return self._runtime_cache.get_or_create(metadata)
+
+    @staticmethod
+    def _advertises(provider: object, capability: ProviderCapability) -> bool:
+        """Require the exact runtime declaration for a new non-live capability."""
+        return (
+            isinstance(provider, CapabilityProvider)
+            and capability in provider.supported_capabilities()
+        )

@@ -727,3 +727,215 @@ The attempt registry prevents stale asynchronous resolution from being promoted 
 | Commit created | **No.** |
 | Push performed | **No.** |
 | Review readiness | Ready for requested diff review and approval decision. |
+
+## 10. Phase 8 — VOD / Series / Episode Playback Architecture Audit
+
+### 10.1 Actual baseline, instructions, and review scope
+
+This Phase 8 review used the repository as the source of truth rather than relying on historical reports. The current branch is `main`, the local baseline is `0ace7b88a38abe0dc24f3abf48c7128bdb94a0ad` (`feat(playback): add unified content playback contract`), and `origin/main` remains `b9e714ceb2ef31b7b0581d73fe226312d1c8fb47`. The worktree was clean before this audit. The repository-local `CONTRIBUTING.md` was read first, together with `PROJECT_STATUS.md`, `ARCHITECTURE.md`, `ROADMAP.md`, `PRODUCT_GAP_ANALYSIS.md`, and `SECURITY.md`.
+
+The bounded implementation in this phase deliberately fixes only strict typing and regression coverage. It does **not** add Movie/VOD playback, season discovery, episode discovery, episode playback, a provider-specific Xtream UI path, new provider URL construction, persistence changes, or changes to MAG, M3U, VLC, `PlayerPort.play(URL)`, authentication, transport, credentials, CI, or deployment.
+
+### 10.2 Current execution paths
+
+| Content family | Current executable path | Current stop-point |
+|---|---|---|
+| Live | Registered provider → `ProviderResolutionService` → `BrowseChannels` / `LoadChannels` → `ChannelDTO` → `ChannelListModel` → explicit PlayerShell activation → `PlaybackTarget.live()` → `PlayPlaybackTarget` → existing provider `resolve_stream(ChannelId)` → unchanged `PlayerPort.play(URL)` → history item type `channel`. | Implemented and generation-protected. |
+| Movie | Registered `VodProvider` → `BrowseContent` → `ContentItemDTO` containing provider-scoped Movie ID and non-URL stream ID → `ContentListModel` → local selection/filtering. | Explicit activation displays safe unavailable text; no Movie resolver/player/history path exists. |
+| Series | Registered `SeriesProvider` → `BrowseContent` → flat `ContentItemDTO` → `ContentListModel` → local selection/filtering. | Series is a non-playable container; explicit activation reports that Episode browsing is unavailable. |
+| Episode | Validated domain `Episode` record and DTO fields exist. | No season/episode loader, provider resolver member, adapter method, mapper, UI hierarchy, or playback call exists. `BrowseContent` returns Episode as unsupported with zero provider calls. |
+
+### 10.3 Provider capability forensic matrix
+
+The matrix below records only concrete adapter methods and runtime capability declarations. It does not infer support from a provider name, generic URL-builder potential, or an abstract port.
+
+| Capability | M3U | MAG/Stalker | Xtream |
+|---|---|---|---|
+| Live catalogue / local search / Live resolution | **Implemented** | **Implemented** | **Implemented** |
+| Live categories | No typed category capability | **Implemented** | **Implemented** |
+| VOD catalogue | Not implemented | Not implemented | **Implemented** through `load_movies()` |
+| VOD categories | Not implemented | Not implemented | **Implemented** through `load_vod_categories()` |
+| Series catalogue | Not implemented | Not implemented | **Implemented** through `load_series()` |
+| Series categories | Not implemented | Not implemented | **Implemented** through `load_series_categories()` |
+| Season discovery | Not implemented | Not implemented | Not implemented |
+| Episode discovery | Not implemented | Not implemented | Not implemented |
+| Movie stream resolution | Not implemented | Not implemented | Not implemented |
+| Episode stream resolution | Not implemented | Not implemented | Not implemented |
+| EPG | Not implemented | **Implemented** | **Implemented** |
+| Catch-up | Not implemented | Not implemented | Not implemented |
+
+Xtream is the only current provider with executable Movie and Series catalogue capabilities. Its concrete adapter, API client, and translator stop at category and flat-catalogue operations; its only stream resolver remains the Live `resolve_stream(ChannelId)` path. M3U and MAG/Stalker remain capability-limited Live paths and must not gain implied non-live behavior.
+
+### 10.4 Playback contract assessment and minimal next architecture
+
+`PlaybackTarget`, `PlaybackAttempt`, `PlaybackResult`, and `PlaybackAttemptRegistry` are suitable foundations for all future playable target identities. The target is frozen, provider-scoped, content-type-aware, and rejects `://` inside `resource_id`; resolved URLs therefore remain outside application DTOs. Series should remain non-playable. A Movie can be represented safely by provider-scoped canonical Movie ID plus its non-URL resource identity. An Episode can be represented safely by provider ID, canonical Episode ID, parent Series ID, season, episode number, and non-URL resource identity.
+
+However, target identity alone does not create a resolution capability. The next architectural increment should introduce narrow provider-neutral interfaces—not presentation calls or Xtream-only code—for Movie playback, Series detail/season discovery, Episode discovery, and Episode playback. `ProviderResolutionService` should then resolve those interfaces from the registered runtime provider and return controlled unsupported errors where absent. The existing `PlayPlaybackTarget` should remain the one attempt-generation owner and eventually dispatch Live/Movie/Episode only through their respective narrow resolver interfaces; Series remains `UNSUPPORTED`.
+
+| Proposed boundary | Minimum responsibility | Explicit exclusion |
+|---|---|---|
+| `MoviePlaybackProvider` | Resolve a canonical Movie/resource identity to `URL` inside infrastructure. | Does not expose raw URL to DTOs or UI. |
+| `SeriesDetailProvider` | Load stable seasons and episodes for one canonical Series identity. | Does not resolve/play a stream. |
+| `EpisodePlaybackProvider` | Resolve canonical Episode/resource identity to `URL` inside infrastructure. | Does not call Qt or libVLC directly. |
+| Application use cases | Convert canonical records to safe DTOs, sanitize unsupported/error results, and preserve request context. | No provider API/credential/session access. |
+| Presentation | Navigate Series → Season → Episode and create a target only upon explicit activation. | No provider-specific API access or implicit playback. |
+
+There is no canonical `Season` domain entity today. Add one only if an authorized concrete provider supplies a stable season identity/order; otherwise begin with a small provider-neutral season DTO. The existing `Episode` record has valid season/episode/resource fields but does not itself carry provider ID, so the future provider-scoped application projection must supply it.
+
+### 10.5 History and UI/UX recommendation
+
+The current `History` record and `RecordHistoryRequest` already support a canonical `item_id`, `item_type`, timestamp, duration, and position. No schema change is needed for an initial Movie/Episode history event. After a successful Movie play, record the provider-scoped Movie ID with item type `movie`; after a successful Episode play, record a stable provider-scoped Episode ID with item type `episode`. The current player port provides no duration, position, progress event, or resume operation, so both initial records must retain zero duration/position and resume remains a separate design decision.
+
+The current flat `ContentListModel` is appropriate for scalable Movie and Series catalogues. A future Series activation should show a provider-neutral detail/season/episode state rather than playing the Series. Movie and Episode playback must remain explicit activation actions only after their application resolver contracts exist. Navigation must remain runtime-capability-driven: Live-only M3U/MAG profiles expose no Movies or Series, while Xtream may expose browse-only Movies and Series until it truly implements the next contracts.
+
+### 10.6 Async race matrix
+
+| Scenario | Required guard | Old completion may alter catalogue, selection, loading, playing, error, or history? |
+|---|---|---|
+| Live A → Live B | `PlaybackAttemptRegistry` generation | **No** |
+| Movie A → Movie B catalogue | PlayerShell request generation, provider ID, content type | **No** |
+| Series A → Series B catalogue | PlayerShell request generation, provider ID, content type | **No** |
+| Season A → Season B | Future request generation, provider ID, selected Series ID | **No** |
+| Episode A → Episode B discovery | Future request generation, provider ID, Series/Season context | **No** |
+| Movie A → Movie B playback | Shared playback attempt generation | **No** |
+| Episode A → Episode B playback | Shared playback attempt generation | **No** |
+| Episode A → Movie B playback | Shared playback attempt generation | **No** |
+| Provider A → Provider B | PlayerShell request generation plus explicit pending-attempt invalidation | **No** |
+| Stop → late completion | Explicit pending-attempt invalidation | **No** |
+
+The existing native offscreen probe already confirms provider-switch invalidation, stale request protection, stale playback result protection, local non-live selection, capability navigation, and keyboard behavior. The required new discovery/load race cases remain design requirements until the corresponding application contracts are implemented.
+
+### 10.7 Bounded Phase 8 changes
+
+| File | Change | Reason |
+|---|---|---|
+| `src/samotech_iptv/presentation/viewmodels/channel_list_model.py` | Removed obsolete PySide ignores and aligned `rowCount` / `data` signatures with Qt stubs while retaining reduced fake-Qt runtime compatibility. | Fixed four strict-mypy diagnostics without changing model behavior. |
+| `src/samotech_iptv/presentation/dialogs/history_library_dialog.py` | Removed obsolete PySide ignores. | Fixed two strict-mypy diagnostics. |
+| `src/samotech_iptv/presentation/dialogs/favorites_library_dialog.py` | Removed obsolete PySide ignores. | Fixed two strict-mypy diagnostics. |
+| `src/samotech_iptv/presentation/views/main_window.py` | Removed obsolete PySide ignores. | Fixed three strict-mypy diagnostics. |
+| `tests/player_shell_performance_probe.py` | Added dynamic Movie and Series measurements for 0 through 100,000 synthetic items, including model replacement, identity, selection, category filter, search, no-match, and clear-search checks. | Extends existing scalable model evidence without provider calls. |
+| `tests/test_presentation_01_player_shell_performance.py` | Asserts the new Movie/Series dynamic scale output. | Locks in non-live scale behavior. |
+
+### 10.8 Validation, scale, typing, security, and scope evidence
+
+| Gate | Result | Evidence |
+|---|---|---|
+| Focused content/provider/presentation/playback tests | **PASS** | Browse-content, playback-target, Xtream/M3U/MAG adapter, MainWindow, history dialog, and performance selections passed. |
+| Full `pytest` | **PASS** | **709 tests collected**, zero failures, approximately 3 seconds using `QT_QPA_PLATFORM=offscreen`. Four existing non-fatal `aiohttp` bare-handler deprecation warnings remain. |
+| Native Qt probe | **PASS (Linux offscreen only)** | All existing stale, provider-switch, content-selection, capability-navigation, and keyboard checks passed. No Windows/native GUI claim is made. |
+| Dynamic scale probe | **PASS** | Live, Movie, and Series each validate `0, 1, 10, 100, 500, 1,000, 5,000, 17,431, 39,753, 100,000`; no resolver/provider-search/catalogue-reload call occurred during local operations. |
+| 100,000 Movie | **PASS** | Replacement 4.474 ms; selection 0.035 ms; category filter 3.323 ms; search 27.030 ms; no-match 27.414 ms; clear search 2.143 ms. |
+| 100,000 Series | **PASS** | Replacement 4.093 ms; selection 0.033 ms; category filter 3.191 ms; search 26.712 ms; no-match 25.712 ms; clear search 1.946 ms. |
+| Black | **PASS** | 300 source/test files unchanged. |
+| Ruff | **PASS** | No diagnostics. |
+| Mypy baseline | 11 diagnostics in 4 nearby presentation files. | Recorded before implementation. |
+| Mypy final | **PASS** | **Zero diagnostics** across 196 source files; all 11 safe baseline issues were corrected. |
+| `git diff --check` | **PASS** | No whitespace diagnostics. |
+| Security scan | **PASS** | No credentials, MAC, token, cookie, authorization header, provider payload, or resolved stream URL was added. |
+| Scope audit | **PASS** | No infrastructure/provider, MAG, M3U, Xtream, VLC, `PlayerPort`, persistence, credential, transport, CI, or deployment file changed. |
+
+### 10.9 Known limitations and exact recommendation
+
+Movie/Series catalogue browsing is not Movie/Episode playback. The repository is **not ready for a direct bounded VOD/Episode playback implementation** because it lacks the provider-neutral resolution and discovery contracts, concrete adapter methods, sanitized translators, resolver-service hooks, application use cases, and UI hierarchy needed to do so safely. A direct Xtream-only implementation would violate the established dependency boundary and would not provide capability-honest behavior for MAG or M3U.
+
+**Recommended next implementation increment:** first deliver a narrowly scoped **non-live provider contract increment** with no presentation playback: define the provider-neutral Movie/Episode resolver and Series-detail discovery interfaces, add stable season/episode projections, extend resolver-service capability checks, and add fake-backed contract/race tests. Implement a concrete Xtream adapter only where an authorized, sanitized fixture proves the exact endpoint and stream-resolution behavior. Only after that increment passes its own capability and security audit should explicit Movie/Episode `PlaybackTarget` dispatch and Qt detail navigation be considered.
+
+### 10.10 Phase 8 handoff state
+
+| Field | Value |
+|---|---|
+| Worktree | Intentionally uncommitted Phase 8 typing fixes, non-live scale regression coverage, and this consolidated report. |
+| Commit created | **No.** |
+| Push performed | **No.** |
+| Protected provider/player areas | **Untouched.** |
+| Implementation decision | VOD/Episode playback intentionally not implemented pending the recommended contract increment. |
+
+---
+
+## 11. Phase 9 — Provider-neutral non-live contract increment
+
+### 11.1 Objective and review boundary
+
+Phase 9 implements the **minimum provider-neutral application contract** required before any concrete Movie or Episode playback delivery can be considered. It does not add a concrete Xtream, MAG/Stalker, or M3U non-live endpoint; does not add a UI season/episode flow; does not dispatch Movie or Episode targets to the player; and does not alter `PlayerPort`, VLC, provider authentication, session management, request construction, parsing, or stream-resolution internals.
+
+The work began from local `HEAD` `0ace7b88a38abe0dc24f3abf48c7128bdb94a0ad`, with `origin/main` at `b9e714ceb2ef31b7b0581d73fe226312d1c8fb47`. The inherited Phase 8 uncommitted typing and dynamic-catalogue regression work was preserved intact and validated together with the new Phase 9 files.
+
+### 11.2 Provider-capability matrix
+
+| Provider family | Movie catalogue | Series catalogue | New Movie resolver contract | New Series-detail contract | New Episode resolver contract | Phase 9 runtime claim |
+|---|---:|---:|---:|---:|---:|---|
+| M3U | Live-only boundary | No | No | No | No | No non-live support claimed. |
+| MAG/Stalker | No verified non-live boundary | No verified non-live boundary | No | No | No | No non-live support claimed. |
+| Xtream | Existing browse-only catalogue method | Existing browse-only catalogue method | No | No | No | Existing Movie/Series catalogue capability remains browse-only. |
+| Phase 9 fake provider | Controlled test fixture only | Controlled test fixture only | Yes, when declared | Yes, when declared | Yes, when declared | Test-only contract proof; not a production adapter. |
+
+> **Capability rule:** a narrow Python interface is not a support claim. `ProviderResolutionService` accepts a non-live provider only when it both satisfies the narrow interface and declares the corresponding runtime capability. Existing concrete adapters declare none of the new capabilities, so each new resolution attempt remains controlled unsupported behavior.
+
+### 11.3 Domain, DTO, and port design
+
+The new `Season` entity is immutable and provider-scoped through `ProviderId`, with canonical identity, parent-series linkage, positive season number, and optional non-sensitive title. The established `Episode` domain constructor remains provider-agnostic for backward compatibility. Provider scope is instead made explicit at the registered-provider discovery boundary: `LoadSeasonEpisodesRequest` contains the provider, and `EpisodeDTO` carries that provider with canonical episode, series, season, episode-number, and opaque resource identity fields. This avoids a breaking domain-constructor change while preventing a discovered episode projection from losing its provider context.
+
+| Boundary | Added contract | Safety property |
+|---|---|---|
+| Domain | `Season` | Immutable provider-scoped series-season identity; no URL, credential, MAC, token, or payload fields. |
+| Application DTOs | `SeasonDTO`, `EpisodeDTO`, season/episode load requests and responses | Provider-qualified, presentation-safe identity; no raw stream URL. |
+| Capability vocabulary | `MOVIE_PLAYBACK`, `SERIES_DETAILS`, `EPISODE_PLAYBACK` | Separates browse capability from executable Movie, detail, and Episode capability. |
+| Capability interfaces | `MoviePlaybackProvider`, `SeriesDetailProvider`, `EpisodePlaybackProvider` | Narrow asynchronous contracts for a future concrete adapter; no adapter implementation was added. |
+| Additive resolver ports | `ProviderNonLivePlaybackResolverPort`, `ProviderSeriesDiscoveryResolverPort` | Preserves the existing Live/content resolver abstract interfaces and all legacy test doubles. |
+| Resolver composition | New `ProviderResolutionService` methods | Enforces interface **and** declared capability; caches the same registered provider instance. |
+| Playback target | `PlaybackTarget.movie()` and `.episode()` | Creates immutable provider-scoped opaque-resource identities and rejects raw `://` URLs. |
+
+### 11.4 Discovery and race-safety behavior
+
+`LoadSeriesSeasons` and `LoadSeasonEpisodes` are intentionally discovery-only application use cases. They use the bounded `DiscoveryAttemptRegistry`, whose monotonic generation invalidates older requests. A completed response is returned only when it remains current after the provider call and DTO projection. Provider errors become `unsupported=True`; unexpected failures become a generic non-sensitive error; stale requests become `stale=True` and expose neither an older result nor an older error.
+
+| Scenario | Contracted result | Regression coverage |
+|---|---|---|
+| Same provider, Series A then Series B, B resolves first | B remains current; late A is stale. | `test_application_series_discovery.py` |
+| Same Series, Season A then Season B, B resolves first | B remains current; late A is stale. | `test_application_series_discovery.py` |
+| Provider switch/invalidation while discovery is pending | Pending result becomes stale. | `test_application_series_discovery.py` |
+| Provider lacks a declared non-live capability | Resolver raises controlled `ProviderError`; discovery returns unsupported. | Application and resolver-service tests |
+| Provider implements an interface but omits capability declaration | Resolver rejects it; no support is inferred from structure alone. | `test_infra_provider_resolution_service.py` |
+| Future Movie/Episode target uses a URL-shaped resource value | Validation rejects it before dispatch. | `test_application_play_playback_target.py` |
+
+The existing Live `PlaybackAttemptRegistry` remains the player-execution ordering mechanism. Phase 9 adds Movie/Episode target factories only; `PlayPlaybackTarget` continues to return controlled unsupported behavior for non-Live targets. Therefore no Movie or Episode URL can reach `PlayerPort.play(URL)` in this increment.
+
+### 11.5 History and presentation position
+
+No history schema, persistence behavior, player callback, or presentation behavior changed in Phase 9. Future Movie/Episode history must reuse the established policy: record only after a successful future provider resolution and successful `PlayerPort.play(URL)` invocation, never for a stale, unsupported, or failed attempt. Position, resume, autoplay, queue, seek, audio tracks, subtitles, and detail navigation remain outside the current scope.
+
+The current Movie/Series catalogue remains browse-only. No new buttons, selection-triggered playback, season page, episode page, or hidden protocol call was added. The Phase 8 native player-shell and dynamic catalogue behavior remains regression-covered but is not extended into non-live playback UI.
+
+### 11.6 Files added or changed
+
+| Area | Phase 9 additions or changes | Purpose |
+|---|---|---|
+| Domain | `domain/entities/season.py`; entity exports; established `Episode` retained | Canonical Season identity without breaking Episode construction. |
+| DTOs | `application/dtos/discovery.py`; package and legacy exports; target factories | Safe Season/Episode projections and future opaque non-live target identities. |
+| Ports | Capability interfaces, capability enum values, `provider_non_live_resolver_port.py`, public exports | Narrow, additive Movie/Episode resolution and Series-detail discovery seams. |
+| Resolver | `ProviderResolutionService` | Capability-gated, cached resolution for the three new optional capabilities. |
+| Use cases | `series_discovery.py`; use-case exports | Generation-safe Season/Episode discovery only. |
+| Tests | Discovery contract/race/scale, resolver capability honesty, domain Season, provider-capability vocabulary, target factory validation | Fake-backed proof without real credentials, portals, or speculative provider calls. |
+| Documentation | README, architecture, application/provider guidance, project status, roadmap, gap analysis, changelog, this report | Records the contract-only status and deferred concrete work. |
+
+### 11.7 Scale, Qt, and quality evidence
+
+| Gate | Result | Evidence |
+|---|---|---|
+| Focused domain/application/resolver/adapter tests | **PASS** | Domain Episode compatibility, Season validation, target factories, Series/Season/Episode discovery races, resolver capability declaration, and Xtream adapter regression suite passed. |
+| Discovery synthetic scale | **PASS** | One controlled provider response projected **1,000 Seasons** and **5,000 Episodes** with correct first/last canonical ordering; no provider-specific implementation or UI assumption was introduced. |
+| Existing dynamic Movie/Series scale | **PASS** | Phase 8 probe continued to cover local model replacement/search/filter/clear through **100,000** synthetic items without provider calls. |
+| Native Qt probe | **PASS — Linux offscreen only** | All existing stale identity/request/result, provider-switch, capability navigation, non-playback selection, local filtering/search, and keyboard checks passed. No Windows or real-stream claim is made. |
+| Full regression | **PASS** | **728 tests collected**, zero failures, `QT_QPA_PLATFORM=offscreen`, approximately 3 seconds. Four existing non-fatal `aiohttp` bare-handler deprecation warnings remain. |
+| Black | **PASS** | 305 source/test files would be left unchanged. |
+| Ruff | **PASS** | No diagnostics. |
+| Mypy | **PASS** | Zero diagnostics across **200** source files. |
+| `git diff --check` | **PASS** | No whitespace diagnostics. |
+| Protected-scope scan | **PASS** | No concrete M3U/MAG/Xtream adapter, request-builder, parser, player-port, VLC, composition, CI, or deployment file changed. |
+| Sensitive-data scan | **PASS** | No credential, MAC, token, authorization header, cookie, real stream URL, or provider payload was added. Matches were documentation vocabulary and `example.invalid` fake-test URLs only. |
+
+### 11.8 Limitations and exact next implementation step
+
+Phase 9 is a contract and controlled-discovery increment, not non-live product delivery. Concrete providers do not implement or advertise Movie stream resolution, Series details, Episode discovery, or Episode stream resolution. There is no presentation navigation for Seasons/Episodes and no non-Live playback dispatch. Existing Live behavior remains unchanged.
+
+**Exact next step:** use an authorized sanitized Xtream fixture to implement one concrete `SeriesDetailProvider` capability first, including canonical Season/Episode translation and explicit capability advertisement. Validate it through the existing resolver/discovery tests. Only then consider the separately approved concrete Movie or Episode resolver capability, followed by explicit application target dispatch and UI navigation in subsequent increments. Do not add MAG/Stalker or M3U non-live behavior without independent authorized evidence.

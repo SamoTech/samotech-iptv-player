@@ -106,20 +106,29 @@ def channels(total: int = TOTAL) -> tuple[ChannelDTO, ...]:
     )
 
 
-def content_items() -> tuple[ContentItemDTO, ...]:
+def content_items(
+    total: int = CONTENT_TOTAL,
+    content_type: ContentType | None = None,
+) -> tuple[ContentItemDTO, ...]:
+    """Build synthetic non-live DTOs without provider or resolver interaction."""
     return tuple(
         ContentItemDTO(
-            id=f"content-{number:05d}",
+            id=f"{content_type.value if content_type is not None else 'content'}-{number:05d}",
             provider_id="performance-provider",
-            content_type=ContentType.MOVIE if number % 2 else ContentType.SERIES,
+            content_type=content_type or (ContentType.MOVIE if number % 2 else ContentType.SERIES),
             title=(
                 f"Arena Content {number}" if number % 10 == 0 else f"Catalogue Content {number}"
             ),
-            stream_id=f"movie-stream-{number}" if number % 2 else None,
+            stream_id=(
+                f"movie-stream-{number}"
+                if (content_type or (ContentType.MOVIE if number % 2 else ContentType.SERIES))
+                is ContentType.MOVIE
+                else None
+            ),
             category_id="drama" if number % 3 else "documentary",
             year=2020 + number % 5,
         )
-        for number in range(1, CONTENT_TOTAL + 1)
+        for number in range(1, total + 1)
     )
 
 
@@ -255,6 +264,81 @@ async def main() -> None:
             "clear_search_rows": shell.channel_model.rowCount(),
         }
 
+    content_dynamic_results: dict[
+        str, dict[str, dict[str, int | float | str | tuple[str, str, str] | None]]
+    ] = {}
+    for content_type in (ContentType.MOVIE, ContentType.SERIES):
+        family_results: dict[str, dict[str, int | float | str | tuple[str, str, str] | None]] = {}
+        shell._content_categories[content_type] = (
+            ("Drama", "drama"),
+            ("Documentary", "documentary"),
+        )
+        shell._active_content_type = content_type
+        for size in DYNAMIC_SIZES:
+            dynamic_content = content_items(size, content_type)
+            shell._content_catalogues[content_type] = dynamic_content
+            shell._active_content_category_id = None
+            shell.search_input.setText("")
+            start = perf_counter()
+            shell._render_content_catalogue(content_type)
+            replacement_ms = (perf_counter() - start) * 1000
+            content_identities_for_size: tuple[str, str, str] | None = None
+            selection_identity: str | None = None
+            selection_ms = 0.0
+            if dynamic_content:
+                content_identities_for_size = (
+                    shell.content_model.item_at(0).id,
+                    shell.content_model.item_at(size // 2).id,
+                    shell.content_model.item_at(size - 1).id,
+                )
+                middle_index = shell.content_model.index(size // 2, 0)
+                start = perf_counter()
+                shell._content_lists[content_type].setCurrentIndex(middle_index)
+                shell._select_content_index(content_type, middle_index)
+                selection_ms = (perf_counter() - start) * 1000
+                selection_identity = (
+                    shell.selected_content.id if shell.selected_content is not None else None
+                )
+
+            shell._active_content_category_id = "drama"
+            start = perf_counter()
+            shell._render_content_catalogue(content_type)
+            category_filter_ms = (perf_counter() - start) * 1000
+            category_rows = shell.content_model.rowCount()
+
+            shell._active_content_category_id = None
+            shell.search_input.setText("arena")
+            start = perf_counter()
+            shell._render_content_catalogue(content_type)
+            search_render_ms = (perf_counter() - start) * 1000
+            search_rows = shell.content_model.rowCount()
+
+            shell.search_input.setText("missing signal")
+            start = perf_counter()
+            shell._render_content_catalogue(content_type)
+            no_match_search_ms = (perf_counter() - start) * 1000
+            no_match_rows = shell.content_model.rowCount()
+
+            shell.search_input.setText("")
+            start = perf_counter()
+            shell._render_content_catalogue(content_type)
+            clear_search_ms = (perf_counter() - start) * 1000
+            family_results[str(size)] = {
+                "model_replacement_ms": round(replacement_ms, 3),
+                "selection_ms": round(selection_ms, 3),
+                "selection_identity": selection_identity,
+                "first_middle_last_identity": content_identities_for_size,
+                "category_filter_ms": round(category_filter_ms, 3),
+                "category_rows": category_rows,
+                "search_render_ms": round(search_render_ms, 3),
+                "search_rows": search_rows,
+                "no_match_search_ms": round(no_match_search_ms, 3),
+                "no_match_rows": no_match_rows,
+                "clear_search_ms": round(clear_search_ms, 3),
+                "clear_search_rows": shell.content_model.rowCount(),
+            }
+        content_dynamic_results[content_type.value] = family_results
+
     result = {
         "total_records": TOTAL,
         "model_row_count_after_initial_replace": TOTAL,
@@ -272,6 +356,7 @@ async def main() -> None:
         "search_timings_ms": {key: round(value, 3) for key, value in search_timings.items()},
         "search_counts": search_counts,
         "dynamic_catalogue_results": dynamic_results,
+        "dynamic_content_results": content_dynamic_results,
     }
     assert result["model_row_count_after_initial_replace"] == TOTAL
     assert identities == ("channel-00001", "channel-19877", "channel-39753")
@@ -293,6 +378,18 @@ async def main() -> None:
                 f"channel-{int(size) // 2 + 1:05d}",
                 f"channel-{int(size):05d}",
             )
+    for content_type, family_results in content_dynamic_results.items():
+        assert tuple(int(size) for size in family_results) == DYNAMIC_SIZES
+        for size, values in family_results.items():
+            assert values["clear_search_rows"] == int(size)
+            assert values["category_rows"] <= int(size)
+            assert values["no_match_rows"] == 0
+            if int(size) > 0:
+                assert values["first_middle_last_identity"] == (
+                    f"{content_type}-00001",
+                    f"{content_type}-{int(size) // 2 + 1:05d}",
+                    f"{content_type}-{int(size):05d}",
+                )
     print(json.dumps(result, indent=2))
     application.quit()
 
