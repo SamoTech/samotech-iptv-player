@@ -34,7 +34,7 @@ def test_movie_maps_xtream_vod_stream_record() -> None:
     )
 
     assert movie.id == "xtream-demo:42"
-    assert movie.stream_id.value == "42"
+    assert movie.stream_id.value == "42|mp4"
     assert movie.category_id == "movies"
 
 
@@ -53,6 +53,38 @@ def test_series_maps_xtream_series_record() -> None:
     assert series.id == "xtream-demo:84"
     assert series.category_id == "drama"
     assert series.poster_url is not None
+
+
+def test_series_detail_maps_seasons_and_episodes_to_opaque_canonical_identity() -> None:
+    detail = {
+        "seasons": [{"season_number": 1, "name": "Season One"}],
+        "episodes": {
+            "1": [
+                {
+                    "id": 501,
+                    "episode_num": 1,
+                    "title": "Pilot",
+                    "container_extension": "mp4",
+                    "info": {"duration_secs": 1200, "plot": "Episode metadata"},
+                }
+            ]
+        },
+    }
+
+    seasons = XtreamDomainTranslator.seasons(detail, ProviderId("xtream-demo"), "xtream-demo:84")
+    episodes = XtreamDomainTranslator.episodes(detail, "xtream-demo:84", 1)
+
+    assert [(season.id, season.number) for season in seasons] == [("xtream-demo:84:season:1", 1)]
+    assert episodes[0].id == "xtream-demo:84:episode:501"
+    assert episodes[0].stream_id.value == "501|mp4"
+    assert episodes[0].duration_seconds == 1200
+
+
+def test_non_live_playback_resource_rejects_invalid_extension_or_shape() -> None:
+    with pytest.raises(ValidationError):
+        XtreamDomainTranslator.playback_resource("42", "m3u8?unsafe")
+    with pytest.raises(ValidationError):
+        XtreamDomainTranslator.split_playback_resource("42")
 
 
 def test_epg_entry_maps_xtream_short_epg_record() -> None:

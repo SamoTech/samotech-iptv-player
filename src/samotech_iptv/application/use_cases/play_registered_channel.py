@@ -14,6 +14,9 @@ from samotech_iptv.core.exceptions import ProviderError
 
 if TYPE_CHECKING:
     from samotech_iptv.application.ports.player_port import PlayerPort
+    from samotech_iptv.application.ports.provider_non_live_resolver_port import (
+        ProviderNonLivePlaybackResolverPort,
+    )
     from samotech_iptv.application.ports.provider_resolver_port import ProviderResolverPort
     from samotech_iptv.application.use_cases.record_history import RecordHistory
 
@@ -28,6 +31,7 @@ class PlayRegisteredChannel:
         provider_resolver: ProviderResolverPort,
         player: PlayerPort,
         record_history: RecordHistory | None = None,
+        non_live_provider_resolver: ProviderNonLivePlaybackResolverPort | None = None,
     ) -> None:
         self._provider_resolver = provider_resolver
         self._player = player
@@ -36,6 +40,7 @@ class PlayRegisteredChannel:
             provider_resolver,
             player,
             record_history,
+            non_live_provider_resolver=non_live_provider_resolver,
         )
 
     async def execute(self, provider_id: str, channel_id: str) -> None:

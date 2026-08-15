@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from base64 import b64decode
+from collections.abc import Mapping
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
@@ -11,14 +12,16 @@ from samotech_iptv.core.logging import get_logger
 from samotech_iptv.domain.entities.category import Category
 from samotech_iptv.domain.entities.channel import Channel
 from samotech_iptv.domain.entities.epg_entry import EPGEntry
+from samotech_iptv.domain.entities.episode import Episode
 from samotech_iptv.domain.entities.movie import Movie
+from samotech_iptv.domain.entities.season import Season
 from samotech_iptv.domain.entities.series import Series
 from samotech_iptv.domain.value_objects.channel_id import ChannelId
 from samotech_iptv.domain.value_objects.stream_id import StreamId
 from samotech_iptv.domain.value_objects.url import URL
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping, Sequence
+    from collections.abc import Sequence
 
     from samotech_iptv.domain.value_objects.provider_id import ProviderId
 
@@ -109,10 +112,18 @@ class XtreamDomainTranslator:
             id=f"{provider_id.value}:{stream_id}",
             title=title,
             provider_id=provider_id,
-            stream_id=StreamId(stream_id),
+            stream_id=StreamId(
+                XtreamDomainTranslator.playback_resource(
+                    stream_id, XtreamDomainTranslator._container_extension(raw)
+                )
+            ),
             category_id=str(raw.get("category_id") or "").strip() or None,
             poster_url=URL(poster) if poster else None,
-            plot=str(raw.get("plot") or "").strip() or None,
+            year=XtreamDomainTranslator._optional_int(raw.get("year")),
+            rating=XtreamDomainTranslator._optional_float(
+                raw.get("rating") or raw.get("rating_5based")
+            ),
+            plot=str(raw.get("plot") or raw.get("description") or "").strip() or None,
         )
 
     @staticmethod
@@ -129,6 +140,94 @@ class XtreamDomainTranslator:
             poster_url=URL(poster) if poster else None,
             plot=str(raw.get("plot") or "").strip() or None,
         )
+
+    @staticmethod
+    def seasons(
+        raw_detail: Mapping[str, object], provider_id: ProviderId, series_id: str
+    ) -> list[Season]:
+        """Translate an Xtream ``get_series_info`` season collection safely."""
+        raw_seasons = raw_detail.get("seasons")
+        if not isinstance(raw_seasons, list) or not all(
+            isinstance(item, Mapping) for item in raw_seasons
+        ):
+            raise ValidationError("seasons", "Xtream series detail must include a list of seasons")
+        seasons: list[Season] = []
+        for raw in raw_seasons:
+            number = XtreamDomainTranslator._season_number(raw)
+            title = str(raw.get("name") or raw.get("title") or "").strip() or None
+            seasons.append(
+                Season(
+                    id=f"{series_id}:season:{number}",
+                    series_id=series_id,
+                    provider_id=provider_id,
+                    number=number,
+                    title=title,
+                )
+            )
+        return seasons
+
+    @staticmethod
+    def episodes(
+        raw_detail: Mapping[str, object], series_id: str, season_number: int
+    ) -> list[Episode]:
+        """Translate one Xtream detail season into canonical opaque-ID episodes."""
+        raw_episodes = raw_detail.get("episodes")
+        if not isinstance(raw_episodes, Mapping):
+            raise ValidationError(
+                "episodes", "Xtream series detail must include episodes by season"
+            )
+        candidates = raw_episodes.get(str(season_number))
+        if not isinstance(candidates, list) or not all(
+            isinstance(item, Mapping) for item in candidates
+        ):
+            raise ValidationError(
+                "episodes", "Xtream series detail season must include an episode list"
+            )
+        episodes: list[Episode] = []
+        for raw in candidates:
+            episode_id = XtreamDomainTranslator._required_text(raw, "id")
+            episode_number = XtreamDomainTranslator._episode_number(raw)
+            info = raw.get("info")
+            details = info if isinstance(info, Mapping) else {}
+            title = str(raw.get("title") or details.get("title") or "").strip()
+            if not title:
+                title = f"Episode {episode_number}"
+            episodes.append(
+                Episode(
+                    id=f"{series_id}:episode:{episode_id}",
+                    series_id=series_id,
+                    title=title,
+                    stream_id=StreamId(
+                        XtreamDomainTranslator.playback_resource(
+                            episode_id, XtreamDomainTranslator._container_extension(raw, details)
+                        )
+                    ),
+                    season=season_number,
+                    episode_number=episode_number,
+                    duration_seconds=XtreamDomainTranslator._optional_duration(details),
+                    plot=str(details.get("plot") or raw.get("plot") or "").strip() or None,
+                )
+            )
+        return episodes
+
+    @staticmethod
+    def playback_resource(stream_id: str, extension: str) -> str:
+        """Encode a validated opaque non-live stream descriptor without a URL."""
+        if "|" in stream_id or not stream_id.strip():
+            raise ValidationError("stream_id", "Xtream stream identifier is invalid")
+        if not extension.isalnum():
+            raise ValidationError("container_extension", "Xtream stream extension is invalid")
+        return f"{stream_id}|{extension}"
+
+    @staticmethod
+    def split_playback_resource(resource_id: str) -> tuple[str, str]:
+        """Decode a validated opaque non-live descriptor at the provider boundary."""
+        stream_id, separator, extension = resource_id.partition("|")
+        if not separator or not stream_id or not extension or "|" in extension:
+            raise ValidationError("resource_id", "Xtream playback resource is invalid")
+        if not extension.isalnum():
+            raise ValidationError("container_extension", "Xtream stream extension is invalid")
+        return stream_id, extension
 
     @staticmethod
     def epg_entries(
@@ -190,6 +289,50 @@ class XtreamDomainTranslator:
             raise ValidationError(field, "Xtream timestamp must be an integer") from exc
 
     @staticmethod
+    def _container_extension(
+        raw: Mapping[str, object], fallback: Mapping[str, object] | None = None
+    ) -> str:
+        value = (
+            str(
+                raw.get("container_extension")
+                or (fallback or {}).get("container_extension")
+                or "mp4"
+            )
+            .strip()
+            .lower()
+        )
+        if not value.isalnum():
+            raise ValidationError("container_extension", "Xtream stream extension is invalid")
+        return value
+
+    @staticmethod
+    def _season_number(raw: Mapping[str, object]) -> int:
+        value = raw.get("season_number") or raw.get("season") or raw.get("id")
+        return XtreamDomainTranslator._positive_int(value, "season")
+
+    @staticmethod
+    def _episode_number(raw: Mapping[str, object]) -> int:
+        value = raw.get("episode_num") or raw.get("episode_number") or raw.get("id")
+        return XtreamDomainTranslator._positive_int(value, "episode_number")
+
+    @staticmethod
+    def _optional_duration(raw: Mapping[str, object]) -> int | None:
+        value = raw.get("duration_secs") or raw.get("duration_seconds")
+        if value in (None, ""):
+            return None
+        return XtreamDomainTranslator._positive_int(value, "duration_seconds", allow_zero=True)
+
+    @staticmethod
+    def _positive_int(value: object, field: str, *, allow_zero: bool = False) -> int:
+        try:
+            parsed = int(str(value))
+        except (TypeError, ValueError) as exc:
+            raise ValidationError(field, f"Xtream {field} must be an integer") from exc
+        if parsed < 0 or (parsed == 0 and not allow_zero):
+            raise ValidationError(field, f"Xtream {field} must be positive")
+        return parsed
+
+    @staticmethod
     def _optional_int(value: object) -> int | None:
         if value in (None, ""):
             return None
@@ -197,3 +340,12 @@ class XtreamDomainTranslator:
             return int(str(value))
         except ValueError as exc:
             raise ValidationError("num", "Xtream channel number must be an integer") from exc
+
+    @staticmethod
+    def _optional_float(value: object) -> float | None:
+        if value in (None, ""):
+            return None
+        try:
+            return float(str(value))
+        except ValueError as exc:
+            raise ValidationError("rating", "Xtream rating must be numeric") from exc

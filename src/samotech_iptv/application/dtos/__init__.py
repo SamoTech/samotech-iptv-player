@@ -29,6 +29,8 @@ from samotech_iptv.application.dtos.content import (
     BrowseContentResponse,
     ContentItemDTO,
     ContentType,
+    LoadMovieDetailsRequest,
+    LoadMovieDetailsResponse,
 )
 from samotech_iptv.application.dtos.discovery import (
     EpisodeDTO,
@@ -102,6 +104,8 @@ __all__ = [
     "ContentItemDTO",
     "BrowseContentRequest",
     "BrowseContentResponse",
+    "LoadMovieDetailsRequest",
+    "LoadMovieDetailsResponse",
     "SeasonDTO",
     "EpisodeDTO",
     "LoadSeriesSeasonsRequest",

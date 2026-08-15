@@ -53,6 +53,15 @@ async def test_series_returns_object_records() -> None:
 
 
 @pytest.mark.asyncio
+async def test_vod_and_series_detail_operations_return_object_records() -> None:
+    vod_detail = await _client({"movie_data": {"stream_id": 42}}).vod_info("42")
+    series_detail = await _client({"episodes": {"1": []}}).series_info("84")
+
+    assert vod_detail["movie_data"] == {"stream_id": 42}
+    assert series_detail["episodes"] == {"1": []}
+
+
+@pytest.mark.asyncio
 async def test_live_categories_returns_object_records() -> None:
     records = await _client([{"category_id": "news", "category_name": "News"}]).live_categories()
 
@@ -70,3 +79,5 @@ async def test_short_epg_returns_listing_records() -> None:
 async def test_client_rejects_malformed_responses() -> None:
     with pytest.raises(ProviderError):
         await _client({}).live_streams()
+    with pytest.raises(ProviderError):
+        await _client([]).vod_info("42")

@@ -13,8 +13,12 @@ from samotech_iptv.core.exceptions import ProviderError
 
 if TYPE_CHECKING:
     from samotech_iptv.application.ports.player_port import PlayerPort
+    from samotech_iptv.application.ports.provider_non_live_resolver_port import (
+        ProviderNonLivePlaybackResolverPort,
+    )
     from samotech_iptv.application.ports.provider_resolver_port import ProviderResolverPort
     from samotech_iptv.application.use_cases.record_history import RecordHistory
+    from samotech_iptv.domain.value_objects.url import URL
 
 __all__ = ["PlaybackAttemptRegistry", "PlayPlaybackTarget"]
 
@@ -51,8 +55,10 @@ class PlayPlaybackTarget:
         player: PlayerPort,
         record_history: RecordHistory | None = None,
         attempts: PlaybackAttemptRegistry | None = None,
+        non_live_provider_resolver: ProviderNonLivePlaybackResolverPort | None = None,
     ) -> None:
         self._provider_resolver = provider_resolver
+        self._non_live_provider_resolver = non_live_provider_resolver
         self._player = player
         self._record_history = record_history
         self._attempts = attempts or PlaybackAttemptRegistry()
@@ -63,15 +69,12 @@ class PlayPlaybackTarget:
         return self._attempts
 
     async def execute(self, target: PlaybackTarget) -> PlaybackResult:
-        """Play the latest Live target or return an explicit safe unsupported result."""
+        """Play the latest supported provider-scoped target through one player path."""
         attempt = self._attempts.begin(target)
-        if target.content_type is not ContentType.LIVE:
+        if target.content_type is not ContentType.LIVE and self._non_live_provider_resolver is None:
             return PlaybackResult(attempt, PlaybackOutcome.UNSUPPORTED, "Playback is unavailable")
         try:
-            from samotech_iptv.domain.value_objects.channel_id import ChannelId
-
-            provider = self._provider_resolver.resolve_playback_provider(target.provider_id)
-            url = await provider.resolve_stream(ChannelId(target.canonical_content_id))
+            url, history_item_type = await self._resolve_target(target)
         except Exception:
             if not self._attempts.is_current(attempt):
                 return PlaybackResult(attempt, PlaybackOutcome.STALE)
@@ -93,9 +96,40 @@ class PlayPlaybackTarget:
                 await self._record_history.execute(
                     RecordHistoryRequest(
                         item_id=target.canonical_content_id,
-                        item_type="channel",
+                        item_type=history_item_type,
                     )
                 )
             except Exception as exc:  # noqa: BLE001
                 raise ProviderError("Unable to record playback history") from exc
         return PlaybackResult(attempt, PlaybackOutcome.PLAYED)
+
+    async def _resolve_target(self, target: PlaybackTarget) -> tuple[URL, str]:
+        """Resolve exactly one target type at its provider-to-player boundary."""
+        if target.content_type is ContentType.LIVE:
+            from samotech_iptv.domain.value_objects.channel_id import ChannelId
+
+            provider = self._provider_resolver.resolve_playback_provider(target.provider_id)
+            return await provider.resolve_stream(ChannelId(target.canonical_content_id)), "channel"
+        if target.content_type is ContentType.MOVIE:
+            resolver = self._non_live_provider_resolver
+            if resolver is None:
+                raise ProviderError("Movie playback is unavailable")
+            movie_provider = resolver.resolve_movie_playback_provider(target.provider_id)
+            return (
+                await movie_provider.resolve_movie_stream(
+                    target.canonical_content_id, target.resource_id or ""
+                ),
+                "movie",
+            )
+        if target.content_type is ContentType.EPISODE:
+            resolver = self._non_live_provider_resolver
+            if resolver is None:
+                raise ProviderError("Episode playback is unavailable")
+            episode_provider = resolver.resolve_episode_playback_provider(target.provider_id)
+            return (
+                await episode_provider.resolve_episode_stream(
+                    target.canonical_content_id, target.resource_id or ""
+                ),
+                "episode",
+            )
+        raise ProviderError("Playback target is unsupported")

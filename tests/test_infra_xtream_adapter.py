@@ -25,6 +25,26 @@ class FakeHttpClient:
     """Deterministic Xtream player API responder."""
 
     async def get_json(self, url: str) -> object:
+        if "get_vod_info" in url:
+            return {
+                "movie_data": {"stream_id": 42, "name": "Example Movie"},
+                "info": {"plot": "Detail metadata", "container_extension": "mp4"},
+            }
+        if "get_series_info" in url:
+            return {
+                "seasons": [{"season_number": 1, "name": "Season One"}],
+                "episodes": {
+                    "1": [
+                        {
+                            "id": 501,
+                            "episode_num": 1,
+                            "title": "Pilot",
+                            "container_extension": "mp4",
+                            "info": {"duration_secs": 1200, "plot": "Episode metadata"},
+                        }
+                    ]
+                },
+            }
         if "get_live_streams" in url:
             return [
                 {"stream_id": 1, "name": "News", "container_extension": "m3u8"},
@@ -111,6 +131,18 @@ async def test_adapter_authenticates_stores_credentials_and_translates_live_chan
     assert (
         await adapter.resolve_stream(ChannelId("xtream-demo:1"))
     ).value == "https://portal.example.test/live/user/secret/1.m3u8"
+    movie = await adapter.load_movie_details("xtream-demo:42")
+    assert movie.plot == "Detail metadata"
+    assert (
+        await adapter.resolve_movie_stream("xtream-demo:42", movie.stream_id.value)
+    ).value.endswith("/movie/user/secret/42.mp4")
+    seasons = await adapter.load_seasons("xtream-demo:84")
+    assert [season.number for season in seasons] == [1]
+    episodes = await adapter.load_episodes("xtream-demo:84", 1)
+    assert [episode.title for episode in episodes] == ["Pilot"]
+    assert (
+        await adapter.resolve_episode_stream(episodes[0].id, episodes[0].stream_id.value)
+    ).value.endswith("/series/user/secret/501.mp4")
 
 
 def test_adapter_advertises_only_implemented_capabilities_and_registers_with_factory() -> None:
@@ -126,6 +158,9 @@ def test_adapter_advertises_only_implemented_capabilities_and_registers_with_fac
         ProviderCapability.STREAM_RESOLUTION,
         ProviderCapability.VOD,
         ProviderCapability.SERIES,
+        ProviderCapability.MOVIE_PLAYBACK,
+        ProviderCapability.SERIES_DETAILS,
+        ProviderCapability.EPISODE_PLAYBACK,
         ProviderCapability.SEARCH,
     }
     assert factory.is_registered("xtream")

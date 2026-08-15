@@ -41,6 +41,7 @@ __all__ = [
     "CatalogProvider",
     "CategoryProvider",
     "VodProvider",
+    "MovieDetailProvider",
     "SeriesProvider",
     "MoviePlaybackProvider",
     "SeriesDetailProvider",
@@ -117,6 +118,15 @@ class VodProvider(ABC):
     @abstractmethod
     async def load_movies(self) -> Sequence[Movie]:
         """Return the full movie catalogue available to this provider."""
+        ...
+
+
+class MovieDetailProvider(ABC):
+    """Capability: load one canonical VOD detail record."""
+
+    @abstractmethod
+    async def load_movie_details(self, movie_id: str) -> Movie:
+        """Return provider-owned movie metadata without resolving playback."""
         ...
 
 

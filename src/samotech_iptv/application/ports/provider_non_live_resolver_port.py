@@ -6,12 +6,14 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from samotech_iptv.application.ports.provider_capabilities import (
         EpisodePlaybackProvider,
+        MovieDetailProvider,
         MoviePlaybackProvider,
         SeriesDetailProvider,
     )
 
 __all__ = [
     "ProviderNonLivePlaybackResolverPort",
+    "ProviderMovieDetailResolverPort",
     "ProviderSeriesDiscoveryResolverPort",
 ]
 
@@ -27,6 +29,15 @@ class ProviderNonLivePlaybackResolverPort(ABC):
     @abstractmethod
     def resolve_episode_playback_provider(self, provider_id: str) -> EpisodePlaybackProvider:
         """Return an episode-resolution provider or raise a controlled provider error."""
+        ...
+
+
+class ProviderMovieDetailResolverPort(ABC):
+    """Resolve optional VOD-detail capability without changing catalogue resolution."""
+
+    @abstractmethod
+    def resolve_movie_detail_provider(self, provider_id: str) -> MovieDetailProvider:
+        """Return a movie-detail provider or raise a controlled provider error."""
         ...
 
 

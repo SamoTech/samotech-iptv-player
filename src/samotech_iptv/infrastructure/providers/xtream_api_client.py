@@ -50,6 +50,14 @@ class XtreamApiClient:
         """Return raw series records for canonical series translation."""
         return await self._stream_records("get_series", "series")
 
+    async def vod_info(self, stream_id: str) -> Mapping[str, object]:
+        """Return one validated VOD detail response without retaining provider data."""
+        return await self._detail_record("get_vod_info", "vod_id", stream_id, "VOD")
+
+    async def series_info(self, series_id: str) -> Mapping[str, object]:
+        """Return one validated Series detail response without retaining provider data."""
+        return await self._detail_record("get_series_info", "series_id", series_id, "series")
+
     async def live_categories(self) -> Sequence[Mapping[str, object]]:
         """Return raw live category records for canonical translation."""
         return await self._stream_records("get_live_categories", "live-category")
@@ -65,6 +73,14 @@ class XtreamApiClient:
     def live_stream_url(self, stream_id: str, extension: str) -> URL:
         """Build the credential-safe playback URL for one live stream."""
         return self._request_builder.stream_url("live", stream_id, extension)
+
+    def vod_stream_url(self, stream_id: str, extension: str) -> URL:
+        """Build the credential-safe playback URL for one validated VOD stream."""
+        return self._request_builder.stream_url("movie", stream_id, extension)
+
+    def episode_stream_url(self, episode_id: str, extension: str) -> URL:
+        """Build the credential-safe playback URL for one validated episode stream."""
+        return self._request_builder.stream_url("series", episode_id, extension)
 
     async def short_epg(self, stream_id: str) -> Sequence[Mapping[str, object]]:
         """Return validated short-EPG records for one Xtream live stream."""
@@ -85,3 +101,13 @@ class XtreamApiClient:
         if not isinstance(payload, list) or not all(isinstance(item, Mapping) for item in payload):
             raise ProviderError(f"Xtream {label} response must be a list of objects")
         return cast("Sequence[Mapping[str, object]]", payload)
+
+    async def _detail_record(
+        self, action: str, identifier_name: str, identifier: str, label: str
+    ) -> Mapping[str, object]:
+        payload = await self._http_client.get_json(
+            str(self._request_builder.player_api(action, **{identifier_name: identifier}))
+        )
+        if not isinstance(payload, Mapping):
+            raise ProviderError(f"Xtream {label} detail response must be an object")
+        return payload

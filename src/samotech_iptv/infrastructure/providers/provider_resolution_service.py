@@ -10,6 +10,7 @@ from samotech_iptv.application.ports.provider_capabilities import (
     CategoryProvider,
     EPGProvider,
     EpisodePlaybackProvider,
+    MovieDetailProvider,
     MoviePlaybackProvider,
     PlaybackProvider,
     SearchProvider,
@@ -21,6 +22,7 @@ from samotech_iptv.application.ports.provider_content_resolver_port import (
     ProviderContentResolverPort,
 )
 from samotech_iptv.application.ports.provider_non_live_resolver_port import (
+    ProviderMovieDetailResolverPort,
     ProviderNonLivePlaybackResolverPort,
     ProviderSeriesDiscoveryResolverPort,
 )
@@ -41,6 +43,7 @@ class ProviderResolutionService(
     ProviderResolverPort,
     ProviderContentResolverPort,
     ProviderNonLivePlaybackResolverPort,
+    ProviderMovieDetailResolverPort,
     ProviderSeriesDiscoveryResolverPort,
 ):
     """Resolve a registered provider while keeping credentials inside infrastructure."""
@@ -90,6 +93,15 @@ class ProviderResolutionService(
             provider, ProviderCapability.MOVIE_PLAYBACK
         ):
             raise ProviderError("Provider does not support movie playback")
+        return provider
+
+    def resolve_movie_detail_provider(self, provider_id: str) -> MovieDetailProvider:
+        """Build the provider and verify explicit movie-detail support."""
+        provider = self._resolve(provider_id)
+        if not isinstance(provider, MovieDetailProvider) or not self._advertises(
+            provider, ProviderCapability.MOVIE_PLAYBACK
+        ):
+            raise ProviderError("Provider does not support movie details")
         return provider
 
     def resolve_episode_playback_provider(self, provider_id: str) -> EpisodePlaybackProvider:

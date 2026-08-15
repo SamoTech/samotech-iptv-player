@@ -14,6 +14,8 @@ __all__ = [
     "BrowseContentResponse",
     "ContentItemDTO",
     "ContentType",
+    "LoadMovieDetailsRequest",
+    "LoadMovieDetailsResponse",
 ]
 
 
@@ -59,5 +61,22 @@ class BrowseContentResponse:
 
     items: Sequence[ContentItemDTO] = field(default_factory=list)
     total: int = 0
+    error: str | None = None
+    unsupported: bool = False
+
+
+@dataclass(frozen=True)
+class LoadMovieDetailsRequest:
+    """Request one safe provider-scoped VOD detail projection."""
+
+    provider_id: str
+    movie_id: str
+
+
+@dataclass(frozen=True)
+class LoadMovieDetailsResponse:
+    """Return one detail projection without a resolved playback URL."""
+
+    item: ContentItemDTO | None = None
     error: str | None = None
     unsupported: bool = False

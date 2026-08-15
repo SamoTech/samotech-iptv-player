@@ -11,7 +11,11 @@ from samotech_iptv.application.dtos.playback import (
     PlaybackTarget,
 )
 from samotech_iptv.application.ports.player_port import PlayerPort
-from samotech_iptv.application.ports.provider_capabilities import PlaybackProvider
+from samotech_iptv.application.ports.provider_capabilities import (
+    EpisodePlaybackProvider,
+    MoviePlaybackProvider,
+    PlaybackProvider,
+)
 from samotech_iptv.application.ports.provider_resolver_port import ProviderResolverPort
 from samotech_iptv.application.use_cases.play_playback_target import (
     PlaybackAttemptRegistry,
@@ -123,6 +127,38 @@ class RecordingHistory:
             raise self._error
         self.requests.append((request.item_id, request.item_type))  # type: ignore[union-attr]
         return object()
+
+
+class FixedNonLiveProvider(MoviePlaybackProvider, EpisodePlaybackProvider):
+    """Provider double returning deterministic URLs for opaque non-live resources."""
+
+    def __init__(self) -> None:
+        self.movie_calls: list[tuple[str, str]] = []
+        self.episode_calls: list[tuple[str, str]] = []
+
+    async def resolve_movie_stream(self, movie_id: str, resource_id: str) -> URL:
+        self.movie_calls.append((movie_id, resource_id))
+        return URL("https://example.invalid/movie")
+
+    async def resolve_episode_stream(self, episode_id: str, resource_id: str) -> URL:
+        self.episode_calls.append((episode_id, resource_id))
+        return URL("https://example.invalid/episode")
+
+
+class FixedNonLiveResolver:
+    """Resolve one deterministic provider without exposing a production provider."""
+
+    def __init__(self, provider: FixedNonLiveProvider) -> None:
+        self.provider = provider
+        self.provider_ids: list[str] = []
+
+    def resolve_movie_playback_provider(self, provider_id: str) -> MoviePlaybackProvider:
+        self.provider_ids.append(provider_id)
+        return self.provider
+
+    def resolve_episode_playback_provider(self, provider_id: str) -> EpisodePlaybackProvider:
+        self.provider_ids.append(provider_id)
+        return self.provider
 
 
 def live(channel_id: str, provider_id: str = "provider-a") -> PlaybackTarget:
@@ -339,6 +375,36 @@ async def test_unsupported_movie_target_returns_safe_outcome_without_resolution(
     assert result.outcome is PlaybackOutcome.UNSUPPORTED
     assert resolver.provider_ids == []
     assert player.urls == []
+
+
+@pytest.mark.asyncio
+async def test_movie_and_episode_targets_use_the_single_player_path_and_history() -> None:
+    live_provider = ControlledPlaybackProvider()
+    non_live_provider = FixedNonLiveProvider()
+    non_live_resolver = FixedNonLiveResolver(non_live_provider)
+    player = RecordingPlayer()
+    history = RecordingHistory()
+    use_case = PlayPlaybackTarget(
+        FixedResolver(live_provider),
+        player,
+        history,  # type: ignore[arg-type]
+        non_live_provider_resolver=non_live_resolver,  # type: ignore[arg-type]
+    )
+
+    movie_result = await use_case.execute(PlaybackTarget.movie("provider-a", "movie-a", "42|mp4"))
+    episode_result = await use_case.execute(
+        PlaybackTarget.episode("provider-a", "episode-a", "501|mp4", "series-a", 1, 1)
+    )
+
+    assert movie_result.outcome is PlaybackOutcome.PLAYED
+    assert episode_result.outcome is PlaybackOutcome.PLAYED
+    assert non_live_provider.movie_calls == [("movie-a", "42|mp4")]
+    assert non_live_provider.episode_calls == [("episode-a", "501|mp4")]
+    assert [url.value for url in player.urls] == [
+        "https://example.invalid/movie",
+        "https://example.invalid/episode",
+    ]
+    assert history.requests == [("movie-a", "movie"), ("episode-a", "episode")]
 
 
 def test_same_provider_different_content_types_have_distinct_identities() -> None:
