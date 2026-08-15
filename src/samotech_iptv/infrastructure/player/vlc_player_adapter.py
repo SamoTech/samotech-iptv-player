@@ -5,12 +5,14 @@ from __future__ import annotations
 import asyncio
 import sys
 import time
+from enum import StrEnum
+from itertools import count
+from threading import Lock, current_thread
 from typing import TYPE_CHECKING, Literal, Protocol
 
 import vlc  # type: ignore[import-untyped]
 
 from samotech_iptv.application.ports.player_port import PlayerPort
-from samotech_iptv.core.diagnostics import safe_label
 from samotech_iptv.core.logging import get_logger
 
 if TYPE_CHECKING:
@@ -22,6 +24,33 @@ __all__ = ["VlcPlayerAdapter"]
 
 _LOG = get_logger(__name__)
 PlaybackMode = Literal["auto", "hardware", "software"]
+_CommandAction = Literal["play", "stop", "pause", "release"]
+_CommandCause = Literal[
+    "initial_start",
+    "channel_switch",
+    "explicit_stop",
+    "immediate_play_failure",
+    "shutdown",
+    "recording_restart",
+    "explicit_pause",
+    "explicit_resume",
+    "live_recovery",
+]
+_RecoveryReason = Literal["EOF", "STOPPED", "BUFFERING_TIMEOUT", "START_TIMEOUT"]
+_PLAYER_IDS = count(1)
+
+
+class _PlaybackState(StrEnum):
+    """Internal live-input lifecycle; no UI state contract is exposed."""
+
+    IDLE = "IDLE"
+    STARTING = "STARTING"
+    PLAYING = "PLAYING"
+    BUFFERING = "BUFFERING"
+    RECOVERING = "RECOVERING"
+    STOPPING = "STOPPING"
+    STOPPED = "STOPPED"
+    FAILED = "FAILED"
 
 
 class _VlcMedia(Protocol):
@@ -63,6 +92,12 @@ class VlcPlayerAdapter(PlayerPort):
         playback_mode: PlaybackMode = "auto",
         network_caching_ms: int = 1000,
         play_retry_count: int = 1,
+        live_recovery_max_attempts: int = 5,
+        live_recovery_window_s: float = 45.0,
+        live_recovery_initial_delay_s: float = 1.0,
+        live_recovery_max_delay_s: float = 8.0,
+        live_buffering_timeout_s: float = 10.0,
+        live_recovery_stability_s: float = 5.0,
     ) -> None:
         if playback_mode not in {"auto", "hardware", "software"}:
             raise ValueError("playback_mode must be auto, hardware, or software")
@@ -70,6 +105,19 @@ class VlcPlayerAdapter(PlayerPort):
             raise ValueError("network_caching_ms must not be negative")
         if play_retry_count < 0:
             raise ValueError("play_retry_count must not be negative")
+        if live_recovery_max_attempts < 0:
+            raise ValueError("live_recovery_max_attempts must not be negative")
+        if (
+            min(
+                live_recovery_window_s,
+                live_recovery_initial_delay_s,
+                live_recovery_max_delay_s,
+                live_buffering_timeout_s,
+                live_recovery_stability_s,
+            )
+            < 0
+        ):
+            raise ValueError("live recovery durations must not be negative")
         self._instance = instance or vlc.Instance()
         self._player = player or self._instance.media_player_new()
         self._current_url: URL | None = None
@@ -77,9 +125,40 @@ class VlcPlayerAdapter(PlayerPort):
         self._playback_mode = playback_mode
         self._network_caching_ms = network_caching_ms
         self._play_retry_count = play_retry_count
+        self._live_recovery_max_attempts = live_recovery_max_attempts
+        self._live_recovery_window_s = live_recovery_window_s
+        self._live_recovery_initial_delay_s = live_recovery_initial_delay_s
+        self._live_recovery_max_delay_s = live_recovery_max_delay_s
+        self._live_buffering_timeout_s = live_buffering_timeout_s
+        self._live_recovery_stability_s = live_recovery_stability_s
         self._play_lock = asyncio.Lock()
         self._closed = False
+        self._player_id = next(_PLAYER_IDS)
+        self._created_at = time.perf_counter()
+        self._diagnostic_lock = Lock()
+        self._media_generation = 0
+        self._media_created_at: float | None = None
+        self._event_sequence = 0
+        self._event_subscription_count = 0
+        self._last_command_cause: _CommandCause | None = None
+        self._state = _PlaybackState.IDLE
+        self._session_token = 0
+        self._intentional_action = False
+        self._event_loop: asyncio.AbstractEventLoop | None = None
+        self._recovery_task: asyncio.Task[None] | None = None
+        self._watchdog_task: asyncio.Task[None] | None = None
+        self._stability_task: asyncio.Task[None] | None = None
+        self._recovery_attempts = 0
+        self._recovery_started_at: float | None = None
         self._subscribe_events()
+        _LOG.info(
+            "[IPTV] PLAYBACK_DIAGNOSTIC CONSTRUCT player_id=%d instance_args=none "
+            "playback_mode=%s network_cache_ms=%d event_subscriptions=%d",
+            self._player_id,
+            self._playback_mode,
+            self._network_caching_ms,
+            self._event_subscription_count,
+        )
 
     def _subscribe_events(self) -> None:
         """Attach best-effort libVLC lifecycle events when the backend exposes them."""
@@ -102,12 +181,46 @@ class VlcPlayerAdapter(PlayerPort):
                 if event_type is not None:
                     event_manager.event_attach(
                         event_type,
-                        lambda _event, event_label=label: _LOG.info(
-                            "[IPTV] PLAYBACK %s", event_label
-                        ),
+                        lambda _event, event_label=label: self._on_native_event(event_label),
+                    )
+                    self._event_subscription_count += 1
+                    _LOG.info(
+                        "[IPTV] PLAYBACK_DIAGNOSTIC SUBSCRIBE player_id=%d event=%s "
+                        "subscription_ordinal=%d event_subscriptions=%d",
+                        self._player_id,
+                        event_name,
+                        self._event_subscription_count,
+                        self._event_subscription_count,
                     )
         except Exception:  # noqa: BLE001
             _LOG.debug("[IPTV] PLAYBACK event subscription unavailable", exc_info=True)
+
+    def _on_native_event(self, event_name: str) -> None:
+        """Log one libVLC callback and route recovery work to the owning event loop."""
+        media_generation, session_token = self._log_event(event_name)
+        event_loop = self._event_loop
+        if event_loop is None or event_loop.is_closed():
+            return
+        event_loop.call_soon_threadsafe(
+            self._schedule_native_event,
+            event_name,
+            media_generation,
+            session_token,
+        )
+
+    def _schedule_native_event(
+        self,
+        event_name: str,
+        media_generation: int,
+        session_token: int,
+    ) -> None:
+        """Create recovery handling work only after the native callback returns."""
+        if self._closed:
+            return
+        asyncio.create_task(
+            self._handle_native_event(event_name, media_generation, session_token),
+            name=f"iptv-vlc-event-{self._player_id}-{media_generation}-{event_name.lower()}",
+        )
 
     @property
     def is_playing(self) -> bool:
@@ -123,19 +236,23 @@ class VlcPlayerAdapter(PlayerPort):
         """Stop prior media, then start one stream with bounded retry and diagnostics."""
         started = time.perf_counter()
         async with self._play_lock:
+            self._event_loop = asyncio.get_running_loop()
+            await self._invalidate_recovery(_PlaybackState.STARTING)
             if self._current_url is not None or self.is_playing:
-                _LOG.info(
-                    "[IPTV] PLAYBACK STOPPED reason=channel_switch previous=%s",
-                    safe_label(self._current_url.value if self._current_url else "<unknown>"),
-                )
-                await self._invoke("stop")
-            _LOG.info("[IPTV] PLAYBACK START host=%s", self._host(url.value))
+                _LOG.info("[IPTV] PLAYBACK STOPPED reason=channel_switch")
+                await self._invoke("stop", "channel_switch")
+            _LOG.info("[IPTV] PLAYBACK START")
+            self._current_url = url
             last_error: Exception | None = None
             for attempt in range(self._play_retry_count + 1):
                 try:
-                    await self._set_media_and_play(url, software_fallback=attempt > 0)
-                    self._current_url = url
+                    await self._set_media_and_play(
+                        url,
+                        software_fallback=attempt > 0,
+                        cause=("initial_start" if attempt == 0 else "immediate_play_failure"),
+                    )
                     self._recording_destination = None
+                    self._intentional_action = False
                     _LOG.info(
                         "[IPTV] PLAYBACK PLAYING elapsed=%.3fs retry=%d",
                         time.perf_counter() - started,
@@ -149,10 +266,11 @@ class VlcPlayerAdapter(PlayerPort):
                         type(exc).__name__,
                         attempt,
                     )
-                    await self._invoke("stop")
+                    await self._invoke("stop", "immediate_play_failure")
                     if attempt < self._play_retry_count:
                         _LOG.info("[IPTV] PLAYBACK RETRY retry=%d mode=software", attempt + 1)
             self._current_url = None
+            self._state = _PlaybackState.FAILED
             if last_error is None:
                 raise RuntimeError("Unable to start playback")
             raise RuntimeError("Unable to start playback") from last_error
@@ -160,9 +278,11 @@ class VlcPlayerAdapter(PlayerPort):
     async def stop(self) -> None:
         """Stop libVLC playback and terminate any active recording output."""
         async with self._play_lock:
-            await self._invoke("stop")
+            await self._invalidate_recovery(_PlaybackState.STOPPING, intentional=True)
+            await self._invoke("stop", "explicit_stop")
             self._current_url = None
             self._recording_destination = None
+            self._state = _PlaybackState.STOPPED
             _LOG.info("[IPTV] PLAYBACK STOPPED")
 
     async def close(self) -> None:
@@ -171,54 +291,75 @@ class VlcPlayerAdapter(PlayerPort):
             if self._closed:
                 return
             self._closed = True
+            await self._invalidate_recovery(_PlaybackState.STOPPING, intentional=True)
             self._current_url = None
             self._recording_destination = None
             try:
-                await self._invoke("stop")
+                await self._invoke("stop", "shutdown")
             except Exception:  # noqa: BLE001
                 _LOG.debug("[IPTV] PLAYBACK stop during shutdown failed", exc_info=True)
             try:
-                await self._release(self._player)
+                await self._release(self._player, "player")
             finally:
-                await self._release(self._instance)
+                await self._release(self._instance, "instance")
+            _LOG.info(
+                "[IPTV] PLAYBACK_DIAGNOSTIC RELEASED player_id=%d media_generation=%d "
+                "last_command_cause=%s elapsed_ms=%.3f",
+                self._player_id,
+                self._media_generation,
+                self._diagnostic_cause(),
+                (time.perf_counter() - self._created_at) * 1_000,
+            )
             _LOG.info("[IPTV] PLAYBACK RELEASED")
 
     async def pause(self) -> None:
         """Pause libVLC playback while preserving an active recording configuration."""
         async with self._play_lock:
-            await self._invoke("pause")
+            await self._invalidate_recovery(_PlaybackState.STOPPED, intentional=True)
+            await self._invoke("pause", "explicit_pause")
             _LOG.info("[IPTV] PLAYBACK BUFFERING state=paused")
 
     async def resume(self) -> None:
         """Resume libVLC playback while preserving an active recording configuration."""
         async with self._play_lock:
-            await self._invoke("play")
+            self._event_loop = asyncio.get_running_loop()
+            self._intentional_action = False
+            self._state = _PlaybackState.STARTING
+            await self._invoke("play", "explicit_resume")
             _LOG.info("[IPTV] PLAYBACK PLAYING state=resumed")
 
     async def start_recording(self, destination: Path) -> None:
         """Restart active media with one libVLC display/file duplicate stream output."""
-        if self._current_url is None or not self.is_playing:
-            raise RuntimeError("Cannot record without active playback")
-        if self._recording_destination is not None:
-            raise RuntimeError("Recording is already active")
-        output_path = destination.expanduser().resolve()
-        if output_path.suffix.lower() != ".ts":
-            raise ValueError("Recording destination must use the .ts extension")
-        if output_path.exists():
-            raise FileExistsError("Recording destination already exists")
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        media = self._instance.media_new(self._current_url.value)
-        media.add_option(self._recording_option(output_path))
-        self._player.set_media(media)
-        await self._invoke("play")
-        self._recording_destination = output_path
+        async with self._play_lock:
+            if self._current_url is None or not self.is_playing:
+                raise RuntimeError("Cannot record without active playback")
+            if self._recording_destination is not None:
+                raise RuntimeError("Recording is already active")
+            output_path = destination.expanduser().resolve()
+            if output_path.suffix.lower() != ".ts":
+                raise ValueError("Recording destination must use the .ts extension")
+            if output_path.exists():
+                raise FileExistsError("Recording destination already exists")
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            await self._invalidate_recovery(_PlaybackState.STARTING, intentional=True)
+            media = self._new_media(self._current_url, software_fallback=False)
+            media.add_option(self._recording_option(output_path))
+            self._player.set_media(media)
+            await self._invoke("play", "recording_restart")
+            self._recording_destination = output_path
 
     async def stop_recording(self) -> None:
         """Restart active media without stream output while continuing normal playback."""
-        if self._recording_destination is None or self._current_url is None:
-            raise RuntimeError("No active recording")
-        await self._set_media_and_play(self._current_url)
-        self._recording_destination = None
+        async with self._play_lock:
+            if self._recording_destination is None or self._current_url is None:
+                raise RuntimeError("No active recording")
+            await self._invalidate_recovery(_PlaybackState.STARTING, intentional=True)
+            await self._set_media_and_play(
+                self._current_url,
+                software_fallback=False,
+                cause="recording_restart",
+            )
+            self._recording_destination = None
 
     def attach_video_output(self, native_window_id: int) -> None:
         """Attach libVLC rendering to a Qt-owned native video surface."""
@@ -233,8 +374,14 @@ class VlcPlayerAdapter(PlayerPort):
         else:
             raise RuntimeError(f"Unsupported libVLC video-output platform: {sys.platform}")
 
-    async def _set_media_and_play(self, url: URL, *, software_fallback: bool = False) -> None:
-        media = self._instance.media_new(url.value)
+    async def _set_media_and_play(
+        self,
+        url: URL,
+        *,
+        software_fallback: bool = False,
+        cause: _CommandCause,
+    ) -> None:
+        media = self._new_media(url, software_fallback=software_fallback)
         if self._network_caching_ms:
             media.add_option(f":network-caching={self._network_caching_ms}")
         if self._playback_mode == "software" or (
@@ -242,13 +389,250 @@ class VlcPlayerAdapter(PlayerPort):
         ):
             media.add_option(":avcodec-hw=none")
         self._player.set_media(media)
-        await self._invoke("play")
+        await self._invoke("play", cause)
 
-    @staticmethod
-    def _host(value: str) -> str:
-        from urllib.parse import urlsplit
+    async def _invalidate_recovery(
+        self,
+        state: _PlaybackState,
+        *,
+        intentional: bool = False,
+    ) -> None:
+        """Invalidate one live session before an intentional player lifecycle action."""
+        self._session_token += 1
+        self._intentional_action = intentional
+        self._state = state
+        self._recovery_attempts = 0
+        self._recovery_started_at = None
+        await self._cancel_recovery_tasks()
 
-        return urlsplit(value).hostname or "<unknown>"
+    async def _cancel_recovery_tasks(self) -> None:
+        """Cancel timers without awaiting the task that invoked this helper."""
+        current_task = asyncio.current_task()
+        tasks: list[asyncio.Task[None]] = []
+        for attribute in ("_recovery_task", "_watchdog_task", "_stability_task"):
+            task = getattr(self, attribute)
+            if task is not None and task is not current_task:
+                task.cancel()
+                tasks.append(task)
+            setattr(self, attribute, None)
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
+
+    def _is_current_live_session(self, media_generation: int, session_token: int) -> bool:
+        return (
+            not self._closed
+            and self._current_url is not None
+            and media_generation == self._media_generation
+            and session_token == self._session_token
+            and not self._intentional_action
+        )
+
+    def _is_current_session(self, media_generation: int, session_token: int) -> bool:
+        return (
+            not self._closed
+            and self._current_url is not None
+            and media_generation == self._media_generation
+            and session_token == self._session_token
+        )
+
+    async def _handle_native_event(
+        self,
+        event_name: str,
+        media_generation: int,
+        session_token: int,
+    ) -> None:
+        """Interpret a current live callback without running libVLC work in its callback thread."""
+        async with self._play_lock:
+            if event_name == "PLAYING" and self._is_current_session(
+                media_generation, session_token
+            ):
+                self._intentional_action = False
+                self._state = _PlaybackState.PLAYING
+                self._cancel_task("_watchdog_task")
+                self._schedule_stability_window(media_generation, session_token)
+                return
+            if not self._is_current_live_session(media_generation, session_token):
+                return
+            if event_name == "BUFFERING":
+                self._state = _PlaybackState.BUFFERING
+                self._schedule_watchdog(media_generation, session_token, "BUFFERING_TIMEOUT")
+                return
+            if event_name == "END":
+                await self._request_recovery("EOF", media_generation, session_token)
+            elif event_name == "STOPPED":
+                await self._request_recovery("STOPPED", media_generation, session_token)
+
+    def _schedule_watchdog(
+        self,
+        media_generation: int,
+        session_token: int,
+        reason: _RecoveryReason,
+    ) -> None:
+        """Start one non-blocking timer; BUFFERING itself never restarts playback."""
+        self._cancel_task("_watchdog_task")
+        self._watchdog_task = asyncio.create_task(
+            self._watchdog_after_timeout(media_generation, session_token, reason),
+            name=f"iptv-vlc-watchdog-{self._player_id}-{media_generation}",
+        )
+
+    async def _watchdog_after_timeout(
+        self,
+        media_generation: int,
+        session_token: int,
+        reason: _RecoveryReason,
+    ) -> None:
+        try:
+            await asyncio.sleep(self._live_buffering_timeout_s)
+            async with self._play_lock:
+                if not self._is_current_live_session(media_generation, session_token):
+                    return
+                if self._state not in {_PlaybackState.STARTING, _PlaybackState.BUFFERING}:
+                    return
+                await self._request_recovery(reason, media_generation, session_token)
+        except asyncio.CancelledError:
+            return
+
+    async def _request_recovery(
+        self,
+        reason: _RecoveryReason,
+        media_generation: int,
+        session_token: int,
+    ) -> None:
+        """Schedule one bounded media rebuild for a current unexpected live-input failure."""
+        if not self._is_current_live_session(media_generation, session_token):
+            return
+        if self._recovery_task is not None and not self._recovery_task.done():
+            return
+        now = time.perf_counter()
+        if self._recovery_started_at is None:
+            self._recovery_started_at = now
+        elapsed_s = now - self._recovery_started_at
+        if (
+            self._recovery_attempts >= self._live_recovery_max_attempts
+            or elapsed_s >= self._live_recovery_window_s
+        ):
+            self._state = _PlaybackState.FAILED
+            _LOG.warning(
+                "[IPTV] PLAYBACK_RECOVERY_ABANDONED player_id=%d media_generation=%d "
+                "reason=%s attempts=%d elapsed_ms=%.3f",
+                self._player_id,
+                media_generation,
+                reason,
+                self._recovery_attempts,
+                elapsed_s * 1_000,
+            )
+            return
+        self._state = _PlaybackState.RECOVERING
+        self._cancel_task("_watchdog_task")
+        self._recovery_attempts += 1
+        attempt = self._recovery_attempts
+        delay_s = self._recovery_delay_s(attempt)
+        _LOG.info(
+            "[IPTV] PLAYBACK_RECOVERY player_id=%d media_generation=%d reason=%s "
+            "attempt=%d delay_ms=%.3f",
+            self._player_id,
+            media_generation,
+            reason,
+            attempt,
+            delay_s * 1_000,
+        )
+        self._recovery_task = asyncio.create_task(
+            self._recover_after_delay(reason, media_generation, session_token, attempt, delay_s),
+            name=f"iptv-vlc-recovery-{self._player_id}-{media_generation}-{attempt}",
+        )
+
+    async def _recover_after_delay(
+        self,
+        reason: _RecoveryReason,
+        failed_generation: int,
+        session_token: int,
+        attempt: int,
+        delay_s: float,
+    ) -> None:
+        """Rebuild media through the existing path; a dead libVLC input is never reused."""
+        try:
+            await asyncio.sleep(delay_s)
+            async with self._play_lock:
+                if not self._is_current_live_session(failed_generation, session_token):
+                    return
+                current_url = self._current_url
+                if current_url is None:
+                    return
+                try:
+                    self._state = _PlaybackState.STARTING
+                    await self._set_media_and_play(
+                        current_url,
+                        software_fallback=False,
+                        cause="live_recovery",
+                    )
+                except Exception as exc:  # noqa: BLE001
+                    self._recovery_task = None
+                    _LOG.warning(
+                        "[IPTV] PLAYBACK_RECOVERY_RESULT player_id=%d media_generation=%d "
+                        "reason=%s attempt=%d result=PLAY_FAILURE error_type=%s",
+                        self._player_id,
+                        failed_generation,
+                        reason,
+                        attempt,
+                        type(exc).__name__,
+                    )
+                    await self._request_recovery(reason, self._media_generation, session_token)
+                    return
+                _LOG.info(
+                    "[IPTV] PLAYBACK_RECOVERY_RESULT player_id=%d media_generation=%d "
+                    "reason=%s attempt=%d result=STARTED",
+                    self._player_id,
+                    self._media_generation,
+                    reason,
+                    attempt,
+                )
+        except asyncio.CancelledError:
+            return
+        finally:
+            if self._recovery_task is asyncio.current_task():
+                self._recovery_task = None
+
+    def _schedule_stability_window(self, media_generation: int, session_token: int) -> None:
+        """Reset the recovery budget only after sustained native PLAYING state."""
+        self._cancel_task("_stability_task")
+        self._stability_task = asyncio.create_task(
+            self._confirm_stable_playback(media_generation, session_token),
+            name=f"iptv-vlc-stability-{self._player_id}-{media_generation}",
+        )
+
+    async def _confirm_stable_playback(self, media_generation: int, session_token: int) -> None:
+        try:
+            await asyncio.sleep(self._live_recovery_stability_s)
+            async with self._play_lock:
+                if not self._is_current_live_session(media_generation, session_token):
+                    return
+                if self._state is not _PlaybackState.PLAYING:
+                    return
+                self._recovery_attempts = 0
+                self._recovery_started_at = None
+                _LOG.info(
+                    "[IPTV] PLAYBACK_RECOVERY_RESULT player_id=%d media_generation=%d "
+                    "result=STABLE",
+                    self._player_id,
+                    media_generation,
+                )
+        except asyncio.CancelledError:
+            return
+
+    def _cancel_task(self, attribute: str) -> None:
+        task = getattr(self, attribute)
+        if task is not None and not task.done():
+            task.cancel()
+        setattr(self, attribute, None)
+
+    def _recovery_delay_s(self, attempt: int) -> float:
+        multiplier = float(2 ** max(0, attempt - 1))
+        return float(
+            min(
+                self._live_recovery_initial_delay_s * multiplier,
+                self._live_recovery_max_delay_s,
+            )
+        )
 
     @staticmethod
     def _recording_option(destination: Path) -> str:
@@ -258,18 +642,101 @@ class VlcPlayerAdapter(PlayerPort):
         escaped = value.replace("\\", "\\\\").replace("'", "\\'")
         return f":sout=#duplicate{{dst=display,dst=std{{access=file,mux=ts,dst='{escaped}'}}}}"
 
-    @staticmethod
-    async def _release(target: object) -> None:
+    async def _release(self, target: object, target_name: str) -> None:
         """Release a libVLC object when its binding exposes the expected method."""
         release = getattr(target, "release", None)
         if not callable(release):
             return
+        self._log_command("release", "shutdown", target=target_name)
         try:
             await asyncio.to_thread(release)
         except Exception:  # noqa: BLE001
             _LOG.debug("[IPTV] PLAYBACK release during shutdown failed", exc_info=True)
 
-    async def _invoke(self, operation: str) -> None:
+    async def _invoke(self, operation: _CommandAction, cause: _CommandCause) -> None:
+        self._log_command(operation, cause)
         result = await asyncio.to_thread(getattr(self._player, operation))
         if isinstance(result, int) and result < 0:
             raise RuntimeError(f"libVLC {operation} failed")
+
+    def _new_media(self, url: URL, *, software_fallback: bool) -> _VlcMedia:
+        """Create media while recording only aggregate playback configuration metadata."""
+        media = self._instance.media_new(url.value)
+        with self._diagnostic_lock:
+            self._media_generation += 1
+            self._media_created_at = time.perf_counter()
+            media_generation = self._media_generation
+        hardware_option = (
+            "disabled"
+            if self._playback_mode == "software"
+            or (software_fallback and self._playback_mode == "auto")
+            else "enabled"
+        )
+        _LOG.info(
+            "[IPTV] PLAYBACK_DIAGNOSTIC MEDIA player_id=%d media_generation=%d "
+            "playback_mode=%s network_cache_ms=%d hardware_option=%s",
+            self._player_id,
+            media_generation,
+            self._playback_mode,
+            self._network_caching_ms,
+            hardware_option,
+        )
+        return media
+
+    def _log_command(
+        self,
+        action: _CommandAction,
+        cause: _CommandCause,
+        *,
+        target: str = "player",
+    ) -> None:
+        with self._diagnostic_lock:
+            self._last_command_cause = cause
+            media_generation = self._media_generation
+        _LOG.info(
+            "[IPTV] PLAYBACK_DIAGNOSTIC COMMAND player_id=%d media_generation=%d "
+            "action=%s cause=%s target=%s",
+            self._player_id,
+            media_generation,
+            action,
+            cause,
+            target,
+        )
+
+    def _log_event(self, event_name: str) -> tuple[int, int]:
+        with self._diagnostic_lock:
+            self._event_sequence += 1
+            event_sequence = self._event_sequence
+            media_generation = self._media_generation
+            session_token = self._session_token
+            media_created_at = self._media_created_at
+            last_command_cause = self._diagnostic_cause_locked()
+        elapsed_ms = (
+            "<none>"
+            if media_created_at is None
+            else f"{(time.perf_counter() - media_created_at) * 1_000:.3f}"
+        )
+        callback_thread = current_thread()
+        _LOG.info(
+            "[IPTV] PLAYBACK_DIAGNOSTIC EVENT player_id=%d media_generation=%d "
+            "event_sequence=%d event=%s media_delta_ms=%s thread_id=%d thread_name=%s "
+            "closed=%s last_command_cause=%s",
+            self._player_id,
+            media_generation,
+            event_sequence,
+            event_name,
+            elapsed_ms,
+            callback_thread.ident or 0,
+            callback_thread.name,
+            self._closed,
+            last_command_cause,
+        )
+        _LOG.info("[IPTV] PLAYBACK %s", event_name)
+        return media_generation, session_token
+
+    def _diagnostic_cause(self) -> str:
+        with self._diagnostic_lock:
+            return self._diagnostic_cause_locked()
+
+    def _diagnostic_cause_locked(self) -> str:
+        return self._last_command_cause or "<none>"
