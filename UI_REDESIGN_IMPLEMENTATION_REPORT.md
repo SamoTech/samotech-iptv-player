@@ -939,3 +939,13 @@ The current Movie/Series catalogue remains browse-only. No new buttons, selectio
 Phase 9 is a contract and controlled-discovery increment, not non-live product delivery. Concrete providers do not implement or advertise Movie stream resolution, Series details, Episode discovery, or Episode stream resolution. There is no presentation navigation for Seasons/Episodes and no non-Live playback dispatch. Existing Live behavior remains unchanged.
 
 **Exact next step:** use an authorized sanitized Xtream fixture to implement one concrete `SeriesDetailProvider` capability first, including canonical Season/Episode translation and explicit capability advertisement. Validate it through the existing resolver/discovery tests. Only then consider the separately approved concrete Movie or Episode resolver capability, followed by explicit application target dispatch and UI navigation in subsequent increments. Do not add MAG/Stalker or M3U non-live behavior without independent authorized evidence.
+
+### 11.9 Delivery record
+
+| Field | Value |
+|---|---|
+| Reviewed implementation commit | `ade9c1e7545bcedd56307269bc842afe64c36c41` — `feat(nonlive): add provider-neutral discovery contracts` |
+| Commit scope | 33 files, 1,391 insertions, 41 deletions; includes preserved Phase 8 quality/scale work and Phase 9 contracts, tests, and documentation. |
+| Push method | Normal `git push origin main`; no force push, reset, amend, or history rewrite. |
+| Remote verification | `HEAD` and `origin/main` both resolved to `ade9c1e7545bcedd56307269bc842afe64c36c41`; ahead/behind was `0/0` immediately after push. |
+| Post-push worktree | Clean immediately after the implementation push. A report-only follow-up commit is required to include this final delivery record in the consolidated report. |
