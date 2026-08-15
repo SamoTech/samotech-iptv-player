@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 from samotech_iptv.core.exceptions import StorageError
 from samotech_iptv.domain.entities.favorite import Favorite
 from samotech_iptv.domain.repositories.favorite_repository import FavoriteRepository
+from samotech_iptv.infrastructure.database.sqlite_connection import sqlite_connection
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -52,14 +53,14 @@ class SQLiteFavoriteRepository(FavoriteRepository):
     def _initialise_sync(self) -> None:
         try:
             self._database_path.parent.mkdir(parents=True, exist_ok=True)
-            with sqlite3.connect(self._database_path) as connection:
+            with sqlite_connection(self._database_path) as connection:
                 connection.execute(_SCHEMA)
         except sqlite3.Error as exc:
             raise StorageError("Unable to initialise favorites storage") from exc
 
     def _list_all_sync(self) -> list[Favorite]:
         try:
-            with sqlite3.connect(self._database_path) as connection:
+            with sqlite_connection(self._database_path) as connection:
                 rows = connection.execute(
                     "SELECT id, item_id, item_type, added_at FROM favorites ORDER BY added_at DESC"
                 ).fetchall()
@@ -77,7 +78,7 @@ class SQLiteFavoriteRepository(FavoriteRepository):
 
     def _save_sync(self, favorite: Favorite) -> None:
         try:
-            with sqlite3.connect(self._database_path) as connection:
+            with sqlite_connection(self._database_path) as connection:
                 connection.execute(
                     """
                     INSERT OR REPLACE INTO favorites (id, item_id, item_type, added_at)
@@ -95,7 +96,7 @@ class SQLiteFavoriteRepository(FavoriteRepository):
 
     def _delete_sync(self, favorite_id: str) -> bool:
         try:
-            with sqlite3.connect(self._database_path) as connection:
+            with sqlite_connection(self._database_path) as connection:
                 cursor = connection.execute("DELETE FROM favorites WHERE id = ?", (favorite_id,))
                 return cursor.rowcount > 0
         except sqlite3.Error as exc:

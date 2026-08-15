@@ -9,6 +9,7 @@ from pathlib import Path
 from samotech_iptv.application.ports.theme_preference_repository import ThemePreferenceRepository
 from samotech_iptv.core.exceptions import StorageError
 from samotech_iptv.domain.value_objects.theme_preference import ThemePreference
+from samotech_iptv.infrastructure.database.sqlite_connection import sqlite_connection
 
 __all__ = ["SQLiteThemePreferenceRepository"]
 
@@ -41,14 +42,14 @@ class SQLiteThemePreferenceRepository(ThemePreferenceRepository):
     def _initialise_sync(self) -> None:
         try:
             self._database_path.parent.mkdir(parents=True, exist_ok=True)
-            with sqlite3.connect(self._database_path) as connection:
+            with sqlite_connection(self._database_path) as connection:
                 connection.execute(_SCHEMA)
         except sqlite3.Error as exc:
             raise StorageError("Unable to initialise theme settings") from exc
 
     def _load_sync(self) -> ThemePreference:
         try:
-            with sqlite3.connect(self._database_path) as connection:
+            with sqlite_connection(self._database_path) as connection:
                 connection.execute(_SCHEMA)
                 row = connection.execute(
                     "SELECT preference FROM theme_preference WHERE id = 1"
@@ -60,7 +61,7 @@ class SQLiteThemePreferenceRepository(ThemePreferenceRepository):
     def _save_sync(self, preference: ThemePreference) -> None:
         try:
             self._database_path.parent.mkdir(parents=True, exist_ok=True)
-            with sqlite3.connect(self._database_path) as connection:
+            with sqlite_connection(self._database_path) as connection:
                 connection.execute(_SCHEMA)
                 connection.execute(
                     "INSERT OR REPLACE INTO theme_preference (id, preference) VALUES (1, ?)",

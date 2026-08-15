@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 from samotech_iptv.core.exceptions import StorageError
 from samotech_iptv.domain.entities.history import History
 from samotech_iptv.domain.repositories.history_repository import HistoryRepository
+from samotech_iptv.infrastructure.database.sqlite_connection import sqlite_connection
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -54,14 +55,14 @@ class SQLiteHistoryRepository(HistoryRepository):
     def _initialise_sync(self) -> None:
         try:
             self._database_path.parent.mkdir(parents=True, exist_ok=True)
-            with sqlite3.connect(self._database_path) as connection:
+            with sqlite_connection(self._database_path) as connection:
                 connection.execute(_SCHEMA)
         except sqlite3.Error as exc:
             raise StorageError("Unable to initialise history storage") from exc
 
     def _list_recent_sync(self, limit: int) -> list[History]:
         try:
-            with sqlite3.connect(self._database_path) as connection:
+            with sqlite_connection(self._database_path) as connection:
                 rows = connection.execute(
                     """
                     SELECT id, item_id, item_type, watched_at, duration_seconds, position_seconds
@@ -87,7 +88,7 @@ class SQLiteHistoryRepository(HistoryRepository):
 
     def _record_sync(self, history: History) -> None:
         try:
-            with sqlite3.connect(self._database_path) as connection:
+            with sqlite_connection(self._database_path) as connection:
                 connection.execute(
                     """
                     INSERT OR REPLACE INTO watch_history
@@ -108,7 +109,7 @@ class SQLiteHistoryRepository(HistoryRepository):
 
     def _clear_sync(self) -> int:
         try:
-            with sqlite3.connect(self._database_path) as connection:
+            with sqlite_connection(self._database_path) as connection:
                 cursor = connection.execute("DELETE FROM watch_history")
                 return cursor.rowcount
         except sqlite3.Error as exc:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
+from contextlib import closing
 from typing import TYPE_CHECKING
 
 import pytest
@@ -73,7 +74,7 @@ async def test_sqlite_repository_round_trips_non_secret_provider_metadata(tmp_pa
             source_is_secure=True,
         )
     ]
-    with sqlite3.connect(database_path) as connection:
+    with closing(sqlite3.connect(database_path)) as connection:
         column_names = {
             row[1] for row in connection.execute("PRAGMA table_info(provider_metadata)")
         }

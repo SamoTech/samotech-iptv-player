@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 from samotech_iptv.application.ports.storage_port import StoragePort
 from samotech_iptv.core.exceptions import StorageError
 from samotech_iptv.domain.value_objects.provider_capability import ProviderCapability
+from samotech_iptv.infrastructure.database.sqlite_connection import sqlite_connection
 from samotech_iptv.infrastructure.providers.provider_metadata import InfraProviderMetadata
 
 if TYPE_CHECKING:
@@ -82,14 +83,14 @@ class SQLiteProviderMetadataRepository(StoragePort):
     def _initialise_sync(self) -> None:
         try:
             self._database_path.parent.mkdir(parents=True, exist_ok=True)
-            with sqlite3.connect(self._database_path) as connection:
+            with sqlite_connection(self._database_path) as connection:
                 connection.execute(_SCHEMA)
         except sqlite3.Error as exc:
             raise StorageError("Unable to initialise provider metadata storage") from exc
 
     def _save_sync(self, metadata: InfraProviderMetadata) -> None:
         try:
-            with sqlite3.connect(self._database_path) as connection:
+            with sqlite_connection(self._database_path) as connection:
                 connection.execute(
                     _UPSERT,
                     (
@@ -106,7 +107,7 @@ class SQLiteProviderMetadataRepository(StoragePort):
 
     def _list_all_sync(self) -> list[InfraProviderMetadata]:
         try:
-            with sqlite3.connect(self._database_path) as connection:
+            with sqlite_connection(self._database_path) as connection:
                 rows = connection.execute("""
                     SELECT provider_id, provider_type, base_url, is_active, capabilities,
                            source_is_secure
@@ -134,7 +135,7 @@ class SQLiteProviderMetadataRepository(StoragePort):
 
     def _delete_sync(self, provider_id: str) -> bool:
         try:
-            with sqlite3.connect(self._database_path) as connection:
+            with sqlite_connection(self._database_path) as connection:
                 cursor = connection.execute(
                     "DELETE FROM provider_metadata WHERE provider_id = ?",
                     (provider_id,),
