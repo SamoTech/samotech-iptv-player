@@ -68,7 +68,7 @@ jobs:
         continue-on-error: true
 
   build:
-    name: PyInstaller Build (Windows)
+    name: Windows native VLC validation + PyInstaller build
     needs: quality
     runs-on: windows-latest
     steps:
@@ -84,6 +84,21 @@ jobs:
 
       - name: Install dependencies
         run: uv sync --extra dev
+
+      - name: Install standard native VLC runtime
+        shell: pwsh
+        run: |
+          choco install vlc.install --yes --no-progress --limit-output
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Verify native libVLC lifecycle
+        shell: pwsh
+        run: uv run python tests/vlc_native_lifecycle_probe.py
+
+      - name: Run deterministic Live EOF recovery tests
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: uv run pytest -q tests/test_infra_vlc_player_adapter.py
 
       - name: Build with PyInstaller
         run: uv run pyinstaller samotech-iptv-player.spec
