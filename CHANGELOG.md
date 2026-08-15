@@ -4,6 +4,8 @@
 
 ### Added
 
+- Added minimal Ubuntu CI provisioning for the real cross-platform PySide6 offscreen probes: the quality job installs only `libegl1`, validates `QtGui`/`QtWidgets` imports, and runs the native and 39,753-channel probes directly before coverage pytest. The probes remain required and assertions are unchanged.
+- Added deterministic operation-scoped SQLite ownership. Favorites, history, provider metadata, theme preferences, and XMLTV bindings now commit or roll back and explicitly close every per-operation connection; a direct test schema-inspection connection is also closed. No shared connection, `check_same_thread` override, or qasync shutdown ordering change was introduced.
 - Added safe MAG catalogue response-boundary diagnostics. Catalogue requests now report header arrival, complete-body aggregate timing, or incomplete-body aggregate progress without logging provider URLs, device identities, tokens, cookies, authorization headers, credentials, response bodies, or stream URLs. The instrumentation preserves the existing timeout, retries, request contracts, authentication, response acceptance, and lifecycle behavior.
 - Added provider-neutral non-live contracts for Movie stream resolution, Series-detail season/episode discovery, and Episode stream resolution. The new resolver-service seams require both the narrow interface and an explicit runtime capability declaration; no M3U, MAG/Stalker, or Xtream adapter advertises or executes them yet.
 - Added canonical provider-scoped Season identity, a safe provider-scoped Episode DTO/request boundary, bounded generation-safe discovery use cases, Movie/Episode target factories, fake-backed stale-result tests, raw-URL rejection tests, and synthetic discovery-scale coverage. This is an architecture increment only: Movie/Episode playback and non-live navigation UI remain unimplemented.
@@ -14,6 +16,7 @@
 
 ### Verification
 
+- Added direct offscreen Qt import/probe CI gates and deterministic SQLite close/rollback regression coverage across every SQLite repository. The affected repository and composition tests pass with `ResourceWarning` treated as an error.
 - Added deterministic MAG transport coverage for response-header metadata, complete multi-chunk JSON collection, zero-byte and partial-body timeout classification, payload and pre-response network errors, unchanged three-attempt retry accounting, malformed/empty response rejection, POST URL routing, and diagnostic redaction.
 - Added adapter-to-fixture coverage for strict handshake gating, headers, Referer, private cookies, explicit model-dependent helper headers, token TTL, live genres, helper page-one ordered-list channels, command-based stream resolution, source-derived middleware behavior, resource cleanup, and sensitive-value redaction. The authorized real-portal runs, including the new no-model helper revalidation, completed without a token-bearing handshake; real MAG authentication and playback remain **UNRESOLVED**.
 

@@ -1008,4 +1008,64 @@ Collect only `CATALOGUE_HTTP_RESPONSE`, `CATALOGUE_BODY_COMPLETE`, `CATALOGUE_BO
 |---|---|
 | Commit | `test(mag): add safe catalogue transport diagnostics`; the immutable commit ID is reported after the final amend and normal push because a Git commit cannot self-reference its own content hash. |
 | Commit scope | Safe MAG transport diagnostics, deterministic tests, and directly related MAG/README/changelog/consolidated-report documentation only. |
-| Push status | Pending the required normal `git push origin main` and remote verification. |
+| Push status | Completed normally for the diagnostic release at `21d12e325d74eec4102d2972f728044eb24b5851`; `HEAD` and `origin/main` matched with ahead/behind `0/0`. |
+
+---
+
+## 13. Independent CI Environment and SQLite Lifecycle Hardening
+
+### 13.1 MAG runtime issue — separate evidence status
+
+The MAG issue remains an **authorized-runtime evidence gap**, not a CI or SQLite finding. The prior committed diagnostic release observes only safe response boundaries and does not change the MAG total timeout, retry count/delay, protocol profile, request construction, response-completeness rules, session lifecycle, qasync lifecycle, or provider configuration. Five consecutive redacted Windows catalogue loads with the same authorized provider/configuration remain required to classify intermittent catalogue loading. The supplied shutdown-correlated WinError 995 remains unproven as either harmless or defective.
+
+### 13.2 CI environment issue — proven root cause and minimal correction
+
+The failing Ubuntu 24.04 / Python 3.13 quality job intended to execute both PlayerShell probes through pytest subprocess wrappers with `QT_QPA_PLATFORM=offscreen`. Both failed at the same PySide6 import boundary because `libEGL.so.1` was absent, before probe setup or application assertions. The wrappers contain no Windows-only branch, skip, xfail, or broad exception handling; they are valid cross-platform presentation tests.
+
+Ubuntu package ownership verification identifies `libegl1` as the package providing `libEGL.so.1`. The quality workflow now installs that **single** package with `--no-install-recommends`, explicitly imports `PySide6.QtGui` and `PySide6.QtWidgets` under offscreen mode, and executes both standalone probes before the existing coverage pytest command. No application package dependency, probe assertion, platform skip, test selection, coverage behavior, CodeQL workflow, or Windows build workflow changed.
+
+| CI check | Result in available Ubuntu validation environment |
+|---|---|
+| `libEGL.so.1` ownership | **PASS** — owned by Ubuntu package `libegl1`. |
+| `QT_QPA_PLATFORM=offscreen` PySide6 imports | **PASS** — `QtGui` and `QtWidgets` imported and `QApplication` initialized. |
+| Native PlayerShell probe | **PASS** — all identity, stale-result, capability, keyboard, and playback-boundary assertions executed. |
+| 39,753-channel performance probe | **PASS** — 39,753 model records; zero resolver, provider-search, and catalogue-reload calls. |
+
+The available local runner uses Python 3.12.3, while the workflow continues to target Python 3.13. The committed workflow provisions the missing Ubuntu native library before its Python 3.13 `uv` test steps; remote CI remains the final verification of that exact interpreter/runner pair.
+
+### 13.3 SQLite resource lifecycle — proven root cause and correction
+
+The SQLite audit found no persistent shared connection field and no repository-level connection to close on desktop shutdown. Each database operation is dispatched through `asyncio.to_thread`, opens a connection inside that worker, and must close it before returning. The defect was that Python’s `sqlite3.Connection` transaction context manager commits or rolls back but does **not** close the connection. Every operation in the five SQLite repositories therefore leaked a short-lived connection until garbage collection; one direct test schema-inspection connection used the same incorrect pattern. This is a **production and test lifecycle defect**, not an unavoidable third-party warning.
+
+The new internal `sqlite_connection()` context manager owns every operation-scoped connection. It applies `PRAGMA foreign_keys = ON` only for XMLTV operations, commits successful work, rolls back an exception, and closes in `finally`. The repository architecture intentionally remains short-lived and operation-scoped: no `check_same_thread` override, cross-thread connection use, QThread integration, shared SQLite connection, or qasync shutdown ordering change was added.
+
+| SQLite area | Owner and lifecycle after correction |
+|---|---|
+| Provider metadata, favorites, history, theme preference | Each `asyncio.to_thread` operation owns one helper-created connection; the helper commits/rolls back and closes in the same worker. |
+| XMLTV bindings | Same operation ownership, plus per-connection foreign-key enablement before work. |
+| Desktop composition | Constructs stateless repository facades only; it has no persistent SQLite connection to close during desktop shutdown. |
+| Direct schema-inspection test | Owns and closes its local connection explicitly. |
+
+Focused repository, composition, and helper tests passed with `PYTHONWARNINGS=error::ResourceWarning`; the requested warnings were eliminated from that affected test set. The full coverage suite reported only four pre-existing, unrelated `aiohttp` bare-handler deprecation warnings.
+
+### 13.4 Validation and remaining evidence boundary
+
+| Gate | Result |
+|---|---|
+| `uv run --no-sync ruff check src/ tests/ providers/` | **PASS**. |
+| `uv run --no-sync black --check src/ tests/ providers/` | **PASS** — 328 files unchanged. |
+| `uv run --no-sync mypy src/` | **PASS** — no issues in 201 source files. |
+| `QT_QPA_PLATFORM=offscreen uv run --no-sync pytest -q --cov=src --cov-report=xml` | **PASS**; coverage XML generated. |
+| SQLite affected tests with `ResourceWarning` as error | **PASS**. |
+| `git diff --check` | **PASS** before final documentation/commit review; rerun immediately before staging. |
+
+No MAG root-cause classification is claimed here. The remaining external dependency is the authorized Windows five-run MAG measurement set; remote GitHub Actions is the remaining exact Ubuntu 24.04/Python 3.13 confirmation after this workflow change is pushed.
+
+### 13.5 Delivery record
+
+| Commit | Scope |
+|---|---|
+| `f256932b9f51b549194a40995caf9a340974429a` — `ci: provision Qt offscreen runtime` | Installs only `libegl1` in the Ubuntu quality job and adds explicit offscreen import/direct-probe gates. |
+| `7f355a37b32954ce4ba629d517e3ea409fc81eb7` — `fix(storage): close operation-scoped sqlite connections` | Adds deterministic operation-scoped SQLite ownership, migrates all repository connection sites, closes the direct test connection, and adds lifecycle regressions. |
+
+This report, the README, project status, and changelog are committed separately as documentation for the two implementation changes. The final pushed commit identifiers and synchronized remote state are reported in the delivery message because a Git commit cannot self-reference its own immutable content hash.
