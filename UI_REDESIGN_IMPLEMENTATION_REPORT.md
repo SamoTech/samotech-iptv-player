@@ -1209,3 +1209,65 @@ The probe creates a short temporary silent WAV file locally, initializes libVLC 
 ### 15.5 Executed Windows CI evidence
 
 The first Windows CI run exposed a test-only cross-platform expectation mismatch in recording-output path escaping. The adapter already escaped native output destinations; the test expected the unescaped host path and was corrected without changing production recovery behavior. The rerun completed successfully on a Windows GitHub Actions runner: the native probe reported safe `binding`, `instance`, media-replacement, cleanup, and lifecycle success markers, and the focused deterministic adapter/recovery suite completed successfully. This establishes provider-free native lifecycle and deterministic recovery evidence only. It does not reproduce a Live stream EOF, validate an authorized provider, or change the root-cause classification.
+
+---
+
+## 16. Xtream VOD and Series Workflow Implementation
+
+### 16.1 Objective, scope, and preserved boundaries
+
+This increment completes the previously declared Xtream-specific non-live workflow through the established layers: catalogue browsing, Movie detail projection, Movie playback, Series detail retrieval, Season selection, Episode selection, and Episode playback. It extends the existing provider-neutral contracts rather than moving provider work into the Qt shell. The work intentionally does **not** claim a real-provider runtime result: all validation uses deterministic synthetic fixtures and fake presentation dependencies.
+
+The bounded Live EOF controller, Live playback path, MAG/Stalker implementation, M3U implementation, provider credentials, timeout/retry behavior, VLC preferences and adapter options, qasync lifecycle, cache-first Live search, persistence semantics, and provider configuration were preserved. No source or test logs credentials, MAC addresses, tokens, cookies, authorization headers, portal URLs, or resolved stream URLs.
+
+### 16.2 Architecture decisions
+
+Xtream returns provider-native stream IDs and container extensions, not presentation-safe player URLs. The domain translator therefore constructs an **opaque playback resource** using the form `stream_id|extension`, such as `42|mp4`. The application `PlaybackTarget` continues to reject values containing `://`; URL construction and authentication-sensitive stream resolution remain entirely within the Xtream adapter immediately before the shared `PlayerPort` receives its existing `URL` value object. This preserves the existing non-live generation/attempt semantics and removes any need for the Qt layer to know stream construction details.
+
+| Layer | Delivered responsibility | Preserved safety boundary |
+|---|---|---|
+| Xtream HTTP client | Fetches VOD and Series detail records and constructs authenticated Movie/Episode stream URLs only for adapter-local playback resolution. | Request details and resolved URLs do not cross into DTOs, targets, status text, or logs. |
+| Domain translator | Projects enriched Movie metadata; translates Series Seasons/Episodes; validates known container extensions; constructs/splits opaque resources. | Rejects invalid resource extensions and does not represent a raw URL as a resource ID. |
+| Xtream adapter | Implements `MovieDetailProvider`, `MoviePlaybackProvider`, `SeriesDetailProvider`, and `EpisodePlaybackProvider`; advertises only its actual runtime capabilities. | Other adapters remain unchanged and do not inherit non-live claims. |
+| Application service/use cases | Resolves Movie-detail capability and routes Movie/Episode targets through the existing non-live resolver into the same player/history path. | Series remains non-playable; failures return generic safe outcomes. |
+| Desktop composition and Qt shell | Injects the new use cases and holds local Series navigation state: `catalogue`, `seasons`, or `episodes`. | Presentation requests capabilities and renders immutable content; it does not instantiate provider clients or resolve URLs. |
+
+### 16.3 User workflow and state isolation
+
+Movies retain the established selection-versus-playback distinction. Selecting a Movie only updates presentation context. An explicit activation obtains capability-gated Movie details and then sends an opaque Movie target through the unified playback path. Series activation loads its Seasons; selecting a Season loads Episodes; activating an Episode creates an Episode target and uses the same shared player/history boundary. A local Back action returns from Episodes to Seasons and from Seasons to the catalogue without inventing persistent provider state.
+
+The shell stores only local navigation state: the Series ID, loaded Seasons, loaded Episodes, current view mode, selected content metadata, and ordinary request-generation/provider checks. It does not cache provider catalogue data outside the pre-existing presentation snapshot, perform provider search per keystroke, construct streams, or alter Live controls. Explicit activation labels are content-sensitive: Movies use **Play selected** and Series use **Open series** until the episode view is reached.
+
+### 16.4 Files and coverage
+
+| Area | Modified or added files | Deterministic coverage |
+|---|---|---|
+| Xtream client/domain/adapter | `xtream_api_client.py`, `xtream_domain_translator.py`, `xtream_adapter.py` | Detail response shape validation, malformed input rejection, enriched Movie metadata, opaque resource construction, extension validation, capability declarations, Movie/Episode resolution, Seasons, and Episodes. |
+| Capability and resolver layer | `provider_capabilities.py`, `provider_non_live_resolver_port.py`, `provider_resolution_service.py` | Capability-only resolver paths and unsupported-provider behavior. |
+| Application playback/detail | `play_playback_target.py`, `play_registered_channel.py`, `dtos/content.py`, `dtos/__init__.py`, **new** `load_movie_details.py` | Movie-detail DTO projection, unsupported capability result, generic detail failure, and Movie/Episode unified-player/history routing. |
+| Composition and desktop UI | `desktop_composition.py`, `desktop_bootstrap.py`, `main_window.py`, `player_shell.py` | New use-case injection, Movie activate/play, Series → Season → Episode navigation, Back behavior, and no accidental Live-path dispatch. |
+| Tests | Xtream client/translator/adapter tests; playback-target tests; **new** `test_application_load_movie_details.py`; native PlayerShell probe | Synthetic only; no real provider, endpoint, credential, or stream was contacted. |
+
+### 16.5 Validation results
+
+The targeted non-live, playback, player-shell, composition, and preserved Live EOF recovery suites passed before the repository-wide run. The full offscreen suite then passed with no failures. Four existing `aiohttp` bare-handler deprecation warnings remain non-fatal and are not introduced by this increment.
+
+| Gate | Result |
+|---|---|
+| Targeted Xtream/non-live/Live-recovery tests | **PASS** — API client, translator, adapter, capability, Movie-detail, Movie/Episode target, desktop composition, PlayerShell, and VLC recovery coverage passed. |
+| Full `QT_QPA_PLATFORM=offscreen .venv/bin/pytest -q` | **PASS** — no failures; only four existing non-fatal `aiohttp` warnings. |
+| `black --check src tests` | **PASS** — 310 files unchanged. |
+| `ruff check src tests` | **PASS**. |
+| `mypy src` | **PASS** — 202 source files. |
+| `git diff --check` | **PASS**. |
+| Sensitive-marker diff scan | **PASS** — no credential-shaped addition was identified in production diffs. |
+
+### 16.6 Remaining limitations
+
+The implementation has not contacted an authorized Xtream provider. It therefore proves adapter/client request mapping and application/presentation orchestration against deterministic fixtures only; it does not prove provider-specific VOD or Series payload compatibility, live authorization duration, codec/container compatibility, or native playback behavior on an end-user device. That runtime gate must preserve the existing configuration and record only safe aggregate outcomes.
+
+M3U and MAG/Stalker remain explicitly Live-focused. This increment does not claim their Movie, Series, or Episode support; it does not add server-side non-live search; and it does not introduce richer poster/metadata detail views beyond the existing safe text presentation. Series is a browsable container rather than a `PlaybackTarget`, which prevents an ambiguous direct-play action.
+
+### 16.7 Delivery state
+
+At this documentation point, the implementation is validated locally and remains uncommitted pending the required final scope audit, logical commits, normal push to `origin/main`, and synchronized-clean-state verification. The only delivery claim is deterministic local validation; no provider data, credentials, or stream information has been introduced into the repository or this report.
