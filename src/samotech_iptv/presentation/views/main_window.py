@@ -11,6 +11,7 @@ from PySide6.QtWidgets import QMainWindow  # type: ignore[import-not-found]
 from samotech_iptv.presentation.widgets.vlc_video_surface import VlcVideoSurface
 
 if TYPE_CHECKING:
+    from samotech_iptv.application.dtos.playback import PlaybackResult, PlaybackTarget
     from samotech_iptv.application.ports.player_port import PlayerPort
     from samotech_iptv.application.use_cases.browse_channels import BrowseChannels
     from samotech_iptv.application.use_cases.browse_content import BrowseContent
@@ -218,7 +219,7 @@ class MainWindow(QMainWindow):  # type: ignore[misc]
             self.player_shell = PlayerShell(
                 self.video_surface,
                 self._browse_channels,
-                self.play_registered_channel,
+                self.play_playback_target,
                 self._search_registered_channels,
                 self._save_favorite,
                 self.pause_playback,
@@ -234,6 +235,7 @@ class MainWindow(QMainWindow):  # type: ignore[misc]
                 load_categories=self._load_categories,
                 browse_content=self._browse_content,
                 load_provider_capabilities=self._load_provider_capabilities,
+                invalidate_pending_playback=self.invalidate_pending_playback,
             )
             self.setCentralWidget(self.player_shell)
         except ImportError:
@@ -399,6 +401,7 @@ class MainWindow(QMainWindow):  # type: ignore[misc]
 
     async def stop_playback(self) -> None:
         """Stop playback with generic, credential-safe feedback."""
+        self.invalidate_pending_playback()
         try:
             await self._stop_playback.execute()
         except Exception:  # noqa: BLE001
@@ -428,3 +431,14 @@ class MainWindow(QMainWindow):  # type: ignore[misc]
         """Attach video output and play one channel from the selected registered provider."""
         self.video_surface.attach_player_output()
         await self._play_registered_channel.execute(provider_id, channel_id)
+
+    async def play_playback_target(self, target: PlaybackTarget) -> PlaybackResult:
+        """Attach output and route PlayerShell activation through the target contract."""
+        self.video_surface.attach_player_output()
+        return await self._play_registered_channel.execute_target(target)
+
+    def invalidate_pending_playback(self) -> None:
+        """Invalidate target resolution whenever the visible player context is cleared."""
+        invalidate = getattr(self._play_registered_channel, "invalidate_pending_playback", None)
+        if callable(invalidate):
+            invalidate()

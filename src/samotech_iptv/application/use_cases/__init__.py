@@ -17,6 +17,10 @@ from samotech_iptv.application.use_cases.load_history import LoadHistory
 from samotech_iptv.application.use_cases.load_registered_epg import LoadRegisteredEPG
 from samotech_iptv.application.use_cases.load_theme_preference import LoadThemePreference
 from samotech_iptv.application.use_cases.play_channel import PlayChannel
+from samotech_iptv.application.use_cases.play_playback_target import (
+    PlaybackAttemptRegistry,
+    PlayPlaybackTarget,
+)
 from samotech_iptv.application.use_cases.play_registered_channel import PlayRegisteredChannel
 from samotech_iptv.application.use_cases.record_history import RecordHistory
 from samotech_iptv.application.use_cases.refresh_provider import RefreshProvider
@@ -43,6 +47,8 @@ __all__ = [
     "LoadThemePreference",
     "ResolveStream",
     "PlayChannel",
+    "PlaybackAttemptRegistry",
+    "PlayPlaybackTarget",
     "PlayRegisteredChannel",
     "SearchChannels",
     "SearchRegisteredChannels",

@@ -623,3 +623,107 @@ The only production changes in this acceptance pass are a quote-aware `#EXTINF` 
 
 [1]: https://github.com/iptv-org/iptv "iptv-org public IPTV playlist repository"
 [2]: https://github.com/j2jstudio/xtream-codes-mock-api "Published Xtream mock API documentation"
+
+## 9. Phase 7A — Unified Content Playback Contract
+
+### 9.1 Objective and scope boundary
+
+Phase 7A introduces one small **application-layer playback contract** that makes the requested content identity explicit and protects Live playback from stale same-provider completions. It does not implement VOD, series details, seasons, episodes, episode playback, player controls, provider changes, or visual redesign. The pre-existing `PlayerPort.play(URL)` signature remains unchanged, and provider adapters continue to own all real stream resolution.
+
+> **Safety invariant:** Presentation and application orchestration carry a provider-scoped content identity, never credentials, MAC addresses, tokens, session material, or raw resolved stream URLs.
+
+### 9.2 Architecture and contract design
+
+The new contract lives between presentation activation and the existing provider resolver/player ports. `PlayerShell` creates a `PlaybackTarget` from the selected Live channel and sends it through `MainWindow` to `PlayRegisteredChannel.execute_target()`. The legacy `PlayRegisteredChannel.execute(provider_id, channel_id)` remains available for dialog compatibility, but now delegates to the same target use case. The unified use case resolves only supported Live targets through the existing `ProviderResolverPort`, converts the canonical ID to the existing domain `ChannelId`, and calls the unchanged `PlayerPort.play(URL)` only when the attempt is still current.
+
+| Contract element | Design | Security and compatibility effect |
+|---|---|---|
+| `PlaybackTarget` | Frozen provider-scoped dataclass with `provider_id`, `content_type`, `canonical_content_id`, optional `resource_id`, plus future episode identity fields. | Immutable and hashable. It contains no raw resolved URL or provider secret. |
+| Validation | Supports only `LIVE`, `MOVIE`, and `EPISODE` identity types. Live requires an internal resource ID; episode identity requires parent series, season, and episode number. | Rejects malformed or ambiguous requests before orchestration. `SERIES` is intentionally not playable. |
+| `PlaybackResult` | Immutable `PlaybackAttempt` plus `PLAYED`, `STALE`, `UNSUPPORTED`, or `FAILED`, with only generic safe error text. | A late resolver result becomes an explicit no-op rather than an uncontrolled player/UI update. |
+| `PlaybackAttemptRegistry` | One monotonic integer generation and only the current attempt in memory. `begin()` replaces the current attempt; `invalidate()` advances generation and clears it. | O(1) state and comparison cost; no unbounded request history. |
+| `PlayPlaybackTarget` | One Live-only application use case that checks generation after resolution, after player invocation, and before history recording. | Preserves current Live resolver/player boundaries while preventing stale result promotion. |
+| Presentation wiring | Provider changes and explicit stop operations invalidate pending target resolution through a narrowly injected callback. | A pending earlier-provider completion cannot restore a stale visible playing state. |
+
+### 9.3 Live behavior and explicit non-Live limitation
+
+The existing Live path remains functionally compatible: registered provider lookup, domain `ChannelId` conversion, provider stream resolution, `PlayerPort.play(URL)`, and successful channel history recording retain their established order. Legacy calls still raise `ProviderError` for a failed Live start. The target-facing interface instead returns safe results so `PlayerShell` can leave stale results visually unchanged and display only generic failure feedback.
+
+Movie and episode identities are intentionally represented but not executable in this increment. A Movie target returns `UNSUPPORTED` without resolving a provider or invoking the player. Series is rejected as an invalid playback target because it is a browsable container, not a playable media item. This is deliberate scope containment, not partial VOD implementation.
+
+### 9.4 Files changed
+
+| File | Change |
+|---|---|
+| `src/samotech_iptv/application/dtos/playback.py` | **New.** Immutable target, attempt, outcome, and result DTOs with validation. |
+| `src/samotech_iptv/application/use_cases/play_playback_target.py` | **New.** Attempt registry and generation-safe Live orchestration use case. |
+| `src/samotech_iptv/application/dtos/__init__.py` | Exposes the new public playback DTOs. |
+| `src/samotech_iptv/application/dtos.py` | Exposes the same DTOs through the legacy compatibility shim. |
+| `src/samotech_iptv/application/use_cases/__init__.py` | Exposes `PlayPlaybackTarget` and `PlaybackAttemptRegistry`. |
+| `src/samotech_iptv/application/use_cases/play_registered_channel.py` | Preserves the legacy Live API while delegating through the unified target path; adds explicit invalidation. |
+| `src/samotech_iptv/presentation/views/main_window.py` | Routes PlayerShell activation through `PlaybackTarget`; invalidates pending resolution on stop. |
+| `src/samotech_iptv/presentation/player_shell.py` | Constructs a Live target, handles `PLAYED`/`STALE`/`FAILED`/`UNSUPPORTED`, and invalidates on provider switch. |
+| `tests/test_application_play_playback_target.py` | **New.** Twenty deterministic application-contract and race tests. |
+| `tests/player_shell_native_probe.py` | Updates the target callback and adds native assertions for stale results and invalidation. |
+
+### 9.5 Race, identity, error, and redaction coverage
+
+The new deterministic test module adds **20 tests**. The following acceptance cases were directly controlled with pending resolver futures; no network or real provider credential is involved.
+
+| # | Scenario | Expected result | Result |
+|---:|---|---|---|
+| 1 | A → B; B resolves before A | Only B reaches `PlayerPort.play`. | **PASS** |
+| 2 | A → B; A resolves before B | A returns `STALE`; only B plays. | **PASS** |
+| 3 | A → provider context switch; A resolves late | A returns `STALE`; no player mutation. | **PASS** |
+| 4 | A with no competing request | A resolves, plays, and records history. | **PASS** |
+| 5 | A → B; both resolutions fail | A is stale; only B reports generic `FAILED`. | **PASS** |
+| 6 | Movie target | Returns `UNSUPPORTED`; no resolver or player call. | **PASS** |
+| 7 | Same provider and canonical ID, different content types | Target identities remain distinct. | **PASS** |
+| 8 | Same Movie ID, different providers | Target identities remain distinct. | **PASS** |
+| Additional | Invalid identity fields, explicit raw-URL rejection, frozen dataclass, generation monotonicity, player failure redaction, and legacy history-failure semantics | Explicit safe behavior is preserved. | **PASS** |
+
+The native offscreen Qt probe additionally verifies that a Live selection still passes a `PlaybackTarget`, a `STALE` result does not promote playing/error state, Movie and Series activation still do not start playback, and provider switching invokes pending-attempt invalidation. Existing Live selection, legacy dialog activation, keyboard navigation, provider switching, and stale request checks remain green.
+
+### 9.6 Validation and quality evidence
+
+| Gate | Result | Evidence |
+|---|---|---|
+| Focused unified playback tests | **PASS** | 23 focused application/infrastructure tests after integration. |
+| Full `pytest` | **PASS** | **709 collected tests**, zero failures, completed in approximately 3 seconds with `QT_QPA_PLATFORM=offscreen`. |
+| Native Qt/offscreen probe | **PASS** | All printed checks, including `playback_attempt_invalidation` and `playback_stale_result_protection`, passed. |
+| Black | **PASS** | 300 source/test files would remain unchanged. |
+| Ruff | **PASS** | No diagnostics in `src` or `tests`. |
+| Changed-module mypy | **PASS** | The three new/modified application playback modules pass strict checking. |
+| Full-repository mypy | **INHERITED** | 11 existing PySide annotation diagnostics in four files. Three are pre-existing unused-ignore annotations in `main_window.py`; the remaining diagnostics are in unrelated dialogs/viewmodels. No new application playback diagnostic remains. |
+| `git diff --check` | **PASS** | No whitespace diagnostics. |
+| Performance review | **PASS** | Registry operations are constant-time and retain one current attempt; the complete suite remained approximately 3 seconds. |
+| Test warnings | **INHERITED** | Four existing `aiohttp` bare-handler deprecation warnings; no failure. |
+
+### 9.7 Protected-area and security review
+
+The final path audit found no modified provider, infrastructure, MAG/Stalker, credential, authentication, transport, stream-resolution, VLC, or `PlayerPort` files. The modified production paths are limited to application DTO/use-case exports, the legacy Live adapter, and presentation wiring. A sensitive-marker scan found only the report's public references and clearly synthetic `example.invalid` URLs inside tests. Production target and use-case code contains no credential, token, password, MAC, cookie, authorization, or raw HTTP stream literal. `PlaybackTarget` now explicitly rejects a `resource_id` containing `://`, so a raw resolved stream URL cannot be persisted in the target contract. Resolved URLs remain local to the existing provider-to-player call; they are neither stored in `PlaybackTarget` nor returned in `PlaybackResult`.
+
+| Protected concern | Verification |
+|---|---|
+| MAG/Stalker protocol, MAC, credentials, session, transport | **Untouched.** |
+| Xtream and M3U provider adapters/source registration | **Untouched.** |
+| Provider stream resolution implementation | **Untouched.** The new use case calls the existing capability through `ProviderResolverPort`. |
+| VLC/player internals and `PlayerPort.play(URL)` | **Untouched.** |
+| VOD/Series/Episode playback and detail workflows | **Not implemented.** Movie returns safe `UNSUPPORTED`; Series remains non-playable. |
+| Volume, mute, subtitles, audio tracks, seek, queue, EPG redesign, visual redesign | **Untouched.** |
+
+### 9.8 Remaining limitations and exact next step
+
+The attempt registry prevents stale asynchronous resolution from being promoted after a newer selection, provider switch, or explicit stop. It cannot retroactively cancel a player call that has already crossed the unchanged `PlayerPort.play(URL)` boundary; that lower-level cancellation behavior remains intentionally out of scope. VOD and episode playback still require a separately approved design for provider-neutral movie and episode stream resolution, season/episode discovery, history semantics, and player behavior.
+
+**Exact next step:** review this uncommitted Phase 7A diff. If approved, create one review commit containing only the files listed above; do not push until explicit user approval is also given.
+
+### 9.9 Uncommitted handoff state
+
+| Field | Value |
+|---|---|
+| Baseline | `b9e714ceb2ef31b7b0581d73fe226312d1c8fb47` (`origin/main`) |
+| Working tree | Intentionally uncommitted Phase 7A implementation, tests, and this consolidated report. |
+| Commit created | **No.** |
+| Push performed | **No.** |
+| Review readiness | Ready for requested diff review and approval decision. |

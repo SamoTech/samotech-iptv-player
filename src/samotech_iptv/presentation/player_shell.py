@@ -26,6 +26,8 @@ from samotech_iptv.application.dtos import (
     ContentType,
     LoadCategoriesRequest,
     LoadChannelsRequest,
+    PlaybackOutcome,
+    PlaybackTarget,
     ProviderCapabilities,
     SearchRegisteredChannelsRequest,
 )
@@ -177,7 +179,7 @@ class PlayerShell(QWidget):
         self,
         video_surface: QWidget,
         browse_channels: BrowseChannels,
-        play_selected_channel: Callable[[str, str], Awaitable[None]],
+        play_selected_channel: Callable[[PlaybackTarget], Awaitable[object]],
         search_channels: SearchRegisteredChannels,
         save_favorite: SaveFavorite,
         pause_playback: Callable[[], Awaitable[None]],
@@ -193,6 +195,7 @@ class PlayerShell(QWidget):
         load_categories: LoadCategories | None = None,
         browse_content: BrowseContent | None = None,
         load_provider_capabilities: LoadProviderCapabilities | None = None,
+        invalidate_pending_playback: Callable[[], None] | None = None,
     ) -> None:
         super().__init__()
         self.setObjectName("playerShell")
@@ -201,6 +204,7 @@ class PlayerShell(QWidget):
         self._load_categories = load_categories
         self._browse_content = browse_content
         self._load_provider_capabilities = load_provider_capabilities
+        self._invalidate_pending_playback = invalidate_pending_playback
         self._play_selected_channel = play_selected_channel
         self._search_channels = search_channels
         self._save_favorite = save_favorite
@@ -371,6 +375,8 @@ class PlayerShell(QWidget):
 
     def _provider_changed(self, _: int) -> None:
         """Clear stale channel results when the active provider changes."""
+        if self._invalidate_pending_playback is not None:
+            self._invalidate_pending_playback()
         self._request_generation += 1
         self._set_loading(False)
         self._catalogue_channels = ()
@@ -1141,7 +1147,9 @@ class PlayerShell(QWidget):
         self._update_channel_context()
         self.status_label.setText("● Loading playback")
         try:
-            await self._play_selected_channel(channel.provider_id, channel.id)
+            result = await self._play_selected_channel(
+                PlaybackTarget.live(channel.provider_id, channel.id, channel.stream_id)
+            )
         except asyncio.CancelledError:
             raise
         except Exception:
@@ -1151,6 +1159,20 @@ class PlayerShell(QWidget):
             self.playback_error_channel = channel
             self._update_channel_context()
             self.channel_status.setText("Unable to play selected channel")
+            self.status_label.setText("● Playback error")
+            return
+        if getattr(result, "outcome", None) is PlaybackOutcome.STALE:
+            return
+        if getattr(result, "outcome", None) in {
+            PlaybackOutcome.FAILED,
+            PlaybackOutcome.UNSUPPORTED,
+        }:
+            self.loading_channel = None
+            self.playback_error_channel = channel
+            self._update_channel_context()
+            self.channel_status.setText(
+                getattr(result, "error", None) or "Unable to play selected channel"
+            )
             self.status_label.setText("● Playback error")
             return
         if request_generation != self._request_generation or provider_id != self._provider_id():

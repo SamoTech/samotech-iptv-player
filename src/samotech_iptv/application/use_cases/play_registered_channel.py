@@ -4,8 +4,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from samotech_iptv.application.dtos import RecordHistoryRequest
-from samotech_iptv.application.use_cases.play_channel import PlayChannel
+from samotech_iptv.application.dtos import (
+    PlaybackOutcome,
+    PlaybackResult,
+    PlaybackTarget,
+)
+from samotech_iptv.application.use_cases.play_playback_target import PlayPlaybackTarget
+from samotech_iptv.core.exceptions import ProviderError
 
 if TYPE_CHECKING:
     from samotech_iptv.application.ports.player_port import PlayerPort
@@ -27,12 +32,22 @@ class PlayRegisteredChannel:
         self._provider_resolver = provider_resolver
         self._player = player
         self._record_history = record_history
+        self._playback_targets = PlayPlaybackTarget(
+            provider_resolver,
+            player,
+            record_history,
+        )
 
     async def execute(self, provider_id: str, channel_id: str) -> None:
-        """Resolve only playback capability, then delegate stream resolution to PlayChannel."""
-        provider = self._provider_resolver.resolve_playback_provider(provider_id)
-        await PlayChannel(provider, self._player).execute(channel_id)
-        if self._record_history is not None:
-            await self._record_history.execute(
-                RecordHistoryRequest(item_id=channel_id, item_type="channel")
-            )
+        """Retain the legacy Live entry point through the unified target contract."""
+        result = await self.execute_target(PlaybackTarget.live(provider_id, channel_id))
+        if result.outcome is PlaybackOutcome.FAILED:
+            raise ProviderError(result.error or "Unable to start playback")
+
+    async def execute_target(self, target: PlaybackTarget) -> PlaybackResult:
+        """Play a provider-scoped target through the single unified application path."""
+        return await self._playback_targets.execute(target)
+
+    def invalidate_pending_playback(self) -> None:
+        """Prevent a late stream resolution from mutating a cleared playback context."""
+        self._playback_targets.attempts.invalidate()

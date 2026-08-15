@@ -22,6 +22,7 @@ from samotech_iptv.application.dtos import (
     ProviderMetadata,
     SearchChannelsResponse,
 )
+from samotech_iptv.application.dtos.playback import PlaybackOutcome
 from samotech_iptv.presentation.dialogs.channel_browser_dialog import ChannelBrowserDialog
 from samotech_iptv.presentation.player_shell import PlayerShell
 
@@ -157,6 +158,7 @@ def make_shell(
     categories: FakeCategories | None = None,
     content: FakeContent | None = None,
     capabilities: FakeCapabilities | None = None,
+    invalidate_pending_playback: object | None = None,
 ) -> PlayerShell:
     return PlayerShell(
         QLabel(),
@@ -177,6 +179,7 @@ def make_shell(
         load_categories=categories,  # type: ignore[arg-type]
         browse_content=content,  # type: ignore[arg-type]
         load_provider_capabilities=capabilities,  # type: ignore[arg-type]
+        invalidate_pending_playback=invalidate_pending_playback,  # type: ignore[arg-type]
     )
 
 
@@ -189,7 +192,11 @@ async def main() -> None:
     )
     played: list[str] = []
 
-    async def play(_: str, channel_id: str) -> None:
+    async def play(target: object) -> SimpleNamespace:
+        played.append(target.canonical_content_id)  # type: ignore[union-attr]
+        return SimpleNamespace(outcome=PlaybackOutcome.PLAYED, error=None)
+
+    async def legacy_play(_: str, channel_id: str) -> None:
         played.append(channel_id)
 
     favorite = FakeFavorite()
@@ -209,7 +216,7 @@ async def main() -> None:
 
     legacy_favorite = FakeFavorite()
     legacy_dialog = ChannelBrowserDialog(
-        FakeBrowse(), play, FakeSearch(), legacy_favorite  # type: ignore[arg-type]
+        FakeBrowse(), legacy_play, FakeSearch(), legacy_favorite  # type: ignore[arg-type]
     )
     legacy_dialog._render_channels((a, b, c))
     legacy_dialog.channel_list.setCurrentIndex(legacy_dialog.channel_model.index(1, 0))
@@ -258,6 +265,25 @@ async def main() -> None:
     assert provider_shell.provider_selector.accessibleName() == "Active IPTV provider"
     assert provider_shell.channel_list.accessibleName() == "Live channel list"
     assert provider_shell.navigation.accessibleName() == "Main navigation"
+
+    invalidations = 0
+
+    def invalidate_pending_playback() -> None:
+        nonlocal invalidations
+        invalidations += 1
+
+    switching_shell = make_shell(
+        FakeBrowse(),
+        FakeSearch(),
+        FakeFavorite(),
+        play,
+        invalidate_pending_playback=invalidate_pending_playback,
+    )
+    switching_shell.provider_selector.setEditText("provider-a")
+    switching_shell._provider_changed(0)
+    switching_shell.provider_selector.setEditText("provider-b")
+    switching_shell._provider_changed(0)
+    assert invalidations == 2
 
     category_shell = make_shell(
         FakeBrowse(),
@@ -456,9 +482,10 @@ async def main() -> None:
     playback_started = asyncio.Event()
     playback_release = asyncio.Event()
 
-    async def delayed_play(_: str, __: str) -> None:
+    async def delayed_play(_: object) -> SimpleNamespace:
         playback_started.set()
         await playback_release.wait()
+        return SimpleNamespace(outcome=PlaybackOutcome.PLAYED, error=None)
 
     stale_playback_shell = make_shell(FakeBrowse(), FakeSearch(), FakeFavorite(), delayed_play)
     stale_playback_shell.provider_selector.setEditText("provider-a")
@@ -472,6 +499,18 @@ async def main() -> None:
     assert stale_playback_shell.playing_channel is None
     assert stale_playback_shell.loading_channel is None
     assert stale_playback_shell.playback_error_channel is None
+
+    async def stale_result_play(_: object) -> SimpleNamespace:
+        return SimpleNamespace(outcome=PlaybackOutcome.STALE, error=None)
+
+    stale_result_shell = make_shell(FakeBrowse(), FakeSearch(), FakeFavorite(), stale_result_play)
+    stale_result_shell.provider_selector.setEditText("provider-a")
+    stale_result_shell._render_channels((a,))
+    await stale_result_shell.play_channel(a)
+    assert stale_result_shell.selected_channel is a
+    assert stale_result_shell.playing_channel is None
+    assert stale_result_shell.playback_error_channel is None
+    assert "Playback error" not in stale_result_shell.status_label.text()
 
     provider_shell._render_channels((a, b))
     provider_shell.channel_list.setCurrentIndex(provider_shell.channel_model.index(0, 0))
@@ -494,6 +533,7 @@ async def main() -> None:
     print("async_error_cleanup=PASS")
     print("stale_request_protection=PASS")
     print("provider_selection=PASS")
+    print("playback_attempt_invalidation=PASS")
     print("selection_without_playback=PASS")
     print("local_category_filtering=PASS")
     print("capability_navigation=PASS")
@@ -501,6 +541,7 @@ async def main() -> None:
     print("content_stale_provider_protection=PASS")
     print("series_and_search_stale_provider_protection=PASS")
     print("playback_stale_provider_protection=PASS")
+    print("playback_stale_result_protection=PASS")
     print("keyboard_accessibility=PASS")
     print("player_shell_native_probe=PASS")
     app.quit()

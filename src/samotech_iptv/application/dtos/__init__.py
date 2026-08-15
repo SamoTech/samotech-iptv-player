@@ -53,6 +53,12 @@ from samotech_iptv.application.dtos.history import (
     RecordHistoryRequest,
     RecordHistoryResponse,
 )
+from samotech_iptv.application.dtos.playback import (
+    PlaybackAttempt,
+    PlaybackOutcome,
+    PlaybackResult,
+    PlaybackTarget,
+)
 from samotech_iptv.application.dtos.provider import (
     ProviderCapabilities,
     ProviderMetadata,
@@ -88,6 +94,10 @@ __all__ = [
     "ContentItemDTO",
     "BrowseContentRequest",
     "BrowseContentResponse",
+    "PlaybackTarget",
+    "PlaybackAttempt",
+    "PlaybackOutcome",
+    "PlaybackResult",
     "CategoryDTO",
     "LoadCategoriesRequest",
     "LoadCategoriesResponse",
