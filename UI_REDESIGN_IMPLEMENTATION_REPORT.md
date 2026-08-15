@@ -1203,5 +1203,9 @@ The probe creates a short temporary silent WAV file locally, initializes libVLC 
 | Ruff | **PASS**. |
 | Mypy | **PASS** — no issues in 201 source files. |
 | `git diff --check` | **PASS**. |
-| Windows CI execution | **PENDING** — workflow added but not executable from this Linux session. |
+| Windows CI execution | **PASS** — the blocking Windows job installed standard VLC, passed the provider-free lifecycle probe, and passed the focused deterministic recovery suite. |
 | Authorized real Windows IPTV runtime | **PENDING** — no Windows desktop/authorized provider surface is available in this session. |
+
+### 15.5 Executed Windows CI evidence
+
+The first Windows CI run exposed a test-only cross-platform expectation mismatch in recording-output path escaping. The adapter already escaped native output destinations; the test expected the unescaped host path and was corrected without changing production recovery behavior. The rerun completed successfully on a Windows GitHub Actions runner: the native probe reported safe `binding`, `instance`, media-replacement, cleanup, and lifecycle success markers, and the focused deterministic adapter/recovery suite completed successfully. This establishes provider-free native lifecycle and deterministic recovery evidence only. It does not reproduce a Live stream EOF, validate an authorized provider, or change the root-cause classification.

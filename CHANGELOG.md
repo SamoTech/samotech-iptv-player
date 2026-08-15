@@ -18,6 +18,7 @@
 
 ### Verification
 
+- Executed the blocking Windows CI validation job successfully: standard VLC installed, the provider-free native lifecycle probe reported binding/instance/lifecycle success, and the focused deterministic Live EOF recovery suite completed successfully. This does not claim an authorized provider or real desktop runtime result.
 - Added a Windows-only native libVLC lifecycle probe that imports the binding, creates/releases the native instance/player/media, requires per-generation local-media `PLAYING`/`END` and replacement `PLAYING`/`STOPPED` callbacks, reports `BUFFERING` only when native VLC emits it, validates media replacement, and prints safe aggregate diagnostics. Linux intentionally reports `SKIP reason=windows_required`; native Windows CI and authorized real IPTV runtime results remain pending.
 - Added deterministic fake-backed recovery coverage for unexpected EOF/STOPPED, buffering deadline, explicit stop/shutdown/pause/recording-restart protection, channel switch, stale generations, concurrent signals, capped backoff, stability reset, retry exhaustion, non-live exclusion, and preserved immediate initial-play fallback. Focused adapter tests, full offscreen pytest, Black, Ruff, `mypy src`, and `git diff --check` pass.
 - Added direct offscreen Qt import/probe CI gates and deterministic SQLite close/rollback regression coverage across every SQLite repository. The affected repository and composition tests pass with `ResourceWarning` treated as an error.

@@ -5,7 +5,7 @@
 **Product:** SamoTech IPTV Player
 **Package version:** `0.1.0`
 **Current baseline:** The `main` revision containing the approved bounded Live EOF recovery and Windows validation increment; use `git rev-parse HEAD` for its immutable revision identifier.
-**Current product milestone:** Bounded Live EOF Recovery — **implemented and locally validated; Windows-native evidence pending**
+**Current product milestone:** Bounded Live EOF Recovery — **implemented, locally validated, and Windows-CI validated; authorized real-runtime evidence pending**
 **Baseline verified:** 2026-08-15 UTC+03:00
 
 ## Product purpose
@@ -147,7 +147,7 @@ The approved VLC-adapter increment adds a bounded, generation- and session-safe 
 |---|---|---|
 | Deterministic adapter validation | Focused fake-backed tests cover terminal events, buffering, explicit actions, stale generations, concurrency, stability, bounded attempts, non-live exclusion, and diagnostic redaction. | Proves adapter task ordering and bounded policy only. |
 | Full offscreen regression | The full `QT_QPA_PLATFORM=offscreen` suite passes, subject only to existing non-fatal `aiohttp` bare-handler deprecation warnings. | Proves no observed Linux/offscreen regression; it is not a native Windows stream result. |
-| Windows CI native validation | The workflow is configured to install standard VLC, execute the provider-free lifecycle probe, and run the deterministic recovery suite as blocking gates. | **Configured but not yet executed** on a Windows runner. |
+| Windows CI native validation | The Windows GitHub Actions job installed standard VLC, passed the provider-free lifecycle probe, and passed the deterministic recovery suite as blocking gates. | Proves CI-runner native lifecycle and deterministic controller behavior only; it is not an authorized Live IPTV runtime result. |
 | Real Windows desktop runtime | **Not yet executed in this environment.** The current session has no authorized Windows/desktop/native-VLC execution surface. | No claim that a real stream interruption recovers, that the root cause is fixed, or that the failure will reproduce. |
 
 ## Security model

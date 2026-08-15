@@ -20,6 +20,8 @@ pytest -q tests\test_infra_vlc_player_adapter.py
 
 The lifecycle probe must report `native_vlc_lifecycle=PASS`; it is provider-free and uses only a temporary local WAV source. The focused test suite proves deterministic event handling but does not substitute for the authorized runtime observation.
 
+The blocking Windows CI lifecycle probe and focused recovery suite have completed successfully. That runner evidence confirms the provider-free native and deterministic gates only; it does not replace this authorized desktop/runtime procedure.
+
 ## Safe evidence rule
 
 Record only aggregate playback and recovery state. Never copy, save, upload, or report provider URLs, stream URLs, MAC/device identities, usernames, passwords, tokens, cookies, authorization headers, provider payloads, or raw provider responses.

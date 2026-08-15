@@ -134,7 +134,7 @@ pytest -q
 git diff --check
 ```
 
-The GitHub CI workflow also verifies the project on Python 3.13. Its Windows job installs standard VLC, runs a provider-free native libVLC lifecycle probe, and runs the deterministic Live EOF recovery suite as blocking gates; only the later PyInstaller artifact step is best-effort. These Windows gates are configured but not represented as executed until a Windows runner reports them. The deterministic MAG protocol lab is included in the pytest suite; it is a local protocol simulation and does not claim production portal compatibility. See [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+The GitHub CI workflow also verifies the project on Python 3.13. Its Windows job installs standard VLC, runs a provider-free native libVLC lifecycle probe, and runs the deterministic Live EOF recovery suite as blocking gates; only the later PyInstaller artifact step is best-effort. The Windows job has executed successfully, but that CI evidence does not replace the separate authorized Windows Live IPTV runtime procedure. The deterministic MAG protocol lab is included in the pytest suite; it is a local protocol simulation and does not claim production portal compatibility. See [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
 The Ubuntu quality job intentionally runs the real offscreen PySide6 player-shell probes. It installs only the runner-native `libegl1` package required to provide `libEGL.so.1`, verifies `PySide6.QtGui` and `PySide6.QtWidgets` imports with `QT_QPA_PLATFORM=offscreen`, then executes both standalone probes before the coverage suite. This is CI-environment provisioning rather than an application dependency or a test skip.
 
