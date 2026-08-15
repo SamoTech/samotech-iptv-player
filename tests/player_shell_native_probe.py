@@ -145,6 +145,52 @@ class FakeCapabilities:
         return self.capabilities
 
 
+class FakeMovieDetails:
+    def __init__(self, item: ContentItemDTO) -> None:
+        self.item = item
+
+    async def execute(self, _: object) -> SimpleNamespace:
+        return SimpleNamespace(item=self.item, error=None, unsupported=False)
+
+
+class FakeSeriesSeasons:
+    async def execute(self, request: object) -> SimpleNamespace:
+        return SimpleNamespace(
+            seasons=(
+                SimpleNamespace(
+                    id=f"{request.series_id}:season:1",
+                    provider_id=request.provider_id,
+                    series_id=request.series_id,
+                    number=1,
+                    title="Season One",
+                ),
+            ),
+            error=None,
+            unsupported=False,
+        )
+
+
+class FakeSeasonEpisodes:
+    async def execute(self, request: object) -> SimpleNamespace:
+        return SimpleNamespace(
+            episodes=(
+                SimpleNamespace(
+                    id=f"{request.series_id}:episode:501",
+                    provider_id=request.provider_id,
+                    series_id=request.series_id,
+                    season=request.season,
+                    episode_number=1,
+                    title="Pilot",
+                    resource_id="501|mp4",
+                    duration_seconds=1200,
+                    plot="Episode metadata",
+                ),
+            ),
+            error=None,
+            unsupported=False,
+        )
+
+
 async def noop() -> None:
     return None
 
@@ -158,6 +204,9 @@ def make_shell(
     categories: FakeCategories | None = None,
     content: FakeContent | None = None,
     capabilities: FakeCapabilities | None = None,
+    movie_details: FakeMovieDetails | None = None,
+    series_seasons: FakeSeriesSeasons | None = None,
+    season_episodes: FakeSeasonEpisodes | None = None,
     invalidate_pending_playback: object | None = None,
 ) -> PlayerShell:
     return PlayerShell(
@@ -179,6 +228,9 @@ def make_shell(
         load_categories=categories,  # type: ignore[arg-type]
         browse_content=content,  # type: ignore[arg-type]
         load_provider_capabilities=capabilities,  # type: ignore[arg-type]
+        load_movie_details=movie_details,  # type: ignore[arg-type]
+        load_series_seasons=series_seasons,  # type: ignore[arg-type]
+        load_season_episodes=season_episodes,  # type: ignore[arg-type]
         invalidate_pending_playback=invalidate_pending_playback,  # type: ignore[arg-type]
     )
 
@@ -353,7 +405,7 @@ async def main() -> None:
         provider_id="provider-a",
         content_type=ContentType.MOVIE,
         title="Arena Film",
-        stream_id="movie-stream-1",
+        stream_id="movie-stream-1|mp4",
         category_id="sports",
         year=2024,
     )
@@ -377,6 +429,9 @@ async def main() -> None:
         categories=FakeCategories((CategoryDTO("sports", "Sports", "provider-a"),)),
         content=content,
         capabilities=capabilities,
+        movie_details=FakeMovieDetails(movie),
+        series_seasons=FakeSeriesSeasons(),
+        season_episodes=FakeSeasonEpisodes(),
     )
     content_shell.provider_selector.setEditText("provider-a")
     await content_shell.refresh_provider_capabilities("provider-a")
@@ -409,22 +464,27 @@ async def main() -> None:
         Qt.KeyboardModifier.NoModifier,
     )
     assert content_shell.eventFilter(content_shell._content_lists[ContentType.MOVIE], movie_enter)
-    assert (
-        "VOD playback is not exposed"
-        in content_shell._content_detail_labels[ContentType.MOVIE].text()
-    )
-    assert played == ["b", "b"]
+    await asyncio.sleep(0)
+    assert "Playing" in content_shell._content_detail_labels[ContentType.MOVIE].text()
+    assert played == ["b", "b", "movie-1"]
 
     content_shell._active_content_type = ContentType.SERIES
+    content_shell.search_input.clear()
     await content_shell.load_content(ContentType.SERIES)
     series_index = content_shell.content_model.index(0, 0)
     content_shell._content_lists[ContentType.SERIES].setCurrentIndex(series_index)
     content_shell._activate_content_index(ContentType.SERIES, series_index)
-    assert (
-        "Episode browsing is unavailable"
-        in content_shell._content_detail_labels[ContentType.SERIES].text()
-    )
-    assert played == ["b", "b"]
+    await asyncio.sleep(0)
+    assert content_shell._series_view_mode == "seasons"
+    season_index = content_shell.content_model.index(0, 0)
+    content_shell._activate_content_index(ContentType.SERIES, season_index)
+    await asyncio.sleep(0)
+    assert content_shell._series_view_mode == "episodes"
+    episode_index = content_shell.content_model.index(0, 0)
+    content_shell._activate_content_index(ContentType.SERIES, episode_index)
+    await asyncio.sleep(0)
+    await asyncio.sleep(0)
+    assert played == ["b", "b", "movie-1", "series-1:episode:501"]
 
     stale_categories = FakeCategories((CategoryDTO("sports", "Sports", "provider-a"),))
     stale_categories.wait_for_release = True

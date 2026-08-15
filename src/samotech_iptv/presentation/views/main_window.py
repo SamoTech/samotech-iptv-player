@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     from samotech_iptv.application.use_cases.list_providers import ListProviders
     from samotech_iptv.application.use_cases.load_categories import LoadCategories
     from samotech_iptv.application.use_cases.load_history import LoadHistory
+    from samotech_iptv.application.use_cases.load_movie_details import LoadMovieDetails
     from samotech_iptv.application.use_cases.load_provider_capabilities import (
         LoadProviderCapabilities,
     )
@@ -49,6 +50,10 @@ if TYPE_CHECKING:
     from samotech_iptv.application.use_cases.save_theme_preference import SaveThemePreference
     from samotech_iptv.application.use_cases.search_registered_channels import (
         SearchRegisteredChannels,
+    )
+    from samotech_iptv.application.use_cases.series_discovery import (
+        LoadSeasonEpisodes,
+        LoadSeriesSeasons,
     )
     from samotech_iptv.application.use_cases.start_recording import StartRecording
     from samotech_iptv.application.use_cases.stop_recording import StopRecording
@@ -107,6 +112,9 @@ class MainWindow(QMainWindow):
         stop_playback: StopPlayback,
         browse_content: BrowseContent | None = None,
         load_provider_capabilities: LoadProviderCapabilities | None = None,
+        load_movie_details: LoadMovieDetails | None = None,
+        load_series_seasons: LoadSeriesSeasons | None = None,
+        load_season_episodes: LoadSeasonEpisodes | None = None,
     ) -> None:
         super().__init__()
         self._register_xtream_provider = register_xtream_provider
@@ -136,6 +144,9 @@ class MainWindow(QMainWindow):
         self._stop_playback = stop_playback
         self._browse_content = browse_content
         self._load_provider_capabilities = load_provider_capabilities
+        self._load_movie_details = load_movie_details
+        self._load_series_seasons = load_series_seasons
+        self._load_season_episodes = load_season_episodes
         self.video_surface = VlcVideoSurface(player)
         self.setWindowTitle("SamoTech IPTV Player")
         if hasattr(self, "setStyleSheet"):
@@ -235,6 +246,9 @@ class MainWindow(QMainWindow):
                 load_categories=self._load_categories,
                 browse_content=self._browse_content,
                 load_provider_capabilities=self._load_provider_capabilities,
+                load_movie_details=self._load_movie_details,
+                load_series_seasons=self._load_series_seasons,
+                load_season_episodes=self._load_season_episodes,
                 invalidate_pending_playback=self.invalidate_pending_playback,
             )
             self.setCentralWidget(self.player_shell)

@@ -24,6 +24,7 @@ if TYPE_CHECKING:
     from samotech_iptv.application.use_cases.list_providers import ListProviders
     from samotech_iptv.application.use_cases.load_categories import LoadCategories
     from samotech_iptv.application.use_cases.load_history import LoadHistory
+    from samotech_iptv.application.use_cases.load_movie_details import LoadMovieDetails
     from samotech_iptv.application.use_cases.load_provider_capabilities import (
         LoadProviderCapabilities,
     )
@@ -52,6 +53,10 @@ if TYPE_CHECKING:
     from samotech_iptv.application.use_cases.save_theme_preference import SaveThemePreference
     from samotech_iptv.application.use_cases.search_registered_channels import (
         SearchRegisteredChannels,
+    )
+    from samotech_iptv.application.use_cases.series_discovery import (
+        LoadSeasonEpisodes,
+        LoadSeriesSeasons,
     )
     from samotech_iptv.application.use_cases.start_recording import StartRecording
     from samotech_iptv.application.use_cases.stop_recording import StopRecording
@@ -101,6 +106,9 @@ def build_desktop_application(
     *,
     browse_content: BrowseContent | None = None,
     load_provider_capabilities: LoadProviderCapabilities | None = None,
+    load_movie_details: LoadMovieDetails | None = None,
+    load_series_seasons: LoadSeriesSeasons | None = None,
+    load_season_episodes: LoadSeasonEpisodes | None = None,
 ) -> DesktopApplication:
     """Compose the Qt shell around externally configured registered-provider logic."""
     existing_application = QApplication.instance()
@@ -141,5 +149,8 @@ def build_desktop_application(
         stop_playback,
         browse_content=browse_content,
         load_provider_capabilities=load_provider_capabilities,
+        load_movie_details=load_movie_details,
+        load_series_seasons=load_series_seasons,
+        load_season_episodes=load_season_episodes,
     )
     return DesktopApplication(application=application, main_window=main_window)

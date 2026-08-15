@@ -26,6 +26,9 @@ from samotech_iptv.application.dtos import (
     ContentType,
     LoadCategoriesRequest,
     LoadChannelsRequest,
+    LoadMovieDetailsRequest,
+    LoadSeasonEpisodesRequest,
+    LoadSeriesSeasonsRequest,
     PlaybackOutcome,
     PlaybackTarget,
     ProviderCapabilities,
@@ -41,12 +44,17 @@ if TYPE_CHECKING:
     from samotech_iptv.application.use_cases.browse_content import BrowseContent
     from samotech_iptv.application.use_cases.list_providers import ListProviders
     from samotech_iptv.application.use_cases.load_categories import LoadCategories
+    from samotech_iptv.application.use_cases.load_movie_details import LoadMovieDetails
     from samotech_iptv.application.use_cases.load_provider_capabilities import (
         LoadProviderCapabilities,
     )
     from samotech_iptv.application.use_cases.save_favorite import SaveFavorite
     from samotech_iptv.application.use_cases.search_registered_channels import (
         SearchRegisteredChannels,
+    )
+    from samotech_iptv.application.use_cases.series_discovery import (
+        LoadSeasonEpisodes,
+        LoadSeriesSeasons,
     )
 
 __all__ = ["PlayerShell"]
@@ -195,6 +203,9 @@ class PlayerShell(QWidget):
         load_categories: LoadCategories | None = None,
         browse_content: BrowseContent | None = None,
         load_provider_capabilities: LoadProviderCapabilities | None = None,
+        load_movie_details: LoadMovieDetails | None = None,
+        load_series_seasons: LoadSeriesSeasons | None = None,
+        load_season_episodes: LoadSeasonEpisodes | None = None,
         invalidate_pending_playback: Callable[[], None] | None = None,
     ) -> None:
         super().__init__()
@@ -204,6 +215,9 @@ class PlayerShell(QWidget):
         self._load_categories = load_categories
         self._browse_content = browse_content
         self._load_provider_capabilities = load_provider_capabilities
+        self._load_movie_details = load_movie_details
+        self._load_series_seasons = load_series_seasons
+        self._load_season_episodes = load_season_episodes
         self._invalidate_pending_playback = invalidate_pending_playback
         self._play_selected_channel = play_selected_channel
         self._search_channels = search_channels
@@ -230,6 +244,12 @@ class PlayerShell(QWidget):
         self._content_category_selectors: dict[ContentType, QComboBox] = {}
         self._content_status_labels: dict[ContentType, QLabel] = {}
         self._content_detail_labels: dict[ContentType, QLabel] = {}
+        self._content_back_buttons: dict[ContentType, QPushButton] = {}
+        self._content_activate_buttons: dict[ContentType, QPushButton] = {}
+        self._series_view_mode = "catalogue"
+        self._series_context_id: str | None = None
+        self._series_seasons: tuple[ContentItemDTO, ...] = ()
+        self._series_episodes: tuple[ContentItemDTO, ...] = ()
         self._provider_ids: list[str] = []
         self._active_category_id: str | None = None
         self._request_generation = 0
@@ -383,6 +403,7 @@ class PlayerShell(QWidget):
         self._search_channels_result = None
         self._content_catalogues.clear()
         self._content_categories.clear()
+        self._clear_series_navigation()
         self._active_content_type = ContentType.LIVE
         self._active_content_category_id = None
         self.selected_content = None
@@ -663,8 +684,23 @@ class PlayerShell(QWidget):
         category_selector.currentIndexChanged.connect(
             lambda _: self._content_category_changed(content_type)
         )
+        activate_button = QPushButton(
+            "Play selected" if content_type is ContentType.MOVIE else "Open series"
+        )
+        activate_button.setAccessibleName(
+            "Play selected movie" if content_type is ContentType.MOVIE else "Open selected series"
+        )
+        activate_button.clicked.connect(lambda: self._activate_current_content(content_type))
         actions.addWidget(load_button)
         actions.addWidget(category_selector)
+        actions.addWidget(activate_button)
+        if content_type is ContentType.SERIES:
+            back_button = QPushButton("Back")
+            back_button.setAccessibleName("Return to series catalogue")
+            back_button.setEnabled(False)
+            back_button.clicked.connect(self._back_series_navigation)
+            self._content_back_buttons[content_type] = back_button
+            actions.addWidget(back_button)
         actions.addStretch(1)
         layout.addLayout(actions)
         content_list = QListView()
@@ -687,6 +723,7 @@ class PlayerShell(QWidget):
         self._content_category_selectors[content_type] = category_selector
         self._content_status_labels[content_type] = status
         self._content_detail_labels[content_type] = detail
+        self._content_activate_buttons[content_type] = activate_button
         content_list.installEventFilter(self)
         return page
 
@@ -907,6 +944,18 @@ class PlayerShell(QWidget):
 
     def _render_content_catalogue(self, content_type: ContentType) -> None:
         """Render local title, genre, and year matches from the active non-live snapshot."""
+        if content_type is ContentType.SERIES and self._series_view_mode != "catalogue":
+            items = (
+                self._series_seasons
+                if self._series_view_mode == "seasons"
+                else self._series_episodes
+            )
+            self.content_model.replace_items(items)
+            noun = "seasons" if self._series_view_mode == "seasons" else "episodes"
+            self._content_status_labels[content_type].setText(
+                f"{len(items):,} {noun} shown" if items else f"No {noun} available"
+            )
+            return
         items = self._content_catalogues.get(content_type, ())
         category_id = self._active_content_category_id
         query = self.search_input.text().strip().casefold()
@@ -960,21 +1009,186 @@ class PlayerShell(QWidget):
             )
 
     def _activate_content_index(self, content_type: ContentType, index: QModelIndex) -> None:
-        """Open non-live context without moving unimplemented stream resolution into the UI."""
+        """Activate one safe non-live context through existing application use cases."""
         self._select_content_index(content_type, index)
         item = self.selected_content
         if item is None:
             return
         if content_type is ContentType.SERIES:
-            self._content_detail_labels[content_type].setText(
-                f"Series selected · {item.title} · "
-                "Episode browsing is unavailable for this provider path"
+            if self._series_view_mode == "catalogue":
+                asyncio.create_task(self._load_series_seasons_for(item))
+            elif self._series_view_mode == "seasons":
+                asyncio.create_task(self._load_series_episodes_for(item))
+            else:
+                asyncio.create_task(self._play_content_item(item))
+        else:
+            asyncio.create_task(self._load_and_play_movie(item))
+
+    def _activate_current_content(self, content_type: ContentType) -> None:
+        """Activate the selected item without bypassing the list-model selection boundary."""
+        index = self._content_lists[content_type].currentIndex()
+        if index.isValid():
+            self._activate_content_index(content_type, index)
+
+    async def _load_and_play_movie(self, item: ContentItemDTO) -> None:
+        if self._load_movie_details is None:
+            self._content_detail_labels[ContentType.MOVIE].setText("Movie details are unavailable")
+            return
+        response = await self._load_movie_details.execute(
+            LoadMovieDetailsRequest(provider_id=item.provider_id, movie_id=item.id)
+        )
+        if response.unsupported:
+            self._content_detail_labels[ContentType.MOVIE].setText("Movie playback is unavailable")
+            return
+        if response.error is not None or response.item is None:
+            self._content_detail_labels[ContentType.MOVIE].setText("Unable to load movie details")
+            return
+        self.selected_content = response.item
+        self._select_content_metadata(ContentType.MOVIE, response.item)
+        await self._play_content_item(response.item)
+
+    async def _load_series_seasons_for(self, item: ContentItemDTO) -> None:
+        if self._load_series_seasons is None:
+            self._content_detail_labels[ContentType.SERIES].setText(
+                "Series details are unavailable"
+            )
+            return
+        response = await self._load_series_seasons.execute(
+            LoadSeriesSeasonsRequest(provider_id=item.provider_id, series_id=item.id)
+        )
+        if response.unsupported:
+            self._content_detail_labels[ContentType.SERIES].setText(
+                "Series details are unavailable"
+            )
+            return
+        if response.error is not None:
+            self._content_detail_labels[ContentType.SERIES].setText("Unable to load seasons")
+            return
+        self._series_context_id = item.id
+        self._series_seasons = tuple(
+            ContentItemDTO(
+                id=season.id,
+                provider_id=season.provider_id,
+                content_type=ContentType.SERIES,
+                title=season.title or f"Season {season.number}",
+                series_id=season.series_id,
+                season=season.number,
+            )
+            for season in response.seasons
+        )
+        self._series_view_mode = "seasons"
+        self._content_back_buttons[ContentType.SERIES].setEnabled(True)
+        self._content_activate_buttons[ContentType.SERIES].setText("Open season")
+        self._render_content_catalogue(ContentType.SERIES)
+
+    async def _load_series_episodes_for(self, item: ContentItemDTO) -> None:
+        if self._load_season_episodes is None or item.series_id is None or item.season is None:
+            self._content_detail_labels[ContentType.SERIES].setText("Episodes are unavailable")
+            return
+        response = await self._load_season_episodes.execute(
+            LoadSeasonEpisodesRequest(
+                provider_id=item.provider_id,
+                series_id=item.series_id,
+                season=item.season,
+            )
+        )
+        if response.unsupported:
+            self._content_detail_labels[ContentType.SERIES].setText("Episodes are unavailable")
+            return
+        if response.error is not None:
+            self._content_detail_labels[ContentType.SERIES].setText("Unable to load episodes")
+            return
+        self._series_episodes = tuple(
+            ContentItemDTO(
+                id=episode.id,
+                provider_id=episode.provider_id,
+                content_type=ContentType.EPISODE,
+                title=episode.title,
+                stream_id=episode.resource_id,
+                series_id=episode.series_id,
+                season=episode.season,
+                episode_number=episode.episode_number,
+                plot=episode.plot,
+            )
+            for episode in response.episodes
+        )
+        self._series_view_mode = "episodes"
+        self._content_activate_buttons[ContentType.SERIES].setText("Play episode")
+        self._render_content_catalogue(ContentType.SERIES)
+
+    async def _play_content_item(self, item: ContentItemDTO) -> None:
+        if item.content_type is ContentType.MOVIE:
+            if not item.stream_id:
+                self._content_detail_labels[ContentType.MOVIE].setText(
+                    "Movie playback is unavailable"
+                )
+                return
+            target = PlaybackTarget.movie(item.provider_id, item.id, item.stream_id)
+        elif item.content_type is ContentType.EPISODE:
+            if (
+                not item.stream_id
+                or item.series_id is None
+                or item.season is None
+                or item.episode_number is None
+            ):
+                self._content_detail_labels[ContentType.SERIES].setText(
+                    "Episode playback is unavailable"
+                )
+                return
+            target = PlaybackTarget.episode(
+                item.provider_id,
+                item.id,
+                item.stream_id,
+                item.series_id,
+                item.season,
+                item.episode_number,
             )
         else:
-            self._content_detail_labels[content_type].setText(
-                f"Movie selected · {item.title} · "
-                "VOD playback is not exposed by the current provider boundary"
+            return
+        result = await self._play_selected_channel(target)
+        label = ContentType.MOVIE if item.content_type is ContentType.MOVIE else ContentType.SERIES
+        if getattr(result, "outcome", None) is PlaybackOutcome.PLAYED:
+            self._content_detail_labels[label].setText(f"Playing · {item.title}")
+            return
+        self._content_detail_labels[label].setText("Unable to start playback")
+
+    def _back_series_navigation(self) -> None:
+        """Return from episode or season context without provider calls or player mutation."""
+        if self._series_view_mode == "episodes":
+            self._series_view_mode = "seasons"
+            self._content_activate_buttons[ContentType.SERIES].setText("Open season")
+        else:
+            self._clear_series_navigation()
+        self._render_content_catalogue(ContentType.SERIES)
+
+    def _clear_series_navigation(self) -> None:
+        """Clear local Series detail state whenever its provider context changes."""
+        self._series_view_mode = "catalogue"
+        self._series_context_id = None
+        self._series_seasons = ()
+        self._series_episodes = ()
+        back_button = self._content_back_buttons.get(ContentType.SERIES)
+        if back_button is not None:
+            back_button.setEnabled(False)
+        activate_button = self._content_activate_buttons.get(ContentType.SERIES)
+        if activate_button is not None:
+            activate_button.setText("Open series")
+
+    def _select_content_metadata(self, content_type: ContentType, item: ContentItemDTO) -> None:
+        """Render safe local metadata without a provider call or resolved stream URL."""
+        metadata = " · ".join(
+            filter(
+                None,
+                (
+                    str(item.year) if item.year is not None else None,
+                    f"★ {item.rating:g}" if item.rating is not None else None,
+                    item.plot,
+                ),
             )
+        )
+        self._content_detail_labels[content_type].setText(
+            f"Selected · {item.title}" + (f" · {metadata}" if metadata else "")
+        )
 
     def _begin_request(self) -> int:
         self._request_generation += 1

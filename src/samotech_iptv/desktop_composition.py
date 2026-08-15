@@ -21,6 +21,7 @@ from samotech_iptv.application.use_cases.list_favorites import ListFavorites
 from samotech_iptv.application.use_cases.list_providers import ListProviders
 from samotech_iptv.application.use_cases.load_categories import LoadCategories
 from samotech_iptv.application.use_cases.load_history import LoadHistory
+from samotech_iptv.application.use_cases.load_movie_details import LoadMovieDetails
 from samotech_iptv.application.use_cases.load_provider_capabilities import (
     LoadProviderCapabilities,
 )
@@ -46,6 +47,10 @@ from samotech_iptv.application.use_cases.save_favorite import SaveFavorite
 from samotech_iptv.application.use_cases.save_theme_preference import SaveThemePreference
 from samotech_iptv.application.use_cases.search_registered_channels import (
     SearchRegisteredChannels,
+)
+from samotech_iptv.application.use_cases.series_discovery import (
+    LoadSeasonEpisodes,
+    LoadSeriesSeasons,
 )
 from samotech_iptv.application.use_cases.start_recording import StartRecording
 from samotech_iptv.application.use_cases.stop_recording import StopRecording
@@ -147,6 +152,12 @@ async def build_production_desktop_application(
         hardware_decode=application_config.player.hardware_decode,
     )
     record_history = RecordHistory(history_repository)
+    play_registered_channel = PlayRegisteredChannel(
+        provider_resolution_service,
+        player,
+        record_history,
+        provider_resolution_service,
+    )
     list_favorites = ListFavorites(favorite_repository)
     remove_favorite = RemoveFavorite(favorite_repository)
     load_history = LoadHistory(history_repository)
@@ -164,7 +175,7 @@ async def build_production_desktop_application(
         UpdateProvider(registration_service, catalogue_cache),
         RemoveProvider(registration_service, catalogue_cache),
         BrowseChannels(provider_resolution_service, catalogue_cache),
-        PlayRegisteredChannel(provider_resolution_service, player, record_history),
+        play_registered_channel,
         SearchRegisteredChannels(provider_resolution_service, catalogue_cache),
         SaveFavorite(favorite_repository),
         list_favorites,
@@ -189,6 +200,9 @@ async def build_production_desktop_application(
         player=player,
         browse_content=BrowseContent(provider_resolution_service),
         load_provider_capabilities=LoadProviderCapabilities(provider_resolution_service),
+        load_movie_details=LoadMovieDetails(provider_resolution_service),
+        load_series_seasons=LoadSeriesSeasons(provider_resolution_service),
+        load_season_episodes=LoadSeasonEpisodes(provider_resolution_service),
     )
 
     async def close() -> None:
