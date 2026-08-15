@@ -4,9 +4,9 @@
 
 **Product:** SamoTech IPTV Player
 **Package version:** `0.1.0`
-**Current baseline commit:** `7896c9e5036d278b68ffc5e1cde35b8015415707` (`feat: add theme settings UI`)
-**Current product milestone:** Registered Live-Category Discovery
-**Baseline verified:** 2026-08-12 UTC+03:00
+**Current baseline:** The `main` revision containing the approved bounded Live EOF recovery and Windows validation increment; use `git rev-parse HEAD` for its immutable revision identifier.
+**Current product milestone:** Bounded Live EOF Recovery — **implemented and locally validated; Windows-native evidence pending**
+**Baseline verified:** 2026-08-15 UTC+03:00
 
 ## Product purpose
 
@@ -110,17 +110,17 @@ The domain layer does not depend on Qt, libVLC, SQLite, `aiohttp`, `keyring`, or
 
 ## Quality baseline
 
-The latest full quality gate was run on commit `7896c9e5036d278b68ffc5e1cde35b8015415707` before this documentation rebaseline.
+The approved recovery and validation increment has passed the deterministic/offscreen gates below. Those checks do not stand in for the configured-but-unexecuted Windows CI native probe or the required authorized Windows desktop runtime gate.
 
 | Check | Result |
 |---|---|
-| `black --check src tests` | Passed; 233 files unchanged at verification time. |
+| `black --check src tests` | Passed; 308 files unchanged at verification time. |
 | `ruff check src tests` | Passed. |
-| `mypy src` | Passed in strict mode; 164 source files checked at verification time. |
-| `pytest -q` | Passed. |
+| `mypy src` | Passed; 201 source files checked at verification time. |
+| `QT_QPA_PLATFORM=offscreen pytest -q` | Passed; existing non-fatal `aiohttp` bare-handler deprecation warnings remain. |
 | `git diff --check` | Passed. |
 
-The documentation rebaseline must run the same quality gate before publication. Source/test counts should be reported from that final run rather than assumed from this baseline.
+All deterministic gates are repeated before a handoff or commit decision. A successful offscreen suite must never be reported as successful Windows runtime stream validation.
 
 ## Known limitations
 
@@ -130,7 +130,7 @@ The documentation rebaseline must run the same quality gate before publication. 
 4. MAG/Stalker supports the documented live-TV subset only. The adapter performs a bounded four-candidate discovery before normal session authentication and closes its owned aiohttp session/connector on discovery or authentication failure; a production portal remains unresolved unless one candidate returns a structurally valid token-bearing handshake. VOD, series, categories, archive, and catch-up are not represented as executable adapter capabilities.
 5. XMLTV is bound to one registered provider through an explicit local path or local `file:` URI and persisted source-channel mappings; a Qt dialog performs manual bounded refresh. Remote/tokenized XMLTV URLs, a programme-entry cache, scheduled refresh, source discovery, and catch-up linkage remain unimplemented.
 6. Favorites/history persistence exists, but full library management UI and resume behavior do not.
-7. Generic pause, resume, and stop actions are available through the existing player port with safe status feedback. Registered-provider edit/removal preserves blank credential fields and cleans keyring entries on removal, but confirmation UX, availability diagnostics, detailed player-state semantics, capability negotiation, tracks/subtitles, packaging, update delivery, crash reporting, diagnostics, performance profiling, and release automation are not complete.
+7. Generic pause, resume, and stop actions are available through the existing player port with safe status feedback. The Live-only EOF controller is bounded and deterministic-test covered, but it still requires Windows-native and authorized Windows desktop validation and does not establish a native/libVLC/stream root-cause fix. Registered-provider edit/removal preserves blank credential fields and cleans keyring entries on removal, but confirmation UX, availability diagnostics, detailed player-state semantics, capability negotiation, tracks/subtitles, packaging, update delivery, crash reporting, diagnostics, performance profiling, and release automation are not complete.
 8. Ministra requires authorized fixtures and an approved device identity before client code may begin.
 
 ## Operational hardening evidence — 2026-08-15
@@ -140,6 +140,15 @@ The Linux quality workflow is intentionally a cross-platform validation environm
 The SQLite repositories are operation-scoped rather than long-lived resources. The audit found that `with sqlite3.connect(...)` commits or rolls back a transaction but does not close a connection; this was a **production and test lifecycle defect** affecting provider metadata, favorites, history, theme preference, XMLTV bindings, and one direct test schema-inspection connection. A shared internal helper now commits successful operations, rolls back exceptions, and closes the connection in all paths. All SQLite work continues to open and close inside the same `asyncio.to_thread` worker; there is no `check_same_thread=False`, shared connection, QThread, or event-loop crossing. Focused affected tests pass with `ResourceWarning` promoted to an error.
 
 The MAG runtime issue remains separate and **unresolved pending authorized evidence**. The prior diagnostic release added only safe response-boundary telemetry; no MAG timeout, retry, protocol, response-completeness, provider, playback, qasync, or lifecycle behavior was changed by this operational-hardening increment. Five redacted, unchanged-configuration Windows catalogue runs remain required before classifying intermittent catalogue failure or WinError 995.
+
+The approved VLC-adapter increment adds a bounded, generation- and session-safe recovery controller for **Live** playback only. An unexpected current-session libVLC `END`/`STOPPED`, or a buffering deadline, can rebuild media through the existing media-construction path with at most five attempts in a 45-second window and capped exponential backoff. Explicit stop, shutdown, pause, channel switch, and recording media replacement invalidate recovery work. The controller does not alter providers, MAG behavior, timeouts, network caching, hardware-decoding options, qasync, or `PlayerShell`; it neither proves nor replaces the remaining native libVLC/stream/transport/environment investigation.
+
+| Recovery validation layer | Current evidence | Claim boundary |
+|---|---|---|
+| Deterministic adapter validation | Focused fake-backed tests cover terminal events, buffering, explicit actions, stale generations, concurrency, stability, bounded attempts, non-live exclusion, and diagnostic redaction. | Proves adapter task ordering and bounded policy only. |
+| Full offscreen regression | The full `QT_QPA_PLATFORM=offscreen` suite passes, subject only to existing non-fatal `aiohttp` bare-handler deprecation warnings. | Proves no observed Linux/offscreen regression; it is not a native Windows stream result. |
+| Windows CI native validation | The workflow is configured to install standard VLC, execute the provider-free lifecycle probe, and run the deterministic recovery suite as blocking gates. | **Configured but not yet executed** on a Windows runner. |
+| Real Windows desktop runtime | **Not yet executed in this environment.** The current session has no authorized Windows/desktop/native-VLC execution surface. | No claim that a real stream interruption recovers, that the root cause is fixed, or that the failure will reproduce. |
 
 ## Security model
 
@@ -155,7 +164,13 @@ The MAG runtime issue remains separate and **unresolved pending authorized evide
 
 ## Next milestone
 
-### Usable Live-TV Workflow Completion
+### Authorized Windows Live EOF Recovery Runtime Gate
+
+**Objective:** Validate the implemented bounded Live recovery controller in the authorized Windows desktop application without changing provider configuration, MAG behavior, credentials, stream selection, VLC options, caching, hardware-decoding settings, timeouts, qasync, or `PlayerShell`.
+
+The runtime observation must distinguish normal Live playback, a failure that does not reproduce, a bounded recovery that returns to `PLAYING`, bounded recovery exhaustion, and a recovery-controller defect. It must also verify that channel switching and explicit stop cannot resurrect a stale channel. This gate may not be represented as complete until it has actually run against the real desktop application and authorized live environment.
+
+### Subsequent usability milestone — Live-TV Workflow Completion
 
 **Objective:** Complete the highest-value live-TV usability gaps now that M3U, Xtream, and MAG resolve supported live streams through the registered-player path.
 

@@ -1069,3 +1069,139 @@ No MAG root-cause classification is claimed here. The remaining external depende
 | `7f355a37b32954ce4ba629d517e3ea409fc81eb7` — `fix(storage): close operation-scoped sqlite connections` | Adds deterministic operation-scoped SQLite ownership, migrates all repository connection sites, closes the direct test connection, and adds lifecycle regressions. |
 
 This report, the README, project status, and changelog are committed separately as documentation for the two implementation changes. The final pushed commit identifiers and synchronized remote state are reported in the delivery message because a Git commit cannot self-reference its own immutable content hash.
+
+---
+
+## 14. Bounded Live-Stream EOF Recovery — Windows-Validation Handoff
+
+### 14.1 Evidence boundary and purpose
+
+The controlled Windows software-decoding evidence established an unexpected native termination: the player reached `PLAYING`, emitted repeated native `BUFFERING` callbacks, then emitted `END` at approximately 63.7 seconds and `STOPPED` shortly afterwards. The explicit application shutdown occurred materially later, and the terminal events retained `last_command_cause=initial_start`. This eliminates an application-shutdown explanation for that observed event and materially weakens a D3D11VA-only explanation because the same pattern occurred with hardware decoding disabled.
+
+The exact native/libVLC, stream, transport, or environment cause remains **unconfirmed**. This increment is therefore a bounded user-experience mitigation and diagnostic continuation point, not a claim that the root cause was repaired. It does not alter MAG, M3U, Xtream, provider discovery, authentication, timeout values, retry configuration, stream resolution, libVLC construction options, network caching, hardware-decoding configuration, Qt/qasync lifecycle, `PlayerShell`, or `PlayerPort`.
+
+### 14.2 Adapter-local recovery design
+
+The existing six libVLC subscriptions remain in place. A callback first writes the already approved safe correlation event, snapshots only the non-sensitive media generation and adapter session token, and uses `call_soon_threadsafe` to schedule recovery interpretation on the owning asyncio loop. No callback performs media replacement, sleeps, or waits on the native libVLC callback thread.
+
+| Design element | Implemented behavior |
+|---|---|
+| Internal state vocabulary | `IDLE`, `STARTING`, `PLAYING`, `BUFFERING`, `RECOVERING`, `STOPPING`, `STOPPED`, and `FAILED`; no new UI/public player-state API is exposed. |
+| Unexpected terminal events | Current-session `END` is treated as `EOF`; current-session `STOPPED` is treated as `STOPPED`. Either requests one recovery sequence only. |
+| Buffering watchdog | A watchdog starts only after native `BUFFERING`; `BUFFERING` alone does not restart playback. It requests recovery only when buffering outlives the configured deadline. |
+| Media reconstruction | Recovery calls the existing `_set_media_and_play()` path, producing a new libVLC media object and media generation. It never reuses a failed input. |
+| Generation/session safety | A scheduled callback must match the adapter’s current media generation and session token. Old callbacks queued before a channel/media replacement are ignored. |
+| Concurrent signals | An active recovery task prevents an `EOF`, `STOPPED`, and buffering-timeout combination from scheduling parallel reconnect sequences. |
+| Callback-thread behavior | Recovery work is asyncio-task based; `asyncio.sleep()` performs all delay handling without blocking the Qt or native callback thread. |
+
+The configured policy is intentionally bounded: **five** attempts in a **45-second** recovery window, with exponential delays of **1, 2, 4, 8, and 8 seconds** (cap 8 seconds). Recovery counters reset only after **five seconds** of sustained native `PLAYING`; a transient recovered start therefore cannot immediately replenish the retry budget. When the attempt limit or recovery window is exceeded, the adapter enters `FAILED`, emits a safe aggregate abandonment record, and does not loop.
+
+### 14.3 Intentional-action and live-only protection
+
+Recovery invalidates its session and cancels active watchdog, recovery, and stability tasks before explicit stop, close/shutdown, pause, channel replacement, and recording media restart. Recording restart remains marked intentional until the replacement input emits its own native `PLAYING` event, preventing expected transition callbacks from being treated as faults. Resume starts a fresh eligible session; explicit stop and shutdown leave recovery disabled.
+
+The application boundary remains live-only: `PlayPlaybackTarget` returns `UNSUPPORTED` for non-live targets before invoking `PlayerPort.play(URL)`. The VLC adapter does not infer VOD semantics, construct VOD URLs, or apply its live reconnect policy to a Movie/Episode target.
+
+No recovery log includes a stream URL, hostname, portal URL, device identity, MAC address, credential, token, cookie, authorization header, or provider response. Recovery records contain only safe player/media identifiers, event/recovery reason, aggregate attempt count, and duration.
+
+### 14.4 Deterministic regression coverage
+
+The focused adapter suite now contains fake-backed coverage for the original playback/recording behavior, all approved correlation diagnostics, and the recovery controller.
+
+| Regression case | Result |
+|---|---|
+| Unexpected `END`/EOF rebuilds Live media through the existing media path | PASS |
+| Unexpected native `STOPPED` rebuilds Live media | PASS |
+| Explicit stop and application shutdown do not restart playback | PASS |
+| Channel switch cancels pending recovery | PASS |
+| Stale EOF with an earlier generation/session is ignored | PASS |
+| Buffering does not restart immediately; prolonged buffering does | PASS |
+| Backoff is 1/2/4/8 seconds and remains capped | PASS |
+| Concurrent buffering and EOF create one recovery sequence | PASS |
+| Retry budget resets only after the stability window | PASS |
+| Recovery stops at the configured retry limit | PASS |
+| Pause and recording-media restart do not create recovery | PASS |
+| Non-live target does not reach the VLC adapter | PASS |
+| Existing immediate initial-play fallback remains intact | PASS |
+
+### 14.5 Validation record
+
+| Gate | Result |
+|---|---|
+| `QT_QPA_PLATFORM=offscreen .venv/bin/pytest -q tests/test_infra_vlc_player_adapter.py` | **PASS** — 27 focused tests. |
+| `QT_QPA_PLATFORM=offscreen .venv/bin/pytest -q` | **PASS** — complete suite exited successfully. Four pre-existing non-fatal `aiohttp` bare-handler deprecation warnings remain. |
+| `.venv/bin/black --check src tests` | **PASS** — 307 files unchanged. |
+| `.venv/bin/ruff check src tests` | **PASS**. |
+| `.venv/bin/mypy src` | **PASS** — no issues in 201 source files. |
+| `git diff --check` | **PASS** before and after this report update. |
+
+### 14.6 Remaining limitations and handoff state
+
+The Linux/offscreen tests prove adapter ordering and bounded-task behavior through deterministic fake libVLC objects. They do **not** prove that an authorized Windows native stream will reconnect successfully after a real libVLC EOF, that the upstream stream will become available within the retry window, or that the unconfirmed native/environment cause has been removed. The appropriate next validation is a controlled Windows run with the approved safe correlation and recovery records, without changing provider configuration or VLC preferences.
+
+| Field | Current handoff state |
+|---|---|
+| Production files changed | `src/samotech_iptv/infrastructure/player/vlc_player_adapter.py` |
+| Focused test file changed | `tests/test_infra_vlc_player_adapter.py` |
+| Documentation changed | `UI_REDESIGN_IMPLEMENTATION_REPORT.md`, `CHANGELOG.md`, `PROJECT_STATUS.md` |
+| MAG/provider/VLC option/network-cache/qasync/PlayerShell changes | **None** |
+| Commit created | **No** |
+| Push performed | **No** |
+| Root-cause claim | **No** — native libVLC/stream/transport/environment remains probable but unconfirmed. |
+
+### 14.7 Repository reconciliation and final Windows runtime gate status
+
+The current repository state was re-established from Git rather than from historical documentation. The actual checked-out branch is `main`; local `HEAD` and `origin/main` are both `1ecc2359eb06f4a07f7da8bd7d52f3c27014f4ab` (`docs: record CI and sqlite lifecycle findings`). The worktree contains only intentional recovery work: the adapter, its focused test module, `CHANGELOG.md`, the authoritative `PROJECT_STATUS.md`, and this consolidated report. No untracked files were present.
+
+`PROJECT_STATUS.md` previously named an older historical baseline as the current checkout. It now identifies the actual current revision and states that the bounded Live EOF controller is **implemented but uncommitted**. Its recovery entry explicitly separates deterministic fake-backed validation, Linux/offscreen full-suite validation, and the still-required real Windows desktop validation. Historical commit references in this report and other historical records were retained unchanged.
+
+| Repeated deterministic gate | Result |
+|---|---|
+| Focused offscreen adapter suite | **PASS** — 27 tests. |
+| Full `QT_QPA_PLATFORM=offscreen` suite | **PASS**. Four existing non-fatal `aiohttp` bare-handler deprecation warnings were reported. |
+| `black --check src tests` | **PASS** — 307 files unchanged. |
+| `ruff check src tests` | **PASS**. |
+| `mypy src` | **PASS** — no issues in 201 source files. |
+| `git diff --check` | **PASS**. |
+
+The requested real Windows runtime gate was **not executed**. This session runs on Linux `x86_64`, has no PowerShell executable, and has no configured Windows, desktop, computer, remote-machine, native-VLC, or authorized browser execution surface. A native Windows application run would require a 64-bit Windows desktop user session with the authorized provider environment; neither Linux/offscreen results nor fake player objects can substitute for it. No stream was opened, no provider setting was changed, and no attempt was made to synthesize or force an upstream failure.
+
+The correct runtime classification is therefore **ENVIRONMENT LIMITATION / PENDING**: the known EOF failure was not reproduced in this session; recovery could not be observed restoring `PLAYING`; no attempt could exceed the configured budget; and no stale callback could be observed restarting an incorrect channel in a real desktop run. The deterministic tests continue to cover those lifecycle invariants. The native libVLC/stream/transport/environment root cause remains probable but unconfirmed.
+
+---
+
+## 15. Windows Native Validation Infrastructure
+
+### 15.1 Scope and three validation layers
+
+This increment builds validation infrastructure only. It does not change the bounded recovery controller, provider behavior, MAG configuration, credentials, timeout values, VLC options, network caching, hardware decoding, qasync, or `PlayerShell`. It does not automate any real provider in CI and makes no claim that an authorized IPTV EOF recovery has succeeded.
+
+| Layer | Artifact | What it proves | What it does not prove |
+|---|---|---|---|
+| Native Windows libVLC lifecycle | `tests/vlc_native_lifecycle_probe.py` | Standard native libVLC can load, create/release instance/player/media, register callbacks, require first-generation `PLAYING`/`END` and replacement-generation `PLAYING`/`STOPPED`, report `BUFFERING` when emitted, and replace media. | Provider, network, or recovery behavior. |
+| Deterministic recovery controller | Existing `tests/test_infra_vlc_player_adapter.py` | Bounded recovery policy, explicit-action protection, stale-session rejection, one-recovery sequencing, and redacted diagnostics. | A real native/live event sequence or upstream stream availability. |
+| Authorized real Live runtime | `docs/WINDOWS_LIVE_EOF_RUNTIME_VALIDATION.md` | The actual user-visible recovery result on a configured Windows desktop. | Nothing until manually executed with an authorized source. |
+
+### 15.2 Windows CI and native probe
+
+The existing Windows build job now remains the smallest native infrastructure point: it uses the repository’s Python 3.13 workflow convention, installs development dependencies, installs the standard `vlc.install` Chocolatey package, runs the provider-free lifecycle probe, then runs only the focused deterministic adapter/recovery suite before the pre-existing PyInstaller step. Native VLC discovery or lifecycle failure fails the job clearly. No secret, provider, MAC identity, URL, token, cookie, authorization header, fixture payload, or IPTV request enters the job.
+
+The probe creates a short temporary silent WAV file locally, initializes libVLC with dummy outputs, attaches callbacks that record only event labels, requires first-generation `PLAYING`/`END`, reports `BUFFERING` as `PASS` or `NOT_OBSERVED`, requires replacement-generation `PLAYING`, explicitly stops, observes replacement-generation `STOPPED`, and performs best-effort media/player/instance cleanup. It does not block inside callbacks, fetch media, contact an IPTV source, or write any path to the result. Linux execution intentionally returns `native_vlc_lifecycle=SKIP reason=windows_required`; that is a platform guard, not native lifecycle evidence.
+
+### 15.3 Manual authorized runtime procedure
+
+`docs/WINDOWS_LIVE_EOF_RUNTIME_VALIDATION.md` is the concise follow-on procedure. It requires a matching Windows/Python/VLC user session and an already authorized Live source, preserves all configuration, limits captured evidence to aggregate state, and classifies: recovery success, bounded exhaustion, non-reproduction, controller defect, or native VLC unavailability. It includes channel-switch and explicit-stop safety checks and explicitly prevents interpreting bounded exhaustion as a controller failure.
+
+### 15.4 Local validation status
+
+| Gate | Result |
+|---|---|
+| Linux probe syntax and platform guard | **PASS** — compiled successfully; returned `native_vlc_lifecycle=SKIP reason=windows_required`. |
+| Focused recovery suite | **PASS** — 27 tests. |
+| Full offscreen suite | **PASS**; four existing non-fatal `aiohttp` bare-handler deprecation warnings remain. |
+| Black | **PASS** — 308 source/test files unchanged. |
+| Ruff | **PASS**. |
+| Mypy | **PASS** — no issues in 201 source files. |
+| `git diff --check` | **PASS**. |
+| Windows CI execution | **PENDING** — workflow added but not executable from this Linux session. |
+| Authorized real Windows IPTV runtime | **PENDING** — no Windows desktop/authorized provider surface is available in this session. |
