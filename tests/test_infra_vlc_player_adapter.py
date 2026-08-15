@@ -268,8 +268,9 @@ async def test_vlc_adapter_records_active_stream_with_duplicate_file_output(tmp_
     assert adapter.is_recording is True
     assert player.media is not None
     assert player.media.url == "https://example.test/live.m3u8"
+    escaped_destination = str(destination).replace("\\", "\\\\").replace("'", "\\'")
     assert player.media.options == [
-        f":sout=#duplicate{{dst=display,dst=std{{access=file,mux=ts,dst='{destination}'}}}}"
+        f":sout=#duplicate{{dst=display,dst=std{{access=file,mux=ts,dst='{escaped_destination}'}}}}"
     ]
     assert player.calls == ["play", "play"]
 
