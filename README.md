@@ -270,3 +270,12 @@ The Player 3 security boundary is explicit: authorized credentials are entered o
 ## Player 3 attribution boundary
 
 The public EStalker and XStreamity repositories remain acknowledged as technical references only. Player 3 preserves SamoTech’s own Python, Clean Architecture, PySide6, qasync, SQLite/keyring, and libVLC implementation. No external source code was copied, and no license, endorsement, partnership, or code-reuse claim is made beyond the repository’s existing acknowledgement.
+
+
+## Smart Provider Import
+
+The Add IPTV Provider workflow now exposes **Smart Import** beside the preserved **Manual Add** path. Smart Import performs deterministic parsing locally: users can paste Xtream server/credential text or complete URLs, M3U URLs or markers, and MAG/Stalker portal/MAC data. The flow is **Paste → Detect → Review → Validate → Add**, while advanced users retain the original protocol-specific manual dialogs and fields. The validation step checks the normalized required fields; it does not claim a network test for an unsaved profile.
+
+Smart Import normalizes detected fields into the existing Xtream, M3U, and MAG registration request DTOs. Provider adapters remain responsible for protocol behavior, credentials remain inside the existing secure registration path, and no clipboard text is sent to an external API or AI service. The preview masks passwords and MAC identities, asks only for missing required fields, and requires explicit protocol selection when input is genuinely ambiguous. Duplicate provider IDs continue to use the existing deterministic registration semantics rather than creating a second provider architecture.
+
+After a successful manual or Smart Import registration, the existing provider state is refreshed through the PlayerShell selector and any open provider-list dialog without restarting the application. Raw inline M3U content can be detected and previewed, but adding it remains unavailable when no URL or local-file source exists because the existing M3U source boundary deliberately does not persist raw clipboard content. Populated real-provider acceptance remains separate from deterministic parser/UI verification and must not be inferred from it.
