@@ -8,6 +8,7 @@ from PySide6.QtGui import QAction
 from PySide6.QtWidgets import QMainWindow
 
 from samotech_iptv.presentation.task_owner import create_owned_task
+from samotech_iptv.presentation.theme.tokens import COLORS, RADII
 from samotech_iptv.presentation.widgets.vlc_video_surface import VlcVideoSurface
 
 if TYPE_CHECKING:
@@ -150,15 +151,33 @@ class MainWindow(QMainWindow):
         self.video_surface = VlcVideoSurface(player)
         self.setWindowTitle("SamoTech IPTV Player")
         if hasattr(self, "setStyleSheet"):
-            self.setStyleSheet("""
-                QMainWindow { background: #0b0f14; }
-                QMenuBar { background: #0b0f14; color: #aab7c6; padding: 4px 8px; }
-                QMenuBar::item { padding: 5px 9px; border-radius: 5px; }
-                QMenuBar::item:selected { background: #1d3a57; color: #f6f8fb; }
-                QMenu { background: #121a23; color: #e9eef5; border: 1px solid #2a394b; }
-                QMenu::item { padding: 7px 22px 7px 12px; }
-                QMenu::item:selected { background: #1d3a57; }
-                QStatusBar { background: #0b0f14; color: #8f9daf; }
+            self.setStyleSheet(f"""
+                QMainWindow {{ background: {COLORS.background}; }}
+                QMenuBar {{
+                    background: {COLORS.background};
+                    color: {COLORS.text_muted};
+                    padding: 6px 10px;
+                }}
+                QMenuBar::item {{
+                    padding: 7px 11px;
+                    border-radius: {RADII.sm}px;
+                }}
+                QMenuBar::item:selected {{
+                    background: {COLORS.primary_muted};
+                    color: {COLORS.text};
+                }}
+                QMenu {{
+                    background: {COLORS.surface};
+                    color: {COLORS.text};
+                    border: 1px solid {COLORS.border};
+                }}
+                QMenu::item {{ padding: 8px 24px 8px 14px; }}
+                QMenu::item:selected {{ background: {COLORS.primary_muted}; }}
+                QStatusBar {{
+                    background: {COLORS.background};
+                    color: {COLORS.text_muted};
+                    border-top: 1px solid {COLORS.border};
+                }}
                 """)
         self.add_xtream_provider_action = QAction("Add Xtream Provider…", self)
         self.add_xtream_provider_action.triggered.connect(self.open_xtream_provider_dialog)

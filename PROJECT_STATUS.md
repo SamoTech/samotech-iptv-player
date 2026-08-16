@@ -49,6 +49,12 @@ The domain layer does not depend on Qt, libVLC, SQLite, `aiohttp`, `keyring`, or
 
 The playback boundary now separates the logical `PlaybackResource` identity from ephemeral transport requirements and the final `ResolvedPlayback`. `TransportMetadata` is an explicit typed structure for supported headers, user-agent, referrer, and existing protocol/container hints; it is not persisted and does not contain provider credentials. Provider adapters remain responsible for Xtream URL construction, M3U stream lookup, and MAG session/link resolution. `PlayerPort` and the VLC adapter receive only `ResolvedPlayback`, and the VLC adapter translates supported transport metadata into media options without knowing provider identity. Resolved URLs, headers, cookies, signed links, and provider session state remain ephemeral; only safe logical/provider metadata is persisted. Existing Phase 1 attempt-generation, cancellation, stale-result, and provider-switch protections remain in force. MAG remains live-only for this phase, and no new M3U or MAG capabilities were added.
 
+## Desktop UI/UX modernization status
+
+The desktop presentation modernization is **implemented and deterministically validated** within the existing PySide6 architecture. The shared token system provides cinematic dark/blue application styling; the main shell provides a remembered collapsible sidebar, provider/status context, local search across already-loaded Live/Movie/Series content, and explicit loading, empty, and error states. Movie and Series catalogues use reusable content-card delegates while retaining model-backed selection and activation behavior. The player surface adds a presentation-only overlay with idle visibility, status feedback, stop/play-pause controls, fullscreen, and the supported `Space`/`F` shortcuts.
+
+The work is intentionally presentation-scoped. It preserves the existing application use cases, provider adapters, credential boundaries, `PlayerPort`, shared libVLC instance, qasync runtime, and desktop composition contracts. Local global search does not create new network requests, and the UI does not construct provider URLs or read secrets. Native offscreen Qt probing covers sidebar state, loaded-content search grouping, card-view configuration, overlay status/visibility, keyboard shortcuts, and fullscreen delegation. Full repository verification is recorded in the final modernization report.
+
 ## Status vocabulary
 
 | Status | Definition |

@@ -7,6 +7,7 @@ from types import ModuleType, SimpleNamespace
 from unittest.mock import patch
 
 from samotech_iptv.domain.value_objects.theme_preference import ThemePreference
+from samotech_iptv.presentation.theme.theme_engine import DARK_STYLESHEET
 
 
 class FakeApplication:
@@ -193,5 +194,5 @@ def test_bootstrap_composes_qt_application_vlc_player_and_main_window() -> None:
 
     factory.assert_not_called()
     assert desktop.application.argv == ["iptv-player"]
-    assert desktop.application.styles == ["QWidget { background-color: #202124; color: #f1f3f4; }"]
+    assert desktop.application.styles == [DARK_STYLESHEET]
     assert desktop.main_window.video_surface._player is player

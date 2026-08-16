@@ -442,6 +442,7 @@ async def main() -> None:
         "Series",
         "Favorites",
         "History",
+        "Search",
         "Providers",
         "Settings",
     ]
@@ -449,10 +450,24 @@ async def main() -> None:
     await content_shell.load_content(ContentType.MOVIE)
     assert content_shell.content_model.rowCount() == 1
     assert content_shell.content_model.item_at(0) is movie
+    movie_list = content_shell._content_lists[ContentType.MOVIE]
+    assert movie_list.viewMode().name == "IconMode"
+    assert movie_list.gridSize().width() == 172
+    assert content_shell.sidebar_toggle.text() == "Menu"
+    assert content_shell._player_overlay is not None
+    content_shell._set_status_text("● Playing")
+    assert content_shell.overlay_status.text() == "● Playing"
+    content_shell._toggle_sidebar()
+    assert content_shell.sidebar_toggle.text() == "☰"
+    content_shell._toggle_sidebar()
     content_shell._select_content_index(ContentType.MOVIE, content_shell.content_model.index(0, 0))
     assert content_shell.selected_content is movie
     assert played == ["b", "b"]
+    content_shell._navigate_to_page(6)
     content_shell.search_input.setText("2024")
+    assert content_shell.global_search_model.stringList() == ["MOVIES  ·  Arena Film"]
+    assert content_shell.global_search_status.text() == "1 loaded result(s)"
+    content_shell._navigate_to_page(2)
     content_shell._schedule_search()
     assert content_shell.content_model.rowCount() == 1
     assert content.calls == [ContentType.MOVIE]

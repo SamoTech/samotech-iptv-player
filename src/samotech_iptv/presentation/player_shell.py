@@ -3,8 +3,18 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import QEvent, QModelIndex, QObject, QStringListModel, Qt
-from PySide6.QtGui import QKeyEvent
+from PySide6.QtCore import (
+    QEvent,
+    QModelIndex,
+    QObject,
+    QPersistentModelIndex,
+    QSettings,
+    QSize,
+    QStringListModel,
+    Qt,
+    QTimer,
+)
+from PySide6.QtGui import QColor, QFont, QKeyEvent, QPainter
 from PySide6.QtWidgets import (
     QComboBox,
     QFrame,
@@ -14,7 +24,11 @@ from PySide6.QtWidgets import (
     QListView,
     QPushButton,
     QSplitter,
+    QStackedLayout,
     QStackedWidget,
+    QStyle,
+    QStyledItemDelegate,
+    QStyleOptionViewItem,
     QVBoxLayout,
     QWidget,
 )
@@ -35,6 +49,7 @@ from samotech_iptv.application.dtos import (
     SearchRegisteredChannelsRequest,
 )
 from samotech_iptv.presentation.task_owner import cancel_owned_tasks, create_owned_task
+from samotech_iptv.presentation.theme.tokens import COLORS, RADII, SPACING
 from samotech_iptv.presentation.viewmodels.channel_list_model import ChannelListModel
 from samotech_iptv.presentation.viewmodels.content_list_model import ContentListModel
 
@@ -61,10 +76,50 @@ if TYPE_CHECKING:
 __all__ = ["PlayerShell"]
 
 
+class ContentCardDelegate(QStyledItemDelegate):
+    """Render compact media cards from existing title and metadata strings."""
+
+    def sizeHint(  # noqa: N802
+        self,
+        option: QStyleOptionViewItem,
+        index: QModelIndex | QPersistentModelIndex,
+    ) -> QSize:  # noqa: N802
+        del option, index
+        return QSize(172, 214)
+
+    def paint(
+        self,
+        painter: QPainter,
+        option: QStyleOptionViewItem,
+        index: QModelIndex | QPersistentModelIndex,
+    ) -> None:
+        painter.save()
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        rect = option.rect.adjusted(6, 6, -6, -6)
+        selected = bool(option.state & QStyle.StateFlag.State_Selected)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QColor(COLORS.primary_muted if selected else COLORS.surface_elevated))
+        painter.drawRoundedRect(rect, RADII.md, RADII.md)
+        poster = rect.adjusted(8, 8, -8, -70)
+        painter.setBrush(QColor(COLORS.primary if selected else COLORS.surface_muted))
+        painter.drawRoundedRect(poster, RADII.sm, RADII.sm)
+        title = str(index.data(Qt.ItemDataRole.DisplayRole) or "Untitled")
+        initials = "".join(part[0] for part in title.split()[:2]).upper() or "?"
+        painter.setPen(QColor(COLORS.primary_hover))
+        painter.setFont(QFont("Sans", 24, QFont.Weight.Bold))
+        painter.drawText(poster, Qt.AlignmentFlag.AlignCenter, initials)
+        painter.setPen(QColor(COLORS.text))
+        painter.setFont(QFont("Sans", 10, QFont.Weight.Bold))
+        text_rect = rect.adjusted(10, poster.bottom() - rect.top() + 14, -10, -10)
+        painter.drawText(text_rect, Qt.TextFlag.TextWordWrap, title)
+        painter.restore()
+
+
 class PlayerShell(QWidget):
     """Player-first desktop shell around the existing application use cases."""
 
-    _STYLESHEET = """
+    _STYLESHEET = (
+        """
     QWidget#playerShell {
         background: #0b0f14;
         color: #e9eef5;
@@ -182,7 +237,65 @@ class PlayerShell(QWidget):
         border-radius: 6px;
         background: #4ca3ff;
     }
-    """
+    QFrame#sidebar {
+        background: @COLORS.surface_muted@;
+        border-right: 1px solid @COLORS.border@;
+    }
+    QLabel#sectionKicker {
+        color: @COLORS.text_muted@;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 1.5px;
+    }
+    QLabel#heroTitle {
+        color: @COLORS.text@;
+        font-size: 28px;
+        font-weight: 800;
+    }
+    QLabel#heroSubtitle {
+        color: @COLORS.text_muted@;
+        font-size: 14px;
+    }
+    QFrame#playerOverlay {
+        background: rgba(4, 8, 14, 218);
+        border: 1px solid @COLORS.border@;
+        border-radius: @RADII.md@px;
+    }
+    QFrame#playerOverlay QPushButton {
+        background: rgba(17, 23, 34, 235);
+        border-color: @COLORS.border_strong@;
+    }
+    QFrame#playerOverlay QPushButton#primary {
+        background: @COLORS.primary@;
+        border-color: @COLORS.primary_hover@;
+    }
+    QFrame#emptyPanel {
+        background: @COLORS.surface@;
+        border: 1px dashed @COLORS.border@;
+        border-radius: @RADII.md@px;
+    }
+    QFrame#sidebar QPushButton {
+        text-align: left;
+        background: transparent;
+        border: 0;
+        color: @COLORS.text_muted@;
+        padding: 10px 12px;
+    }
+    QFrame#sidebar QPushButton:hover, QFrame#sidebar QPushButton:focus {
+        background: @COLORS.primary_muted@;
+        color: @COLORS.text@;
+    }
+    """.replace("@COLORS.surface_muted@", COLORS.surface_muted)
+        .replace("@COLORS.border@", COLORS.border)
+        .replace("@COLORS.text_muted@", COLORS.text_muted)
+        .replace("@COLORS.text@", COLORS.text)
+        .replace("@RADII.md@", str(RADII.md))
+        .replace("@COLORS.border_strong@", COLORS.border_strong)
+        .replace("@COLORS.primary@", COLORS.primary)
+        .replace("@COLORS.primary_hover@", COLORS.primary_hover)
+        .replace("@COLORS.surface@", COLORS.surface)
+        .replace("@COLORS.primary_muted@", COLORS.primary_muted)
+    )
 
     def __init__(
         self,
@@ -247,6 +360,9 @@ class PlayerShell(QWidget):
         self._content_detail_labels: dict[ContentType, QLabel] = {}
         self._content_back_buttons: dict[ContentType, QPushButton] = {}
         self._content_activate_buttons: dict[ContentType, QPushButton] = {}
+        self._global_search_results: list[tuple[str, object]] = []
+        self._home_action_buttons: dict[str, QPushButton] = {}
+        self._home_status_label: QLabel | None = None
         self._series_view_mode = "catalogue"
         self._series_context_id: str | None = None
         self._series_seasons: tuple[ContentItemDTO, ...] = ()
@@ -257,6 +373,16 @@ class PlayerShell(QWidget):
         self._non_live_generation = 0
         self._active_non_live_action: tuple[ContentType, str, str] | None = None
         self._disposed = False
+        settings = QSettings("SamoTech", "IPTVPlayer")
+        self._sidebar_expanded = bool(settings.value("sidebar_expanded", True, type=bool))
+        self._sidebar_expanded_width = 188
+        self._sidebar_collapsed_width = 64
+        self._player_overlay: QFrame | None = None
+        self._player_stage: QFrame | None = None
+        self._overlay_timer = QTimer(self)
+        self._overlay_timer.setSingleShot(True)
+        self._overlay_timer.setInterval(3500)
+        self._overlay_timer.timeout.connect(self._hide_player_overlay)
         self._loading = False
         self.selected_channel: ChannelDTO | None = None
         self.playing_channel: ChannelDTO | None = None
@@ -265,6 +391,7 @@ class PlayerShell(QWidget):
         self.selected_content: ContentItemDTO | None = None
         self.channel_model = ChannelListModel()
         self.content_model = ContentListModel()
+        self.global_search_model = QStringListModel()
         self.provider_selector = QComboBox()
         self.provider_selector.setEditable(True)
         self.provider_selector.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
@@ -282,6 +409,7 @@ class PlayerShell(QWidget):
         self.search_input.setAccessibleName("Live channel search")
         self.search_input.setToolTip("Search the selected provider's channels")
         self.search_input.returnPressed.connect(self._schedule_search)
+        self.search_input.textChanged.connect(self._search_query_changed)
         self.status_label = QLabel("● Ready")
         self.status_label.setObjectName("status")
         self.status_label.setAccessibleName("Player status")
@@ -293,7 +421,8 @@ class PlayerShell(QWidget):
         self.navigation.setObjectName("navigation")
         self.navigation.setAccessibleName("Main navigation")
         self.navigation.setToolTip("Navigate IPTV sections")
-        self.navigation.setFixedWidth(154)
+        self.navigation.setMinimumWidth(self._sidebar_collapsed_width)
+        self.navigation.setMaximumWidth(self._sidebar_expanded_width)
         self.navigation_model = QStringListModel()
         self._navigation_pages: list[int] = []
         self.navigation.setModel(self.navigation_model)
@@ -313,6 +442,7 @@ class PlayerShell(QWidget):
                 "History", "Recently watched channels appear here.", self._open_history_dialog
             )
         )
+        self.pages.addWidget(self._build_search_page())
         self.pages.addWidget(
             self._build_library_page(
                 "EPG", "Browse the electronic programme guide.", self._open_epg_dialog
@@ -347,6 +477,13 @@ class PlayerShell(QWidget):
         self.channel_list.installEventFilter(self)
         self.navigation.installEventFilter(self)
         self.fullscreen_button.installEventFilter(self)
+        if self._player_stage is not None:
+            self._player_stage.installEventFilter(self)
+        if self._player_overlay is not None:
+            self._player_overlay.installEventFilter(self)
+        video_surface.installEventFilter(self)
+        self._set_sidebar_expanded(self._sidebar_expanded, persist=False)
+        self._show_player_overlay()
 
     async def refresh_providers(self) -> None:
         """Populate the selector from safe provider summaries."""
@@ -367,12 +504,12 @@ class PlayerShell(QWidget):
                 if index >= 0:
                     self.provider_selector.setCurrentIndex(index)
             if not provider_items:
-                self.status_label.setText("● No providers")
+                self._set_status_text("● No providers")
         except asyncio.CancelledError:
             raise
         except Exception:
             self.provider_selector.blockSignals(False)
-            self.status_label.setText("● Providers unavailable")
+            self._set_status_text("● Providers unavailable")
 
     def _refresh_navigation(self) -> None:
         """Show content domains only when the selected provider declares them executable."""
@@ -384,11 +521,19 @@ class PlayerShell(QWidget):
         if self._provider_capabilities.vod_series:
             entries.append(("Series", 3))
         entries.extend([("Favorites", 4), ("History", 5)])
+        entries.append(("Search", 6))
         if self._provider_capabilities.epg:
-            entries.append(("EPG", 6))
-        entries.extend([("Providers", 7), ("Settings", 8)])
+            entries.append(("EPG", 7))
+        entries.extend([("Providers", 8), ("Settings", 9)])
         current_page = self.pages.currentIndex() if hasattr(self, "pages") else 0
-        self.navigation_model.setStringList([label for label, _ in entries])
+        self._navigation_entries = entries
+        compact_labels = ["⌂", "TV", "M", "S", "★", "↺", "EPG", "P", "⚙"]
+        labels = (
+            [label for label, _ in entries]
+            if self._sidebar_expanded
+            else compact_labels[: len(entries)]
+        )
+        self.navigation_model.setStringList(labels)
         self._navigation_pages = [page for _, page in entries]
         try:
             navigation_row = self._navigation_pages.index(current_page)
@@ -409,6 +554,8 @@ class PlayerShell(QWidget):
         self._search_channels_result = None
         self._content_catalogues.clear()
         self._content_categories.clear()
+        self._global_search_results.clear()
+        self.global_search_model.setStringList([])
         self._clear_series_navigation()
         self._active_content_type = ContentType.LIVE
         self._active_content_category_id = None
@@ -427,7 +574,8 @@ class PlayerShell(QWidget):
         provider_id = self._provider_id()
         self._provider_capabilities = ProviderCapabilities()
         self._refresh_navigation()
-        self.status_label.setText("● Provider selected" if provider_id else "● Select a provider")
+        self._refresh_home_actions()
+        self._set_status_text("● Provider selected" if provider_id else "● Select a provider")
         self.channel_status.setText("No channels loaded")
         if provider_id:
             try:
@@ -445,6 +593,7 @@ class PlayerShell(QWidget):
             return
         self._provider_capabilities = capabilities
         self._refresh_navigation()
+        self._refresh_home_actions()
 
     def _provider_id(self) -> str:
         """Return the selected provider ID, retaining editable fallback semantics."""
@@ -510,20 +659,29 @@ class PlayerShell(QWidget):
 
     def _build_layout(self, video_surface: QWidget) -> None:
         top_bar = QHBoxLayout()
-        top_bar.setContentsMargins(18, 14, 18, 10)
-        top_bar.setSpacing(12)
+        top_bar.setContentsMargins(SPACING.lg, SPACING.md, SPACING.lg, SPACING.sm)
+        top_bar.setSpacing(SPACING.md)
+        self.sidebar_toggle = QPushButton("Menu")
+        self.sidebar_toggle.setAccessibleName("Toggle navigation sidebar")
+        self.sidebar_toggle.setToolTip("Expand or collapse navigation")
+        self.sidebar_toggle.clicked.connect(self._toggle_sidebar)
+        top_bar.addWidget(self.sidebar_toggle, 0)
         brand_column = QVBoxLayout()
         brand_column.setSpacing(1)
         brand = QLabel("SAMOTECH IPTV")
         brand.setObjectName("brand")
-        eyebrow = QLabel("LIVE TELEVISION")
+        eyebrow = QLabel("WATCH WITHOUT FRICTION")
         eyebrow.setObjectName("eyebrow")
         brand_column.addWidget(brand)
         brand_column.addWidget(eyebrow)
         top_bar.addLayout(brand_column)
-        top_bar.addSpacing(10)
+        top_bar.addSpacing(SPACING.sm)
         top_bar.addWidget(self.provider_selector, 0)
         top_bar.addWidget(self.search_input, 1)
+        self.provider_badge = QLabel("No provider")
+        self.provider_badge.setObjectName("pageSubtitle")
+        self.provider_badge.setAccessibleName("Provider connection summary")
+        top_bar.addWidget(self.provider_badge, 0)
         top_bar.addWidget(self.status_label, 0)
         settings_button = QPushButton("Settings")
         settings_button.setAccessibleName("Open settings")
@@ -534,14 +692,28 @@ class PlayerShell(QWidget):
         player_card = QFrame()
         player_card.setObjectName("playerCard")
         player_layout = QVBoxLayout(player_card)
-        player_layout.setContentsMargins(10, 10, 10, 10)
-        player_layout.setSpacing(8)
+        player_layout.setContentsMargins(SPACING.sm, SPACING.sm, SPACING.sm, SPACING.sm)
+        player_layout.setSpacing(SPACING.sm)
         video_surface.setMinimumSize(420, 260)
-        player_layout.addWidget(video_surface, 1)
-        player_layout.addWidget(self.current_channel_label)
-        player_layout.addWidget(self.playback_context_label)
-        controls = QHBoxLayout()
-        controls.setSpacing(6)
+        self._player_stage = QFrame()
+        self._player_stage.setObjectName("playerStage")
+        stage_layout = QStackedLayout(self._player_stage)
+        stage_layout.setStackingMode(QStackedLayout.StackingMode.StackAll)
+        stage_layout.addWidget(video_surface)
+        self._player_overlay = QFrame()
+        self._player_overlay.setObjectName("playerOverlay")
+        overlay_layout = QVBoxLayout(self._player_overlay)
+        overlay_layout.setContentsMargins(SPACING.lg, SPACING.md, SPACING.lg, SPACING.md)
+        overlay_layout.setSpacing(SPACING.md)
+        overlay_top = QHBoxLayout()
+        overlay_top.addWidget(self.playback_context_label, 1)
+        self.overlay_status = QLabel("● Ready")
+        self.overlay_status.setObjectName("status")
+        self.overlay_status.setText(self.status_label.text())
+        overlay_top.addWidget(self.overlay_status, 0)
+        overlay_layout.addLayout(overlay_top)
+        overlay_center = QHBoxLayout()
+        overlay_center.addStretch(1)
         self.pause_button = QPushButton("Pause")
         self.pause_button.setAccessibleName("Pause playback")
         self.pause_button.setToolTip("Pause the current stream")
@@ -555,24 +727,39 @@ class PlayerShell(QWidget):
         self.stop_button.setAccessibleName("Stop playback")
         self.stop_button.setToolTip("Stop the current stream")
         self.stop_button.clicked.connect(lambda: create_owned_task(self, self._stop_playback()))
+        overlay_center.addWidget(self.pause_button)
+        overlay_center.addWidget(self.resume_button)
+        overlay_center.addWidget(self.stop_button)
+        overlay_center.addStretch(1)
+        overlay_layout.addLayout(overlay_center)
+        overlay_bottom = QHBoxLayout()
+        self.current_channel_label.setObjectName("pageSubtitle")
+        overlay_bottom.addWidget(self.current_channel_label, 1)
         self.fullscreen_button = QPushButton("Fullscreen")
         self.fullscreen_button.setAccessibleName("Toggle fullscreen")
         self.fullscreen_button.setToolTip("Enter or exit fullscreen mode (F)")
         self.fullscreen_button.clicked.connect(self._toggle_fullscreen)
-        controls.addWidget(self.pause_button)
-        controls.addWidget(self.resume_button)
-        controls.addWidget(self.stop_button)
-        controls.addWidget(self.fullscreen_button)
-        controls.addStretch(1)
-        player_layout.addLayout(controls)
+        overlay_bottom.addWidget(self.fullscreen_button, 0)
+        overlay_layout.addLayout(overlay_bottom)
+        stage_layout.addWidget(self._player_overlay)
+        player_layout.addWidget(self._player_stage, 1)
 
         catalogue_body = QSplitter(Qt.Orientation.Horizontal)
         catalogue_body.setChildrenCollapsible(False)
-        catalogue_body.addWidget(self.navigation)
+        self.sidebar = QFrame()
+        self.sidebar.setObjectName("sidebar")
+        sidebar_layout = QVBoxLayout(self.sidebar)
+        sidebar_layout.setContentsMargins(SPACING.sm, SPACING.md, SPACING.sm, SPACING.md)
+        sidebar_layout.setSpacing(SPACING.sm)
+        sidebar_label = QLabel("NAVIGATION")
+        sidebar_label.setObjectName("sectionKicker")
+        sidebar_layout.addWidget(sidebar_label)
+        sidebar_layout.addWidget(self.navigation, 1)
+        catalogue_body.addWidget(self.sidebar)
         catalogue_body.addWidget(self.pages)
         catalogue_body.setStretchFactor(0, 0)
         catalogue_body.setStretchFactor(1, 1)
-        catalogue_body.setSizes([154, 960])
+        catalogue_body.setSizes([self._sidebar_expanded_width, 960])
 
         body = QSplitter(Qt.Orientation.Vertical)
         body.setChildrenCollapsible(False)
@@ -588,30 +775,221 @@ class PlayerShell(QWidget):
         layout.addLayout(top_bar)
         layout.addWidget(body, 1)
 
+    def _toggle_sidebar(self) -> None:
+        """Toggle expanded labels while keeping the navigation row stable."""
+        self._set_sidebar_expanded(not self._sidebar_expanded)
+
+    def _set_sidebar_expanded(self, expanded: bool, *, persist: bool = True) -> None:
+        """Apply and optionally persist the expanded/collapsed sidebar state."""
+        self._sidebar_expanded = expanded
+        width = self._sidebar_expanded_width if expanded else self._sidebar_collapsed_width
+        self.navigation.setMinimumWidth(width)
+        self.navigation.setMaximumWidth(width)
+        if hasattr(self, "sidebar"):
+            self.sidebar.setMinimumWidth(width)
+            self.sidebar.setMaximumWidth(width)
+        self.sidebar_toggle.setText("Menu" if expanded else "☰")
+        self.sidebar_toggle.setToolTip("Collapse navigation" if expanded else "Expand navigation")
+        if hasattr(self, "_navigation_entries"):
+            self._refresh_navigation()
+        if persist:
+            QSettings("SamoTech", "IPTVPlayer").setValue("sidebar_expanded", expanded)
+
+    def _toggle_player_overlay(self) -> None:
+        if self._player_overlay is None:
+            return
+        if self._player_overlay.isVisible():
+            self._hide_player_overlay()
+        else:
+            self._show_player_overlay()
+
+    def _show_player_overlay(self) -> None:
+        if self._player_overlay is None:
+            return
+        self._player_overlay.show()
+        self._overlay_timer.start()
+
+    def _hide_player_overlay(self) -> None:
+        if self._player_overlay is not None and (
+            self.playing_channel is not None or self.selected_content is not None
+        ):
+            self._player_overlay.hide()
+
     def _build_home_page(self) -> QWidget:
         page = QFrame()
         page.setObjectName("contentCard")
         layout = QVBoxLayout(page)
-        layout.setContentsMargins(24, 24, 24, 24)
-        layout.setSpacing(14)
-        title = QLabel("Welcome back")
-        title.setObjectName("pageTitle")
-        subtitle = QLabel("Choose a destination and start watching.")
-        subtitle.setObjectName("pageSubtitle")
+        layout.setContentsMargins(SPACING.xl, SPACING.xl, SPACING.xl, SPACING.xl)
+        layout.setSpacing(SPACING.md)
+        kicker = QLabel("YOUR MEDIA SPACE")
+        kicker.setObjectName("sectionKicker")
+        layout.addWidget(kicker)
+        title = QLabel("Ready when you are")
+        title.setObjectName("heroTitle")
         layout.addWidget(title)
+        subtitle = QLabel("Connect a provider to load your real channels, movies, and series.")
+        subtitle.setObjectName("heroSubtitle")
+        subtitle.setWordWrap(True)
         layout.addWidget(subtitle)
-        layout.addSpacing(12)
-        live = QPushButton("Open Live TV")
-        live.setObjectName("primary")
-        live.clicked.connect(
-            lambda: self.navigation.setCurrentIndex(self.navigation_model.index(1, 0))
-        )
+        self._home_status_label = QLabel("No provider selected")
+        self._home_status_label.setObjectName("pageSubtitle")
+        layout.addWidget(self._home_status_label)
+        actions_panel = QFrame()
+        actions_panel.setObjectName("emptyPanel")
+        actions_layout = QHBoxLayout(actions_panel)
+        actions_layout.setContentsMargins(SPACING.md, SPACING.md, SPACING.md, SPACING.md)
+        actions_layout.setSpacing(SPACING.sm)
+        for key, label, page_index in (
+            ("live", "Live TV", 1),
+            ("movies", "Movies", 2),
+            ("series", "Series", 3),
+        ):
+            button = QPushButton(label)
+            button.setObjectName("primary" if key == "live" else "")
+            button.setAccessibleName(f"Open {label}")
+            button.clicked.connect(lambda _checked=False, p=page_index: self._navigate_to_page(p))
+            actions_layout.addWidget(button, 1)
+            self._home_action_buttons[key] = button
+        layout.addWidget(actions_panel)
         providers = QPushButton("Manage Providers")
+        providers.setAccessibleName("Manage IPTV providers")
+        providers.setToolTip("Add, edit, test, or remove providers")
         providers.clicked.connect(self._open_provider_list_dialog)
-        layout.addWidget(live)
-        layout.addWidget(providers)
+        layout.addWidget(providers, 0, Qt.AlignmentFlag.AlignLeft)
         layout.addStretch(1)
+        self._refresh_home_actions()
         return page
+
+    def _navigate_to_page(self, page_index: int) -> None:
+        """Navigate to a capability-backed page through the current sidebar mapping."""
+        try:
+            row = self._navigation_pages.index(page_index)
+        except ValueError:
+            return
+        self.navigation.setCurrentIndex(self.navigation_model.index(row, 0))
+        self._change_page(row)
+
+    def _refresh_home_actions(self) -> None:
+        """Show only provider-backed content destinations on Home."""
+        if not self._home_action_buttons:
+            return
+        capabilities = self._provider_capabilities
+        available = {
+            "live": capabilities.live_tv,
+            "movies": capabilities.vod_movies,
+            "series": capabilities.vod_series,
+        }
+        for key, button in self._home_action_buttons.items():
+            button.setVisible(available[key])
+        if self._home_status_label is not None:
+            if any(available.values()):
+                self._home_status_label.setText("Choose a real content area to begin browsing")
+            else:
+                self._home_status_label.setText("Select a provider to see available content")
+
+    def _build_search_page(self) -> QWidget:
+        page = QFrame()
+        page.setObjectName("contentCard")
+        layout = QVBoxLayout(page)
+        layout.setContentsMargins(SPACING.xl, SPACING.xl, SPACING.xl, SPACING.xl)
+        layout.setSpacing(SPACING.md)
+        kicker = QLabel("SEARCH")
+        kicker.setObjectName("sectionKicker")
+        layout.addWidget(kicker)
+        title = QLabel("Find something to watch")
+        title.setObjectName("pageTitle")
+        layout.addWidget(title)
+        subtitle = QLabel("Search only the content already loaded for the active provider.")
+        subtitle.setObjectName("pageSubtitle")
+        subtitle.setWordWrap(True)
+        layout.addWidget(subtitle)
+        self.global_search_list = QListView()
+        self.global_search_list.setObjectName("channels")
+        self.global_search_list.setAccessibleName("Global search results")
+        self.global_search_list.setToolTip(
+            "Select a result and press Enter to open its content area"
+        )
+        self.global_search_list.setModel(self.global_search_model)
+        self.global_search_list.doubleClicked.connect(self._activate_search_result)
+        self.global_search_list.installEventFilter(self)
+        layout.addWidget(self.global_search_list, 1)
+        self.global_search_status = QLabel("Type in the search field to search loaded content")
+        self.global_search_status.setObjectName("pageSubtitle")
+        layout.addWidget(self.global_search_status)
+        self._render_global_search()
+        return page
+
+    def _search_query_changed(self, query: str) -> None:
+        """Update local global-search results without issuing a network request."""
+        if self.pages.currentIndex() == 6:
+            self._render_global_search(query)
+
+    def _render_global_search(self, query: str | None = None) -> None:
+        query = (
+            self.search_input.text().strip().casefold()
+            if query is None
+            else query.strip().casefold()
+        )
+        if not hasattr(self, "global_search_model"):
+            return
+        results: list[tuple[str, object]] = []
+        if query:
+            for channel_item in self._catalogue_channels:
+                if query in self._channel_summary(channel_item).casefold():
+                    results.append(("LIVE", channel_item))
+            for content_item in self._content_catalogues.get(ContentType.MOVIE, ()):
+                searchable = " ".join(
+                    filter(
+                        None,
+                        (
+                            content_item.title,
+                            content_item.plot,
+                            str(content_item.year) if content_item.year is not None else None,
+                            str(content_item.rating) if content_item.rating is not None else None,
+                        ),
+                    )
+                )
+                if query in searchable.casefold():
+                    results.append(("MOVIES", content_item))
+            for content_item in self._content_catalogues.get(ContentType.SERIES, ()):
+                searchable = " ".join(
+                    filter(
+                        None,
+                        (
+                            content_item.title,
+                            content_item.plot,
+                            str(content_item.year) if content_item.year is not None else None,
+                            str(content_item.rating) if content_item.rating is not None else None,
+                        ),
+                    )
+                )
+                if query in searchable.casefold():
+                    results.append(("SERIES", content_item))
+        self._global_search_results = results
+        labels = [
+            f"{kind}  ·  {getattr(item, 'title', getattr(item, 'name', ''))}"
+            for kind, item in results
+        ]
+        self.global_search_model.setStringList(labels)
+        if query and not results:
+            self.global_search_status.setText("No loaded content matches this search")
+        elif query:
+            self.global_search_status.setText(f"{len(results):,} loaded result(s)")
+        else:
+            self.global_search_status.setText("Type in the search field to search loaded content")
+
+    def _activate_search_result(self, index: QModelIndex) -> None:
+        row = index.row()
+        if not 0 <= row < len(self._global_search_results):
+            return
+        kind, item = self._global_search_results[row]
+        if kind == "LIVE":
+            self._navigate_to_page(1)
+        elif kind == "MOVIES":
+            self._navigate_to_page(2)
+        else:
+            self._navigate_to_page(3)
+        self.search_input.setFocus(Qt.FocusReason.OtherFocusReason)
 
     def _build_live_page(self) -> QWidget:
         page = QFrame()
@@ -712,6 +1090,14 @@ class PlayerShell(QWidget):
         content_list.setAccessibleName(f"{title_text} catalogue")
         content_list.setToolTip("Select an item and press Enter or double-click to activate")
         content_list.setModel(self.content_model)
+        content_list.setItemDelegate(ContentCardDelegate(content_list))
+        content_list.setViewMode(QListView.ViewMode.IconMode)
+        content_list.setFlow(QListView.Flow.LeftToRight)
+        content_list.setWrapping(True)
+        content_list.setResizeMode(QListView.ResizeMode.Adjust)
+        content_list.setUniformItemSizes(True)
+        content_list.setSpacing(SPACING.sm)
+        content_list.setGridSize(QSize(172, 214))
         content_list.clicked.connect(lambda index: self._select_content_index(content_type, index))
         content_list.doubleClicked.connect(
             lambda index: self._activate_content_index(content_type, index)
@@ -737,21 +1123,32 @@ class PlayerShell(QWidget):
         page = QFrame()
         page.setObjectName("contentCard")
         layout = QVBoxLayout(page)
-        layout.setContentsMargins(24, 24, 24, 24)
+        layout.setContentsMargins(SPACING.xl, SPACING.xl, SPACING.xl, SPACING.xl)
+        layout.setSpacing(SPACING.md)
+        kicker = QLabel("LIBRARY")
+        kicker.setObjectName("sectionKicker")
+        layout.addWidget(kicker)
         title = QLabel(title_text)
         title.setObjectName("pageTitle")
+        layout.addWidget(title)
         subtitle = QLabel(subtitle_text)
         subtitle.setObjectName("pageSubtitle")
+        subtitle.setWordWrap(True)
+        layout.addWidget(subtitle)
+        empty_panel = QFrame()
+        empty_panel.setObjectName("emptyPanel")
+        empty_layout = QVBoxLayout(empty_panel)
+        empty_layout.setContentsMargins(SPACING.lg, SPACING.lg, SPACING.lg, SPACING.lg)
+        empty = QLabel("Open this workspace to view its real saved or configured items.")
+        empty.setObjectName("emptyState")
+        empty.setWordWrap(True)
+        empty_layout.addWidget(empty)
         open_button = QPushButton(f"Open {title_text}")
         open_button.setObjectName("primary")
+        open_button.setAccessibleName(f"Open {title_text}")
         open_button.clicked.connect(action)
-        empty = QLabel("This section uses the existing application workflow.")
-        empty.setObjectName("emptyState")
-        layout.addWidget(title)
-        layout.addWidget(subtitle)
-        layout.addSpacing(12)
-        layout.addWidget(open_button)
-        layout.addWidget(empty)
+        empty_layout.addWidget(open_button, 0, Qt.AlignmentFlag.AlignLeft)
+        layout.addWidget(empty_panel)
         layout.addStretch(1)
         return page
 
@@ -774,8 +1171,15 @@ class PlayerShell(QWidget):
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # noqa: N802
         """Handle IPTV shortcuts without triggering network work on navigation."""
+        if event.type() == QEvent.Type.MouseMove:
+            self._show_player_overlay()
         if isinstance(event, QKeyEvent):
+            self._show_player_overlay()
             key = event.key()
+            if key == Qt.Key.Key_Space:
+                self._toggle_play_pause()
+                event.accept()
+                return True
             if key == Qt.Key.Key_F:
                 self._toggle_fullscreen()
                 event.accept()
@@ -801,6 +1205,15 @@ class PlayerShell(QWidget):
                         self._select_index(target_index)
                     event.accept()
                     return True
+            if watched is self.global_search_list and key in (
+                Qt.Key.Key_Return,
+                Qt.Key.Key_Enter,
+            ):
+                index = self.global_search_list.currentIndex()
+                if index.isValid():
+                    self._activate_search_result(index)
+                event.accept()
+                return True
             content_type = next(
                 (
                     kind
@@ -843,10 +1256,18 @@ class PlayerShell(QWidget):
             self._activate_content_page(ContentType.MOVIE)
         elif page_index == 3:
             self._activate_content_page(ContentType.SERIES)
+        elif page_index == 6:
+            self._active_content_type = ContentType.LIVE
+            self.search_input.setPlaceholderText("Search loaded Live, Movies, and Series")
+            self.search_input.setAccessibleName("Global content search")
+            self._render_global_search()
+        else:
+            self.search_input.setPlaceholderText("Search loaded content")
+            self.search_input.setAccessibleName("Content search")
         label = self.navigation_model.data(
             self.navigation_model.index(index, 0), Qt.ItemDataRole.DisplayRole
         )
-        self.status_label.setText(f"● {label}")
+        self._set_status_text(f"● {label}")
 
     def _activate_content_page(self, content_type: ContentType) -> None:
         """Make one non-live catalogue active without performing provider work."""
@@ -880,7 +1301,7 @@ class PlayerShell(QWidget):
         except Exception:
             if request_generation == self._request_generation:
                 self._content_status_labels[content_type].setText("Unable to load content")
-                self.status_label.setText("● Load error")
+                self._set_status_text("● Load error")
             return
         finally:
             if request_generation == self._request_generation:
@@ -891,16 +1312,17 @@ class PlayerShell(QWidget):
             self._content_status_labels[content_type].setText(
                 "Content is unavailable for this provider"
             )
-            self.status_label.setText("● Content unavailable")
+            self._set_status_text("● Content unavailable")
             return
         self._content_catalogues[content_type] = tuple(response.items)
+        self._render_global_search()
         await self.refresh_content_categories(content_type, provider_id, request_generation)
         if request_generation != self._request_generation or provider_id != self._provider_id():
             return
         self._render_content_catalogue(content_type)
         title = "movies" if content_type is ContentType.MOVIE else "series"
         self._content_status_labels[content_type].setText(f"{response.total:,} {title} loaded")
-        self.status_label.setText("● Ready")
+        self._set_status_text("● Ready")
 
     async def refresh_content_categories(
         self,
@@ -1310,6 +1732,12 @@ class PlayerShell(QWidget):
             f"Selected · {item.title}" + (f" · {metadata}" if metadata else "")
         )
 
+    def _set_status_text(self, text: str) -> None:
+        """Update the shell status and the visible player overlay together."""
+        self.status_label.setText(text)
+        if hasattr(self, "overlay_status"):
+            self.overlay_status.setText(text)
+
     def _begin_non_live_request(self) -> int:
         self._non_live_generation += 1
         return self._non_live_generation
@@ -1348,7 +1776,7 @@ class PlayerShell(QWidget):
             button.setEnabled(not loading)
         if loading:
             self.channel_status.setText("Loading…")
-            self.status_label.setText("● Loading")
+            self._set_status_text("● Loading")
 
     def _schedule_load(self) -> None:
         if not self._loading:
@@ -1358,7 +1786,7 @@ class PlayerShell(QWidget):
         if not self._loading:
             if self._active_content_type is not ContentType.LIVE:
                 self._render_content_catalogue(self._active_content_type)
-                self.status_label.setText("● Ready")
+                self._set_status_text("● Ready")
                 return
             create_owned_task(self, self.search_channels(self._begin_request()))
 
@@ -1422,7 +1850,7 @@ class PlayerShell(QWidget):
             if request_generation == self._request_generation:
                 self._render_channels(())
                 self.channel_status.setText("Unable to load channels")
-                self.status_label.setText("● Load error")
+                self._set_status_text("● Load error")
             return
         finally:
             if request_generation == self._request_generation:
@@ -1432,10 +1860,11 @@ class PlayerShell(QWidget):
         if response.error is not None:
             self._render_channels(())
             self.channel_status.setText("Unable to load channels")
-            self.status_label.setText("● Load error")
+            self._set_status_text("● Load error")
             return
         self._catalogue_channels = tuple(response.channels)
         self._search_channels_result = None
+        self._render_global_search()
         self._render_active_catalogue()
         if self.selected_channel is None and response.channels:
             self.selected_channel = response.channels[0]
@@ -1443,7 +1872,7 @@ class PlayerShell(QWidget):
         self.channel_status.setText(
             f"{response.total:,} channels loaded" if response.total else "No channels found"
         )
-        self.status_label.setText("● Ready")
+        self._set_status_text("● Ready")
 
     async def search_channels(self, generation: int | None = None) -> None:
         request_generation = generation if generation is not None else self._begin_request()
@@ -1453,7 +1882,7 @@ class PlayerShell(QWidget):
                 self._search_channels_result = None
                 self._render_active_catalogue()
                 self.channel_status.setText(f"{self.channel_model.rowCount():,} channels loaded")
-                self.status_label.setText("● Ready")
+                self._set_status_text("● Ready")
                 self._set_loading(False)
             return
         try:
@@ -1469,7 +1898,7 @@ class PlayerShell(QWidget):
             if request_generation == self._request_generation:
                 self._render_channels(())
                 self.channel_status.setText("Unable to search channels")
-                self.status_label.setText("● Search error")
+                self._set_status_text("● Search error")
             return
         finally:
             if request_generation == self._request_generation:
@@ -1481,7 +1910,7 @@ class PlayerShell(QWidget):
         self.channel_status.setText(
             f"{response.total:,} channels found" if response.total else "No matching channels"
         )
-        self.status_label.setText("● Ready")
+        self._set_status_text("● Ready")
 
     async def add_favorite(self, channel: ChannelDTO) -> None:
         from samotech_iptv.application.dtos import SaveFavoriteRequest
@@ -1506,7 +1935,7 @@ class PlayerShell(QWidget):
         self.loading_channel = channel
         self.playback_error_channel = None
         self._update_channel_context()
-        self.status_label.setText("● Loading playback")
+        self._set_status_text("● Loading playback")
         try:
             result = await self._play_selected_channel(
                 PlaybackTarget.live(channel.provider_id, channel.id, channel.stream_id)
@@ -1520,7 +1949,7 @@ class PlayerShell(QWidget):
             self.playback_error_channel = channel
             self._update_channel_context()
             self.channel_status.setText("Unable to play selected channel")
-            self.status_label.setText("● Playback error")
+            self._set_status_text("● Playback error")
             return
         if getattr(result, "outcome", None) is PlaybackOutcome.STALE:
             return
@@ -1534,7 +1963,7 @@ class PlayerShell(QWidget):
             self.channel_status.setText(
                 getattr(result, "error", None) or "Unable to play selected channel"
             )
-            self.status_label.setText("● Playback error")
+            self._set_status_text("● Playback error")
             return
         if request_generation != self._request_generation or provider_id != self._provider_id():
             return
@@ -1542,7 +1971,7 @@ class PlayerShell(QWidget):
         self.playback_error_channel = None
         self.playing_channel = channel
         self._update_channel_context()
-        self.status_label.setText("● Playing")
+        self._set_status_text("● Playing")
 
     def _render_channels(self, channels: Sequence[ChannelDTO]) -> None:
         self._channels = list(channels)
@@ -1551,13 +1980,32 @@ class PlayerShell(QWidget):
     def closeEvent(self, event: object) -> None:  # noqa: N802
         """Invalidate non-live completions before the Qt owner is disposed."""
         self._disposed = True
+        self._overlay_timer.stop()
         self._invalidate_non_live_requests()
         cancel_owned_tasks(self)
         super().closeEvent(event)  # type: ignore[arg-type]
 
+    def _toggle_play_pause(self) -> None:
+        """Toggle only the pause/resume capabilities exposed by PlayerPort."""
+        if self.status_label.text().endswith("Paused"):
+            create_owned_task(self, self._resume_playback())
+            self._set_status_text("● Playing")
+            if self.overlay_status is not None:
+                self.overlay_status.setText("● Playing")
+        else:
+            create_owned_task(self, self._pause_playback())
+            self._set_status_text("● Paused")
+            if self.overlay_status is not None:
+                self.overlay_status.setText("● Paused")
+
     def _toggle_fullscreen(self) -> None:
+        """Toggle real window fullscreen without changing the native VLC lifecycle."""
         window = self.window()
         if window.isFullScreen():
             window.showNormal()
+            self.fullscreen_button.setText("Fullscreen")
         else:
             window.showFullScreen()
+            self.fullscreen_button.setText("Exit fullscreen")
+        self._show_player_overlay()
+        self.fullscreen_button.setFocus(Qt.FocusReason.OtherFocusReason)

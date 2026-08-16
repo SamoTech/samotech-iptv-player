@@ -1,5 +1,19 @@
 # Changelog
 
+## Desktop UI/UX modernization — 2026-08-16
+
+### Added
+
+- Added token-driven cinematic dark/blue PySide6 theme primitives shared by the application stylesheet and desktop surfaces.
+- Added a remembered collapsible `PlayerShell` sidebar, compact provider/status context, local global search over already-loaded Live/Movie/Series models, reusable Movie/Series content cards, and explicit loading/empty/error states.
+- Added a presentation-only player overlay with idle visibility, status feedback, stop/play-pause controls, fullscreen, and supported `Space`/`F` shortcuts.
+- Expanded deterministic native Qt probe coverage for navigation, local search grouping, card-view configuration, overlay behavior, and player delegation.
+
+### Preserved boundaries
+
+- Existing provider adapters, application use cases, credential handling, `PlayerPort`, shared libVLC ownership, qasync runtime, and desktop composition contracts remain unchanged.
+- Global search is local-only and does not add provider requests; the presentation layer does not construct provider URLs or access secrets.
+
 ## Xtream synthetic compatibility hardening — 2026-08-16
 
 - Hardened Xtream Movie and Series translation for realistic optional-field variation: malformed year, rating, and artwork values are ignored safely while required identity remains validated; Series year and rating are now translated when present.

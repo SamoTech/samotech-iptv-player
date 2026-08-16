@@ -1,7 +1,11 @@
 from __future__ import annotations
 
 from samotech_iptv.domain.value_objects.theme_preference import ThemePreference
-from samotech_iptv.presentation.theme.theme_engine import apply_theme
+from samotech_iptv.presentation.theme.theme_engine import (
+    DARK_STYLESHEET,
+    LIGHT_STYLESHEET,
+    apply_theme,
+)
 
 
 class FakeApplication:
@@ -21,8 +25,4 @@ def test_theme_engine_applies_supported_preferences() -> None:
     apply_theme(application, ThemePreference.LIGHT)  # type: ignore[arg-type]
     apply_theme(application, ThemePreference.DARK)  # type: ignore[arg-type]
 
-    assert application.stylesheets == [
-        "",
-        "QWidget { background-color: #ffffff; color: #202124; }",
-        "QWidget { background-color: #202124; color: #f1f3f4; }",
-    ]
+    assert application.stylesheets == [DARK_STYLESHEET, LIGHT_STYLESHEET, DARK_STYLESHEET]
