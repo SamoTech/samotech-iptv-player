@@ -73,6 +73,14 @@ from samotech_iptv.application.dtos.playback import (
     TransportHeader,
     TransportMetadata,
 )
+from samotech_iptv.application.dtos.player import (
+    AudioTrack,
+    PlaybackContext,
+    PlaybackState,
+    PlayerCapabilities,
+    PlayerDiagnostics,
+    SubtitleTrack,
+)
 from samotech_iptv.application.dtos.provider import (
     ProviderCapabilities,
     ProviderMetadata,
@@ -94,7 +102,13 @@ from samotech_iptv.application.dtos.xmltv import (
 )
 
 __all__ = [
+    "AudioTrack",
+    "PlaybackContext",
+    "PlaybackState",
+    "PlayerCapabilities",
+    "PlayerDiagnostics",
     "ProviderMetadata",
+    "SubtitleTrack",
     "ProviderCapabilities",
     "RegisterXtreamProviderRequest",
     "RegisterXtreamProviderResponse",

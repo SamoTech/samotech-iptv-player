@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from samotech_iptv.application.dtos.playback import PlaybackOutcome, PlaybackTarget
+from samotech_iptv.application.dtos.player import PlaybackState
 from samotech_iptv.application.use_cases.play_playback_target import PlayPlaybackTarget
 from samotech_iptv.domain.value_objects.url import URL
 
@@ -38,6 +39,13 @@ class FakePlayer:
         self.media: FakeMedia | None = None
         self.playing = False
         self.calls: list[str] = []
+        self.audio_descriptions: object = [(1, "English"), (2, b"Commentary")]
+        self.audio_active = 1
+        self.audio_selected: list[int] = []
+        self.subtitle_descriptions: object = [(3, "English CC"), (4, "Deutsch")]
+        self.subtitle_active = 4
+        self.subtitle_selected: list[int] = []
+        self.aspect_ratio: str | None = None
 
     def is_playing(self) -> int:
         return int(self.playing)
@@ -57,6 +65,35 @@ class FakePlayer:
     def pause(self) -> None:
         self.calls.append("pause")
         self.playing = False
+
+    def audio_get_track_description(self) -> object:
+        return self.audio_descriptions
+
+    def audio_get_track(self) -> int:
+        return self.audio_active
+
+    def audio_set_track(self, track_id: int) -> int:
+        self.audio_selected.append(track_id)
+        self.audio_active = track_id
+        return 0
+
+    def video_get_spu_description(self) -> object:
+        return self.subtitle_descriptions
+
+    def video_get_spu(self) -> int:
+        return self.subtitle_active
+
+    def video_set_spu(self, track_id: int) -> int:
+        self.subtitle_selected.append(track_id)
+        self.subtitle_active = track_id
+        return 0
+
+    def video_get_aspect_ratio(self) -> str | None:
+        return self.aspect_ratio
+
+    def video_set_aspect_ratio(self, aspect_ratio: str | None) -> int:
+        self.aspect_ratio = aspect_ratio
+        return 0
 
     def set_xwindow(self, native_window_id: int) -> None:
         self.calls.append(f"xwindow:{native_window_id}")
@@ -181,18 +218,92 @@ async def test_vlc_adapter_controls_libvlc_playback() -> None:
     player = FakePlayer()
     adapter = _adapter(player)
 
+    assert adapter.state is PlaybackState.IDLE
+    assert adapter.capabilities.explicit_state is True
+    assert adapter.capabilities.current_position is True
+    assert adapter.capabilities.duration is True
+    assert adapter.capabilities.absolute_seek is True
+    assert adapter.capabilities.volume is True
+    assert adapter.capabilities.mute is True
+
     await adapter.play(URL("https://example.test/live.m3u8"))
     assert adapter.is_playing is True
+    assert adapter.state is PlaybackState.LOADING
     assert player.media is not None
     assert player.media.url == "https://example.test/live.m3u8"
     assert player.media.options == [":network-caching=1000"]
 
     await adapter.pause()
     assert adapter.is_playing is False
+    assert adapter.state is PlaybackState.PAUSED
     await adapter.resume()
+    assert adapter.state is PlaybackState.LOADING
     await adapter.stop()
+    assert adapter.state is PlaybackState.STOPPED
 
     assert player.calls == ["play", "pause", "play", "stop"]
+
+
+@pytest.mark.asyncio
+async def test_vlc_adapter_enumerates_and_selects_native_tracks_safely() -> None:
+    player = FakePlayer()
+    adapter = _adapter(player)
+
+    audio_tracks = await adapter.get_audio_tracks()
+    subtitle_tracks = await adapter.get_subtitle_tracks()
+
+    assert [(track.id, track.description, track.active) for track in audio_tracks] == [
+        (1, "English", True),
+        (2, "Commentary", False),
+    ]
+    assert [(track.id, track.description, track.active) for track in subtitle_tracks] == [
+        (3, "English CC", False),
+        (4, "Deutsch", True),
+    ]
+    assert adapter.capabilities.audio_tracks is True
+    assert adapter.capabilities.subtitle_tracks is True
+
+    await adapter.select_audio_track(2)
+    await adapter.select_subtitle_track(3)
+    await adapter.select_subtitle_track(None)
+    assert player.audio_selected == [2]
+    assert player.subtitle_selected == [3, -1]
+
+    with pytest.raises(ValueError, match="audio track is unavailable"):
+        await adapter.select_audio_track(99)
+    with pytest.raises(ValueError, match="subtitle track is unavailable"):
+        await adapter.select_subtitle_track(99)
+
+
+@pytest.mark.asyncio
+async def test_vlc_adapter_restarts_current_media_and_controls_aspect_ratio() -> None:
+    player = FakePlayer()
+    adapter = _adapter(player)
+
+    await adapter.play(URL("https://example.test/movie.mp4"))
+    await adapter.set_aspect_ratio("16:9")
+    assert await adapter.get_aspect_ratio() == "16:9"
+    await adapter.restart()
+    assert player.calls == ["play", "stop", "play"]
+
+    with pytest.raises(ValueError, match="unsupported aspect ratio"):
+        await adapter.set_aspect_ratio("not-a-ratio")
+
+
+@pytest.mark.asyncio
+async def test_vlc_adapter_skips_malformed_track_metadata() -> None:
+    player = FakePlayer()
+    player.audio_descriptions = [("bad", "ignored"), (5,), (6, None), (7, b" "), (8, "Valid")]
+    player.subtitle_descriptions = object()
+    adapter = _adapter(player)
+
+    assert [track.id for track in await adapter.get_audio_tracks()] == [6, 7, 8]
+    assert [track.description for track in await adapter.get_audio_tracks()] == [
+        None,
+        None,
+        "Valid",
+    ]
+    assert await adapter.get_subtitle_tracks() == ()
 
 
 @pytest.mark.asyncio
@@ -395,6 +506,30 @@ def test_vlc_adapter_attaches_linux_video_output(monkeypatch: pytest.MonkeyPatch
     adapter.attach_video_output(1234)
 
     assert player.calls == ["xwindow:1234"]
+
+
+@pytest.mark.asyncio
+async def test_native_events_update_public_state_for_current_generation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    player = EventPlayer()
+    adapter, event_types = _event_adapter(
+        monkeypatch,
+        player,
+        live_recovery_initial_delay_s=60,
+        live_recovery_stability_s=60,
+    )
+
+    await adapter.play(URL("https://example.test/live.m3u8"))
+    player.events.emit(event_types.MediaPlayerPlaying)
+    await _flush_asyncio()
+    assert adapter.state is PlaybackState.PLAYING
+
+    player.events.emit(event_types.MediaPlayerBuffering)
+    await _flush_asyncio()
+    assert adapter.state is PlaybackState.BUFFERING
+
+    await adapter.close()
 
 
 @pytest.mark.asyncio

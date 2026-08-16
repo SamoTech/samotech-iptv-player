@@ -13,6 +13,13 @@ from typing import TYPE_CHECKING, Literal, Protocol
 import vlc  # type: ignore[import-untyped]
 
 from samotech_iptv.application.dtos.playback import ResolvedPlayback
+from samotech_iptv.application.dtos.player import (
+    AudioTrack,
+    PlaybackState,
+    PlayerCapabilities,
+    SubtitleTrack,
+)
+from samotech_iptv.application.player_state_machine import PlaybackStateMachine
 from samotech_iptv.application.ports.player_port import PlayerPort
 from samotech_iptv.core.logging import get_logger
 from samotech_iptv.domain.value_objects.url import URL
@@ -74,6 +81,40 @@ class _VlcPlayer(Protocol):
     def stop(self) -> None: ...
 
     def pause(self) -> None: ...
+
+    def get_time(self) -> int: ...
+
+    def get_length(self) -> int: ...
+
+    def set_time(self, i_time: int) -> object: ...
+
+    def get_position(self) -> float: ...
+
+    def set_position(self, f_pos: float) -> object: ...
+
+    def audio_get_volume(self) -> int: ...
+
+    def audio_set_volume(self, i_volume: int) -> int: ...
+
+    def audio_get_mute(self) -> int: ...
+
+    def audio_toggle_mute(self) -> object: ...
+
+    def audio_get_track_description(self) -> object: ...
+
+    def audio_get_track(self) -> int: ...
+
+    def audio_set_track(self, track_id: int) -> object: ...
+
+    def video_get_spu_description(self) -> object: ...
+
+    def video_get_spu(self) -> int: ...
+
+    def video_set_spu(self, track_id: int) -> object: ...
+
+    def video_get_aspect_ratio(self) -> object: ...
+
+    def video_set_aspect_ratio(self, aspect_ratio: str | None) -> object: ...
 
     def set_xwindow(self, native_window_id: int) -> None: ...
 
@@ -143,6 +184,7 @@ class VlcPlayerAdapter(PlayerPort):
         self._event_subscription_count = 0
         self._last_command_cause: _CommandCause | None = None
         self._state = _PlaybackState.IDLE
+        self._state_machine = PlaybackStateMachine()
         self._session_token = 0
         self._intentional_action = False
         self._event_loop: asyncio.AbstractEventLoop | None = None
@@ -224,6 +266,29 @@ class VlcPlayerAdapter(PlayerPort):
         )
 
     @property
+    def state(self) -> PlaybackState:
+        """Return the current public playback state snapshot value."""
+        return self._state_machine.snapshot.state
+
+    @property
+    def capabilities(self) -> PlayerCapabilities:
+        """Return capabilities implemented by this adapter without speculative features."""
+        return PlayerCapabilities(
+            current_position=True,
+            duration=True,
+            percentage=True,
+            seek_forward=True,
+            seek_backward=True,
+            absolute_seek=True,
+            volume=True,
+            mute=True,
+            audio_tracks=True,
+            subtitle_tracks=True,
+            explicit_state=True,
+            diagnostics=True,
+        )
+
+    @property
     def is_playing(self) -> bool:
         """Return whether libVLC reports active playback."""
         return bool(self._player.is_playing())
@@ -273,10 +338,22 @@ class VlcPlayerAdapter(PlayerPort):
                     if attempt < self._play_retry_count:
                         _LOG.info("[IPTV] PLAYBACK RETRY retry=%d mode=software", attempt + 1)
             self._current_playback = None
-            self._state = _PlaybackState.FAILED
+            self._publish_state(_PlaybackState.FAILED, reason="playback_failed")
             if last_error is None:
                 raise RuntimeError("Unable to start playback")
             raise RuntimeError("Unable to start playback") from last_error
+
+    async def restart(self) -> None:
+        """Restart the current media through the existing serialized lifecycle path."""
+        async with self._play_lock:
+            if self._current_playback is None:
+                raise RuntimeError("Cannot restart without active playback")
+            playback = self._current_playback
+            await self._invalidate_recovery(_PlaybackState.STARTING, intentional=True)
+            await self._invoke("stop", "channel_switch")
+            await self._set_media_and_play(playback, cause="channel_switch")
+            self._recording_destination = None
+            self._intentional_action = False
 
     async def stop(self) -> None:
         """Stop libVLC playback and terminate any active recording output."""
@@ -285,7 +362,7 @@ class VlcPlayerAdapter(PlayerPort):
             await self._invoke("stop", "explicit_stop")
             self._current_playback = None
             self._recording_destination = None
-            self._state = _PlaybackState.STOPPED
+            self._publish_state(_PlaybackState.STOPPED, reason="explicit_stop")
             _LOG.info("[IPTV] PLAYBACK STOPPED")
 
     async def close(self) -> None:
@@ -299,6 +376,7 @@ class VlcPlayerAdapter(PlayerPort):
             self._recording_destination = None
             try:
                 await self._invoke("stop", "shutdown")
+                self._publish_state(_PlaybackState.STOPPED, reason="shutdown")
             except Exception:  # noqa: BLE001
                 _LOG.debug("[IPTV] PLAYBACK stop during shutdown failed", exc_info=True)
             try:
@@ -315,19 +393,193 @@ class VlcPlayerAdapter(PlayerPort):
             )
             _LOG.info("[IPTV] PLAYBACK RELEASED")
 
+    async def get_position_ms(self) -> int | None:
+        """Read current libVLC media time without exposing backend objects."""
+        value = await asyncio.to_thread(self._player.get_time)
+        return None if value < 0 else int(value)
+
+    async def get_duration_ms(self) -> int | None:
+        """Read current libVLC media duration without conflating no-media with zero."""
+        value = await asyncio.to_thread(self._player.get_length)
+        return None if value < 0 else int(value)
+
+    async def seek_ms(self, position_ms: int) -> None:
+        """Seek to an absolute millisecond position when the active input supports it."""
+        if position_ms < 0:
+            raise ValueError("position_ms must not be negative")
+        async with self._play_lock:
+            result = await asyncio.to_thread(self._player.set_time, position_ms)
+            if isinstance(result, int) and result < 0:
+                raise RuntimeError("libVLC seek failed")
+
+    async def seek_fraction(self, position: float) -> None:
+        """Seek to an absolute fraction in the inclusive zero-to-one range."""
+        if not 0.0 <= position <= 1.0:
+            raise ValueError("position must be between zero and one")
+        async with self._play_lock:
+            result = await asyncio.to_thread(self._player.set_position, position)
+            if isinstance(result, int) and result < 0:
+                raise RuntimeError("libVLC seek failed")
+
+    async def get_volume(self) -> int | None:
+        """Read native software volume, returning None when libVLC has no value."""
+        value = await asyncio.to_thread(self._player.audio_get_volume)
+        return None if value < 0 else int(value)
+
+    async def set_volume(self, volume: int) -> None:
+        """Set native software volume in the documented zero-to-one-hundred range."""
+        if not 0 <= volume <= 100:
+            raise ValueError("volume must be between zero and one hundred")
+        async with self._play_lock:
+            result = await asyncio.to_thread(self._player.audio_set_volume, volume)
+            if result < 0:
+                raise RuntimeError("libVLC volume change failed")
+
+    async def is_muted(self) -> bool | None:
+        """Read native mute state when available."""
+        value = await asyncio.to_thread(self._player.audio_get_mute)
+        return None if value < 0 else bool(value)
+
+    async def set_muted(self, muted: bool) -> None:
+        """Set mute state by toggling only when the native state differs."""
+        async with self._play_lock:
+            current = await asyncio.to_thread(self._player.audio_get_mute)
+            if current < 0:
+                raise RuntimeError("libVLC mute state unavailable")
+            if bool(current) == muted:
+                return
+            await asyncio.to_thread(self._player.audio_toggle_mute)
+
+    @staticmethod
+    def _parse_track_descriptions(raw: object) -> tuple[tuple[int, str | None], ...]:
+        """Convert python-vlc's list[(id, name)] safely, skipping malformed records."""
+        if not isinstance(raw, (list, tuple)):
+            return ()
+        parsed: list[tuple[int, str | None]] = []
+        for entry in raw:
+            if not isinstance(entry, (list, tuple)) or len(entry) < 2:
+                continue
+            raw_id, raw_name = entry[0], entry[1]
+            if isinstance(raw_id, bool):
+                continue
+            try:
+                track_id = int(raw_id)
+            except (TypeError, ValueError):
+                continue
+            if track_id < 0:
+                continue
+            if raw_name is None:
+                description = None
+            elif isinstance(raw_name, bytes):
+                description = raw_name.decode("utf-8", errors="replace").strip() or None
+            elif isinstance(raw_name, str):
+                description = raw_name.strip() or None
+            else:
+                description = str(raw_name).strip() or None
+            parsed.append((track_id, description))
+        return tuple(parsed)
+
+    async def get_audio_tracks(self) -> tuple[AudioTrack, ...]:
+        """Enumerate native audio tracks and mark the native active track."""
+        raw, active_id = await asyncio.gather(
+            asyncio.to_thread(self._player.audio_get_track_description),
+            asyncio.to_thread(self._player.audio_get_track),
+        )
+        active = active_id if isinstance(active_id, int) else -1
+        return tuple(
+            AudioTrack(id=track_id, description=description, active=track_id == active)
+            for track_id, description in self._parse_track_descriptions(raw)
+        )
+
+    async def select_audio_track(self, track_id: int) -> None:
+        """Select only an audio track reported by the current native media input."""
+        if isinstance(track_id, bool) or track_id < 0:
+            raise ValueError("track_id must be a non-negative integer")
+        async with self._play_lock:
+            available = self._parse_track_descriptions(
+                await asyncio.to_thread(self._player.audio_get_track_description)
+            )
+            if track_id not in {item[0] for item in available}:
+                raise ValueError("audio track is unavailable")
+            result = await asyncio.to_thread(self._player.audio_set_track, track_id)
+            if isinstance(result, int) and result < 0:
+                raise RuntimeError("libVLC audio track selection failed")
+
+    async def get_subtitle_tracks(self) -> tuple[SubtitleTrack, ...]:
+        """Enumerate native subtitle tracks and mark the native active track."""
+        raw, active_id = await asyncio.gather(
+            asyncio.to_thread(self._player.video_get_spu_description),
+            asyncio.to_thread(self._player.video_get_spu),
+        )
+        active = active_id if isinstance(active_id, int) else -1
+        return tuple(
+            SubtitleTrack(id=track_id, description=description, active=track_id == active)
+            for track_id, description in self._parse_track_descriptions(raw)
+        )
+
+    async def select_subtitle_track(self, track_id: int | None) -> None:
+        """Select a reported subtitle track or disable subtitles with native ID -1."""
+        if track_id is not None and (isinstance(track_id, bool) or track_id < 0):
+            raise ValueError("track_id must be None or a non-negative integer")
+        async with self._play_lock:
+            native_id = -1 if track_id is None else track_id
+            if track_id is not None:
+                available = self._parse_track_descriptions(
+                    await asyncio.to_thread(self._player.video_get_spu_description)
+                )
+                if track_id not in {item[0] for item in available}:
+                    raise ValueError("subtitle track is unavailable")
+            result = await asyncio.to_thread(self._player.video_set_spu, native_id)
+            if isinstance(result, int) and result < 0:
+                raise RuntimeError("libVLC subtitle track selection failed")
+
+    async def get_aspect_ratio(self) -> str | None:
+        """Read the native aspect-ratio override, decoding bytes without leaking raw data."""
+        raw = await asyncio.to_thread(self._player.video_get_aspect_ratio)
+        if raw is None:
+            return None
+        if isinstance(raw, bytes):
+            value = raw.decode("ascii", errors="ignore").strip()
+        elif isinstance(raw, str):
+            value = raw.strip()
+        else:
+            value = str(raw).strip()
+        return value or None
+
+    async def set_aspect_ratio(self, aspect_ratio: str | None) -> None:
+        """Set or clear one of the fixed, presentation-approved aspect-ratio values."""
+        allowed = {None, "1:1", "4:3", "5:4", "16:9", "16:10", "221:100", "4:5"}
+        if aspect_ratio not in allowed:
+            raise ValueError("unsupported aspect ratio")
+        async with self._play_lock:
+            result = await asyncio.to_thread(
+                self._player.video_set_aspect_ratio,
+                aspect_ratio,
+            )
+            if isinstance(result, int) and result < 0:
+                raise RuntimeError("libVLC aspect ratio change failed")
+
     async def pause(self) -> None:
         """Pause libVLC playback while preserving an active recording configuration."""
         async with self._play_lock:
             await self._invalidate_recovery(_PlaybackState.STOPPED, intentional=True)
             await self._invoke("pause", "explicit_pause")
-            _LOG.info("[IPTV] PLAYBACK BUFFERING state=paused")
+            self._state_machine.reset_context(
+                media_generation=self._media_generation,
+                session_token=self._session_token,
+                state=PlaybackState.PAUSED,
+                reason="explicit_pause",
+            )
+            _LOG.info("[IPTV] PLAYBACK PAUSED")
 
     async def resume(self) -> None:
         """Resume libVLC playback while preserving an active recording configuration."""
         async with self._play_lock:
             self._event_loop = asyncio.get_running_loop()
             self._intentional_action = False
-            self._state = _PlaybackState.STARTING
+            self._publish_state(
+                _PlaybackState.STARTING, reason="explicit_resume", reset_context=True
+            )
             await self._invoke("play", "explicit_resume")
             _LOG.info("[IPTV] PLAYBACK PLAYING state=resumed")
 
@@ -403,7 +655,7 @@ class VlcPlayerAdapter(PlayerPort):
         """Invalidate one live session before an intentional player lifecycle action."""
         self._session_token += 1
         self._intentional_action = intentional
-        self._state = state
+        self._publish_state(state, reason="intentional_action", reset_context=True)
         self._recovery_attempts = 0
         self._recovery_started_at = None
         await self._cancel_recovery_tasks()
@@ -450,14 +702,14 @@ class VlcPlayerAdapter(PlayerPort):
                 media_generation, session_token
             ):
                 self._intentional_action = False
-                self._state = _PlaybackState.PLAYING
+                self._publish_state(_PlaybackState.PLAYING, reason="native_playing")
                 self._cancel_task("_watchdog_task")
                 self._schedule_stability_window(media_generation, session_token)
                 return
             if not self._is_current_live_session(media_generation, session_token):
                 return
             if event_name == "BUFFERING":
-                self._state = _PlaybackState.BUFFERING
+                self._publish_state(_PlaybackState.BUFFERING, reason="native_buffering")
                 self._schedule_watchdog(media_generation, session_token, "BUFFERING_TIMEOUT")
                 return
             if event_name == "END":
@@ -514,7 +766,7 @@ class VlcPlayerAdapter(PlayerPort):
             self._recovery_attempts >= self._live_recovery_max_attempts
             or elapsed_s >= self._live_recovery_window_s
         ):
-            self._state = _PlaybackState.FAILED
+            self._publish_state(_PlaybackState.FAILED, reason=reason)
             _LOG.warning(
                 "[IPTV] PLAYBACK_RECOVERY_ABANDONED player_id=%d media_generation=%d "
                 "reason=%s attempts=%d elapsed_ms=%.3f",
@@ -525,7 +777,7 @@ class VlcPlayerAdapter(PlayerPort):
                 elapsed_s * 1_000,
             )
             return
-        self._state = _PlaybackState.RECOVERING
+        self._publish_state(_PlaybackState.RECOVERING, reason=reason)
         self._cancel_task("_watchdog_task")
         self._recovery_attempts += 1
         attempt = self._recovery_attempts
@@ -562,7 +814,7 @@ class VlcPlayerAdapter(PlayerPort):
                 if current_playback is None:
                     return
                 try:
-                    self._state = _PlaybackState.STARTING
+                    self._publish_state(_PlaybackState.STARTING, reason="live_recovery")
                     await self._set_media_and_play(
                         current_playback,
                         software_fallback=False,
@@ -669,6 +921,7 @@ class VlcPlayerAdapter(PlayerPort):
             self._media_generation += 1
             self._media_created_at = time.perf_counter()
             media_generation = self._media_generation
+        self._publish_state(_PlaybackState.STARTING, reason="media_created", reset_context=True)
         for header in playback.transport.headers:
             media.add_option(f":http-header={header.name}: {header.value}")
         if playback.transport.user_agent is not None:
@@ -691,6 +944,40 @@ class VlcPlayerAdapter(PlayerPort):
             hardware_option,
         )
         return media
+
+    def _publish_state(
+        self,
+        state: _PlaybackState,
+        *,
+        reason: str | None = None,
+        reset_context: bool = False,
+    ) -> None:
+        """Synchronize private recovery state with the public typed state machine."""
+        self._state = state
+        public_state = {
+            _PlaybackState.IDLE: PlaybackState.IDLE,
+            _PlaybackState.STARTING: PlaybackState.LOADING,
+            _PlaybackState.PLAYING: PlaybackState.PLAYING,
+            _PlaybackState.BUFFERING: PlaybackState.BUFFERING,
+            _PlaybackState.RECOVERING: PlaybackState.RECOVERING,
+            _PlaybackState.STOPPING: PlaybackState.STOPPING,
+            _PlaybackState.STOPPED: PlaybackState.STOPPED,
+            _PlaybackState.FAILED: PlaybackState.ERROR,
+        }[state]
+        if reset_context:
+            self._state_machine.reset_context(
+                media_generation=self._media_generation,
+                session_token=self._session_token,
+                state=public_state,
+                reason=reason,
+            )
+        else:
+            self._state_machine.transition(
+                public_state,
+                media_generation=self._media_generation,
+                session_token=self._session_token,
+                reason=reason,
+            )
 
     def _log_command(
         self,
