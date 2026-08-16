@@ -115,7 +115,10 @@ class AsyncHttpClient:
             HttpTimeoutError:    Request timed out.
             HttpConnectionError: TCP-level failure.
         """
-        return await self._request_with_retry("GET", url, params=params, headers=headers)
+        return cast(
+            "JSON",
+            await self._request_with_retry("GET", url, params=params, headers=headers),
+        )
 
     async def post_json(
         self,
@@ -126,7 +129,10 @@ class AsyncHttpClient:
         headers: dict[str, str] | None = None,
     ) -> JSON:
         """Perform a POST request and return parsed JSON."""
-        return await self._request_with_retry("POST", url, json=json, data=data, headers=headers)
+        return cast(
+            "JSON",
+            await self._request_with_retry("POST", url, json=json, data=data, headers=headers),
+        )
 
     async def get_text(
         self,
@@ -149,6 +155,27 @@ class AsyncHttpClient:
             ),
         )
 
+    async def get_bytes(
+        self,
+        url: str,
+        *,
+        params: dict[str, str] | None = None,
+        headers: dict[str, str] | None = None,
+        timeout: TimeoutConfig | None = None,
+        max_bytes: int = 4 * 1024 * 1024,
+    ) -> bytes:
+        """Perform a GET request for bounded binary content."""
+        result = await self._request_with_retry(
+            "GET",
+            url,
+            params=params,
+            headers=headers,
+            as_bytes=True,
+            timeout=timeout,
+            max_bytes=max_bytes,
+        )
+        return cast("bytes", result)
+
     # ------------------------------------------------------------------ internals
 
     async def _request_with_retry(
@@ -161,8 +188,10 @@ class AsyncHttpClient:
         json: JSON | None = None,
         data: dict[str, str] | None = None,
         as_text: bool = False,
+        as_bytes: bool = False,
         timeout: TimeoutConfig | None = None,
-    ) -> JSON | str:
+        max_bytes: int = 4 * 1024 * 1024,
+    ) -> JSON | str | bytes:
         last_exc: Exception = RuntimeError("No attempts made")
 
         for attempt in range(self._retry.max_attempts):
@@ -175,7 +204,9 @@ class AsyncHttpClient:
                     json=json,
                     data=data,
                     as_text=as_text,
+                    as_bytes=as_bytes,
                     timeout=timeout,
+                    max_bytes=max_bytes,
                 )
                 if attempt > 0:
                     _log.info("%s %s succeeded on attempt %d", method, redact_url(url), attempt + 1)
@@ -239,8 +270,10 @@ class AsyncHttpClient:
         json: JSON | None = None,
         data: dict[str, str] | None = None,
         as_text: bool = False,
+        as_bytes: bool = False,
         timeout: TimeoutConfig | None = None,
-    ) -> JSON | str:
+        max_bytes: int = 4 * 1024 * 1024,
+    ) -> JSON | str | bytes:
         try:
             import aiohttp  # noqa: PLC0415
 
@@ -274,6 +307,11 @@ class AsyncHttpClient:
                 _log.debug("%s %s -> %d", method, redact_url(url), resp.status)
                 if as_text:
                     return await resp.text()
+                if as_bytes:
+                    binary_body = await resp.read()
+                    if len(binary_body) > max_bytes:
+                        raise HttpClientError("Binary response exceeded the configured size limit")
+                    return binary_body
                 return cast("JSON", await resp.json(content_type=None))
 
         except TimeoutError as exc:

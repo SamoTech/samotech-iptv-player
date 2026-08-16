@@ -15,6 +15,7 @@ from samotech_iptv.presentation.views.main_window import MainWindow
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable, Sequence
 
+    from samotech_iptv.application.ports.artwork_port import ArtworkPort
     from samotech_iptv.application.ports.player_port import PlayerPort
     from samotech_iptv.application.use_cases.browse_channels import BrowseChannels
     from samotech_iptv.application.use_cases.browse_content import BrowseContent
@@ -109,6 +110,7 @@ def build_desktop_application(
     load_movie_details: LoadMovieDetails | None = None,
     load_series_seasons: LoadSeriesSeasons | None = None,
     load_season_episodes: LoadSeasonEpisodes | None = None,
+    artwork_loader: ArtworkPort | None = None,
 ) -> DesktopApplication:
     """Compose the Qt shell around externally configured registered-provider logic."""
     existing_application = QApplication.instance()
@@ -152,5 +154,6 @@ def build_desktop_application(
         load_movie_details=load_movie_details,
         load_series_seasons=load_series_seasons,
         load_season_episodes=load_season_episodes,
+        artwork_loader=artwork_loader,
     )
     return DesktopApplication(application=application, main_window=main_window)

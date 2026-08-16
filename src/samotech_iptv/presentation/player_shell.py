@@ -14,7 +14,7 @@ from PySide6.QtCore import (
     Qt,
     QTimer,
 )
-from PySide6.QtGui import QColor, QFont, QKeyEvent, QPainter
+from PySide6.QtGui import QColor, QFont, QImage, QKeyEvent, QPainter, QPixmap
 from PySide6.QtWidgets import (
     QComboBox,
     QFrame,
@@ -48,6 +48,7 @@ from samotech_iptv.application.dtos import (
     ProviderCapabilities,
     SearchRegisteredChannelsRequest,
 )
+from samotech_iptv.application.ports.artwork_port import ArtworkRequest, ArtworkRole
 from samotech_iptv.presentation.task_owner import cancel_owned_tasks, create_owned_task
 from samotech_iptv.presentation.theme.tokens import COLORS, RADII, SPACING
 from samotech_iptv.presentation.viewmodels.channel_list_model import ChannelListModel
@@ -56,6 +57,7 @@ from samotech_iptv.presentation.viewmodels.content_list_model import ContentList
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable, Sequence
 
+    from samotech_iptv.application.ports.artwork_port import ArtworkPort
     from samotech_iptv.application.use_cases.browse_channels import BrowseChannels
     from samotech_iptv.application.use_cases.browse_content import BrowseContent
     from samotech_iptv.application.use_cases.list_providers import ListProviders
@@ -274,6 +276,13 @@ class PlayerShell(QWidget):
         border: 1px dashed @COLORS.border@;
         border-radius: @RADII.md@px;
     }
+    QLabel#contentArtwork {
+        background: @COLORS.surface_muted@;
+        border: 1px solid @COLORS.border@;
+        border-radius: @RADII.sm@px;
+        color: @COLORS.text_muted@;
+        min-height: 135px;
+    }
     QFrame#sidebar QPushButton {
         text-align: left;
         background: transparent;
@@ -320,6 +329,7 @@ class PlayerShell(QWidget):
         load_movie_details: LoadMovieDetails | None = None,
         load_series_seasons: LoadSeriesSeasons | None = None,
         load_season_episodes: LoadSeasonEpisodes | None = None,
+        artwork_loader: ArtworkPort | None = None,
         invalidate_pending_playback: Callable[[], None] | None = None,
     ) -> None:
         super().__init__()
@@ -332,6 +342,7 @@ class PlayerShell(QWidget):
         self._load_movie_details = load_movie_details
         self._load_series_seasons = load_series_seasons
         self._load_season_episodes = load_season_episodes
+        self._artwork_loader = artwork_loader
         self._invalidate_pending_playback = invalidate_pending_playback
         self._play_selected_channel = play_selected_channel
         self._search_channels = search_channels
@@ -359,8 +370,10 @@ class PlayerShell(QWidget):
         self._content_sort_selectors: dict[ContentType, QComboBox] = {}
         self._content_status_labels: dict[ContentType, QLabel] = {}
         self._content_detail_labels: dict[ContentType, QLabel] = {}
+        self._content_artwork_labels: dict[ContentType, QLabel] = {}
         self._content_back_buttons: dict[ContentType, QPushButton] = {}
         self._content_activate_buttons: dict[ContentType, QPushButton] = {}
+        self._content_favorite_buttons: dict[ContentType, QPushButton] = {}
         self._global_search_results: list[tuple[str, object]] = []
         self._home_action_buttons: dict[str, QPushButton] = {}
         self._home_status_label: QLabel | None = None
@@ -372,6 +385,7 @@ class PlayerShell(QWidget):
         self._active_category_id: str | None = None
         self._request_generation = 0
         self._non_live_generation = 0
+        self._artwork_generation = 0
         self._active_non_live_action: tuple[ContentType, str, str] | None = None
         self._disposed = False
         settings = QSettings("SamoTech", "IPTVPlayer")
@@ -544,8 +558,12 @@ class PlayerShell(QWidget):
         self.navigation.setCurrentIndex(self.navigation_model.index(navigation_row, 0))
 
     def _provider_changed(self, _: int) -> None:
-        """Clear stale channel results when the active provider changes."""
+        """Clear stale channel and artwork results when the active provider changes."""
+        previous_provider_id = self._provider_id()
         cancel_owned_tasks(self)
+        self._artwork_generation += 1
+        if self._artwork_loader is not None:
+            self._artwork_loader.clear_provider(previous_provider_id)
         if self._invalidate_pending_playback is not None:
             self._invalidate_pending_playback()
         self._request_generation += 1
@@ -561,6 +579,7 @@ class PlayerShell(QWidget):
         self._active_content_type = ContentType.LIVE
         self._active_content_category_id = None
         self.selected_content = None
+        self._clear_artwork_labels()
         self._active_category_id = None
         self.category_selector.blockSignals(True)
         self.category_selector.clear()
@@ -945,6 +964,12 @@ class PlayerShell(QWidget):
                         (
                             content_item.title,
                             content_item.plot,
+                            content_item.genre,
+                            content_item.director,
+                            content_item.cast,
+                            content_item.country,
+                            content_item.release_date,
+                            content_item.category_id,
                             str(content_item.year) if content_item.year is not None else None,
                             str(content_item.rating) if content_item.rating is not None else None,
                         ),
@@ -959,6 +984,12 @@ class PlayerShell(QWidget):
                         (
                             content_item.title,
                             content_item.plot,
+                            content_item.genre,
+                            content_item.director,
+                            content_item.cast,
+                            content_item.country,
+                            content_item.release_date,
+                            content_item.category_id,
                             str(content_item.year) if content_item.year is not None else None,
                             str(content_item.rating) if content_item.rating is not None else None,
                         ),
@@ -1084,10 +1115,18 @@ class PlayerShell(QWidget):
             "Play selected movie" if content_type is ContentType.MOVIE else "Open selected series"
         )
         activate_button.clicked.connect(lambda: self._activate_current_content(content_type))
+        favorite_button = QPushButton("Add favorite")
+        favorite_button.setAccessibleName(
+            "Add selected movie to favorites"
+            if content_type is ContentType.MOVIE
+            else "Add selected series to favorites"
+        )
+        favorite_button.clicked.connect(lambda: self._schedule_content_favorite(content_type))
         actions.addWidget(load_button)
         actions.addWidget(category_selector)
         actions.addWidget(sort_selector)
         actions.addWidget(activate_button)
+        actions.addWidget(favorite_button)
         if content_type is ContentType.SERIES:
             back_button = QPushButton("Back")
             back_button.setAccessibleName("Return to series catalogue")
@@ -1115,20 +1154,31 @@ class PlayerShell(QWidget):
             lambda index: self._activate_content_index(content_type, index)
         )
         layout.addWidget(content_list, 1)
+        artwork = QLabel("Artwork unavailable")
+        artwork.setObjectName("contentArtwork")
+        artwork.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        artwork.setMinimumSize(180, 135)
+        artwork.setWordWrap(True)
         detail = QLabel("No content selected")
         detail.setObjectName("contentDetail")
         detail.setWordWrap(True)
         detail.setMinimumHeight(58)
+        detail_row = QHBoxLayout()
+        detail_row.setSpacing(SPACING.md)
+        detail_row.addWidget(artwork, 0)
+        detail_row.addWidget(detail, 1)
         status = QLabel(f"No {title_text.lower()} loaded")
         status.setObjectName("pageSubtitle")
-        layout.addWidget(detail)
+        layout.addLayout(detail_row)
         layout.addWidget(status)
         self._content_lists[content_type] = content_list
         self._content_category_selectors[content_type] = category_selector
         self._content_sort_selectors[content_type] = sort_selector
         self._content_status_labels[content_type] = status
         self._content_detail_labels[content_type] = detail
+        self._content_artwork_labels[content_type] = artwork
         self._content_activate_buttons[content_type] = activate_button
+        self._content_favorite_buttons[content_type] = favorite_button
         content_list.installEventFilter(self)
         return page
 
@@ -1303,6 +1353,8 @@ class PlayerShell(QWidget):
         """Explicitly load existing movie or series catalogues through application use cases."""
         request_generation = generation if generation is not None else self._begin_request()
         provider_id = self._provider_id()
+        title = "movies" if content_type is ContentType.MOVIE else "series"
+        self._content_status_labels[content_type].setText(f"Loading {title}…")
         if self._browse_content is None:
             self._content_status_labels[content_type].setText("Content browsing is unavailable")
             self._set_loading(False)
@@ -1422,6 +1474,12 @@ class PlayerShell(QWidget):
                             item.category_id,
                             category_names.get(item.category_id or ""),
                             str(item.year) if item.year is not None else None,
+                            item.genre,
+                            item.director,
+                            item.cast,
+                            item.country,
+                            item.release_date,
+                            item.plot,
                         ),
                     )
                 ).casefold()
@@ -1456,9 +1514,45 @@ class PlayerShell(QWidget):
             filtered = tuple(sorted(filtered, key=lambda item: item.title.casefold()))
         self.content_model.replace_items(filtered)
         title = "movies" if content_type is ContentType.MOVIE else "series"
-        self._content_status_labels[content_type].setText(
-            f"{len(filtered):,} {title} shown" if filtered else f"No {title} match"
-        )
+        if filtered:
+            status = f"{len(filtered):,} {title} shown"
+        elif content_type not in self._content_catalogues:
+            status = f"No {title} loaded"
+        else:
+            status = f"No {title} match"
+        self._content_status_labels[content_type].setText(status)
+
+    def _schedule_content_favorite(self, content_type: ContentType) -> None:
+        """Schedule a Movie/Series favorite through the existing SQLite use case."""
+        item = self.selected_content
+        if item is None or item.content_type is ContentType.EPISODE:
+            self._content_detail_labels[content_type].setText(
+                "Episode favorites are unavailable in the current Favorite contract"
+            )
+            return
+        create_owned_task(self, self._add_content_favorite(content_type, item))
+
+    async def _add_content_favorite(self, content_type: ContentType, item: ContentItemDTO) -> None:
+        from samotech_iptv.application.dtos import SaveFavoriteRequest
+
+        try:
+            response = await self._save_favorite.execute(
+                SaveFavoriteRequest(
+                    item_id=item.id,
+                    item_type=item.content_type.value,
+                    provider_id=item.provider_id,
+                )
+            )
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            response = None
+        button = self._content_favorite_buttons[content_type]
+        if response is not None and response.success:
+            button.setText("Favorite saved")
+            self._content_detail_labels[content_type].setText(f"Favorite saved · {item.title}")
+        else:
+            self._content_detail_labels[content_type].setText("Unable to save favorite")
 
     def _select_content_index(self, content_type: ContentType, index: QModelIndex) -> None:
         """Record content selection locally without implicitly starting playback."""
@@ -1767,6 +1861,7 @@ class PlayerShell(QWidget):
                     item.genre,
                     self._format_duration(item.duration_seconds),
                     item.container_extension.upper() if item.container_extension else None,
+                    f"Category: {item.category_id}" if item.category_id else None,
                 ),
             )
         )
@@ -1785,6 +1880,88 @@ class PlayerShell(QWidget):
         if item.poster_url or item.backdrop_url:
             lines.append("Artwork available")
         self._content_detail_labels[content_type].setText("\n".join(lines))
+        favorite_button = self._content_favorite_buttons[content_type]
+        favorite_button.setEnabled(item.content_type in {ContentType.MOVIE, ContentType.SERIES})
+        favorite_button.setText(
+            "Add favorite"
+            if item.content_type in {ContentType.MOVIE, ContentType.SERIES}
+            else "Episode favorites unavailable"
+        )
+        self._schedule_artwork(content_type, item)
+
+    def _schedule_artwork(self, content_type: ContentType, item: ContentItemDTO) -> None:
+        """Load one selected item's artwork without allowing stale UI mutation."""
+        self._artwork_generation += 1
+        generation = self._artwork_generation
+        label = self._content_artwork_labels[content_type]
+        artwork_url = item.backdrop_url or item.poster_url
+        if artwork_url is None:
+            self._set_artwork_placeholder(label, "Artwork unavailable")
+            return
+        if self._artwork_loader is None:
+            self._set_artwork_placeholder(label, "Artwork preview unavailable")
+            return
+        role = ArtworkRole.BACKDROP if item.backdrop_url else ArtworkRole.POSTER
+        self._set_artwork_placeholder(label, "Loading artwork…")
+        create_owned_task(
+            self,
+            self._load_artwork(
+                content_type,
+                item,
+                ArtworkRequest(item.provider_id, item.id, role, artwork_url),
+                generation,
+            ),
+        )
+
+    async def _load_artwork(
+        self,
+        content_type: ContentType,
+        item: ContentItemDTO,
+        request: ArtworkRequest,
+        generation: int,
+    ) -> None:
+        loader = self._artwork_loader
+        if loader is None:
+            return
+        try:
+            payload = await loader.load(request)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            payload = None
+        if generation != self._artwork_generation or self.selected_content != item:
+            return
+        label = self._content_artwork_labels[content_type]
+        if payload is None:
+            self._set_artwork_placeholder(label, "Artwork unavailable")
+            return
+        image = QImage()
+        if not image.loadFromData(payload):
+            self._set_artwork_placeholder(label, "Artwork unavailable")
+            return
+        pixmap = QPixmap.fromImage(image)
+        if pixmap.isNull():
+            self._set_artwork_placeholder(label, "Artwork unavailable")
+            return
+        target_size = label.size().expandedTo(QSize(180, 135))
+        label.setPixmap(
+            pixmap.scaled(
+                target_size,
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
+            )
+        )
+        label.setText("")
+
+    def _set_artwork_placeholder(self, label: QLabel, text: str) -> None:
+        """Render a deterministic placeholder without retaining image bytes in the UI."""
+        label.clear()
+        label.setText(text)
+
+    def _clear_artwork_labels(self) -> None:
+        """Reset every non-live artwork surface when provider context is cleared."""
+        for label in self._content_artwork_labels.values():
+            self._set_artwork_placeholder(label, "Artwork unavailable")
 
     @staticmethod
     def _format_duration(duration_seconds: int | None) -> str | None:
@@ -1982,7 +2159,11 @@ class PlayerShell(QWidget):
 
         try:
             response = await self._save_favorite.execute(
-                SaveFavoriteRequest(item_id=channel.id, item_type="channel")
+                SaveFavoriteRequest(
+                    item_id=channel.id,
+                    item_type="channel",
+                    provider_id=channel.provider_id,
+                )
             )
         except asyncio.CancelledError:
             raise

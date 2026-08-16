@@ -29,6 +29,7 @@ class SaveFavorite:
             item_id=request.item_id,
             item_type=request.item_type,
             added_at=datetime.now(UTC),
+            provider_id=request.provider_id,
         )
         try:
             await self._repo.save(favorite)

@@ -17,6 +17,7 @@ Or via ISP capability interfaces::
 """
 
 # Original coarse-grained ports (backward compatibility)
+from samotech_iptv.application.ports.artwork_port import ArtworkPort, ArtworkRequest, ArtworkRole
 from samotech_iptv.application.ports.credential_store_port import CredentialStorePort
 from samotech_iptv.application.ports.notification_port import NotificationPort
 from samotech_iptv.application.ports.player_port import PlayerPort
@@ -53,6 +54,9 @@ from samotech_iptv.application.ports.xmltv_guide_port import XMLTVGuidePort
 
 __all__ = [
     # Original ports
+    "ArtworkPort",
+    "ArtworkRequest",
+    "ArtworkRole",
     "ProviderPort",
     "PlayerPort",
     "ProviderRegistrationPort",

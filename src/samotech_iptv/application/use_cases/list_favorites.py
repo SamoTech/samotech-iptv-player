@@ -36,6 +36,7 @@ class ListFavorites:
                     item_id=favorite.item_id,
                     item_type=favorite.item_type,
                     added_at=favorite.added_at.isoformat(),
+                    provider_id=favorite.provider_id,
                 )
                 for favorite in favorites
             ]

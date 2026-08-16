@@ -63,7 +63,8 @@ class FavoritesLibraryDialog(QDialog):
         self._favorites = {favorite.id: favorite for favorite in response.favorites}
         self.favorite_summary_label.setText(
             "\n".join(
-                f"{favorite.id} · {favorite.item_type} · {favorite.item_id}"
+                f"{favorite.id} · {favorite.provider_id or 'legacy provider'} · "
+                f"{favorite.item_type} · {favorite.item_id}"
                 for favorite in response.favorites
             )
             or "No favorites saved"

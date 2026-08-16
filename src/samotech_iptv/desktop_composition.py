@@ -56,6 +56,7 @@ from samotech_iptv.application.use_cases.start_recording import StartRecording
 from samotech_iptv.application.use_cases.stop_recording import StopRecording
 from samotech_iptv.core.logging import configure_logging
 from samotech_iptv.desktop_bootstrap import DesktopApplication, build_desktop_application
+from samotech_iptv.infrastructure.artwork_loader import BoundedArtworkLoader
 from samotech_iptv.infrastructure.database.sqlite_favorite_repository import (
     SQLiteFavoriteRepository,
 )
@@ -167,6 +168,7 @@ async def build_production_desktop_application(
     initial_theme = await load_theme_preference.execute()
 
     catalogue_cache = ChannelCatalogueCache()
+    artwork_loader = BoundedArtworkLoader(context.http_client)
     desktop = build_desktop_application(
         RegisterXtreamProvider(registration_service),
         RegisterM3UProvider(registration_service),
@@ -204,6 +206,7 @@ async def build_production_desktop_application(
         load_movie_details=LoadMovieDetails(provider_resolution_service),
         load_series_seasons=LoadSeriesSeasons(provider_resolution_service),
         load_season_episodes=LoadSeasonEpisodes(provider_resolution_service),
+        artwork_loader=artwork_loader,
     )
 
     async def close() -> None:

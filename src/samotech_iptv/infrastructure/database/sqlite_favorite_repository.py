@@ -23,7 +23,8 @@ CREATE TABLE IF NOT EXISTS favorites (
     id TEXT PRIMARY KEY,
     item_id TEXT NOT NULL,
     item_type TEXT NOT NULL,
-    added_at TEXT NOT NULL
+    added_at TEXT NOT NULL,
+    provider_id TEXT
 )
 """
 
@@ -55,6 +56,12 @@ class SQLiteFavoriteRepository(FavoriteRepository):
             self._database_path.parent.mkdir(parents=True, exist_ok=True)
             with sqlite_connection(self._database_path) as connection:
                 connection.execute(_SCHEMA)
+                columns = {
+                    str(row[1])
+                    for row in connection.execute("PRAGMA table_info(favorites)").fetchall()
+                }
+                if "provider_id" not in columns:
+                    connection.execute("ALTER TABLE favorites ADD COLUMN provider_id TEXT")
         except sqlite3.Error as exc:
             raise StorageError("Unable to initialise favorites storage") from exc
 
@@ -62,7 +69,8 @@ class SQLiteFavoriteRepository(FavoriteRepository):
         try:
             with sqlite_connection(self._database_path) as connection:
                 rows = connection.execute(
-                    "SELECT id, item_id, item_type, added_at FROM favorites ORDER BY added_at DESC"
+                    "SELECT id, item_id, item_type, added_at, provider_id "
+                    "FROM favorites ORDER BY added_at DESC"
                 ).fetchall()
             return [
                 Favorite(
@@ -70,6 +78,7 @@ class SQLiteFavoriteRepository(FavoriteRepository):
                     item_id=str(row[1]),
                     item_type=str(row[2]),
                     added_at=datetime.fromisoformat(str(row[3])),
+                    provider_id=None if row[4] is None else str(row[4]),
                 )
                 for row in rows
             ]
@@ -81,14 +90,28 @@ class SQLiteFavoriteRepository(FavoriteRepository):
             with sqlite_connection(self._database_path) as connection:
                 connection.execute(
                     """
-                    INSERT OR REPLACE INTO favorites (id, item_id, item_type, added_at)
-                    VALUES (?, ?, ?, ?)
+                    INSERT INTO favorites (id, item_id, item_type, added_at, provider_id)
+                    SELECT ?, ?, ?, ?, ?
+                    WHERE NOT EXISTS (
+                        SELECT 1 FROM favorites
+                        WHERE item_id = ?
+                          AND item_type = ?
+                          AND (
+                              provider_id = ?
+                              OR (provider_id IS NULL AND ? IS NULL)
+                          )
+                    )
                     """,
                     (
                         favorite.id,
                         favorite.item_id,
                         favorite.item_type,
                         favorite.added_at.isoformat(),
+                        favorite.provider_id,
+                        favorite.item_id,
+                        favorite.item_type,
+                        favorite.provider_id,
+                        favorite.provider_id,
                     ),
                 )
         except sqlite3.Error as exc:

@@ -8,9 +8,12 @@ FAVORITE_ITEM_TYPES = frozenset({"channel", "movie", "series"})
 HISTORY_ITEM_TYPES = frozenset({"channel", "movie", "episode"})
 
 
-def validate_favorite(*, record_id: str, item_id: str, item_type: str) -> None:
+def validate_favorite(
+    *, record_id: str, item_id: str, item_type: str, provider_id: str | None = None
+) -> None:
     """Validate a user-marked favourite against supported catalogue types."""
     _validate_identifiers(record_id=record_id, item_id=item_id)
+    _validate_optional_provider_id(provider_id)
     _validate_item_type(item_type, FAVORITE_ITEM_TYPES, "Favorite")
 
 
@@ -39,6 +42,11 @@ def validate_history(
             "position_seconds",
             "Playback position must not exceed a known duration",
         )
+
+
+def _validate_optional_provider_id(provider_id: str | None) -> None:
+    if provider_id is not None and not provider_id.strip():
+        raise ValidationError("provider_id", "Provider ID must not be blank")
 
 
 def _validate_identifiers(*, record_id: str, item_id: str) -> None:

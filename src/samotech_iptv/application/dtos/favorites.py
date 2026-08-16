@@ -25,6 +25,7 @@ __all__ = [
 class SaveFavoriteRequest:
     item_id: str
     item_type: str
+    provider_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -39,6 +40,7 @@ class FavoriteDTO:
     item_id: str
     item_type: str
     added_at: str
+    provider_id: str | None = None
 
 
 @dataclass(frozen=True)

@@ -21,10 +21,12 @@ class Favorite:
     item_id: str
     item_type: str  # "channel" | "movie" | "series"
     added_at: datetime
+    provider_id: str | None = None
 
     def __post_init__(self) -> None:
         validate_favorite(
             record_id=self.id,
             item_id=self.item_id,
             item_type=self.item_type,
+            provider_id=self.provider_id,
         )

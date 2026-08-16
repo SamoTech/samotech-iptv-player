@@ -13,6 +13,7 @@ from samotech_iptv.presentation.widgets.vlc_video_surface import VlcVideoSurface
 
 if TYPE_CHECKING:
     from samotech_iptv.application.dtos.playback import PlaybackResult, PlaybackTarget
+    from samotech_iptv.application.ports.artwork_port import ArtworkPort
     from samotech_iptv.application.ports.player_port import PlayerPort
     from samotech_iptv.application.use_cases.browse_channels import BrowseChannels
     from samotech_iptv.application.use_cases.browse_content import BrowseContent
@@ -116,6 +117,7 @@ class MainWindow(QMainWindow):
         load_movie_details: LoadMovieDetails | None = None,
         load_series_seasons: LoadSeriesSeasons | None = None,
         load_season_episodes: LoadSeasonEpisodes | None = None,
+        artwork_loader: ArtworkPort | None = None,
     ) -> None:
         super().__init__()
         self._register_xtream_provider = register_xtream_provider
@@ -148,6 +150,7 @@ class MainWindow(QMainWindow):
         self._load_movie_details = load_movie_details
         self._load_series_seasons = load_series_seasons
         self._load_season_episodes = load_season_episodes
+        self._artwork_loader = artwork_loader
         self.video_surface = VlcVideoSurface(player)
         self.setWindowTitle("SamoTech IPTV Player")
         if hasattr(self, "setStyleSheet"):
@@ -268,6 +271,7 @@ class MainWindow(QMainWindow):
                 load_movie_details=self._load_movie_details,
                 load_series_seasons=self._load_series_seasons,
                 load_season_episodes=self._load_season_episodes,
+                artwork_loader=self._artwork_loader,
                 invalidate_pending_playback=self.invalidate_pending_playback,
             )
             self.setCentralWidget(self.player_shell)
