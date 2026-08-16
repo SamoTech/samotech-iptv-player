@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from samotech_iptv.application.dtos import AuthenticateRequest, AuthenticateResponse
+from samotech_iptv.core.error_taxonomy import safe_user_message
 from samotech_iptv.core.logging import get_logger
 from samotech_iptv.domain.value_objects import Credential
 
@@ -33,7 +34,9 @@ class AuthenticateProvider:
         except Exception as exc:  # noqa: BLE001
             _log.error("Authentication error: %s", exc)
             return AuthenticateResponse(
-                success=False, provider_id=request.provider_id, error=str(exc)
+                success=False,
+                provider_id=request.provider_id,
+                error=safe_user_message(exc, fallback="Authentication failed"),
             )
         if success:
             await self._store.store(self._provider.provider_id, credential)

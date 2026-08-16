@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 from samotech_iptv.application.dtos.provider_registration import (
     RegisterXtreamProviderResponse,
 )
+from samotech_iptv.core.error_taxonomy import safe_user_message
 from samotech_iptv.core.logging import get_logger
 
 if TYPE_CHECKING:
@@ -36,5 +37,7 @@ class RegisterXtreamProvider:
             provider_id = await self._registration.register_xtream(request)
         except Exception as exc:  # noqa: BLE001
             _LOG.error("Xtream provider registration failed: %s", exc)
-            return RegisterXtreamProviderResponse(error=str(exc))
+            return RegisterXtreamProviderResponse(
+                error=safe_user_message(exc, fallback="Unable to register Xtream provider")
+            )
         return RegisterXtreamProviderResponse(provider_id=provider_id)
