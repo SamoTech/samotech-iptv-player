@@ -129,6 +129,37 @@ def main() -> int:
             with observed_lock:
                 first_play_labels = ",".join(sorted(first_play_observed))
                 buffering_observed = "BUFFERING" in first_play_observed
+            required_control_methods = (
+                "get_time",
+                "get_length",
+                "set_time",
+                "get_position",
+                "set_position",
+                "audio_get_volume",
+                "audio_set_volume",
+                "audio_get_mute",
+                "audio_toggle_mute",
+                "audio_get_track_description",
+                "audio_get_track",
+                "audio_set_track",
+                "video_get_spu_description",
+                "video_get_spu",
+                "video_set_spu",
+                "video_get_aspect_ratio",
+                "video_set_aspect_ratio",
+            )
+            missing_methods = [
+                name
+                for name in required_control_methods
+                if not callable(getattr(player, name, None))
+            ]
+            if missing_methods:
+                raise RuntimeError("native_control_method_missing")
+            audio_description = player.audio_get_track_description()
+            subtitle_description = player.video_get_spu_description()
+            print("native_vlc_control_methods=PASS")
+            print(f"native_vlc_audio_description_type={type(audio_description).__name__}")
+            print(f"native_vlc_subtitle_description_type={type(subtitle_description).__name__}")
             print(f"native_vlc_first_play_events={first_play_labels}")
             print(
                 "native_vlc_buffering_observed="
