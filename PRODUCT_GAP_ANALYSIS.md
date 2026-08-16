@@ -149,3 +149,9 @@ The source and synthetic/native implementation remains ready, but populated real
 The current production-hardening status is **IMPLEMENTED / PARTIAL** for response tolerance, bounded provider artwork, provider-scoped Favorites, corruption-safe Favorites errors, exact 10K/50K/100K local performance checkpoints, and qasync stale-result protection. Windows native acceptance is **NOT EXECUTED** on Linux. Watched/resume remains **DEFERRED / BLOCKED BY CONTRACT** because the existing History schema and PlayerPort lack provider-scoped completion and typed seek/progress capabilities.
 
 No new KiddaC-derived architecture, provider-side search, catch-up, track-selection, external enrichment, or Live/MAG/M3U/VLC-recovery behavior was added.
+
+## Player 2 gap disposition — 2026-08-16
+
+The commercial player gap is now closed for the evidence-backed libVLC surface: typed lifecycle state, position, duration, seek, volume, mute, native audio/subtitle tracks, aspect ratio, restart, fullscreen, overlay auto-hide, keyboard control, safe error copy, and Live/VOD/Episode separation are implemented. History/resume gaps are addressed for provider-scoped Movie and Episode records with safe SQLite migration, throttled runtime progress, completion, and incomplete-record restoration.
+
+The remaining gaps are validation or deliberately unsupported scope rather than hidden implementation claims. Windows native VLC execution is **NOT EXECUTED** in the Linux environment. Populated authorized-provider acceptance is **NOT EXECUTED**. Native track runtime evidence on Linux is blocked because the sandbox cannot load the native `libvlc_new` function; the Windows-only probe contains the method and local-media checks. Catch-up/archive, remote XMLTV caching, provider-specific non-live support outside the verified Xtream path, packaging, installers, and broader operational diagnostics remain future work.

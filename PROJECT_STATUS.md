@@ -283,3 +283,11 @@ No authorized populated Xtream account was available in the current environment.
 The PlayerPort capability boundary remains intentionally narrow: play, pause, resume, stop, recording, native output attachment, and boolean playing/recording state are supported. Seek, position, duration, completion, audio tracks, subtitle tracks, volume, mute, and typed fullscreen capabilities remain unsupported or deferred. Watched/resume is not implemented.
 
 The exact performance matrix passed at 10,000, 50,000, and 100,000 records for channel, Movie, and Series replacement, selection identity, filter, search, no-match, and clear-search behavior. The concurrency matrix passed 50 tests covering stale selection, provider switching, cancellation, playback, artwork, shutdown, and task ownership.
+
+## Player 2 commercial playback status — 2026-08-16
+
+Player 2 is implemented across the preserved application, VLC infrastructure, Qt presentation, and SQLite history boundaries. The typed PlayerPort capability model now covers state, position, duration, seeking, volume, mute, native audio/subtitle tracks, restart, and aspect ratio. PlayerShell provides mode-aware commercial controls, with Live seek and resume intentionally disabled.
+
+History now persists provider-scoped identity, runtime progress, watched percentage, lifecycle timestamps, and completion through a backward-compatible SQLite migration. Resume is restricted to incomplete Movie and Episode records with matching provider identity. Deterministic tests, source quality gates, offscreen PlayerShell probes, and 10K/50K/100K performance checkpoints pass.
+
+The Windows-only native VLC probe is **NOT EXECUTED** on Linux and reports an explicit platform skip. Populated authorized-provider acceptance is **NOT EXECUTED**. These remain open validation actions and are not converted into implementation claims. See [`docs/PLAYER_2_RUNTIME_VALIDATION.md`](docs/PLAYER_2_RUNTIME_VALIDATION.md) and [`PLAYER_2_FINAL_AUDIT.md`](PLAYER_2_FINAL_AUDIT.md).

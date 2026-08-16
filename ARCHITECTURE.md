@@ -151,3 +151,11 @@ The protocol review confirms the existing action and translation boundaries for 
 No populated authorized provider was available for this phase. The prior authorized session returned zero VOD and Series records, so real content, artwork, Movie/Episode playback, timeout, HTTP-error, and populated shutdown acceptance remain blocked or not executed. The Windows-only native lifecycle probe explicitly skips on Linux. The 10K/50K/100K performance and 50-test concurrency matrices passed without a production architecture change.
 
 The History/PlayerPort audit confirms that resume, watched, seek, completion, and track selection cannot be safely inferred or implemented in presentation. Live EOF recovery, MAG, M3U, shared libVLC ownership, qasync task ownership, and stale-result protection remain unchanged.
+
+## Player 2 commercial playback architecture — 2026-08-16
+
+Player 2 extends the existing `PlaybackTarget` → `ResolvedPlayback` → `PlayerPort` → libVLC path rather than replacing provider or media architecture. `PlayerPort` now exposes evidence-backed position, duration, seek, volume, mute, native audio/subtitle tracks, restart, and aspect-ratio operations. `VlcPlayerAdapter` serializes mutations through its existing async lock and translates native events through an application-owned explicit state machine.
+
+`PlayerShell` receives the shared application `PlayerPort` and optional history recorder through dependency injection. It never imports libVLC, constructs provider URLs, accesses credentials, or resolves provider streams. Live, Movie, and Episode modes are separated at the presentation boundary; Live does not expose seek or resume. Provider switching and playback attempts retain generation guards, and the established Live EOF recovery policy remains unchanged.
+
+History storage now adds provider-scoped identity, nullable lifecycle timestamps, runtime progress, watched percentage, completion, and a backward-compatible SQLite migration. Resume is restored only for matching incomplete Movie/Episode history and only after successful play. Full design and runtime evidence are recorded in [`docs/PLAYER_2_ARCHITECTURE.md`](docs/PLAYER_2_ARCHITECTURE.md) and [`docs/PLAYER_2_RUNTIME_VALIDATION.md`](docs/PLAYER_2_RUNTIME_VALIDATION.md).

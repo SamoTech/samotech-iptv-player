@@ -247,3 +247,11 @@ The source-level and synthetic/native Xtream VOD/Series implementation remains r
 Populated real-provider acceptance remains **BLOCKED BY EVIDENCE**: no authorized populated account was available in the current environment, and the previously authorized session returned zero VOD and Series records. Windows native acceptance is **NOT EXECUTED** on Linux; the Windows-only VLC probe explicitly reports `SKIP reason=windows_required`. These states are not converted into PASS claims.
 
 See [`XTREAM_REAL_ACCEPTANCE_AND_PRODUCTION_HARDENING_FINAL_AUDIT.md`](XTREAM_REAL_ACCEPTANCE_AND_PRODUCTION_HARDENING_FINAL_AUDIT.md) for the 32-section final audit, compatibility matrix, acceptance matrix, PlayerPort capability classification, security review, and remaining actions.
+
+## Player 2 commercial playback increment — 2026-08-16
+
+Player 2 now provides a typed playback capability model and explicit state machine over the preserved `PlaybackTarget` → `ResolvedPlayback` → `PlayerPort` → libVLC path. The commercial overlay includes mode-aware elapsed/duration and seek controls for Movie and Episode, Live-safe control suppression, relative seeks, volume, mute, native audio/subtitle menus, aspect ratio, restart, diagnostics, true fullscreen, keyboard shortcuts, and owned asynchronous work.
+
+History persistence now supports provider-scoped identity, runtime position and duration, watched percentage, timestamps, completion, safe SQLite migration, throttled non-live progress updates, and provider-scoped resume restoration. Live playback is never resumed or marked completed from unknown duration.
+
+Validation is recorded in [`docs/PLAYER_2_RUNTIME_VALIDATION.md`](docs/PLAYER_2_RUNTIME_VALIDATION.md), with architecture details in [`docs/PLAYER_2_ARCHITECTURE.md`](docs/PLAYER_2_ARCHITECTURE.md). The full Linux deterministic suite and source quality gates pass. Windows native VLC execution remains **NOT EXECUTED** on Linux, and populated authorized-provider acceptance remains **NOT EXECUTED**; neither limitation is represented as a pass claim.
