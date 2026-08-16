@@ -238,3 +238,12 @@ The advanced increment preserves the existing provider adapters, canonical DTOs,
 The classification remains evidence-based. **Movie and Series details, local metadata search, category/filter, sort, artwork loading, provider switching, Favorite persistence, and stale UI protection are implemented and synthetically/native tested.** Episode Favorites remain unavailable because the existing Favorite domain contract supports only channel, movie, and series. Watched badges, true resume, progress updates, catch-up, track selection, external metadata enrichment, and populated-provider acceptance remain **deferred, provider-dependent, or blocked by existing typed contracts/evidence**. The authorized provider session used in the prior increment returned zero VOD/Series records, so no populated-provider behavior is claimed here.
 
 See [`ADVANCED_XTREAM_VOD_SERIES_FINAL_AUDIT.md`](ADVANCED_XTREAM_VOD_SERIES_FINAL_AUDIT.md) for the ordered Todo List, implementation evidence, quality gates, security review, and remaining actions.
+
+
+## Real Xtream acceptance and production-hardening status — 2026-08-16
+
+The source-level and synthetic/native Xtream VOD/Series implementation remains ready. A subsequent controlled acceptance phase reviewed the standard Xtream action surface, response-shape tolerance, bounded artwork, provider-scoped Favorites, History/resume limits, PlayerPort capabilities, commercial native UX, concurrency, security, and exact 10K/50K/100K performance checkpoints.
+
+Populated real-provider acceptance remains **BLOCKED BY EVIDENCE**: no authorized populated account was available in the current environment, and the previously authorized session returned zero VOD and Series records. Windows native acceptance is **NOT EXECUTED** on Linux; the Windows-only VLC probe explicitly reports `SKIP reason=windows_required`. These states are not converted into PASS claims.
+
+See [`XTREAM_REAL_ACCEPTANCE_AND_PRODUCTION_HARDENING_FINAL_AUDIT.md`](XTREAM_REAL_ACCEPTANCE_AND_PRODUCTION_HARDENING_FINAL_AUDIT.md) for the 32-section final audit, compatibility matrix, acceptance matrix, PlayerPort capability classification, security review, and remaining actions.

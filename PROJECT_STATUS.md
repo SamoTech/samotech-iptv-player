@@ -272,3 +272,14 @@ A shared-session `BoundedArtworkLoader` is injected from production composition.
 | Catch-up, tracks, external metadata enrichment | DEFERRED / PROVIDER-DEPENDENT | No approved provider-neutral capability or credential/licensing contract exists. |
 
 All implementation boundaries explicitly preserve Live EOF recovery, MAG, M3U, shared libVLC ownership, qasync task ownership, and stale-result protection.
+
+
+## Real Xtream acceptance and production-hardening audit — 2026-08-16
+
+The subsequent acceptance phase performed a read-only protocol review, controlled credential-availability check, response-robustness verification, artwork/Favorites hardening verification, PlayerPort capability audit, commercial native UX audit, concurrency matrix, and exact 10K/50K/100K performance checkpoints. The current implementation remains **READY for synthetic/native acceptance and PARTIAL for populated real-provider acceptance**.
+
+No authorized populated Xtream account was available in the current environment. The prior authorized session authenticated but returned zero VOD and zero Series records, so populated real-provider acceptance remains **BLOCKED BY EVIDENCE**. Windows validation is **NOT EXECUTED** because the current environment is Linux; the Windows-only VLC probe correctly reports `SKIP reason=windows_required`.
+
+The PlayerPort capability boundary remains intentionally narrow: play, pause, resume, stop, recording, native output attachment, and boolean playing/recording state are supported. Seek, position, duration, completion, audio tracks, subtitle tracks, volume, mute, and typed fullscreen capabilities remain unsupported or deferred. Watched/resume is not implemented.
+
+The exact performance matrix passed at 10,000, 50,000, and 100,000 records for channel, Movie, and Series replacement, selection identity, filter, search, no-match, and clear-search behavior. The concurrency matrix passed 50 tests covering stale selection, provider switching, cancellation, playback, artwork, shutdown, and task ownership.

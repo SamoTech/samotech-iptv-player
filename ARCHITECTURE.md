@@ -142,3 +142,12 @@ Artwork is now an optional application port implemented by `BoundedArtworkLoader
 Favorites now carry an optional provider identity through the domain entity, application request/DTO, SQLite schema, and PlayerShell actions. SQLite performs a compatibility migration by adding a nullable `provider_id` to legacy tables. A save is idempotent for the same provider/item/type and still allows identical item IDs on different providers. Legacy rows remain readable and are displayed as `legacy provider`. Episode Favorites are intentionally disabled because the existing Favorite item-type contract excludes episodes.
 
 The increment does not add watched-state inference, resume reconstruction, catch-up, audio/subtitle track APIs, external metadata enrichment, or provider-side search. The current typed player and history contracts do not provide sufficient evidence for those behaviors. Live EOF recovery, MAG, M3U, and existing VLC recovery semantics are unchanged.
+
+
+## Real Xtream acceptance and production-hardening audit — 2026-08-16
+
+The protocol review confirms the existing action and translation boundaries for live/VOD/Series categories, streams, Movie details, Series details, short EPG, opaque IDs, extensions, and provider-supplied metadata. The request builder and adapter continue to own credential-bearing URL construction; application and presentation layers receive only canonical records and `ResolvedPlayback`.
+
+No populated authorized provider was available for this phase. The prior authorized session returned zero VOD and Series records, so real content, artwork, Movie/Episode playback, timeout, HTTP-error, and populated shutdown acceptance remain blocked or not executed. The Windows-only native lifecycle probe explicitly skips on Linux. The 10K/50K/100K performance and 50-test concurrency matrices passed without a production architecture change.
+
+The History/PlayerPort audit confirms that resume, watched, seek, completion, and track selection cannot be safely inferred or implemented in presentation. Live EOF recovery, MAG, M3U, shared libVLC ownership, qasync task ownership, and stale-result protection remain unchanged.

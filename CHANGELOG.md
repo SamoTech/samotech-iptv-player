@@ -221,3 +221,12 @@ The baseline commit for this release state is `7896c9e5036d278b68ffc5e1cde35b801
 ### Verification
 
 The full offscreen pytest suite, native PlayerShell probe, native 100,000-record performance probe, Ruff, Black, mypy, and `git diff --check` passed. The native VLC lifecycle probe was executed at its repository path and reported `SKIP reason=windows_required`; no Windows runtime claim is made from the Linux environment.
+
+
+## Real Xtream acceptance and production hardening — 2026-08-16
+
+The acceptance phase reviewed the exact Xtream action/field compatibility surface, controlled authorized-account availability, response robustness, bounded artwork failures/cancellation, provider-scoped Favorites migration/restart/corruption behavior, History/resume constraints, PlayerPort capabilities, commercial native UX, concurrency, security, and performance.
+
+The phase added deterministic Favorites acceptance coverage for restart persistence, duplicate database rows, and corrupt-database error handling, plus artwork cancellation coverage. The performance probe now includes exact 10K and 50K checkpoints in addition to the existing 100K coverage. No production architecture change was justified by the measurements.
+
+Populated real-provider acceptance remains **BLOCKED BY EVIDENCE** because no authorized populated account was available and the prior authorized session returned zero VOD/Series records. Windows validation remains **NOT EXECUTED** on Linux; the native VLC lifecycle probe explicitly reports `SKIP reason=windows_required`. Live EOF recovery, MAG, M3U, qasync, shared libVLC, and stale-result behavior remain unchanged.

@@ -140,3 +140,12 @@ The earlier Movie/Series detail gap is now narrower. Provider-supplied optional 
 | Real-provider acceptance | BLOCKED BY EVIDENCE | The authorized session used previously authenticated but returned zero VOD/Series records, so populated acceptance is not claimed. |
 
 The advanced increment intentionally did not alter the bounded Live EOF recovery controller, MAG or M3U behavior, shared libVLC player ownership, provider URL construction boundaries, or qasync stale-task protection. Catch-up, audio/subtitle tracks, TMDB/external enrichment, remote XMLTV retention, and broader portal quirks remain future work gated by evidence and contract decisions.
+
+
+## Real Xtream acceptance and production-hardening reconciliation — 2026-08-16
+
+The source and synthetic/native implementation remains ready, but populated real-provider acceptance is still **BLOCKED BY EVIDENCE**. No authorized populated account was available in the current environment, and the previously authorized session returned zero VOD and Series records. No synthetic fixture is treated as real-provider evidence.
+
+The current production-hardening status is **IMPLEMENTED / PARTIAL** for response tolerance, bounded provider artwork, provider-scoped Favorites, corruption-safe Favorites errors, exact 10K/50K/100K local performance checkpoints, and qasync stale-result protection. Windows native acceptance is **NOT EXECUTED** on Linux. Watched/resume remains **DEFERRED / BLOCKED BY CONTRACT** because the existing History schema and PlayerPort lack provider-scoped completion and typed seek/progress capabilities.
+
+No new KiddaC-derived architecture, provider-side search, catch-up, track-selection, external enrichment, or Live/MAG/M3U/VLC-recovery behavior was added.
