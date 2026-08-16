@@ -17,6 +17,8 @@ from samotech_iptv.application.dtos.provider_registration import (
 from samotech_iptv.presentation.task_owner import create_owned_task
 
 if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
+
     from samotech_iptv.application.use_cases.register_xtream_provider import (
         RegisterXtreamProvider,
     )
@@ -27,9 +29,15 @@ __all__ = ["XtreamProviderDialog"]
 class XtreamProviderDialog(QDialog):
     """Collect ephemeral Xtream inputs and delegate secure registration to application."""
 
-    def __init__(self, register_provider: RegisterXtreamProvider) -> None:
+    def __init__(
+        self,
+        register_provider: RegisterXtreamProvider,
+        on_provider_added: Callable[[str], Awaitable[None]] | None = None,
+    ) -> None:
+
         super().__init__()
         self._register_provider = register_provider
+        self._on_provider_added = on_provider_added
         self.closed_successfully = False
         self.cancelled = False
         self.provider_id_input = QLineEdit()
@@ -82,6 +90,8 @@ class XtreamProviderDialog(QDialog):
             self.status_label.setText(response.error or "Unable to register Xtream provider")
             return response
         self.status_label.setText("Xtream provider added")
+        if self._on_provider_added is not None:
+            await self._on_provider_added(response.provider_id)
         self._close_after_success()
         return response
 

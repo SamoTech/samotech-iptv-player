@@ -60,6 +60,7 @@ if TYPE_CHECKING:
     )
     from samotech_iptv.application.use_cases.start_recording import StartRecording
     from samotech_iptv.application.use_cases.stop_recording import StopRecording
+    from samotech_iptv.presentation.dialogs.add_provider_dialog import AddProviderDialog
     from samotech_iptv.presentation.dialogs.category_browser_dialog import (
         CategoryBrowserDialog,
     )
@@ -74,6 +75,7 @@ if TYPE_CHECKING:
     from samotech_iptv.presentation.dialogs.m3u_provider_dialog import M3UProviderDialog
     from samotech_iptv.presentation.dialogs.mag_provider_dialog import MAGProviderDialog
     from samotech_iptv.presentation.dialogs.provider_list_dialog import ProviderListDialog
+    from samotech_iptv.presentation.dialogs.smart_import_dialog import SmartImportDialog
     from samotech_iptv.presentation.dialogs.theme_settings_dialog import ThemeSettingsDialog
     from samotech_iptv.presentation.dialogs.xmltv_guide_dialog import XMLTVGuideDialog
     from samotech_iptv.presentation.dialogs.xtream_provider_dialog import XtreamProviderDialog
@@ -187,6 +189,8 @@ class MainWindow(QMainWindow):
                     border-top: 1px solid {COLORS.border};
                 }}
                 """)
+        self.add_provider_action = QAction("Add IPTV Provider…", self)
+        self.add_provider_action.triggered.connect(self.open_add_provider_dialog)
         self.add_xtream_provider_action = QAction("Add Xtream Provider…", self)
         self.add_xtream_provider_action.triggered.connect(self.open_xtream_provider_dialog)
         self.add_m3u_provider_action = QAction("Add M3U Provider…", self)
@@ -220,6 +224,10 @@ class MainWindow(QMainWindow):
         self.stop_recording_action = QAction("Stop Recording", self)
         self.stop_recording_action.triggered.connect(self._schedule_stop_recording)
         providers_menu = self.menuBar().addMenu("Providers")
+        add_separator = getattr(providers_menu, "addSeparator", None)
+        if callable(add_separator):
+            providers_menu.addAction(self.add_provider_action)
+            add_separator()
         providers_menu.addAction(self.add_xtream_provider_action)
         providers_menu.addAction(self.add_m3u_provider_action)
         providers_menu.addAction(self.add_mag_provider_action)
@@ -239,6 +247,8 @@ class MainWindow(QMainWindow):
         playback_menu.addAction(self.stop_recording_action)
         settings_menu = self.menuBar().addMenu("Settings")
         settings_menu.addAction(self.settings_action)
+        self._active_add_provider_dialog: AddProviderDialog | None = None
+        self._active_smart_import_dialog: SmartImportDialog | None = None
         self._active_xtream_provider_dialog: XtreamProviderDialog | None = None
         self._active_m3u_provider_dialog: M3UProviderDialog | None = None
         self._active_mag_provider_dialog: MAGProviderDialog | None = None
@@ -287,11 +297,50 @@ class MainWindow(QMainWindow):
             self.player_shell = None
             self.setCentralWidget(self.video_surface)
 
+    def open_add_provider_dialog(self) -> AddProviderDialog:
+        """Create and show the combined Smart Import and Manual Add entry point."""
+        from samotech_iptv.presentation.dialogs.add_provider_dialog import AddProviderDialog
+
+        dialog = AddProviderDialog(
+            self.open_smart_import_dialog,
+            self.open_xtream_provider_dialog,
+            self.open_m3u_provider_dialog,
+            self.open_mag_provider_dialog,
+        )
+        dialog.show()
+        self._active_add_provider_dialog = dialog
+        return dialog
+
+    def open_smart_import_dialog(self) -> SmartImportDialog:
+        """Create and show the local Smart Import dialog."""
+        from samotech_iptv.presentation.dialogs.smart_import_dialog import SmartImportDialog
+
+        dialog = SmartImportDialog(
+            self._register_xtream_provider,
+            self._register_m3u_provider,
+            self._register_mag_provider,
+            self._provider_added,
+        )
+        dialog.show()
+        self._active_smart_import_dialog = dialog
+        return dialog
+
+    async def _provider_added(self, provider_id: str) -> None:
+        """Refresh provider list, selector, and current context immediately after registration."""
+        if self.player_shell is not None:
+            await self.player_shell.refresh_providers()
+            index = self.player_shell.provider_selector.findData(provider_id)
+            if index >= 0:
+                self.player_shell.provider_selector.setCurrentIndex(index)
+        if self._active_provider_list_dialog is not None:
+            await self._active_provider_list_dialog.refresh()
+        self.statusBar().showMessage("Provider added and available immediately")
+
     def open_xtream_provider_dialog(self) -> XtreamProviderDialog:
         """Create and show the secure manual Xtream-entry dialog."""
         from samotech_iptv.presentation.dialogs.xtream_provider_dialog import XtreamProviderDialog
 
-        dialog = XtreamProviderDialog(self._register_xtream_provider)
+        dialog = XtreamProviderDialog(self._register_xtream_provider, self._provider_added)
         dialog.show()
         self._active_xtream_provider_dialog = dialog
         return dialog
@@ -300,7 +349,7 @@ class MainWindow(QMainWindow):
         """Create and show the secure manual M3U-entry dialog."""
         from samotech_iptv.presentation.dialogs.m3u_provider_dialog import M3UProviderDialog
 
-        dialog = M3UProviderDialog(self._register_m3u_provider)
+        dialog = M3UProviderDialog(self._register_m3u_provider, self._provider_added)
         dialog.show()
         self._active_m3u_provider_dialog = dialog
         return dialog
@@ -309,7 +358,7 @@ class MainWindow(QMainWindow):
         """Create and show the authorized manual MAG/Stalker-entry dialog."""
         from samotech_iptv.presentation.dialogs.mag_provider_dialog import MAGProviderDialog
 
-        dialog = MAGProviderDialog(self._register_mag_provider)
+        dialog = MAGProviderDialog(self._register_mag_provider, self._provider_added)
         dialog.show()
         self._active_mag_provider_dialog = dialog
         return dialog
@@ -400,7 +449,9 @@ class MainWindow(QMainWindow):
         from samotech_iptv.presentation.dialogs.theme_settings_dialog import ThemeSettingsDialog
 
         dialog = ThemeSettingsDialog(self._load_theme_preference, self._save_theme_preference)
-        dialog.show()
+        show = getattr(dialog, "show", None)
+        if callable(show):
+            show()
         create_owned_task(dialog, dialog.load())
         self._active_settings_dialog = dialog
         return dialog

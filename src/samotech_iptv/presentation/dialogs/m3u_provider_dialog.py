@@ -17,6 +17,8 @@ from samotech_iptv.application.dtos.provider_registration import (
 from samotech_iptv.presentation.task_owner import create_owned_task
 
 if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
+
     from samotech_iptv.application.use_cases.register_m3u_provider import RegisterM3UProvider
 
 __all__ = ["M3UProviderDialog"]
@@ -25,9 +27,14 @@ __all__ = ["M3UProviderDialog"]
 class M3UProviderDialog(QDialog):
     """Collect an M3U source and delegate registration through the application boundary."""
 
-    def __init__(self, register_provider: RegisterM3UProvider) -> None:
+    def __init__(
+        self,
+        register_provider: RegisterM3UProvider,
+        on_provider_added: Callable[[str], Awaitable[None]] | None = None,
+    ) -> None:
         super().__init__()
         self._register_provider = register_provider
+        self._on_provider_added = on_provider_added
         self.closed_successfully = False
         self.cancelled = False
         self.provider_id_input = QLineEdit()
@@ -68,6 +75,8 @@ class M3UProviderDialog(QDialog):
             self.status_label.setText(response.error or "Unable to register M3U provider")
             return response
         self.status_label.setText("M3U provider added")
+        if self._on_provider_added is not None:
+            await self._on_provider_added(response.provider_id)
         self._close_after_success()
         return response
 
