@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from typing import TYPE_CHECKING
 
 from samotech_iptv.application.dtos.content import ContentType
@@ -19,6 +20,7 @@ if TYPE_CHECKING:
     )
     from samotech_iptv.application.ports.provider_resolver_port import ProviderResolverPort
     from samotech_iptv.application.use_cases.record_history import RecordHistory
+    from samotech_iptv.domain.repositories.history_repository import HistoryRepository
 
 
 __all__ = ["PlaybackAttemptRegistry", "PlayPlaybackTarget"]
@@ -57,11 +59,13 @@ class PlayPlaybackTarget:
         record_history: RecordHistory | None = None,
         attempts: PlaybackAttemptRegistry | None = None,
         non_live_provider_resolver: ProviderNonLivePlaybackResolverPort | None = None,
+        history_repository: HistoryRepository | None = None,
     ) -> None:
         self._provider_resolver = provider_resolver
         self._non_live_provider_resolver = non_live_provider_resolver
         self._player = player
         self._record_history = record_history
+        self._history_repository = history_repository
         self._attempts = attempts or PlaybackAttemptRegistry()
 
     @property
@@ -90,6 +94,7 @@ class PlayPlaybackTarget:
             return PlaybackResult(attempt, PlaybackOutcome.FAILED, "Unable to start playback")
         if not self._attempts.is_current(attempt):
             return PlaybackResult(attempt, PlaybackOutcome.STALE)
+        await self._restore_resume_if_safe(target)
         if self._record_history is not None:
             from samotech_iptv.application.dtos import RecordHistoryRequest
 
@@ -98,11 +103,32 @@ class PlayPlaybackTarget:
                     RecordHistoryRequest(
                         item_id=target.canonical_content_id,
                         item_type=history_item_type,
+                        provider_id=target.provider_id,
                     )
                 )
             except Exception as exc:  # noqa: BLE001
                 raise ProviderError("Unable to record playback history") from exc
         return PlaybackResult(attempt, PlaybackOutcome.PLAYED)
+
+    async def _restore_resume_if_safe(self, target: PlaybackTarget) -> None:
+        """Restore only provider-scoped VOD/episode positions that are not completed."""
+        if self._history_repository is None or target.content_type is ContentType.LIVE:
+            return
+        item_type = "movie" if target.content_type is ContentType.MOVIE else "episode"
+        try:
+            record = await self._history_repository.find_latest(
+                provider_id=target.provider_id,
+                item_id=target.canonical_content_id,
+                item_type=item_type,
+            )
+            if record is None or record.completed or record.position_seconds <= 0:
+                return
+            await self._player.seek_ms(record.position_seconds * 1_000)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            # Resume is an enhancement; a missing native seek must never fail playback.
+            return
 
     async def _resolve_target(self, target: PlaybackTarget) -> tuple[ResolvedPlayback, str]:
         """Resolve exactly one target type at its provider-to-player boundary."""

@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from samotech_iptv.core.exceptions import ValidationError
+
+if TYPE_CHECKING:
+    from datetime import datetime
 
 FAVORITE_ITEM_TYPES = frozenset({"channel", "movie", "series"})
 HISTORY_ITEM_TYPES = frozenset({"channel", "movie", "episode"})
@@ -24,6 +29,11 @@ def validate_history(
     item_type: str,
     duration_seconds: int,
     position_seconds: int,
+    provider_id: str | None = None,
+    watched_percentage: float = 0.0,
+    completed: bool = False,
+    started_at: datetime | None = None,
+    updated_at: datetime | None = None,
 ) -> None:
     """Validate a playback-history record and its known-duration semantics.
 
@@ -32,6 +42,7 @@ def validate_history(
     model for live streams and sources that cannot report a runtime.
     """
     _validate_identifiers(record_id=record_id, item_id=item_id)
+    _validate_optional_provider_id(provider_id)
     _validate_item_type(item_type, HISTORY_ITEM_TYPES, "History")
     if duration_seconds < 0:
         raise ValidationError("duration_seconds", "Duration must not be negative")
@@ -42,6 +53,16 @@ def validate_history(
             "position_seconds",
             "Playback position must not exceed a known duration",
         )
+    if not 0.0 <= watched_percentage <= 100.0:
+        raise ValidationError(
+            "watched_percentage", "Watched percentage must be between zero and one hundred"
+        )
+    if completed and (duration_seconds <= 0 or watched_percentage < 100.0):
+        raise ValidationError(
+            "completed", "Only a fully watched known-duration item may be completed"
+        )
+    if started_at is not None and updated_at is not None and updated_at < started_at:
+        raise ValidationError("updated_at", "Updated time must not precede started time")
 
 
 def _validate_optional_provider_id(provider_id: str | None) -> None:

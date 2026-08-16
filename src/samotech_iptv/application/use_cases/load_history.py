@@ -37,8 +37,13 @@ class LoadHistory:
                 item_id=h.item_id,
                 item_type=h.item_type,
                 watched_at=h.watched_at.isoformat(),
+                provider_id=h.provider_id,
+                started_at=h.started_at.isoformat() if h.started_at is not None else None,
+                updated_at=h.updated_at.isoformat() if h.updated_at is not None else None,
                 duration_seconds=h.duration_seconds,
                 position_seconds=h.position_seconds,
+                watched_percentage=h.watched_percentage,
+                completed=h.completed,
             )
             for h in items
         ]

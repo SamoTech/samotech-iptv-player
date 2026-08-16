@@ -48,6 +48,50 @@ async def test_record_history_persists_safe_playback_metadata() -> None:
 
 
 @pytest.mark.asyncio
+async def test_record_history_computes_provider_scoped_progress_and_completion() -> None:
+    repository = FakeHistoryRepository()
+
+    response = await RecordHistory(repository).execute(  # type: ignore[arg-type]
+        RecordHistoryRequest(
+            item_id="movie-1",
+            item_type="movie",
+            provider_id="provider-a",
+            duration_seconds=100,
+            position_seconds=40,
+        )
+    )
+
+    assert response.success is True
+    record = repository.records[0]
+    assert record.provider_id == "provider-a"
+    assert record.watched_percentage == 40.0
+    assert record.completed is False
+    assert record.started_at is not None
+    assert record.updated_at is not None
+
+
+@pytest.mark.asyncio
+async def test_record_history_never_completes_live_unknown_duration() -> None:
+    repository = FakeHistoryRepository()
+
+    await RecordHistory(repository).execute(  # type: ignore[arg-type]
+        RecordHistoryRequest(
+            item_id="channel-1",
+            item_type="channel",
+            provider_id="provider-a",
+            duration_seconds=0,
+            position_seconds=90,
+            completed=True,
+        )
+    )
+
+    record = repository.records[0]
+    assert record.completed is False
+    assert record.watched_percentage == 0.0
+    assert record.position_seconds == 90
+
+
+@pytest.mark.asyncio
 async def test_clear_history_returns_number_of_removed_records() -> None:
     repository = FakeHistoryRepository()
     await RecordHistory(repository).execute(  # type: ignore[arg-type]

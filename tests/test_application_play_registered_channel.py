@@ -11,6 +11,7 @@ from samotech_iptv.application.use_cases.play_registered_channel import PlayRegi
 from samotech_iptv.domain.value_objects.url import URL
 
 if TYPE_CHECKING:
+    from samotech_iptv.application.dtos.player import AudioTrack, SubtitleTrack
     from samotech_iptv.application.ports.provider_capabilities import CategoryProvider
     from samotech_iptv.domain.value_objects.channel_id import ChannelId
 
@@ -60,6 +61,51 @@ class FakePlayer(PlayerPort):
         self.urls.append(url)
 
     async def stop(self) -> None:
+        return None
+
+    async def get_position_ms(self) -> int | None:
+        return None
+
+    async def get_duration_ms(self) -> int | None:
+        return None
+
+    async def seek_ms(self, position_ms: int) -> None:
+        return None
+
+    async def seek_fraction(self, position: float) -> None:
+        return None
+
+    async def get_volume(self) -> int | None:
+        return None
+
+    async def set_volume(self, volume: int) -> None:
+        return None
+
+    async def is_muted(self) -> bool | None:
+        return None
+
+    async def set_muted(self, muted: bool) -> None:
+        return None
+
+    async def get_audio_tracks(self) -> tuple[AudioTrack, ...]:
+        return ()
+
+    async def select_audio_track(self, track_id: int) -> None:
+        return None
+
+    async def get_subtitle_tracks(self) -> tuple[SubtitleTrack, ...]:
+        return ()
+
+    async def select_subtitle_track(self, track_id: int | None) -> None:
+        return None
+
+    async def restart(self) -> None:
+        return None
+
+    async def get_aspect_ratio(self) -> str | None:
+        return None
+
+    async def set_aspect_ratio(self, aspect_ratio: str | None) -> None:
         return None
 
     async def pause(self) -> None:

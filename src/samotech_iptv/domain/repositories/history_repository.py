@@ -24,3 +24,21 @@ class HistoryRepository(ABC):
 
     @abstractmethod
     async def clear(self) -> int: ...
+
+    async def find_latest(
+        self,
+        *,
+        provider_id: str | None,
+        item_id: str,
+        item_type: str,
+    ) -> History | None:
+        """Find the newest provider-scoped record without requiring a schema extension in fakes."""
+        records = await self.list_recent(limit=500)
+        for record in records:
+            if (
+                record.provider_id == provider_id
+                and record.item_id == item_id
+                and record.item_type == item_type
+            ):
+                return record
+        return None

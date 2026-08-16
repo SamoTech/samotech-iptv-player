@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 import pytest
@@ -22,9 +23,11 @@ from samotech_iptv.application.use_cases.play_playback_target import (
     PlayPlaybackTarget,
 )
 from samotech_iptv.core.exceptions import ProviderError, ValidationError
+from samotech_iptv.domain.entities.history import History
 from samotech_iptv.domain.value_objects.url import URL
 
 if TYPE_CHECKING:
+    from samotech_iptv.application.dtos.player import AudioTrack, SubtitleTrack
     from samotech_iptv.application.ports.provider_capabilities import CategoryProvider
     from samotech_iptv.domain.value_objects.channel_id import ChannelId
 
@@ -51,6 +54,7 @@ class RecordingPlayer(PlayerPort):
 
     def __init__(self, error: Exception | None = None) -> None:
         self.urls: list[URL] = []
+        self.seek_calls: list[int] = []
         self._error = error
 
     async def play(self, url: URL) -> None:
@@ -59,6 +63,51 @@ class RecordingPlayer(PlayerPort):
         self.urls.append(url)
 
     async def stop(self) -> None:
+        return None
+
+    async def get_position_ms(self) -> int | None:
+        return None
+
+    async def get_duration_ms(self) -> int | None:
+        return None
+
+    async def seek_ms(self, position_ms: int) -> None:
+        self.seek_calls.append(position_ms)
+
+    async def seek_fraction(self, position: float) -> None:
+        return None
+
+    async def get_volume(self) -> int | None:
+        return None
+
+    async def set_volume(self, volume: int) -> None:
+        return None
+
+    async def is_muted(self) -> bool | None:
+        return None
+
+    async def set_muted(self, muted: bool) -> None:
+        return None
+
+    async def get_audio_tracks(self) -> tuple[AudioTrack, ...]:
+        return ()
+
+    async def select_audio_track(self, track_id: int) -> None:
+        return None
+
+    async def get_subtitle_tracks(self) -> tuple[SubtitleTrack, ...]:
+        return ()
+
+    async def select_subtitle_track(self, track_id: int | None) -> None:
+        return None
+
+    async def restart(self) -> None:
+        return None
+
+    async def get_aspect_ratio(self) -> str | None:
+        return None
+
+    async def set_aspect_ratio(self, aspect_ratio: str | None) -> None:
         return None
 
     async def pause(self) -> None:
@@ -143,6 +192,30 @@ class FixedNonLiveProvider(MoviePlaybackProvider, EpisodePlaybackProvider):
     async def resolve_episode_stream(self, episode_id: str, resource_id: str) -> URL:
         self.episode_calls.append((episode_id, resource_id))
         return URL("https://example.invalid/episode")
+
+
+class ResumeHistory:
+    """Provider-scoped resume repository double."""
+
+    def __init__(self, record: History | None) -> None:
+        self.record = record
+
+    async def find_latest(
+        self,
+        *,
+        provider_id: str | None,
+        item_id: str,
+        item_type: str,
+    ) -> History | None:
+        if self.record is None:
+            return None
+        if (
+            self.record.provider_id == provider_id
+            and self.record.item_id == item_id
+            and self.record.item_type == item_type
+        ):
+            return self.record
+        return None
 
 
 class FixedNonLiveResolver:
@@ -375,6 +448,38 @@ async def test_unsupported_movie_target_returns_safe_outcome_without_resolution(
     assert result.outcome is PlaybackOutcome.UNSUPPORTED
     assert resolver.provider_ids == []
     assert player.urls == []
+
+
+@pytest.mark.asyncio
+async def test_provider_scoped_resume_restores_vod_position_but_never_live() -> None:
+    non_live_provider = FixedNonLiveProvider()
+    player = RecordingPlayer()
+    resume = ResumeHistory(
+        History(
+            id="resume-1",
+            item_id="movie-a",
+            item_type="movie",
+            watched_at=datetime.now(UTC),
+            provider_id="provider-a",
+            duration_seconds=120,
+            position_seconds=45,
+            watched_percentage=37.5,
+        )
+    )
+    use_case = PlayPlaybackTarget(
+        FixedResolver(ControlledPlaybackProvider()),
+        player,
+        non_live_provider_resolver=FixedNonLiveResolver(non_live_provider),
+        history_repository=resume,  # type: ignore[arg-type]
+    )
+
+    movie_result = await use_case.execute(PlaybackTarget.movie("provider-a", "movie-a", "42|mp4"))
+    live_result = await use_case.execute(live("channel-a"))
+
+    assert movie_result.outcome is PlaybackOutcome.PLAYED
+    assert player.seek_calls == [45_000]
+    assert live_result.outcome is PlaybackOutcome.FAILED
+    assert player.seek_calls == [45_000]
 
 
 @pytest.mark.asyncio

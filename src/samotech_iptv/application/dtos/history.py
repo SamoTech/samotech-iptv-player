@@ -26,6 +26,11 @@ class HistoryItemDTO:
     watched_at: str  # ISO-8601
     duration_seconds: int = 0
     position_seconds: int = 0
+    provider_id: str | None = None
+    started_at: str | None = None
+    updated_at: str | None = None
+    watched_percentage: float = 0.0
+    completed: bool = False
 
 
 @dataclass(frozen=True)
@@ -45,6 +50,11 @@ class RecordHistoryRequest:
     item_type: str
     duration_seconds: int = 0
     position_seconds: int = 0
+    provider_id: str | None = None
+    started_at: str | None = None
+    updated_at: str | None = None
+    watched_percentage: float = 0.0
+    completed: bool = False
 
 
 @dataclass(frozen=True)

@@ -19,6 +19,7 @@ if TYPE_CHECKING:
     )
     from samotech_iptv.application.ports.provider_resolver_port import ProviderResolverPort
     from samotech_iptv.application.use_cases.record_history import RecordHistory
+    from samotech_iptv.domain.repositories.history_repository import HistoryRepository
 
 __all__ = ["PlayRegisteredChannel"]
 
@@ -32,6 +33,7 @@ class PlayRegisteredChannel:
         player: PlayerPort,
         record_history: RecordHistory | None = None,
         non_live_provider_resolver: ProviderNonLivePlaybackResolverPort | None = None,
+        history_repository: HistoryRepository | None = None,
     ) -> None:
         self._provider_resolver = provider_resolver
         self._player = player
@@ -41,6 +43,7 @@ class PlayRegisteredChannel:
             player,
             record_history,
             non_live_provider_resolver=non_live_provider_resolver,
+            history_repository=history_repository,
         )
 
     async def execute(self, provider_id: str, channel_id: str) -> None:
