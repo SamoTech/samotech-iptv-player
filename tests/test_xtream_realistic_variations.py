@@ -73,6 +73,26 @@ def test_series_variations_preserve_optional_year_and_rating() -> None:
     assert series.rating == 7.5
 
 
+def test_category_family_preserves_duplicate_and_unexpected_ordering() -> None:
+    records = [
+        {"category_id": "z", "category_name": "Z"},
+        {"category_id": "a", "category_name": "A"},
+        {"category_id": "z", "category_name": "Z duplicate"},
+    ]
+
+    categories = XtreamDomainTranslator.categories(records, PROVIDER)
+
+    assert [(category.id, category.name) for category in categories] == [
+        ("z", "Z"),
+        ("a", "A"),
+        ("z", "Z duplicate"),
+    ]
+
+
+def test_empty_category_family_is_safe() -> None:
+    assert XtreamDomainTranslator.categories([], PROVIDER) == []
+
+
 def test_series_detail_accepts_empty_season_and_episode_lists() -> None:
     detail = {"seasons": [], "episodes": {"1": []}, "unknown": "ignored"}
 
