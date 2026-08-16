@@ -24,6 +24,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from samotech_iptv.application.dtos.playback import ResolvedPlayback
+    from samotech_iptv.domain.entities.account_info import AccountInfo
     from samotech_iptv.domain.entities.category import Category
     from samotech_iptv.domain.entities.channel import Channel
     from samotech_iptv.domain.entities.epg_entry import EPGEntry
@@ -31,12 +32,14 @@ if TYPE_CHECKING:
     from samotech_iptv.domain.entities.movie import Movie
     from samotech_iptv.domain.entities.season import Season
     from samotech_iptv.domain.entities.series import Series
+    from samotech_iptv.domain.entities.server_info import ServerInfo
     from samotech_iptv.domain.value_objects.channel_id import ChannelId
     from samotech_iptv.domain.value_objects.credential import Credential
     from samotech_iptv.domain.value_objects.provider_capability import ProviderCapability
     from samotech_iptv.domain.value_objects.provider_id import ProviderId
 
 __all__ = [
+    "AccountInfoProvider",
     "AuthenticationProvider",
     "CatalogProvider",
     "CategoryProvider",
@@ -48,10 +51,20 @@ __all__ = [
     "EpisodePlaybackProvider",
     "EPGProvider",
     "SearchProvider",
+    "ServerInfoProvider",
     "PlaybackProvider",
     "SessionProvider",
     "CapabilityProvider",
 ]
+
+
+class AccountInfoProvider(ABC):
+    """Capability: load non-secret account status metadata."""
+
+    @abstractmethod
+    async def load_account_info(self) -> AccountInfo:
+        """Return normalized account status without credentials or tokens."""
+        ...
 
 
 class AuthenticationProvider(ABC):
@@ -81,6 +94,15 @@ class SessionProvider(ABC):
     @abstractmethod
     async def refresh_session(self) -> bool:
         """Refresh the current session.  Return True on success."""
+        ...
+
+
+class ServerInfoProvider(ABC):
+    """Capability: load non-secret server metadata."""
+
+    @abstractmethod
+    async def load_server_info(self) -> ServerInfo:
+        """Return normalized server metadata without credential-bearing URLs."""
         ...
 
 

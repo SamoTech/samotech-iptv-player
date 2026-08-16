@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from samotech_iptv.application.ports.provider_capabilities import (
+    AccountInfoProvider,
     CapabilityProvider,
     CatalogProvider,
     CategoryProvider,
@@ -14,6 +15,7 @@ from samotech_iptv.application.ports.provider_capabilities import (
     PlaybackProvider,
     SearchProvider,
     SeriesDetailProvider,
+    ServerInfoProvider,
 )
 from samotech_iptv.core.exceptions import ProviderError
 from samotech_iptv.domain.entities.category import Category
@@ -35,7 +37,9 @@ from samotech_iptv.infrastructure.providers.provider_resolution_service import (
 )
 
 if TYPE_CHECKING:
+    from samotech_iptv.domain.entities.account_info import AccountInfo
     from samotech_iptv.domain.entities.epg_entry import EPGEntry
+    from samotech_iptv.domain.entities.server_info import ServerInfo
 
 
 class FakeCatalogProvider(CatalogProvider):
@@ -156,6 +160,19 @@ class FakeNonLiveCapabilityProvider(
         return URL("https://example.invalid/episode")
 
 
+class FakeAccountServerProvider(AccountInfoProvider, ServerInfoProvider, CapabilityProvider):
+    """Provider double for normalized account/server capability resolution."""
+
+    def supported_capabilities(self) -> frozenset[ProviderCapability]:
+        return frozenset({ProviderCapability.ACCOUNT_INFO, ProviderCapability.SERVER_INFO})
+
+    async def load_account_info(self) -> AccountInfo:
+        raise AssertionError("resolution test does not load remote data")
+
+    async def load_server_info(self) -> ServerInfo:
+        raise AssertionError("resolution test does not load remote data")
+
+
 class FakeUndeclaredNonLiveProvider(FakeNonLiveCapabilityProvider):
     """A structural implementation that must remain unsupported without declarations."""
 
@@ -225,6 +242,24 @@ def test_resolver_reuses_one_declared_provider_for_all_new_nonlive_capabilities(
 
     assert all(item is provider for item in resolved)
     assert construction_count == 1
+
+
+def test_resolver_reuses_declared_account_server_provider() -> None:
+    registry = ProviderRegistry()
+    registry.register(
+        InfraProviderMetadata(
+            provider_id="metadata-demo",
+            provider_type="metadata",
+            base_url="https://example.invalid",
+        )
+    )
+    factory = ProviderFactory()
+    provider = FakeAccountServerProvider()
+    factory.register_type("metadata", lambda _, **__: provider)
+    resolver = ProviderResolutionService(registry, factory, object())  # type: ignore[arg-type]
+
+    assert resolver.resolve_account_info_provider("metadata-demo") is provider
+    assert resolver.resolve_server_info_provider("metadata-demo") is provider
 
 
 def test_resolver_rejects_new_nonlive_interfaces_without_runtime_declarations() -> None:

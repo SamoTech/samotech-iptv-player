@@ -11,6 +11,8 @@ class ProviderCapability(StrEnum):
     """A provider feature that is explicitly implemented and available at runtime."""
 
     AUTHENTICATION = "authentication"
+    ACCOUNT_INFO = "account_info"
+    SERVER_INFO = "server_info"
     SESSION = "session"
     LIVE = "live"
     CATEGORIES = "categories"

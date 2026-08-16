@@ -70,7 +70,19 @@ class FakeHttpClient:
                     }
                 ]
             }
-        return {"user_info": {"auth": 1}}
+        return {
+            "user_info": {
+                "auth": 1,
+                "status": "Active",
+                "active_cons": "1",
+                "max_connections": "2",
+            },
+            "server_info": {
+                "server_name": "Synthetic Xtream",
+                "server_protocol": "https",
+                "version": "1.0",
+            },
+        }
 
 
 class FakeCredentialStore:
@@ -118,6 +130,12 @@ async def test_adapter_authenticates_stores_credentials_and_translates_live_chan
 
     assert await adapter.authenticate(Credential("user", "secret")) is True
     assert adapter.is_authenticated is True
+    account = await adapter.load_account_info()
+    server = await adapter.load_server_info()
+    assert account.status == "active"
+    assert account.max_connections == 2
+    assert server.name == "Synthetic Xtream"
+    assert server.protocol == "https"
     assert [channel.name for channel in await adapter.load_channels()] == ["News", "Sports"]
     assert [channel.name for channel in await adapter.search_channels("sport")] == ["Sports"]
     assert [movie.title for movie in await adapter.load_movies()] == ["Example Movie"]
@@ -152,6 +170,8 @@ def test_adapter_advertises_only_implemented_capabilities_and_registers_with_fac
 
     assert adapter.supported_capabilities() == {
         ProviderCapability.AUTHENTICATION,
+        ProviderCapability.ACCOUNT_INFO,
+        ProviderCapability.SERVER_INFO,
         ProviderCapability.LIVE,
         ProviderCapability.CATEGORIES,
         ProviderCapability.EPG,

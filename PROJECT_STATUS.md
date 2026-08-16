@@ -213,3 +213,10 @@ The runtime observation must distinguish normal Live playback, a failure that do
 **Implemented:** Favorites library listing with empty state, refresh, generic error feedback, and single-record removal; History recent listing with duration, persisted playback position, watched timestamp, refresh, generic error feedback, and confirmation-protected clear-all; production SQLite wiring and Qt Library menu actions.
 
 **Not implemented:** History per-record deletion, replay, resume, provider reconstruction, stream reconstruction, a new playback-position model, and a new player resume API.
+
+
+## Xtream/MAG compatibility audit update
+
+The normalized provider model set now includes secret-free `ProviderSession`, `AccountInfo`, `ServerInfo`, and `CatchupEvent` records. Xtream account and server metadata are executable through explicit capability ports and resolver methods, with deterministic tests covering active, expired, unknown, malformed, and sparse response variations. The existing Xtream Live/VOD/Series/EPG/search/playback workflows remain intact. MAG retains its verified live/session/EPG/search/playback capability declaration; MAG VOD, Series, and executable catch-up remain unsupported because the current legacy facade and authorized fixtures do not establish those contracts.
+
+The complete offscreen test suite with coverage, native Qt/player probe, Ruff, Black, mypy, and `git diff --check` all pass after this update. Coverage is reported as an evidence metric rather than a release threshold; no backend or player contract was changed.

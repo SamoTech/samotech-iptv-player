@@ -107,6 +107,39 @@ def test_epg_entry_maps_xtream_short_epg_record() -> None:
     assert entries[0].start.tzinfo is not None
 
 
+def test_account_info_normalizes_optional_xtream_status_fields() -> None:
+    active = XtreamDomainTranslator.account_info(
+        {"auth": 1, "status": "Active", "active_cons": "1", "max_connections": 2},
+        ProviderId("xtream-demo"),
+    )
+    expired = XtreamDomainTranslator.account_info(
+        {"auth": 0, "status": "Expired", "active_cons": "bad"},
+        ProviderId("xtream-demo"),
+    )
+
+    assert active.status == "active"
+    assert active.active_connections == 1
+    assert active.max_connections == 2
+    assert expired.status == "expired"
+    assert expired.active_connections is None
+
+
+def test_server_info_ignores_credential_bearing_url_fields() -> None:
+    server = XtreamDomainTranslator.server_info(
+        {
+            "server_name": "Synthetic Xtream",
+            "server_protocol": "https",
+            "version": "1.0",
+            "url": "https://user:password@example.test/",
+        },
+        ProviderId("xtream-demo"),
+    )
+
+    assert server.name == "Synthetic Xtream"
+    assert server.protocol == "https"
+    assert not hasattr(server, "url")
+
+
 def test_channel_maps_xtream_live_stream_record() -> None:
     channel = XtreamDomainTranslator.channel(
         {

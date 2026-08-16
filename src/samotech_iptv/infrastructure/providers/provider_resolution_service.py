@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from samotech_iptv.application.ports.provider_capabilities import (
+    AccountInfoProvider,
     CapabilityProvider,
     CatalogProvider,
     CategoryProvider,
@@ -16,6 +17,7 @@ from samotech_iptv.application.ports.provider_capabilities import (
     SearchProvider,
     SeriesDetailProvider,
     SeriesProvider,
+    ServerInfoProvider,
     VodProvider,
 )
 from samotech_iptv.application.ports.provider_content_resolver_port import (
@@ -64,6 +66,24 @@ class ProviderResolutionService(
     def runtime_cache(self) -> ProviderRuntimeCache:
         """Return the live-provider owner for lifecycle composition and shutdown."""
         return self._runtime_cache
+
+    def resolve_account_info_provider(self, provider_id: str) -> AccountInfoProvider:
+        """Build the requested provider and verify account metadata support."""
+        provider = self._resolve(provider_id)
+        if not isinstance(provider, AccountInfoProvider) or not self._advertises(
+            provider, ProviderCapability.ACCOUNT_INFO
+        ):
+            raise ProviderError("Provider does not support account information")
+        return provider
+
+    def resolve_server_info_provider(self, provider_id: str) -> ServerInfoProvider:
+        """Build the requested provider and verify server metadata support."""
+        provider = self._resolve(provider_id)
+        if not isinstance(provider, ServerInfoProvider) or not self._advertises(
+            provider, ProviderCapability.SERVER_INFO
+        ):
+            raise ProviderError("Provider does not support server information")
+        return provider
 
     def resolve_catalog_provider(self, provider_id: str) -> CatalogProvider:
         """Build the requested provider and verify channel-catalogue support."""

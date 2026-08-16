@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 from samotech_iptv.application.dtos.playback import ResolvedPlayback
 from samotech_iptv.application.ports.provider_capabilities import (
+    AccountInfoProvider,
     AuthenticationProvider,
     CapabilityProvider,
     CatalogProvider,
@@ -19,6 +20,7 @@ from samotech_iptv.application.ports.provider_capabilities import (
     SearchProvider,
     SeriesDetailProvider,
     SeriesProvider,
+    ServerInfoProvider,
     VodProvider,
 )
 from samotech_iptv.core.diagnostics import DiagnosticTrace
@@ -33,6 +35,7 @@ from samotech_iptv.infrastructure.providers.xtream_request_builder import Xtream
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
+    from samotech_iptv.domain.entities.account_info import AccountInfo
     from samotech_iptv.domain.entities.category import Category
     from samotech_iptv.domain.entities.channel import Channel
     from samotech_iptv.domain.entities.epg_entry import EPGEntry
@@ -40,6 +43,7 @@ if TYPE_CHECKING:
     from samotech_iptv.domain.entities.movie import Movie
     from samotech_iptv.domain.entities.season import Season
     from samotech_iptv.domain.entities.series import Series
+    from samotech_iptv.domain.entities.server_info import ServerInfo
     from samotech_iptv.domain.value_objects.channel_id import ChannelId
     from samotech_iptv.domain.value_objects.credential import Credential
     from samotech_iptv.infrastructure.providers.provider_context import ProviderContext
@@ -51,6 +55,8 @@ __all__ = ["XtreamProviderAdapter", "register_xtream_with_factory"]
 _CAPABILITIES = frozenset(
     {
         ProviderCapability.AUTHENTICATION,
+        ProviderCapability.ACCOUNT_INFO,
+        ProviderCapability.SERVER_INFO,
         ProviderCapability.LIVE,
         ProviderCapability.CATEGORIES,
         ProviderCapability.EPG,
@@ -66,6 +72,7 @@ _CAPABILITIES = frozenset(
 
 
 class XtreamProviderAdapter(
+    AccountInfoProvider,
     AuthenticationProvider,
     CatalogProvider,
     CategoryProvider,
@@ -78,6 +85,7 @@ class XtreamProviderAdapter(
     SeriesDetailProvider,
     EpisodePlaybackProvider,
     SearchProvider,
+    ServerInfoProvider,
     CapabilityProvider,
 ):
     """Retrieve Xtream content through canonical, credential-safe boundaries."""
@@ -108,6 +116,16 @@ class XtreamProviderAdapter(
         if self._authenticated:
             await self._context.credential_store.store(self.provider_id, credential)
         return self._authenticated
+
+    async def load_account_info(self) -> AccountInfo:
+        """Load normalized non-secret account status from the Xtream base response."""
+        client = await self._stored_client()
+        return XtreamDomainTranslator.account_info(await client.account_info(), self.provider_id)
+
+    async def load_server_info(self) -> ServerInfo:
+        """Load normalized non-secret server metadata from the Xtream base response."""
+        client = await self._stored_client()
+        return XtreamDomainTranslator.server_info(await client.server_info(), self.provider_id)
 
     async def load_channels(self) -> Sequence[Channel]:
         """Retrieve the stored credential and translate Xtream live DTOs into channels."""

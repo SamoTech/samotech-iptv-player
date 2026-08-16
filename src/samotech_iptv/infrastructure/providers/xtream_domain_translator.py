@@ -5,10 +5,11 @@ from __future__ import annotations
 from base64 import b64decode
 from collections.abc import Mapping
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from samotech_iptv.core.exceptions import ValidationError
 from samotech_iptv.core.logging import get_logger
+from samotech_iptv.domain.entities.account_info import AccountInfo
 from samotech_iptv.domain.entities.category import Category
 from samotech_iptv.domain.entities.channel import Channel
 from samotech_iptv.domain.entities.epg_entry import EPGEntry
@@ -16,6 +17,7 @@ from samotech_iptv.domain.entities.episode import Episode
 from samotech_iptv.domain.entities.movie import Movie
 from samotech_iptv.domain.entities.season import Season
 from samotech_iptv.domain.entities.series import Series
+from samotech_iptv.domain.entities.server_info import ServerInfo
 from samotech_iptv.domain.value_objects.channel_id import ChannelId
 from samotech_iptv.domain.value_objects.stream_id import StreamId
 from samotech_iptv.domain.value_objects.url import URL
@@ -32,6 +34,44 @@ _LOG = get_logger(__name__)
 
 class XtreamDomainTranslator:
     """Stateless mappings from Xtream API records to canonical entities."""
+
+    @staticmethod
+    def account_info(raw: Mapping[str, object], provider_id: ProviderId) -> AccountInfo:
+        """Map Xtream ``user_info`` without retaining credentials or URLs."""
+        auth = str(raw.get("auth") or "").strip().casefold()
+        status = str(raw.get("status") or "").strip().casefold()
+        normalized_status: Literal["active", "expired", "blocked", "unknown"]
+        if auth in {"0", "false"} or status in {"expired", "inactive"}:
+            normalized_status = "expired"
+        elif status in {"blocked", "disabled", "banned"}:
+            normalized_status = "blocked"
+        elif auth in {"1", "true", "active"} or status in {"active", "enabled"}:
+            normalized_status = "active"
+        else:
+            normalized_status = "unknown"
+        return AccountInfo(
+            provider_id=provider_id,
+            status=normalized_status,
+            expires_at=XtreamDomainTranslator._optional_timestamp(raw.get("exp_date")),
+            active_connections=XtreamDomainTranslator._optional_nonnegative_int(
+                raw.get("active_cons")
+            ),
+            max_connections=XtreamDomainTranslator._optional_nonnegative_int(
+                raw.get("max_connections")
+            ),
+            message=str(raw.get("message") or "").strip() or None,
+        )
+
+    @staticmethod
+    def server_info(raw: Mapping[str, object], provider_id: ProviderId) -> ServerInfo:
+        """Map non-secret Xtream server metadata; never expose server URLs."""
+        return ServerInfo(
+            provider_id=provider_id,
+            name=str(raw.get("server_name") or raw.get("name") or "").strip() or None,
+            version=str(raw.get("version") or "").strip() or None,
+            timezone=str(raw.get("timezone") or "").strip() or None,
+            protocol=str(raw.get("server_protocol") or raw.get("protocol") or "").strip() or None,
+        )
 
     @staticmethod
     def categories(
@@ -258,6 +298,25 @@ class XtreamDomainTranslator:
             description=XtreamDomainTranslator._decoded_optional_text(raw.get("description")),
             category=str(raw.get("category") or "").strip() or None,
         )
+
+    @staticmethod
+    def _optional_timestamp(value: object) -> datetime | None:
+        if value in (None, "", "0", 0):
+            return None
+        try:
+            return datetime.fromtimestamp(int(str(value)), tz=UTC)
+        except (TypeError, ValueError, OSError):
+            return None
+
+    @staticmethod
+    def _optional_nonnegative_int(value: object) -> int | None:
+        if value in (None, ""):
+            return None
+        try:
+            parsed = int(str(value))
+        except (TypeError, ValueError):
+            return None
+        return parsed if parsed >= 0 else None
 
     @staticmethod
     def _required_text(raw: Mapping[str, object], field: str) -> str:

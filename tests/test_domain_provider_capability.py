@@ -9,6 +9,8 @@ def test_provider_capability_defines_the_supported_canonical_vocabulary() -> Non
     """Capability declarations distinguish discovery, sessions, and stream resolution."""
     assert set(ProviderCapability) == {
         ProviderCapability.AUTHENTICATION,
+        ProviderCapability.ACCOUNT_INFO,
+        ProviderCapability.SERVER_INFO,
         ProviderCapability.SESSION,
         ProviderCapability.LIVE,
         ProviderCapability.CATEGORIES,

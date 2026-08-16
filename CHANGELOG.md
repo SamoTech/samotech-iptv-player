@@ -158,3 +158,12 @@ This file records concise historical delivery milestones. It is **not** the curr
 - M3U registered stream resolution, full VOD/series desktop workflows, XMLTV source binding, comprehensive favorites/history UI, packaging, updates, telemetry, and Ministra runtime support remain incomplete or planned.
 
 The baseline commit for this release state is `7896c9e5036d278b68ffc5e1cde35b8015415707` (`feat: add theme settings UI`).
+
+
+## Xtream/MAG normalized provider audit — 2026-08-16
+
+- Added provider-neutral `ProviderSession`, `AccountInfo`, `ServerInfo`, and `CatchupEvent` domain records with secret-free validation and exports.
+- Added explicit `AccountInfoProvider` and `ServerInfoProvider` application ports, runtime capability values, provider-resolution methods, and Xtream implementation through `user_info`/`server_info` response mappings.
+- Added deterministic API-client, translator, adapter, resolver, security-boundary, malformed-response, and sparse-metadata tests. Existing MAG capability declarations remain unchanged because the current MAG facade and authorized fixtures do not establish VOD, Series, or executable catch-up contracts.
+- Preserved the existing `PlayerPort`/libVLC boundary, provider credentials/keyring ownership, playback URL construction boundary, generation-safe workflows, and presentation architecture.
+- Full offscreen pytest with coverage, native Qt/player probe, Ruff, Black, mypy, and `git diff --check` pass.

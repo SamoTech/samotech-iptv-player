@@ -39,6 +39,27 @@ async def test_authenticate_accepts_active_user_response() -> None:
 
 
 @pytest.mark.asyncio
+async def test_account_and_server_info_return_object_records() -> None:
+    client = _client(
+        {
+            "user_info": {"auth": 1, "status": "Active"},
+            "server_info": {"server_protocol": "https", "version": "1.0"},
+        }
+    )
+
+    assert (await client.account_info())["status"] == "Active"
+    assert (await client.server_info())["version"] == "1.0"
+
+
+@pytest.mark.asyncio
+async def test_account_and_server_info_reject_missing_sections() -> None:
+    client = _client({"user_info": {"auth": 1}})
+
+    with pytest.raises(ProviderError):
+        await client.server_info()
+
+
+@pytest.mark.asyncio
 async def test_live_streams_returns_object_records() -> None:
     records = await _client([{"stream_id": 1, "name": "News"}]).live_streams()
 

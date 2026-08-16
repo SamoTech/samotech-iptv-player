@@ -38,6 +38,22 @@ class XtreamApiClient:
             "active",
         }
 
+    async def account_info(self) -> Mapping[str, object]:
+        """Return the validated non-secret ``user_info`` object."""
+        payload = await self._base_info()
+        user_info = payload.get("user_info")
+        if not isinstance(user_info, Mapping):
+            raise ProviderError("Xtream response must include user_info")
+        return user_info
+
+    async def server_info(self) -> Mapping[str, object]:
+        """Return the validated non-secret ``server_info`` object."""
+        payload = await self._base_info()
+        server_info = payload.get("server_info")
+        if not isinstance(server_info, Mapping):
+            raise ProviderError("Xtream response must include server_info")
+        return server_info
+
     async def live_streams(self) -> Sequence[Mapping[str, object]]:
         """Return raw live-stream records for canonical adapter translation."""
         return await self._stream_records("get_live_streams", "live-stream")
@@ -95,6 +111,12 @@ class XtreamApiClient:
         ):
             raise ProviderError("Xtream short-EPG response must include a list of objects")
         return cast("Sequence[Mapping[str, object]]", listings)
+
+    async def _base_info(self) -> Mapping[str, object]:
+        payload = await self._http_client.get_json(str(self._request_builder.player_api()))
+        if not isinstance(payload, Mapping):
+            raise ProviderError("Xtream base response must be an object")
+        return payload
 
     async def _stream_records(self, action: str, label: str) -> Sequence[Mapping[str, object]]:
         payload = await self._http_client.get_json(str(self._request_builder.player_api(action)))
