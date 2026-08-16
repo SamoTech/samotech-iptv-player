@@ -107,7 +107,6 @@ class XtreamDomainTranslator:
         """Map a VOD record returned by ``get_vod_streams`` to a canonical movie."""
         stream_id = XtreamDomainTranslator._required_text(raw, "stream_id")
         title = XtreamDomainTranslator._required_text(raw, "name")
-        poster = str(raw.get("stream_icon") or "").strip()
         return Movie(
             id=f"{provider_id.value}:{stream_id}",
             title=title,
@@ -118,9 +117,11 @@ class XtreamDomainTranslator:
                 )
             ),
             category_id=str(raw.get("category_id") or "").strip() or None,
-            poster_url=URL(poster) if poster else None,
-            year=XtreamDomainTranslator._optional_int(raw.get("year")),
-            rating=XtreamDomainTranslator._optional_float(
+            poster_url=XtreamDomainTranslator._optional_artwork(
+                raw.get("stream_icon"), title, "movie"
+            ),
+            year=XtreamDomainTranslator._optional_catalogue_int(raw.get("year")),
+            rating=XtreamDomainTranslator._optional_catalogue_float(
                 raw.get("rating") or raw.get("rating_5based")
             ),
             plot=str(raw.get("plot") or raw.get("description") or "").strip() or None,
@@ -131,13 +132,18 @@ class XtreamDomainTranslator:
         """Map a series record returned by ``get_series`` to a canonical series."""
         series_id = XtreamDomainTranslator._required_text(raw, "series_id")
         title = XtreamDomainTranslator._required_text(raw, "name")
-        poster = str(raw.get("cover") or raw.get("cover_big") or "").strip()
         return Series(
             id=f"{provider_id.value}:{series_id}",
             title=title,
             provider_id=provider_id,
             category_id=str(raw.get("category_id") or "").strip() or None,
-            poster_url=URL(poster) if poster else None,
+            poster_url=XtreamDomainTranslator._optional_artwork(
+                raw.get("cover") or raw.get("cover_big"), title, "series"
+            ),
+            year=XtreamDomainTranslator._optional_catalogue_int(raw.get("year")),
+            rating=XtreamDomainTranslator._optional_catalogue_float(
+                raw.get("rating") or raw.get("rating_5based")
+            ),
             plot=str(raw.get("plot") or "").strip() or None,
         )
 
@@ -349,3 +355,42 @@ class XtreamDomainTranslator:
             return float(str(value))
         except ValueError as exc:
             raise ValidationError("rating", "Xtream rating must be numeric") from exc
+
+    @staticmethod
+    def _optional_catalogue_int(value: object) -> int | None:
+        """Ignore malformed optional Movie/Series years without dropping the record."""
+        if value in (None, ""):
+            return None
+        try:
+            parsed = int(str(value))
+        except (TypeError, ValueError):
+            return None
+        return parsed if parsed > 0 else None
+
+    @staticmethod
+    def _optional_catalogue_float(value: object) -> float | None:
+        """Ignore malformed optional Movie/Series ratings without dropping the record."""
+        if value in (None, ""):
+            return None
+        try:
+            parsed = float(str(value))
+        except (TypeError, ValueError):
+            return None
+        return parsed if 0.0 <= parsed <= 10.0 else None
+
+    @staticmethod
+    def _optional_artwork(value: object, title: str, content_label: str) -> URL | None:
+        """Ignore malformed optional artwork while retaining the catalogue item."""
+        artwork = str(value or "").replace("\u00a0", " ").strip()
+        if not artwork:
+            return None
+        try:
+            return URL(artwork)
+        except ValidationError:
+            _LOG.warning(
+                "[IPTV][WARN] Provider content=%s Field=artwork Reason=invalid URL "
+                "Action=ignored Label=%s",
+                content_label,
+                XtreamDomainTranslator._safe_label(title),
+            )
+            return None

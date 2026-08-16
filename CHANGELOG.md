@@ -1,5 +1,11 @@
 # Changelog
 
+## Xtream synthetic compatibility hardening — 2026-08-16
+
+- Hardened Xtream Movie and Series translation for realistic optional-field variation: malformed year, rating, and artwork values are ignored safely while required identity remains validated; Series year and rating are now translated when present.
+- Added deterministic synthetic Xtream fixtures covering numeric/string IDs, default and varied extensions, missing/null optional fields, malformed optional metadata, empty seasons and episode lists, unknown fields, and unexpected detail shapes.
+- Real-provider validation remains separate: the previously authorized account authenticated but exposed zero VOD and Series records, so populated real Movie/Series playback remains unvalidated.
+
 ## Xtream VOD and Series hardening — 2026-08-16
 
 - Hardened the existing Xtream Movie and Series → Season → Episode flow with presentation-side provider/content/action freshness checks around asynchronous detail, discovery, and playback completions.
