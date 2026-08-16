@@ -26,7 +26,7 @@ from samotech_iptv.presentation.viewmodels.content_list_model import ContentList
 
 TOTAL = 39_753
 CONTENT_TOTAL = 5_000
-DYNAMIC_SIZES = (0, 1, 10, 100, 500, 1_000, 5_000, 17_431, TOTAL, 100_000)
+DYNAMIC_SIZES = (0, 1, 10, 100, 500, 1_000, 5_000, 10_000, 17_431, TOTAL, 50_000, 100_000)
 
 
 class FakeBrowse:

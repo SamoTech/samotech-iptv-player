@@ -16,9 +16,12 @@ class FakeHttpClient:
         self.payload = payload
         self.calls: list[str] = []
         self.fail = False
+        self.block: asyncio.Event | None = None
 
     async def get_bytes(self, url: str, *, max_bytes: int) -> bytes:
         self.calls.append(url)
+        if self.block is not None:
+            await self.block.wait()
         if self.fail:
             raise RuntimeError("network failure")
         if len(self.payload) > max_bytes:
@@ -95,6 +98,22 @@ async def test_artwork_loader_expires_entries_and_does_not_cache_failures() -> N
         "https://assets.example.test/movie.jpg",
         "https://assets.example.test/movie.jpg",
     ]
+
+
+@pytest.mark.asyncio
+async def test_artwork_loader_propagates_cancellation_without_caching() -> None:
+    client = FakeHttpClient()
+    client.block = asyncio.Event()
+    loader = BoundedArtworkLoader(client)
+
+    task = asyncio.create_task(loader.load(request()))
+    await asyncio.sleep(0)
+    task.cancel()
+
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert loader.cache_entries == 0
+    assert loader.cache_bytes == 0
 
 
 @pytest.mark.asyncio

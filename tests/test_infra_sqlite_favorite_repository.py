@@ -8,6 +8,7 @@ import pytest
 if TYPE_CHECKING:
     from pathlib import Path
 
+from samotech_iptv.core.exceptions import StorageError
 from samotech_iptv.domain.entities.favorite import Favorite
 from samotech_iptv.infrastructure.database.sqlite_favorite_repository import (
     SQLiteFavoriteRepository,
@@ -67,6 +68,45 @@ async def test_sqlite_favorite_repository_prevents_duplicate_provider_scoped_ite
     await repository.save(other_provider)
 
     assert [item.id for item in await repository.list_all()] == ["favorite-3", "favorite-1"]
+
+    restarted = SQLiteFavoriteRepository(tmp_path / "favorites.sqlite3")
+    await restarted.initialise()
+    assert [item.id for item in await restarted.list_all()] == ["favorite-3", "favorite-1"]
+
+
+@pytest.mark.asyncio
+async def test_sqlite_favorite_repository_tolerates_duplicate_rows_without_collapsing_identity(
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "duplicate.sqlite3"
+    import sqlite3
+
+    with sqlite3.connect(database) as connection:
+        connection.execute(
+            "CREATE TABLE favorites (id TEXT PRIMARY KEY, item_id TEXT NOT NULL, "
+            "item_type TEXT NOT NULL, added_at TEXT NOT NULL, provider_id TEXT)"
+        )
+        connection.executemany(
+            "INSERT INTO favorites VALUES (?, ?, ?, ?, ?)",
+            [
+                ("duplicate-1", "movie-1", "movie", "2026-08-12T00:00:00+00:00", "provider-a"),
+                ("duplicate-2", "movie-1", "movie", "2026-08-13T00:00:00+00:00", "provider-a"),
+            ],
+        )
+        connection.commit()
+
+    repository = SQLiteFavoriteRepository(database)
+    await repository.initialise()
+    assert [item.id for item in await repository.list_all()] == ["duplicate-2", "duplicate-1"]
+
+
+@pytest.mark.asyncio
+async def test_sqlite_favorite_repository_reports_corrupt_database(tmp_path: Path) -> None:
+    database = tmp_path / "corrupt.sqlite3"
+    database.write_bytes(b"not-a-sqlite-database")
+
+    with pytest.raises(StorageError):
+        await SQLiteFavoriteRepository(database).initialise()
 
 
 @pytest.mark.asyncio

@@ -47,8 +47,10 @@ def test_player_shell_39753_channel_performance_probe() -> None:
         "500",
         "1000",
         "5000",
+        "10000",
         "17431",
         "39753",
+        "50000",
         "100000",
     ]
     assert payload["dynamic_catalogue_results"]["0"]["clear_search_rows"] == 0
@@ -65,8 +67,10 @@ def test_player_shell_39753_channel_performance_probe() -> None:
             "500",
             "1000",
             "5000",
+            "10000",
             "17431",
             "39753",
+            "50000",
             "100000",
         ]
         assert family["0"]["clear_search_rows"] == 0
