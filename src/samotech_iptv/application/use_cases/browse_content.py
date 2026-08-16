@@ -81,6 +81,14 @@ class BrowseContent:
             year=movie.year,
             rating=movie.rating,
             plot=movie.plot,
+            duration_seconds=movie.duration_seconds,
+            genre=movie.genre,
+            director=movie.director,
+            cast=movie.cast,
+            country=movie.country,
+            release_date=movie.release_date,
+            backdrop_url=str(movie.backdrop_url) if movie.backdrop_url is not None else None,
+            container_extension=movie.container_extension,
         )
 
     @staticmethod
@@ -95,4 +103,8 @@ class BrowseContent:
             year=series.year,
             rating=series.rating,
             plot=series.plot,
+            genre=series.genre,
+            backdrop_url=str(series.backdrop_url) if series.backdrop_url is not None else None,
+            season_count=series.season_count,
+            episode_count=series.episode_count,
         )

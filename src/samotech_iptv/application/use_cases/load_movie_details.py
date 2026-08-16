@@ -53,4 +53,12 @@ class LoadMovieDetails:
             year=movie.year,
             rating=movie.rating,
             plot=movie.plot,
+            duration_seconds=movie.duration_seconds,
+            genre=movie.genre,
+            director=movie.director,
+            cast=movie.cast,
+            country=movie.country,
+            release_date=movie.release_date,
+            backdrop_url=movie.backdrop_url.value if movie.backdrop_url is not None else None,
+            container_extension=movie.container_extension,
         )

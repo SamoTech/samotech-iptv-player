@@ -28,6 +28,14 @@ class Movie:
     rating: float | None = None
     poster_url: URL | None = None
     plot: str | None = None
+    duration_seconds: int | None = None
+    genre: str | None = None
+    director: str | None = None
+    cast: str | None = None
+    country: str | None = None
+    release_date: str | None = None
+    backdrop_url: URL | None = None
+    container_extension: str | None = None
 
     def __post_init__(self) -> None:
         validate_catalogue_metadata(

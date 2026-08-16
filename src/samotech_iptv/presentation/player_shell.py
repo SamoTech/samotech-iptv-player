@@ -1116,7 +1116,9 @@ class PlayerShell(QWidget):
         )
         layout.addWidget(content_list, 1)
         detail = QLabel("No content selected")
-        detail.setObjectName("pageSubtitle")
+        detail.setObjectName("contentDetail")
+        detail.setWordWrap(True)
+        detail.setMinimumHeight(58)
         status = QLabel(f"No {title_text.lower()} loaded")
         status.setObjectName("pageSubtitle")
         layout.addWidget(detail)
@@ -1466,19 +1468,7 @@ class PlayerShell(QWidget):
         if 0 <= row < self.content_model.rowCount():
             self.selected_content = self.content_model.item_at(row)
             item = self.selected_content
-            metadata = " · ".join(
-                filter(
-                    None,
-                    (
-                        str(item.year) if item.year is not None else None,
-                        f"★ {item.rating:g}" if item.rating is not None else None,
-                        item.plot,
-                    ),
-                )
-            )
-            self._content_detail_labels[content_type].setText(
-                f"Selected · {item.title}" + (f" · {metadata}" if metadata else "")
-            )
+            self._select_content_metadata(content_type, item)
 
     def _activate_content_index(self, content_type: ContentType, index: QModelIndex) -> None:
         """Activate one safe non-live context through existing application use cases."""
@@ -1657,6 +1647,7 @@ class PlayerShell(QWidget):
                     series_id=episode.series_id,
                     season=episode.season,
                     episode_number=episode.episode_number,
+                    duration_seconds=episode.duration_seconds,
                     plot=episode.plot,
                 )
                 for episode in response.episodes
@@ -1762,20 +1753,49 @@ class PlayerShell(QWidget):
             activate_button.setText("Open series")
 
     def _select_content_metadata(self, content_type: ContentType, item: ContentItemDTO) -> None:
-        """Render safe local metadata without a provider call or resolved stream URL."""
-        metadata = " · ".join(
+        """Render a safe inline detail panel without provider calls or resolved URLs."""
+        kind = item.content_type.value.title()
+        identity = [kind, item.title]
+        if item.content_type is ContentType.EPISODE and item.season and item.episode_number:
+            identity.append(f"S{item.season:02d} E{item.episode_number:02d}")
+        summary = list(
             filter(
                 None,
                 (
                     str(item.year) if item.year is not None else None,
                     f"★ {item.rating:g}" if item.rating is not None else None,
-                    item.plot,
+                    item.genre,
+                    self._format_duration(item.duration_seconds),
+                    item.container_extension.upper() if item.container_extension else None,
                 ),
             )
         )
-        self._content_detail_labels[content_type].setText(
-            f"Selected · {item.title}" + (f" · {metadata}" if metadata else "")
-        )
+        if item.season_count is not None:
+            summary.append(f"{item.season_count} season(s)")
+        if item.episode_count is not None:
+            summary.append(f"{item.episode_count} episode(s)")
+        people = list(filter(None, (item.director, item.cast, item.country, item.release_date)))
+        lines = [" · ".join(identity)]
+        if summary:
+            lines.append(" · ".join(summary))
+        if people:
+            lines.append(" · ".join(people))
+        if item.plot:
+            lines.append(item.plot)
+        if item.poster_url or item.backdrop_url:
+            lines.append("Artwork available")
+        self._content_detail_labels[content_type].setText("\n".join(lines))
+
+    @staticmethod
+    def _format_duration(duration_seconds: int | None) -> str | None:
+        """Format optional duration without inventing a value for missing provider data."""
+        if duration_seconds is None or duration_seconds < 0:
+            return None
+        minutes, seconds = divmod(duration_seconds, 60)
+        if minutes >= 60:
+            hours, minutes = divmod(minutes, 60)
+            return f"{hours}h {minutes:02d}m"
+        return f"{minutes}m {seconds:02d}s"
 
     def _set_status_text(self, text: str) -> None:
         """Update the shell status and the visible player overlay together."""

@@ -147,24 +147,35 @@ class XtreamDomainTranslator:
         """Map a VOD record returned by ``get_vod_streams`` to a canonical movie."""
         stream_id = XtreamDomainTranslator._required_text(raw, "stream_id")
         title = XtreamDomainTranslator._required_text(raw, "name")
+        extension = XtreamDomainTranslator._container_extension(raw)
         return Movie(
             id=f"{provider_id.value}:{stream_id}",
             title=title,
             provider_id=provider_id,
-            stream_id=StreamId(
-                XtreamDomainTranslator.playback_resource(
-                    stream_id, XtreamDomainTranslator._container_extension(raw)
-                )
-            ),
+            stream_id=StreamId(XtreamDomainTranslator.playback_resource(stream_id, extension)),
             category_id=str(raw.get("category_id") or "").strip() or None,
             poster_url=XtreamDomainTranslator._optional_artwork(
-                raw.get("stream_icon"), title, "movie"
+                raw.get("stream_icon") or raw.get("movie_image") or raw.get("cover_big"),
+                title,
+                "movie",
             ),
             year=XtreamDomainTranslator._optional_catalogue_int(raw.get("year")),
             rating=XtreamDomainTranslator._optional_catalogue_float(
                 raw.get("rating") or raw.get("rating_5based")
             ),
             plot=str(raw.get("plot") or raw.get("description") or "").strip() or None,
+            duration_seconds=XtreamDomainTranslator._optional_duration(raw),
+            genre=XtreamDomainTranslator._optional_text(raw.get("genre")),
+            director=XtreamDomainTranslator._optional_text(raw.get("director")),
+            cast=XtreamDomainTranslator._optional_text(raw.get("cast") or raw.get("actors")),
+            country=XtreamDomainTranslator._optional_text(raw.get("country")),
+            release_date=XtreamDomainTranslator._optional_text(
+                raw.get("releasedate") or raw.get("release_date") or raw.get("releaseDate")
+            ),
+            backdrop_url=XtreamDomainTranslator._optional_backdrop(
+                raw.get("backdrop_path"), title, "movie"
+            ),
+            container_extension=extension,
         )
 
     @staticmethod
@@ -172,19 +183,37 @@ class XtreamDomainTranslator:
         """Map a series record returned by ``get_series`` to a canonical series."""
         series_id = XtreamDomainTranslator._required_text(raw, "series_id")
         title = XtreamDomainTranslator._required_text(raw, "name")
+        raw_seasons = raw.get("seasons")
+        raw_episodes = raw.get("episodes")
+        season_count = XtreamDomainTranslator._optional_catalogue_int(raw.get("season_count"))
+        if season_count is None and isinstance(raw_seasons, list):
+            season_count = len(raw_seasons) or None
+        episode_count = XtreamDomainTranslator._optional_catalogue_int(raw.get("episode_count"))
+        if episode_count is None and isinstance(raw_episodes, list):
+            episode_count = len(raw_episodes) or None
         return Series(
             id=f"{provider_id.value}:{series_id}",
             title=title,
             provider_id=provider_id,
             category_id=str(raw.get("category_id") or "").strip() or None,
             poster_url=XtreamDomainTranslator._optional_artwork(
-                raw.get("cover") or raw.get("cover_big"), title, "series"
+                raw.get("cover") or raw.get("cover_big") or raw.get("movie_image"),
+                title,
+                "series",
             ),
-            year=XtreamDomainTranslator._optional_catalogue_int(raw.get("year")),
+            year=XtreamDomainTranslator._optional_catalogue_int(
+                raw.get("year") or raw.get("releaseDate")
+            ),
             rating=XtreamDomainTranslator._optional_catalogue_float(
                 raw.get("rating") or raw.get("rating_5based")
             ),
             plot=str(raw.get("plot") or "").strip() or None,
+            genre=XtreamDomainTranslator._optional_text(raw.get("genre")),
+            backdrop_url=XtreamDomainTranslator._optional_backdrop(
+                raw.get("backdrop_path"), title, "series"
+            ),
+            season_count=season_count,
+            episode_count=episode_count,
         )
 
     @staticmethod
@@ -385,7 +414,10 @@ class XtreamDomainTranslator:
         value = raw.get("duration_secs") or raw.get("duration_seconds")
         if value in (None, ""):
             return None
-        return XtreamDomainTranslator._positive_int(value, "duration_seconds", allow_zero=True)
+        try:
+            return XtreamDomainTranslator._positive_int(value, "duration_seconds", allow_zero=True)
+        except ValidationError:
+            return None
 
     @staticmethod
     def _positive_int(value: object, field: str, *, allow_zero: bool = False) -> int:
@@ -438,9 +470,33 @@ class XtreamDomainTranslator:
         return parsed if 0.0 <= parsed <= 10.0 else None
 
     @staticmethod
+    def _optional_text(value: object) -> str | None:
+        """Normalize optional descriptive text while ignoring non-string payload noise."""
+        if value is None:
+            return None
+        text = str(value).strip()
+        return text or None
+
+    @staticmethod
+    def _first_artwork_value(value: object) -> str:
+        """Select the first usable artwork string from scalar or list-shaped payloads."""
+        if isinstance(value, (list, tuple)):
+            for candidate in value:
+                text = str(candidate or "").replace("\u00a0", " ").strip()
+                if text:
+                    return text
+            return ""
+        return str(value or "").replace("\u00a0", " ").strip()
+
+    @staticmethod
+    def _optional_backdrop(value: object, title: str, content_label: str) -> URL | None:
+        """Translate the first provider backdrop without requiring remote image loading."""
+        return XtreamDomainTranslator._optional_artwork(value, title, f"{content_label}-backdrop")
+
+    @staticmethod
     def _optional_artwork(value: object, title: str, content_label: str) -> URL | None:
         """Ignore malformed optional artwork while retaining the catalogue item."""
-        artwork = str(value or "").replace("\u00a0", " ").strip()
+        artwork = XtreamDomainTranslator._first_artwork_value(value)
         if not artwork:
             return None
         try:

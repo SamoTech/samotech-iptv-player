@@ -45,6 +45,16 @@ class ContentItemDTO:
     series_id: str | None = None
     season: int | None = None
     episode_number: int | None = None
+    duration_seconds: int | None = None
+    genre: str | None = None
+    director: str | None = None
+    cast: str | None = None
+    country: str | None = None
+    release_date: str | None = None
+    backdrop_url: str | None = None
+    container_extension: str | None = None
+    season_count: int | None = None
+    episode_count: int | None = None
 
 
 @dataclass(frozen=True)

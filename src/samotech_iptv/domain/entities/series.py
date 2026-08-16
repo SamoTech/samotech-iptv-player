@@ -26,6 +26,10 @@ class Series:
     rating: float | None = None
     poster_url: URL | None = None
     plot: str | None = None
+    genre: str | None = None
+    backdrop_url: URL | None = None
+    season_count: int | None = None
+    episode_count: int | None = None
 
     def __post_init__(self) -> None:
         validate_catalogue_metadata(
