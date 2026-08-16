@@ -43,6 +43,7 @@ if TYPE_CHECKING:
         RemoveProvider,
         UpdateProvider,
     )
+    from samotech_iptv.application.use_cases.record_history import RecordHistory
     from samotech_iptv.application.use_cases.refresh_xmltv_guide import RefreshXMLTVGuide
     from samotech_iptv.application.use_cases.register_m3u_provider import RegisterM3UProvider
     from samotech_iptv.application.use_cases.register_mag_provider import RegisterMAGProvider
@@ -111,6 +112,7 @@ def build_desktop_application(
     load_series_seasons: LoadSeriesSeasons | None = None,
     load_season_episodes: LoadSeasonEpisodes | None = None,
     artwork_loader: ArtworkPort | None = None,
+    record_history: RecordHistory | None = None,
 ) -> DesktopApplication:
     """Compose the Qt shell around externally configured registered-provider logic."""
     existing_application = QApplication.instance()
@@ -155,5 +157,6 @@ def build_desktop_application(
         load_series_seasons=load_series_seasons,
         load_season_episodes=load_season_episodes,
         artwork_loader=artwork_loader,
+        record_history=record_history,
     )
     return DesktopApplication(application=application, main_window=main_window)

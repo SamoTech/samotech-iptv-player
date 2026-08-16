@@ -159,6 +159,7 @@ async def build_production_desktop_application(
         player,
         record_history,
         provider_resolution_service,
+        history_repository=history_repository,
     )
     list_favorites = ListFavorites(favorite_repository)
     remove_favorite = RemoveFavorite(favorite_repository)
@@ -207,6 +208,7 @@ async def build_production_desktop_application(
         load_series_seasons=LoadSeriesSeasons(provider_resolution_service),
         load_season_episodes=LoadSeasonEpisodes(provider_resolution_service),
         artwork_loader=artwork_loader,
+        record_history=record_history,
     )
 
     async def close() -> None:

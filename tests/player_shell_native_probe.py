@@ -106,6 +106,73 @@ class FakeArtwork:
         return None
 
 
+class FakeControlPlayer:
+    """Application-level player double; no libVLC or provider URL access."""
+
+    def __init__(self) -> None:
+        self.position_ms = 30_000
+        self.duration_ms = 120_000
+        self.volume = 55
+        self.muted = False
+        self.seek_calls: list[int] = []
+
+    async def get_position_ms(self) -> int:
+        return self.position_ms
+
+    async def get_duration_ms(self) -> int:
+        return self.duration_ms
+
+    async def seek_ms(self, position_ms: int) -> None:
+        self.seek_calls.append(position_ms)
+        self.position_ms = position_ms
+
+    async def seek_fraction(self, position: float) -> None:
+        self.seek_calls.append(round(position * self.duration_ms))
+
+    async def get_volume(self) -> int:
+        return self.volume
+
+    async def set_volume(self, volume: int) -> None:
+        self.volume = volume
+
+    async def is_muted(self) -> bool:
+        return self.muted
+
+    async def set_muted(self, muted: bool) -> None:
+        self.muted = muted
+
+    async def get_audio_tracks(self) -> tuple[object, ...]:
+        return ()
+
+    async def select_audio_track(self, track_id: int) -> None:
+        return None
+
+    async def get_subtitle_tracks(self) -> tuple[object, ...]:
+        return ()
+
+    async def select_subtitle_track(self, track_id: int | None) -> None:
+        return None
+
+    async def restart(self) -> None:
+        self.position_ms = 0
+
+    async def get_aspect_ratio(self) -> str | None:
+        return None
+
+    async def set_aspect_ratio(self, aspect_ratio: str | None) -> None:
+        return None
+
+    state = SimpleNamespace(value="playing")
+    capabilities = SimpleNamespace(
+        current_position=True,
+        duration=True,
+        volume=True,
+        mute=True,
+        audio_tracks=True,
+        subtitle_tracks=True,
+    )
+
+
 class FakeProviders:
     def __init__(self, providers: tuple[ProviderMetadata, ...]) -> None:
         self.providers = providers
@@ -230,6 +297,7 @@ def make_shell(
     season_episodes: FakeSeasonEpisodes | None = None,
     artwork_loader: FakeArtwork | None = None,
     invalidate_pending_playback: object | None = None,
+    player_port: object | None = None,
 ) -> PlayerShell:
     return PlayerShell(
         QLabel(),
@@ -255,6 +323,7 @@ def make_shell(
         load_season_episodes=season_episodes,  # type: ignore[arg-type]
         artwork_loader=artwork_loader,  # type: ignore[arg-type]
         invalidate_pending_playback=invalidate_pending_playback,  # type: ignore[arg-type]
+        player_port=player_port,  # type: ignore[arg-type]
     )
 
 
@@ -330,6 +399,25 @@ async def main() -> None:
     await first
     assert stale_shell.channel_model.channel_at(0) is new
 
+    controls = FakeControlPlayer()
+    control_shell = make_shell(
+        FakeBrowse(), FakeSearch(), FakeFavorite(), play, player_port=controls
+    )
+    control_shell._active_playback_content_type = ContentType.MOVIE
+    control_shell._set_control_availability()
+    assert control_shell.seek_slider.isEnabled()
+    await control_shell._poll_playback_progress()
+    assert control_shell.elapsed_label.text() == "0:30"
+    assert control_shell.duration_label.text() == "2:00"
+    assert control_shell.seek_slider.value() == 250
+    control_shell._schedule_relative_seek(10)
+    await asyncio.sleep(0)
+    assert controls.seek_calls == [40_000]
+    control_shell._active_playback_content_type = ContentType.LIVE
+    control_shell._set_control_availability()
+    assert not control_shell.seek_slider.isEnabled()
+    assert control_shell.elapsed_label.text() == "LIVE"
+
     providers = FakeProviders(
         (ProviderMetadata("provider-a", "Provider A", "m3u", "https://safe.invalid", True),)
     )
@@ -359,6 +447,8 @@ async def main() -> None:
     switching_shell.provider_selector.setEditText("provider-b")
     switching_shell._provider_changed(0)
     assert invalidations == 2
+    assert switching_shell._active_playback_content_type is None
+    assert not switching_shell.back_10_button.isEnabled()
 
     category_shell = make_shell(
         FakeBrowse(),

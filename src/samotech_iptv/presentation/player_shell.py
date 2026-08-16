@@ -22,7 +22,9 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QListView,
+    QMenu,
     QPushButton,
+    QSlider,
     QSplitter,
     QStackedLayout,
     QStackedWidget,
@@ -58,6 +60,7 @@ if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable, Sequence
 
     from samotech_iptv.application.ports.artwork_port import ArtworkPort
+    from samotech_iptv.application.ports.player_port import PlayerPort
     from samotech_iptv.application.use_cases.browse_channels import BrowseChannels
     from samotech_iptv.application.use_cases.browse_content import BrowseContent
     from samotech_iptv.application.use_cases.list_providers import ListProviders
@@ -66,6 +69,7 @@ if TYPE_CHECKING:
     from samotech_iptv.application.use_cases.load_provider_capabilities import (
         LoadProviderCapabilities,
     )
+    from samotech_iptv.application.use_cases.record_history import RecordHistory
     from samotech_iptv.application.use_cases.save_favorite import SaveFavorite
     from samotech_iptv.application.use_cases.search_registered_channels import (
         SearchRegisteredChannels,
@@ -331,6 +335,8 @@ class PlayerShell(QWidget):
         load_season_episodes: LoadSeasonEpisodes | None = None,
         artwork_loader: ArtworkPort | None = None,
         invalidate_pending_playback: Callable[[], None] | None = None,
+        player_port: PlayerPort | None = None,
+        progress_recorder: RecordHistory | None = None,
     ) -> None:
         super().__init__()
         self.setObjectName("playerShell")
@@ -344,6 +350,8 @@ class PlayerShell(QWidget):
         self._load_season_episodes = load_season_episodes
         self._artwork_loader = artwork_loader
         self._invalidate_pending_playback = invalidate_pending_playback
+        self._player_port = player_port
+        self._progress_recorder = progress_recorder
         self._play_selected_channel = play_selected_channel
         self._search_channels = search_channels
         self._save_favorite = save_favorite
@@ -387,6 +395,9 @@ class PlayerShell(QWidget):
         self._non_live_generation = 0
         self._artwork_generation = 0
         self._active_non_live_action: tuple[ContentType, str, str] | None = None
+        self._active_playback_content_type: ContentType | None = None
+        self._control_poll_pending = False
+        self._last_persisted_progress: tuple[str, int, int] | None = None
         self._disposed = False
         settings = QSettings("SamoTech", "IPTVPlayer")
         self._sidebar_expanded = bool(settings.value("sidebar_expanded", True, type=bool))
@@ -398,6 +409,9 @@ class PlayerShell(QWidget):
         self._overlay_timer.setSingleShot(True)
         self._overlay_timer.setInterval(3500)
         self._overlay_timer.timeout.connect(self._hide_player_overlay)
+        self._progress_timer = QTimer(self)
+        self._progress_timer.setInterval(500)
+        self._progress_timer.timeout.connect(self._schedule_progress_poll)
         self._loading = False
         self.selected_channel: ChannelDTO | None = None
         self.playing_channel: ChannelDTO | None = None
@@ -497,6 +511,8 @@ class PlayerShell(QWidget):
         if self._player_overlay is not None:
             self._player_overlay.installEventFilter(self)
         video_surface.installEventFilter(self)
+        if self._player_port is not None:
+            self._progress_timer.start()
         self._set_sidebar_expanded(self._sidebar_expanded, persist=False)
         self._show_player_overlay()
 
@@ -577,6 +593,8 @@ class PlayerShell(QWidget):
         self.global_search_model.setStringList([])
         self._clear_series_navigation()
         self._active_content_type = ContentType.LIVE
+        self._active_playback_content_type = None
+        self._last_persisted_progress = None
         self._active_content_category_id = None
         self.selected_content = None
         self._clear_artwork_labels()
@@ -732,6 +750,25 @@ class PlayerShell(QWidget):
         self.overlay_status.setText(self.status_label.text())
         overlay_top.addWidget(self.overlay_status, 0)
         overlay_layout.addLayout(overlay_top)
+
+        progress_row = QHBoxLayout()
+        self.elapsed_label = QLabel("0:00")
+        self.elapsed_label.setAccessibleName("Elapsed playback time")
+        self.duration_label = QLabel("0:00")
+        self.duration_label.setAccessibleName("Playback duration")
+        self.seek_slider = QSlider(Qt.Orientation.Horizontal)
+        self.seek_slider.setRange(0, 1000)
+        self.seek_slider.setSingleStep(10)
+        self.seek_slider.setPageStep(100)
+        self.seek_slider.setAccessibleName("Playback seek position")
+        self.seek_slider.setToolTip("Seek within the current movie or episode")
+        self.seek_slider.sliderMoved.connect(self._preview_seek_position)
+        self.seek_slider.sliderReleased.connect(self._commit_seek_position)
+        progress_row.addWidget(self.elapsed_label, 0)
+        progress_row.addWidget(self.seek_slider, 1)
+        progress_row.addWidget(self.duration_label, 0)
+        overlay_layout.addLayout(progress_row)
+
         overlay_center = QHBoxLayout()
         overlay_center.addStretch(1)
         self.pause_button = QPushButton("Pause")
@@ -750,8 +787,72 @@ class PlayerShell(QWidget):
         overlay_center.addWidget(self.pause_button)
         overlay_center.addWidget(self.resume_button)
         overlay_center.addWidget(self.stop_button)
+        self.back_30_button = QPushButton("−30")
+        self.back_30_button.setAccessibleName("Seek backward thirty seconds")
+        self.back_30_button.clicked.connect(lambda: self._schedule_relative_seek(-30))
+        self.back_10_button = QPushButton("−10")
+        self.back_10_button.setAccessibleName("Seek backward ten seconds")
+        self.back_10_button.clicked.connect(lambda: self._schedule_relative_seek(-10))
+        self.forward_10_button = QPushButton("+10")
+        self.forward_10_button.setAccessibleName("Seek forward ten seconds")
+        self.forward_10_button.clicked.connect(lambda: self._schedule_relative_seek(10))
+        self.forward_30_button = QPushButton("+30")
+        self.forward_30_button.setAccessibleName("Seek forward thirty seconds")
+        self.forward_30_button.clicked.connect(lambda: self._schedule_relative_seek(30))
+        for button in (
+            self.back_30_button,
+            self.back_10_button,
+            self.forward_10_button,
+            self.forward_30_button,
+        ):
+            overlay_center.addWidget(button)
+        self.restart_button = QPushButton("Restart")
+        self.restart_button.setAccessibleName("Restart playback")
+        self.restart_button.setToolTip("Restart the current movie or episode")
+        self.restart_button.clicked.connect(self._schedule_restart)
+        overlay_center.addWidget(self.restart_button)
         overlay_center.addStretch(1)
         overlay_layout.addLayout(overlay_center)
+
+        controls_row = QHBoxLayout()
+        self.volume_label = QLabel("Volume")
+        self.volume_label.setAccessibleName("Volume label")
+        self.volume_slider = QSlider(Qt.Orientation.Horizontal)
+        self.volume_slider.setRange(0, 100)
+        self.volume_slider.setValue(100)
+        self.volume_slider.setMaximumWidth(150)
+        self.volume_slider.setAccessibleName("Playback volume")
+        self.volume_slider.setToolTip("Set playback volume")
+        self.volume_slider.valueChanged.connect(self._schedule_volume_change)
+        self.mute_button = QPushButton("Mute")
+        self.mute_button.setAccessibleName("Mute playback")
+        self.mute_button.setToolTip("Mute or unmute playback")
+        self.mute_button.clicked.connect(self._schedule_toggle_mute)
+        self.audio_button = QPushButton("Audio")
+        self.audio_button.setAccessibleName("Audio track menu")
+        self.audio_button.setToolTip("Choose a native audio track")
+        self.audio_button.clicked.connect(self._schedule_audio_menu)
+        self.subtitle_button = QPushButton("Subtitles")
+        self.subtitle_button.setAccessibleName("Subtitle track menu")
+        self.subtitle_button.setToolTip("Choose or disable native subtitles")
+        self.subtitle_button.clicked.connect(self._schedule_subtitle_menu)
+        self.aspect_button = QPushButton("Aspect")
+        self.aspect_button.setAccessibleName("Aspect ratio menu")
+        self.aspect_button.setToolTip("Choose a native aspect-ratio override")
+        self.aspect_button.clicked.connect(self._show_aspect_menu)
+        self.info_button = QPushButton("Info")
+        self.info_button.setAccessibleName("Playback diagnostics")
+        self.info_button.setToolTip("Show safe playback diagnostics")
+        self.info_button.clicked.connect(self._show_playback_info)
+        controls_row.addWidget(self.volume_label, 0)
+        controls_row.addWidget(self.volume_slider, 1)
+        controls_row.addWidget(self.mute_button, 0)
+        controls_row.addWidget(self.audio_button, 0)
+        controls_row.addWidget(self.subtitle_button, 0)
+        controls_row.addWidget(self.aspect_button, 0)
+        controls_row.addWidget(self.info_button, 0)
+        overlay_layout.addLayout(controls_row)
+
         overlay_bottom = QHBoxLayout()
         self.current_channel_label.setObjectName("pageSubtitle")
         overlay_bottom.addWidget(self.current_channel_label, 1)
@@ -763,6 +864,7 @@ class PlayerShell(QWidget):
         overlay_layout.addLayout(overlay_bottom)
         stage_layout.addWidget(self._player_overlay)
         player_layout.addWidget(self._player_stage, 1)
+        self._set_control_availability()
 
         catalogue_body = QSplitter(Qt.Orientation.Horizontal)
         catalogue_body.setChildrenCollapsible(False)
@@ -1228,6 +1330,18 @@ class PlayerShell(QWidget):
             self._toggle_fullscreen()
             event.accept()
             return
+        if key in (Qt.Key.Key_Left, Qt.Key.Key_J):
+            self._schedule_relative_seek(-10)
+            event.accept()
+            return
+        if key in (Qt.Key.Key_Right, Qt.Key.Key_L):
+            self._schedule_relative_seek(10)
+            event.accept()
+            return
+        if key == Qt.Key.Key_M:
+            self._schedule_toggle_mute()
+            event.accept()
+            return
         if key == Qt.Key.Key_Escape and self.window().isFullScreen():
             self.window().showNormal()
             event.accept()
@@ -1247,6 +1361,18 @@ class PlayerShell(QWidget):
                 return True
             if key == Qt.Key.Key_F:
                 self._toggle_fullscreen()
+                event.accept()
+                return True
+            if key in (Qt.Key.Key_Left, Qt.Key.Key_J):
+                self._schedule_relative_seek(-10)
+                event.accept()
+                return True
+            if key in (Qt.Key.Key_Right, Qt.Key.Key_L):
+                self._schedule_relative_seek(10)
+                event.accept()
+                return True
+            if key == Qt.Key.Key_M:
+                self._schedule_toggle_mute()
                 event.accept()
                 return True
             if key == Qt.Key.Key_Escape and self.window().isFullScreen():
@@ -1800,6 +1926,8 @@ class PlayerShell(QWidget):
                 )
             else:
                 return
+            self._active_playback_content_type = item.content_type
+            self._set_control_availability()
             result = await self._play_selected_channel(target)
             if not self._non_live_current(request_generation, provider_id, action):
                 return
@@ -1973,6 +2101,396 @@ class PlayerShell(QWidget):
             hours, minutes = divmod(minutes, 60)
             return f"{hours}h {minutes:02d}m"
         return f"{minutes}m {seconds:02d}s"
+
+    @property
+    def _is_seekable_mode(self) -> bool:
+        return self._active_playback_content_type in {
+            ContentType.MOVIE,
+            ContentType.EPISODE,
+        }
+
+    @staticmethod
+    def _format_playback_time(position_ms: int | None) -> str:
+        if position_ms is None or position_ms < 0:
+            return "--:--"
+        total_seconds = position_ms // 1_000
+        hours, remainder = divmod(total_seconds, 3_600)
+        minutes, seconds = divmod(remainder, 60)
+        if hours:
+            return f"{hours}:{minutes:02d}:{seconds:02d}"
+        return f"{minutes}:{seconds:02d}"
+
+    def _set_control_availability(self) -> None:
+        """Keep controls honest: live inputs never expose VOD seek or restart actions."""
+        has_player = self._player_port is not None
+        seekable = has_player and self._is_seekable_mode
+        for button in (
+            self.back_30_button,
+            self.back_10_button,
+            self.forward_10_button,
+            self.forward_30_button,
+            self.restart_button,
+            self.seek_slider,
+        ):
+            button.setEnabled(seekable)
+        self.audio_button.setEnabled(has_player)
+        self.subtitle_button.setEnabled(has_player)
+        self.aspect_button.setEnabled(has_player)
+        self.info_button.setEnabled(has_player)
+        self.volume_slider.setEnabled(has_player)
+        self.mute_button.setEnabled(has_player)
+        if not seekable:
+            self.seek_slider.blockSignals(True)
+            self.seek_slider.setValue(0)
+            self.seek_slider.blockSignals(False)
+            self.elapsed_label.setText(
+                "LIVE" if self._active_playback_content_type is ContentType.LIVE else "--:--"
+            )
+            self.duration_label.setText(
+                "LIVE" if self._active_playback_content_type is ContentType.LIVE else "--:--"
+            )
+
+    def _schedule_progress_poll(self) -> None:
+        if self._player_port is None or self._control_poll_pending or self._disposed:
+            return
+        self._control_poll_pending = True
+        create_owned_task(self, self._poll_playback_progress())
+
+    async def _poll_playback_progress(self) -> None:
+        try:
+            if self._player_port is None:
+                return
+            position_ms, duration_ms, volume, muted = await asyncio.gather(
+                self._player_port.get_position_ms(),
+                self._player_port.get_duration_ms(),
+                self._player_port.get_volume(),
+                self._player_port.is_muted(),
+            )
+            if (
+                self._is_seekable_mode
+                and duration_ms
+                and duration_ms > 0
+                and position_ms is not None
+            ):
+                fraction = max(0.0, min(1.0, position_ms / duration_ms))
+                self.seek_slider.blockSignals(True)
+                self.seek_slider.setValue(round(fraction * self.seek_slider.maximum()))
+                self.seek_slider.blockSignals(False)
+                self.elapsed_label.setText(self._format_playback_time(position_ms))
+                self.duration_label.setText(self._format_playback_time(duration_ms))
+            elif self._active_playback_content_type is ContentType.LIVE:
+                self.elapsed_label.setText("LIVE")
+                self.duration_label.setText("LIVE")
+            if self._is_seekable_mode and position_ms is not None and duration_ms is not None:
+                self._schedule_progress_persist(position_ms, duration_ms)
+            if volume is not None and not self.volume_slider.isSliderDown():
+                self.volume_slider.blockSignals(True)
+                self.volume_slider.setValue(max(0, min(100, volume)))
+                self.volume_slider.blockSignals(False)
+            if muted is not None:
+                self.mute_button.setText("Unmute" if muted else "Mute")
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            # Poll failures are transient and must not surface backend details or URLs.
+            return
+        finally:
+            self._control_poll_pending = False
+
+    def _schedule_progress_persist(self, position_ms: int, duration_ms: int) -> None:
+        if self._progress_recorder is None or self.selected_content is None:
+            return
+        if self._active_playback_content_type not in {ContentType.MOVIE, ContentType.EPISODE}:
+            return
+        position_seconds = max(0, position_ms // 1_000)
+        duration_seconds = max(0, duration_ms // 1_000)
+        identity = f"{self.selected_content.provider_id}:{self.selected_content.id}"
+        previous = self._last_persisted_progress
+        if previous is not None and previous[0] == identity:
+            if abs(position_seconds - previous[1]) < 5 and position_seconds < duration_seconds:
+                return
+        self._last_persisted_progress = (identity, position_seconds, duration_seconds)
+        create_owned_task(
+            self,
+            self._persist_progress(
+                provider_id=self.selected_content.provider_id,
+                item_id=self.selected_content.id,
+                item_type=(
+                    "movie"
+                    if self._active_playback_content_type is ContentType.MOVIE
+                    else "episode"
+                ),
+                position_seconds=position_seconds,
+                duration_seconds=duration_seconds,
+            ),
+        )
+
+    async def _persist_progress(
+        self,
+        *,
+        provider_id: str,
+        item_id: str,
+        item_type: str,
+        position_seconds: int,
+        duration_seconds: int,
+    ) -> None:
+        if self._progress_recorder is None:
+            return
+        try:
+            from samotech_iptv.application.dtos import RecordHistoryRequest
+
+            await self._progress_recorder.execute(
+                RecordHistoryRequest(
+                    provider_id=provider_id,
+                    item_id=item_id,
+                    item_type=item_type,
+                    duration_seconds=duration_seconds,
+                    position_seconds=position_seconds,
+                    completed=duration_seconds > 0 and position_seconds >= duration_seconds,
+                )
+            )
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            # Persistence failures are non-fatal and never disclose backend details.
+            return
+
+    def _preview_seek_position(self, slider_value: int) -> None:
+        if self._is_seekable_mode:
+            duration = self.duration_label.text()
+            if duration not in {"--:--", "LIVE"}:
+                self.elapsed_label.setToolTip(f"Preview position {slider_value / 10:.1f}%")
+
+    def _commit_seek_position(self) -> None:
+        if self._player_port is not None and self._is_seekable_mode:
+            fraction = self.seek_slider.value() / self.seek_slider.maximum()
+            create_owned_task(self, self._seek_fraction(fraction))
+
+    async def _seek_fraction(self, fraction: float) -> None:
+        if self._player_port is None or not self._is_seekable_mode:
+            return
+        try:
+            await self._player_port.seek_fraction(fraction)
+            self._set_status_text("● Seeking")
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            self._set_status_text("● Seek unavailable")
+
+    def _schedule_relative_seek(self, seconds: int) -> None:
+        if self._player_port is not None and self._is_seekable_mode:
+            create_owned_task(self, self._seek_relative(seconds))
+
+    async def _seek_relative(self, seconds: int) -> None:
+        if self._player_port is None or not self._is_seekable_mode:
+            return
+        try:
+            position_ms = await self._player_port.get_position_ms()
+            duration_ms = await self._player_port.get_duration_ms()
+            if position_ms is None:
+                raise RuntimeError("position unavailable")
+            target = max(0, position_ms + seconds * 1_000)
+            if duration_ms is not None:
+                target = min(target, max(0, duration_ms))
+            await self._player_port.seek_ms(target)
+            self._set_status_text("● Playing")
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            self._set_status_text("● Seek unavailable")
+
+    def _schedule_volume_change(self, volume: int) -> None:
+        if self._player_port is not None:
+            create_owned_task(self, self._set_volume(volume))
+
+    async def _set_volume(self, volume: int) -> None:
+        if self._player_port is None:
+            return
+        try:
+            await self._player_port.set_volume(volume)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            self._set_status_text("● Volume unavailable")
+
+    def _schedule_toggle_mute(self) -> None:
+        if self._player_port is not None:
+            create_owned_task(self, self._toggle_mute())
+
+    async def _toggle_mute(self) -> None:
+        if self._player_port is None:
+            return
+        try:
+            muted = await self._player_port.is_muted()
+            if muted is None:
+                raise RuntimeError("mute unavailable")
+            await self._player_port.set_muted(not muted)
+            self.mute_button.setText("Mute" if muted else "Unmute")
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            self._set_status_text("● Mute unavailable")
+
+    def _schedule_restart(self) -> None:
+        if self._player_port is not None and self._is_seekable_mode:
+            create_owned_task(self, self._restart_playback())
+
+    async def _restart_playback(self) -> None:
+        if self._player_port is None or not self._is_seekable_mode:
+            return
+        try:
+            await self._player_port.restart()
+            self._set_status_text("● Restarted")
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            self._set_status_text("● Restart unavailable")
+
+    def _schedule_audio_menu(self) -> None:
+        if self._player_port is not None:
+            create_owned_task(self, self._show_audio_menu())
+
+    async def _show_audio_menu(self) -> None:
+        if self._player_port is None:
+            return
+        menu = QMenu(self)
+        try:
+            tracks = await self._player_port.get_audio_tracks()
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            action = menu.addAction("Audio tracks unavailable")
+            action.setEnabled(False)
+            menu.popup(self.audio_button.mapToGlobal(self.audio_button.rect().bottomLeft()))
+            return
+        if not tracks:
+            action = menu.addAction("No native audio tracks")
+            action.setEnabled(False)
+        for track in tracks:
+            label = track.description or f"Track {track.id}"
+            if track.active:
+                label += " ✓"
+            action = menu.addAction(label)
+            action.triggered.connect(
+                lambda _checked=False, selected_id=track.id: create_owned_task(
+                    self, self._select_audio_track(selected_id)
+                )
+            )
+        menu.popup(self.audio_button.mapToGlobal(self.audio_button.rect().bottomLeft()))
+
+    async def _select_audio_track(self, track_id: int) -> None:
+        if self._player_port is None:
+            return
+        try:
+            await self._player_port.select_audio_track(track_id)
+            self._set_status_text("● Audio track changed")
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            self._set_status_text("● Audio track unavailable")
+
+    def _schedule_subtitle_menu(self) -> None:
+        if self._player_port is not None:
+            create_owned_task(self, self._show_subtitle_menu())
+
+    async def _show_subtitle_menu(self) -> None:
+        if self._player_port is None:
+            return
+        menu = QMenu(self)
+        off_action = menu.addAction("Subtitles off")
+        off_action.triggered.connect(
+            lambda _checked=False: create_owned_task(self, self._select_subtitle_track(None))
+        )
+        menu.addSeparator()
+        try:
+            tracks = await self._player_port.get_subtitle_tracks()
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            action = menu.addAction("Subtitle tracks unavailable")
+            action.setEnabled(False)
+            menu.popup(self.subtitle_button.mapToGlobal(self.subtitle_button.rect().bottomLeft()))
+            return
+        if not tracks:
+            action = menu.addAction("No native subtitle tracks")
+            action.setEnabled(False)
+        for track in tracks:
+            label = track.description or f"Track {track.id}"
+            if track.active:
+                label += " ✓"
+            action = menu.addAction(label)
+            action.triggered.connect(
+                lambda _checked=False, selected_id=track.id: create_owned_task(
+                    self, self._select_subtitle_track(selected_id)
+                )
+            )
+        menu.popup(self.subtitle_button.mapToGlobal(self.subtitle_button.rect().bottomLeft()))
+
+    async def _select_subtitle_track(self, track_id: int | None) -> None:
+        if self._player_port is None:
+            return
+        try:
+            await self._player_port.select_subtitle_track(track_id)
+            self._set_status_text("● Subtitles changed")
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            self._set_status_text("● Subtitle track unavailable")
+
+    def _show_aspect_menu(self) -> None:
+        menu = QMenu(self)
+        for label, value in (
+            ("Default", None),
+            ("1:1", "1:1"),
+            ("4:3", "4:3"),
+            ("5:4", "5:4"),
+            ("16:9", "16:9"),
+            ("16:10", "16:10"),
+            ("221:100", "221:100"),
+            ("4:5", "4:5"),
+        ):
+            action = menu.addAction(label)
+            action.triggered.connect(
+                lambda _checked=False, selected=value: create_owned_task(
+                    self, self._set_aspect_ratio(selected)
+                )
+            )
+        menu.popup(self.aspect_button.mapToGlobal(self.aspect_button.rect().bottomLeft()))
+
+    async def _set_aspect_ratio(self, aspect_ratio: str | None) -> None:
+        if self._player_port is None:
+            return
+        try:
+            await self._player_port.set_aspect_ratio(aspect_ratio)
+            self._set_status_text("● Aspect ratio changed")
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            self._set_status_text("● Aspect ratio unavailable")
+
+    def _show_playback_info(self) -> None:
+        if self._player_port is None:
+            return
+        state = getattr(self._player_port, "state", None)
+        state_value = getattr(state, "value", None) or "unknown"
+        capabilities = getattr(self._player_port, "capabilities", None)
+        supported = []
+        if capabilities is not None:
+            for name in (
+                "current_position",
+                "duration",
+                "volume",
+                "mute",
+                "audio_tracks",
+                "subtitle_tracks",
+            ):
+                if getattr(capabilities, name, False):
+                    supported.append(name.replace("_", " "))
+        mode = self._active_playback_content_type or "ready"
+        control_summary = ", ".join(supported) or "none"
+        summary = f"State: {state_value}; Mode: {mode}; Controls: {control_summary}"
+        self.playback_context_label.setToolTip(summary)
+        self._set_status_text("● Playback info ready")
 
     def _set_status_text(self, text: str) -> None:
         """Update the shell status and the visible player overlay together."""
@@ -2178,6 +2696,8 @@ class PlayerShell(QWidget):
         request_generation = self._request_generation
         provider_id = channel.provider_id
         self.selected_channel = channel
+        self._active_playback_content_type = ContentType.LIVE
+        self._set_control_availability()
         self.loading_channel = channel
         self.playback_error_channel = None
         self._update_channel_context()
@@ -2216,6 +2736,8 @@ class PlayerShell(QWidget):
         self.loading_channel = None
         self.playback_error_channel = None
         self.playing_channel = channel
+        self._active_playback_content_type = ContentType.LIVE
+        self._set_control_availability()
         self._update_channel_context()
         self._set_status_text("● Playing")
 
@@ -2227,6 +2749,7 @@ class PlayerShell(QWidget):
         """Invalidate non-live completions before the Qt owner is disposed."""
         self._disposed = True
         self._overlay_timer.stop()
+        self._progress_timer.stop()
         self._invalidate_non_live_requests()
         cancel_owned_tasks(self)
         super().closeEvent(event)  # type: ignore[arg-type]

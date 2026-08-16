@@ -41,6 +41,7 @@ if TYPE_CHECKING:
         RemoveProvider,
         UpdateProvider,
     )
+    from samotech_iptv.application.use_cases.record_history import RecordHistory
     from samotech_iptv.application.use_cases.refresh_xmltv_guide import RefreshXMLTVGuide
     from samotech_iptv.application.use_cases.register_m3u_provider import RegisterM3UProvider
     from samotech_iptv.application.use_cases.register_mag_provider import RegisterMAGProvider
@@ -118,7 +119,9 @@ class MainWindow(QMainWindow):
         load_series_seasons: LoadSeriesSeasons | None = None,
         load_season_episodes: LoadSeasonEpisodes | None = None,
         artwork_loader: ArtworkPort | None = None,
+        record_history: RecordHistory | None = None,
     ) -> None:
+
         super().__init__()
         self._register_xtream_provider = register_xtream_provider
         self._register_m3u_provider = register_m3u_provider
@@ -151,6 +154,8 @@ class MainWindow(QMainWindow):
         self._load_series_seasons = load_series_seasons
         self._load_season_episodes = load_season_episodes
         self._artwork_loader = artwork_loader
+        self._record_history = record_history
+        self._player = player
         self.video_surface = VlcVideoSurface(player)
         self.setWindowTitle("SamoTech IPTV Player")
         if hasattr(self, "setStyleSheet"):
@@ -273,6 +278,8 @@ class MainWindow(QMainWindow):
                 load_season_episodes=self._load_season_episodes,
                 artwork_loader=self._artwork_loader,
                 invalidate_pending_playback=self.invalidate_pending_playback,
+                player_port=self._player,
+                progress_recorder=self._record_history,
             )
             self.setCentralWidget(self.player_shell)
         except ImportError:
