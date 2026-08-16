@@ -39,4 +39,6 @@ class History:
             position_seconds=self.position_seconds,
             watched_percentage=self.watched_percentage,
             completed=self.completed,
+            started_at=self.started_at,
+            updated_at=self.updated_at,
         )
