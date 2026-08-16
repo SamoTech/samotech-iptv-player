@@ -5,7 +5,7 @@
 **Product:** SamoTech IPTV Player
 **Package version:** `0.1.0`
 **Current baseline:** The `main` revision containing the approved bounded Live EOF recovery and Windows validation increment; use `git rev-parse HEAD` for its immutable revision identifier.
-**Current product milestone:** Xtream VOD and Series workflow — **implemented and deterministically validated with synthetic variation fixtures; authorized real-Xtream runtime evidence remains partial/pending populated content**. Non-live PlayerShell handlers now reject stale provider/content/action generations, provider switches, navigation changes, duplicate actions, and disposed-owner completions before state or playback mutation. The prior bounded Live EOF recovery remains implemented, locally validated, and Windows-CI validated; its authorized Windows runtime gate remains pending.
+**Current product milestone:** Player 3 commercial hardening — **implemented and deterministically validated within the preserved Player 2 architecture; populated authorized Xtream runtime evidence remains not executed**. Xtream malformed/duplicate catalogue handling, MAG live categories, EPG metadata propagation, adjacent-episode controls, typed backend-state rendering, history timestamp invariants, and credential-free error taxonomy are covered by focused tests. Windows-native validation remains not executed in this Linux environment; the bounded Live EOF recovery remains unchanged.
 **Baseline verified:** 2026-08-15 UTC+03:00
 
 ## Product purpose
@@ -100,7 +100,7 @@ The work is intentionally presentation-scoped. It preserves the existing applica
 | EPG | Content type | **Partially Implemented** | MAG and Xtream provider EPG; safe application DTOs; Qt list grid; and registered-provider **local/file XMLTV** source binding with explicit channel mappings and manual refresh. | Adapter, use-case, bounded parser, local-source loader/service, SQLite binding repository, lifecycle-cleanup, and dialog tests. | Not applicable. | Remote/tokenized XMLTV sources, persistent guide-entry cache, scheduled refresh, source discovery, and catch-up linkage. |
 | Catch-up/archive | Content type | **Planned** | Capability term only. | No executable capability tests. | None. | Authorized provider fixtures, capability implementations, playback and UI design. |
 | Favorites | User library | **Partially Implemented** | Canonical record, SQLite repository, add-selected-channel action, save/list/remove use cases. | Domain, repository, use-case, and channel-browser coverage. | Not applicable. | Favorites screen/list/removal workflow and non-channel content policy. |
-| History | User library | **Partially Implemented** | Canonical record, SQLite repository, record/list/clear use cases; playback record invocation. | Domain, repository, and use-case coverage. | Not applicable. | History UI, accurate playback progress/state updates, resume behavior. |
+| History | User library | **Implemented / Bounded** | Provider-scoped canonical records, SQLite persistence, progress and completion fields, timestamp ordering validation, incomplete Movie/Episode resume restoration, record/list/clear use cases, and bounded library views. | Domain, repository, application, migration, and presentation coverage. | Not applicable. | Per-record deletion, direct replay/navigation, and populated-provider runtime acceptance. |
 
 ## Desktop, persistence, and security matrix
 
@@ -139,7 +139,7 @@ All deterministic gates are repeated before a handoff or commit decision. A succ
 3. Xtream now executes registered Movie and Episode stream-resolution/playback plus Series → Season → Episode navigation through narrow declared capabilities. The implementation has not yet been exercised against an authorized real Xtream provider. M3U and MAG/Stalker remain Live-only and do not claim non-live discovery or playback. Non-live search remains local over an explicitly loaded catalogue; it does not add a competing cache or server-side provider search path.
 4. MAG/Stalker supports the documented live-TV subset only. The adapter performs a bounded four-candidate discovery before normal session authentication and closes its owned aiohttp session/connector on discovery or authentication failure; a production portal remains unresolved unless one candidate returns a structurally valid token-bearing handshake. VOD, series, categories, archive, and catch-up are not represented as executable adapter capabilities.
 5. XMLTV is bound to one registered provider through an explicit local path or local `file:` URI and persisted source-channel mappings; a Qt dialog performs manual bounded refresh. Remote/tokenized XMLTV URLs, a programme-entry cache, scheduled refresh, source discovery, and catch-up linkage remain unimplemented.
-6. Favorites/history persistence exists, but full library management UI and resume behavior do not.
+6. Favorites/history persistence and bounded library views exist. Provider-scoped Movie/Episode progress, completion, and incomplete-record resume are implemented; per-record deletion and direct replay/navigation remain outside the current contract.
 7. Generic pause, resume, and stop actions are available through the existing player port with safe status feedback. The Live-only EOF controller is bounded and deterministic-test covered, but it still requires Windows-native and authorized Windows desktop validation and does not establish a native/libVLC/stream root-cause fix. Registered-provider edit/removal preserves blank credential fields and cleans keyring entries on removal, but confirmation UX, availability diagnostics, detailed player-state semantics, capability negotiation, tracks/subtitles, packaging, update delivery, crash reporting, diagnostics, performance profiling, and release automation are not complete.
 8. Ministra requires authorized fixtures and an approved device identity before client code may begin.
 
@@ -194,7 +194,7 @@ The runtime observation must distinguish normal Live playback, a failure that do
 
 **Delivered increment:** Registered providers can now configure one local path or local `file:` XMLTV source with explicit source-channel mappings. SQLite persists only that non-secret binding; manual refresh uses the bounded `defusedxml` parser and renders title/time rows through a Qt dialog. Provider removal deletes the associated binding. Remote/tokenized sources, cached programme persistence, scheduled refresh, and all playback paths remain excluded.
 
-**Next bounded task:** Complete the existing favorites/history user-library foundations with safe list, removal, and history views before considering resume or non-live playback behavior.
+**Next bounded task:** Validate the completed Player 3 hardening against an authorized populated Xtream account and a Windows-native environment; do not promote synthetic or Linux/offscreen evidence into those acceptance categories.
 
 ## Related documents
 
@@ -291,3 +291,22 @@ Player 2 is implemented across the preserved application, VLC infrastructure, Qt
 History now persists provider-scoped identity, runtime progress, watched percentage, lifecycle timestamps, and completion through a backward-compatible SQLite migration. Resume is restricted to incomplete Movie and Episode records with matching provider identity. Deterministic tests, source quality gates, offscreen PlayerShell probes, and 10K/50K/100K performance checkpoints pass.
 
 The Windows-only native VLC probe is **NOT EXECUTED** on Linux and reports an explicit platform skip. Populated authorized-provider acceptance is **NOT EXECUTED**. These remain open validation actions and are not converted into implementation claims. See [`docs/PLAYER_2_RUNTIME_VALIDATION.md`](docs/PLAYER_2_RUNTIME_VALIDATION.md) and [`PLAYER_2_FINAL_AUDIT.md`](PLAYER_2_FINAL_AUDIT.md).
+
+
+## Player 3 commercial hardening status — 2026-08-16
+
+Player 3 is **implemented and deterministically validated** within the preserved Player 2 architecture. The increment hardens individual-record tolerance in Xtream live/VOD/Series/Season/Episode translation, declares MAG live categories, preserves EPG description/category metadata with a bounded DTO list, adds provider-scoped adjacent-episode controls, maps typed backend states to safe presentation labels, enforces History timestamp ordering, and centralizes credential-free user error messages. No provider URL construction, credential access, libVLC import, qasync replacement, Live EOF recovery rewrite, or provider architecture rewrite was introduced.
+
+| Evidence area | Result | Claim boundary |
+|---|---|---|
+| Focused Player 3 regression suite | **PASS** | Modified domain, application, provider, presentation, migration, and synthetic-variation behavior passed. |
+| Isolated Qt concurrency/lifecycle matrix | **PASS** | Compatible Qt-heavy modules passed when run in isolated invocations; a combined offscreen invocation can segfault during cross-module Qt teardown and is not used as a product-failure claim. |
+| Performance probe | **PASS** | 39,753 live records, 5,000 content records, and dynamic catalogue sizes 0, 1, 10, 100, 500, 1,000, 5,000, 10,000, 17,431, 39,753, 50,000, and 100,000 were exercised. |
+| Changed-file security scan | **PASS** | No known authorized-provider literals or quoted secret assignments in changed source/docs; `git diff --check` passed. |
+| Linux native classification | **PASS / LIMITED** | PlayerShell native probe exited successfully; VLC lifecycle probe reported `SKIP reason=windows_required`; the environment has no VLC binary. |
+| Windows-native validation | **NOT EXECUTED** | The current environment is Linux. |
+| Populated authorized Xtream acceptance | **NOT EXECUTED** | No real-provider sequence was run in this session; synthetic fixtures are not promoted to provider evidence. |
+| MAG VOD/Series/Episodes | **NOT EXECUTED** | The authorized portal contract remains blocked before a compatible non-live capability can be claimed. |
+| Catch-up/archive | **NOT IMPLEMENTED** | No current provider advertises `ProviderCapability.CATCHUP`; no fake resolver or UI was added. |
+
+The authoritative detailed record is [PLAYER_3_FINAL_AUDIT.md](PLAYER_3_FINAL_AUDIT.md). The controlled real-provider procedure is [docs/PLAYER_3_REAL_PROVIDER_ACCEPTANCE.md](docs/PLAYER_3_REAL_PROVIDER_ACCEPTANCE.md), and the architecture/runtime evidence supplements are [docs/PLAYER_3_ARCHITECTURE.md](docs/PLAYER_3_ARCHITECTURE.md) and [docs/PLAYER_3_RUNTIME_VALIDATION.md](docs/PLAYER_3_RUNTIME_VALIDATION.md).

@@ -236,3 +236,16 @@ Populated real-provider acceptance remains **BLOCKED BY EVIDENCE** because no au
 Player 2 adds a typed player capability model, explicit playback state machine, evidence-backed position/duration/seek/volume/mute operations, native audio and subtitle track enumeration and selection, aspect ratio, restart, and safe error handling over the existing libVLC adapter. The PySide6 PlayerShell now exposes mode-aware commercial controls, Live-safe seek suppression, progress labels, relative seek actions, volume/mute, native track menus, fullscreen overlay behavior, keyboard shortcuts, diagnostics, and qasync-owned control tasks.
 
 History now stores provider-scoped identity, optional lifecycle timestamps, runtime progress, watched percentage, completion, and safely migrated SQLite columns. Movie and Episode resume restoration is provider-scoped and limited to incomplete records; Live history is never resumed or completed. Deterministic tests, native offscreen PlayerShell and performance probes, full source quality gates, and security review were executed in Linux. Windows native VLC and populated authorized-provider acceptance remain not executed.
+
+
+## 2026-08-16 — Player 3 commercial hardening
+
+Player 3 hardens the existing Player 2 implementation without rewriting provider adapters, MAG, M3U, Live EOF recovery, qasync, shared libVLC ownership, or the `PlaybackTarget` → `ResolvedPlayback` → `PlayerPort` path. Xtream translation now skips malformed and duplicate live/VOD/Series/Season/Episode records individually; MAG declares live categories; EPG description/category metadata is preserved with a bounded output; PlayerShell exposes provider-scoped adjacent-episode controls and typed backend-state labels; History validates timestamp ordering; and user-facing failures use a stable credential-free taxonomy.
+
+### Verification
+
+Focused regression tests, isolated Qt concurrency/lifecycle invocations, the native PlayerShell probe, the 39,753-live/5,000-content performance probe across required catalogue sizes through 100,000, the changed-file security scan, Ruff/Black/mypy checks, and `git diff --check` were executed for the Player 3 delivery. The combined offscreen Qt invocation remains unsuitable because cross-module Qt teardown can segfault; compatible Qt-heavy modules are therefore reported from isolated runs rather than falsely treated as a product defect.
+
+### Explicitly not claimed
+
+Catch-up/archive remains not implemented because no current provider advertises `ProviderCapability.CATCHUP`. Populated authorized Xtream acceptance was not executed. MAG VOD/Series/Episodes remain not executed because the authorized portal contract is unproven. Windows-native validation was not executed on Linux; the VLC lifecycle probe reports `SKIP reason=windows_required`. Credentials, tokens, cookies, resolved URLs, and raw provider payloads were not added to source, tests, documentation, reports, or commits.

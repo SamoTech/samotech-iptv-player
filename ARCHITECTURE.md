@@ -159,3 +159,18 @@ Player 2 extends the existing `PlaybackTarget` → `ResolvedPlayback` → `Playe
 `PlayerShell` receives the shared application `PlayerPort` and optional history recorder through dependency injection. It never imports libVLC, constructs provider URLs, accesses credentials, or resolves provider streams. Live, Movie, and Episode modes are separated at the presentation boundary; Live does not expose seek or resume. Provider switching and playback attempts retain generation guards, and the established Live EOF recovery policy remains unchanged.
 
 History storage now adds provider-scoped identity, nullable lifecycle timestamps, runtime progress, watched percentage, completion, and a backward-compatible SQLite migration. Resume is restored only for matching incomplete Movie/Episode history and only after successful play. Full design and runtime evidence are recorded in [`docs/PLAYER_2_ARCHITECTURE.md`](docs/PLAYER_2_ARCHITECTURE.md) and [`docs/PLAYER_2_RUNTIME_VALIDATION.md`](docs/PLAYER_2_RUNTIME_VALIDATION.md).
+
+
+## Player 3 commercial hardening architecture — 2026-08-16
+
+Player 3 extends the existing dependency direction without introducing a parallel provider or player architecture. The Xtream adapter and translator remain the only owners of Xtream payload interpretation, malformed-record policy, duplicate identity handling, and provider-specific request semantics. Invalid individual catalogue records are rejected locally; valid records continue through canonical domain entities and application DTOs. The MAG adapter remains live-oriented and now advertises `ProviderCapability.CATEGORIES` because its existing live category path is implemented and tested.
+
+The application boundary now preserves EPG `description` and `category` metadata in `EPGEntryDTO` and clamps the presentation-facing list to a bounded maximum. `PlayerShell` owns adjacent-episode selection and backend-state labels as presentation behavior. It delegates episode selection to the existing provider-scoped catalogue snapshot and schedules playback through the established use-case path; it does not resolve URLs, inspect libVLC, access secrets, or manufacture playback state. The backend label mapping consumes the typed public state exposed by the application/player port, including buffering and recovery states.
+
+History timestamp validation is enforced at the domain entity boundary. Safe user-facing error copy is centralized in `core.error_taxonomy` and is applied by registration, authentication, and stream-resolution use cases. These changes preserve the existing SQLite/keyring split, provider-scoped identity, qasync task ownership, generation guards, shared `PlayerPort`, libVLC-only playback, and bounded Live EOF recovery.
+
+Catch-up/archive remains intentionally outside the executable architecture: no current provider advertises `ProviderCapability.CATCHUP`, so no URL construction, fake archive model, or UI promise was added. MAG VOD/Series/Episodes remain outside the claim boundary until an authorized portal trace establishes a compatible contract. Windows native validation and populated authorized Xtream acceptance remain environment/provider acceptance gates rather than architectural assumptions.
+
+## Player 3 boundary references
+
+The implementation and evidence are recorded in [PLAYER_3_FINAL_AUDIT.md](../PLAYER_3_FINAL_AUDIT.md), [docs/PLAYER_3_REAL_PROVIDER_ACCEPTANCE.md](PLAYER_3_REAL_PROVIDER_ACCEPTANCE.md), the focused provider/application/presentation tests, and [docs/PLAYER_3_RUNTIME_VALIDATION.md](PLAYER_3_RUNTIME_VALIDATION.md). Public reference-study attribution remains in [README.md](../README.md) and does not change the source-ownership boundary.

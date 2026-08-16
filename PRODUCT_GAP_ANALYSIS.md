@@ -155,3 +155,25 @@ No new KiddaC-derived architecture, provider-side search, catch-up, track-select
 The commercial player gap is now closed for the evidence-backed libVLC surface: typed lifecycle state, position, duration, seek, volume, mute, native audio/subtitle tracks, aspect ratio, restart, fullscreen, overlay auto-hide, keyboard control, safe error copy, and Live/VOD/Episode separation are implemented. History/resume gaps are addressed for provider-scoped Movie and Episode records with safe SQLite migration, throttled runtime progress, completion, and incomplete-record restoration.
 
 The remaining gaps are validation or deliberately unsupported scope rather than hidden implementation claims. Windows native VLC execution is **NOT EXECUTED** in the Linux environment. Populated authorized-provider acceptance is **NOT EXECUTED**. Native track runtime evidence on Linux is blocked because the sandbox cannot load the native `libvlc_new` function; the Windows-only probe contains the method and local-media checks. Catch-up/archive, remote XMLTV caching, provider-specific non-live support outside the verified Xtream path, packaging, installers, and broader operational diagnostics remain future work.
+
+
+## Player 3 commercial hardening reconciliation — 2026-08-16
+
+The Player 3 gap review confirms that the highest-risk correctness and security gaps were addressed without changing the established provider architecture. Xtream now rejects malformed and duplicate records at individual catalogue boundaries; MAG declares its implemented live-category capability; EPG application DTOs retain safe descriptive metadata under a bounded list limit; PlayerShell adjacent-episode controls are provider-scoped and generation-safe; typed backend states render as safe labels; History rejects invalid timestamp order; and use cases expose stable credential-free error messages.
+
+| Capability | Updated classification | Evidence and remaining boundary |
+|---|---|---|
+| Xtream malformed/duplicate catalogue tolerance | **IMPLEMENTED** | Live, VOD, Series, Season, and Episode synthetic variations retain valid records and skip malformed/duplicate records with focused regression coverage. |
+| MAG live categories | **IMPLEMENTED / LIVE-ONLY** | `ProviderCapability.CATEGORIES` is declared and tested; MAG VOD, Series, Episodes, archive, and catch-up remain unclaimed. |
+| EPG metadata | **IMPLEMENTED / BOUNDED** | Description/category propagate into presentation DTOs and the output is clamped to 500 entries; remote XMLTV caching and scheduled refresh remain outside scope. |
+| Adjacent episode navigation | **IMPLEMENTED / PROVIDER-SCOPED** | Previous/next controls use the loaded canonical episode snapshot and existing playback path; no provider URL or credential access occurs in UI. |
+| Backend-state rendering | **IMPLEMENTED / PRESENTATION-SAFE** | Buffering, reconnecting/recovering, playing, paused, stopped, and error states map to safe labels from typed public state. |
+| History timestamp invariant | **IMPLEMENTED** | Domain validation rejects `updated_at < started_at`; resume/progress remains limited to the existing Player 2 Movie/Episode contract. |
+| Error taxonomy | **IMPLEMENTED** | Registration, authentication, and stream-resolution use cases map failures to stable user messages without raw exception/provider detail. |
+| Catalogue performance | **IMPLEMENTED / MEASURED** | Required dynamic sizes through 100,000, 39,753 live records, and 5,000 content records passed the deterministic probe. |
+| Catch-up/archive | **NOT IMPLEMENTED** | No current provider advertises `ProviderCapability.CATCHUP`; there is no evidence-backed provider-neutral resolver contract. |
+| Populated authorized Xtream | **NOT EXECUTED** | The controlled procedure exists, but no real-provider sequence was run for this delivery. |
+| MAG non-live | **NOT EXECUTED / BLOCKED BY EVIDENCE** | An authorized portal/session trace has not established a compatible VOD/Series/Episodes contract. |
+| Windows native | **NOT EXECUTED** | Linux environment; the Windows-only VLC probe reports `SKIP reason=windows_required`. |
+
+No additional cache, fake resume state, guessed track capability, raw timeshift URL, provider-specific UI shortcut, or alternate player backend was introduced merely to close a documentation gap. The remaining work is acceptance evidence, not a justification to bypass the architecture.
