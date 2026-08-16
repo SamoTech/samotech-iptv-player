@@ -657,3 +657,48 @@ async def test_immediate_initial_play_failure_behavior_is_preserved() -> None:
     assert player.calls == ["play", "stop", "play"]
     assert adapter._media_generation == 2
     await adapter.close()
+
+
+@pytest.mark.asyncio
+async def test_resolved_playback_passes_typed_transport_metadata_to_media() -> None:
+    """Transport data reaches libVLC only through the resolved playback boundary."""
+    from samotech_iptv.application.dtos.playback import (
+        ResolvedPlayback,
+        TransportHeader,
+        TransportMetadata,
+    )
+    from samotech_iptv.infrastructure.player.vlc_player_adapter import VlcPlayerAdapter
+
+    player = FakePlayer()
+    adapter = VlcPlayerAdapter(FakeInstance(player), player)
+    playback = ResolvedPlayback(
+        URL("https://stream.example.test/live.m3u8"),
+        TransportMetadata(
+            headers=(TransportHeader("X-Stream-Profile", "live"),),
+            user_agent="SamoTech-Test",
+            referrer="https://portal.example.test/",
+        ),
+    )
+
+    await adapter.play(playback)
+
+    assert player.media is not None
+    assert player.media.url == "https://stream.example.test/live.m3u8"
+    assert player.media.options == [
+        ":http-header=X-Stream-Profile: live",
+        ":http-user-agent=SamoTech-Test",
+        ":http-referrer=https://portal.example.test/",
+        ":network-caching=1000",
+    ]
+
+
+def test_transport_metadata_rejects_duplicate_or_line_break_headers() -> None:
+    from samotech_iptv.application.dtos.playback import TransportHeader, TransportMetadata
+    from samotech_iptv.core.exceptions import ValidationError
+
+    with pytest.raises(ValidationError):
+        TransportHeader("X-Test\n", "value")
+    with pytest.raises(ValidationError):
+        TransportMetadata(
+            headers=(TransportHeader("X-Test", "one"), TransportHeader("x-test", "two"))
+        )

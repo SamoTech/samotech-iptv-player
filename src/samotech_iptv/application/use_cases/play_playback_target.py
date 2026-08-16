@@ -8,6 +8,7 @@ from samotech_iptv.application.dtos.playback import (
     PlaybackOutcome,
     PlaybackResult,
     PlaybackTarget,
+    ResolvedPlayback,
 )
 from samotech_iptv.core.exceptions import ProviderError
 
@@ -18,7 +19,7 @@ if TYPE_CHECKING:
     )
     from samotech_iptv.application.ports.provider_resolver_port import ProviderResolverPort
     from samotech_iptv.application.use_cases.record_history import RecordHistory
-    from samotech_iptv.domain.value_objects.url import URL
+
 
 __all__ = ["PlaybackAttemptRegistry", "PlayPlaybackTarget"]
 
@@ -74,7 +75,7 @@ class PlayPlaybackTarget:
         if target.content_type is not ContentType.LIVE and self._non_live_provider_resolver is None:
             return PlaybackResult(attempt, PlaybackOutcome.UNSUPPORTED, "Playback is unavailable")
         try:
-            url, history_item_type = await self._resolve_target(target)
+            playback, history_item_type = await self._resolve_target(target)
         except Exception:
             if not self._attempts.is_current(attempt):
                 return PlaybackResult(attempt, PlaybackOutcome.STALE)
@@ -82,7 +83,7 @@ class PlayPlaybackTarget:
         if not self._attempts.is_current(attempt):
             return PlaybackResult(attempt, PlaybackOutcome.STALE)
         try:
-            await self._player.play(url)
+            await self._player.play(playback)
         except Exception:
             if not self._attempts.is_current(attempt):
                 return PlaybackResult(attempt, PlaybackOutcome.STALE)
@@ -103,7 +104,7 @@ class PlayPlaybackTarget:
                 raise ProviderError("Unable to record playback history") from exc
         return PlaybackResult(attempt, PlaybackOutcome.PLAYED)
 
-    async def _resolve_target(self, target: PlaybackTarget) -> tuple[URL, str]:
+    async def _resolve_target(self, target: PlaybackTarget) -> tuple[ResolvedPlayback, str]:
         """Resolve exactly one target type at its provider-to-player boundary."""
         if target.content_type is ContentType.LIVE:
             from samotech_iptv.domain.value_objects.channel_id import ChannelId

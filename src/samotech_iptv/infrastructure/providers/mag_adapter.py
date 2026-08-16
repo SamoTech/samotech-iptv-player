@@ -11,6 +11,7 @@ import asyncio
 import time
 from typing import TYPE_CHECKING, Literal, Protocol, TypeVar, cast
 
+from samotech_iptv.application.dtos.playback import ResolvedPlayback
 from samotech_iptv.application.ports.provider_capabilities import (
     AuthenticationProvider,
     CapabilityProvider,
@@ -40,7 +41,6 @@ if TYPE_CHECKING:
     from samotech_iptv.domain.entities.epg_entry import EPGEntry
     from samotech_iptv.domain.value_objects.channel_id import ChannelId
     from samotech_iptv.domain.value_objects.credential import Credential
-    from samotech_iptv.domain.value_objects.url import URL
     from samotech_iptv.infrastructure.providers.provider_context import ProviderContext
     from samotech_iptv.infrastructure.providers.provider_factory import ProviderFactory
     from samotech_iptv.infrastructure.providers.provider_metadata import (
@@ -241,7 +241,7 @@ class MagProviderAdapter(
         )
         return list(matches)[:limit]
 
-    async def resolve_stream(self, channel_id: ChannelId) -> URL:
+    async def resolve_stream(self, channel_id: ChannelId) -> ResolvedPlayback:
         """Resolve a playable URL for a MAG channel identifier."""
         started = time.perf_counter()
         _LOG.info("[IPTV] MAG STREAM_RESOLUTION provider_id=%s", self._meta.provider_id)
@@ -255,7 +255,7 @@ class MagProviderAdapter(
             self._meta.provider_id,
             time.perf_counter() - started,
         )
-        return resolved
+        return ResolvedPlayback.from_url(resolved)
 
     def _set_credential(self, credential: MagCredential) -> None:
         """Set the connection credential while rejecting identity changes in-session."""

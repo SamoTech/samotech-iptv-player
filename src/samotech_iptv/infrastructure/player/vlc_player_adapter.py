@@ -12,13 +12,14 @@ from typing import TYPE_CHECKING, Literal, Protocol
 
 import vlc  # type: ignore[import-untyped]
 
+from samotech_iptv.application.dtos.playback import ResolvedPlayback
 from samotech_iptv.application.ports.player_port import PlayerPort
 from samotech_iptv.core.logging import get_logger
+from samotech_iptv.domain.value_objects.url import URL
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from samotech_iptv.domain.value_objects.url import URL
 
 __all__ = ["VlcPlayerAdapter"]
 
@@ -120,7 +121,7 @@ class VlcPlayerAdapter(PlayerPort):
             raise ValueError("live recovery durations must not be negative")
         self._instance = instance or vlc.Instance()
         self._player = player or self._instance.media_player_new()
-        self._current_url: URL | None = None
+        self._current_playback: ResolvedPlayback | None = None
         self._recording_destination: Path | None = None
         self._playback_mode = playback_mode
         self._network_caching_ms = network_caching_ms
@@ -232,22 +233,24 @@ class VlcPlayerAdapter(PlayerPort):
         """Return whether the active libVLC media contains a recording output."""
         return self._recording_destination is not None
 
-    async def play(self, url: URL) -> None:
+    async def play(self, playback: ResolvedPlayback) -> None:
         """Stop prior media, then start one stream with bounded retry and diagnostics."""
+        if isinstance(playback, URL):
+            playback = ResolvedPlayback.from_url(playback)
         started = time.perf_counter()
         async with self._play_lock:
             self._event_loop = asyncio.get_running_loop()
             await self._invalidate_recovery(_PlaybackState.STARTING)
-            if self._current_url is not None or self.is_playing:
+            if self._current_playback is not None or self.is_playing:
                 _LOG.info("[IPTV] PLAYBACK STOPPED reason=channel_switch")
                 await self._invoke("stop", "channel_switch")
             _LOG.info("[IPTV] PLAYBACK START")
-            self._current_url = url
+            self._current_playback = playback
             last_error: Exception | None = None
             for attempt in range(self._play_retry_count + 1):
                 try:
                     await self._set_media_and_play(
-                        url,
+                        playback,
                         software_fallback=attempt > 0,
                         cause=("initial_start" if attempt == 0 else "immediate_play_failure"),
                     )
@@ -269,7 +272,7 @@ class VlcPlayerAdapter(PlayerPort):
                     await self._invoke("stop", "immediate_play_failure")
                     if attempt < self._play_retry_count:
                         _LOG.info("[IPTV] PLAYBACK RETRY retry=%d mode=software", attempt + 1)
-            self._current_url = None
+            self._current_playback = None
             self._state = _PlaybackState.FAILED
             if last_error is None:
                 raise RuntimeError("Unable to start playback")
@@ -280,7 +283,7 @@ class VlcPlayerAdapter(PlayerPort):
         async with self._play_lock:
             await self._invalidate_recovery(_PlaybackState.STOPPING, intentional=True)
             await self._invoke("stop", "explicit_stop")
-            self._current_url = None
+            self._current_playback = None
             self._recording_destination = None
             self._state = _PlaybackState.STOPPED
             _LOG.info("[IPTV] PLAYBACK STOPPED")
@@ -292,7 +295,7 @@ class VlcPlayerAdapter(PlayerPort):
                 return
             self._closed = True
             await self._invalidate_recovery(_PlaybackState.STOPPING, intentional=True)
-            self._current_url = None
+            self._current_playback = None
             self._recording_destination = None
             try:
                 await self._invoke("stop", "shutdown")
@@ -331,7 +334,7 @@ class VlcPlayerAdapter(PlayerPort):
     async def start_recording(self, destination: Path) -> None:
         """Restart active media with one libVLC display/file duplicate stream output."""
         async with self._play_lock:
-            if self._current_url is None or not self.is_playing:
+            if self._current_playback is None or not self.is_playing:
                 raise RuntimeError("Cannot record without active playback")
             if self._recording_destination is not None:
                 raise RuntimeError("Recording is already active")
@@ -342,7 +345,7 @@ class VlcPlayerAdapter(PlayerPort):
                 raise FileExistsError("Recording destination already exists")
             output_path.parent.mkdir(parents=True, exist_ok=True)
             await self._invalidate_recovery(_PlaybackState.STARTING, intentional=True)
-            media = self._new_media(self._current_url, software_fallback=False)
+            media = self._new_media(self._current_playback, software_fallback=False)
             media.add_option(self._recording_option(output_path))
             self._player.set_media(media)
             await self._invoke("play", "recording_restart")
@@ -351,11 +354,11 @@ class VlcPlayerAdapter(PlayerPort):
     async def stop_recording(self) -> None:
         """Restart active media without stream output while continuing normal playback."""
         async with self._play_lock:
-            if self._recording_destination is None or self._current_url is None:
+            if self._recording_destination is None or self._current_playback is None:
                 raise RuntimeError("No active recording")
             await self._invalidate_recovery(_PlaybackState.STARTING, intentional=True)
             await self._set_media_and_play(
-                self._current_url,
+                self._current_playback,
                 software_fallback=False,
                 cause="recording_restart",
             )
@@ -376,12 +379,12 @@ class VlcPlayerAdapter(PlayerPort):
 
     async def _set_media_and_play(
         self,
-        url: URL,
+        playback: ResolvedPlayback,
         *,
         software_fallback: bool = False,
         cause: _CommandCause,
     ) -> None:
-        media = self._new_media(url, software_fallback=software_fallback)
+        media = self._new_media(playback, software_fallback=software_fallback)
         if self._network_caching_ms:
             media.add_option(f":network-caching={self._network_caching_ms}")
         if self._playback_mode == "software" or (
@@ -421,7 +424,7 @@ class VlcPlayerAdapter(PlayerPort):
     def _is_current_live_session(self, media_generation: int, session_token: int) -> bool:
         return (
             not self._closed
-            and self._current_url is not None
+            and self._current_playback is not None
             and media_generation == self._media_generation
             and session_token == self._session_token
             and not self._intentional_action
@@ -430,7 +433,7 @@ class VlcPlayerAdapter(PlayerPort):
     def _is_current_session(self, media_generation: int, session_token: int) -> bool:
         return (
             not self._closed
-            and self._current_url is not None
+            and self._current_playback is not None
             and media_generation == self._media_generation
             and session_token == self._session_token
         )
@@ -555,13 +558,13 @@ class VlcPlayerAdapter(PlayerPort):
             async with self._play_lock:
                 if not self._is_current_live_session(failed_generation, session_token):
                     return
-                current_url = self._current_url
-                if current_url is None:
+                current_playback = self._current_playback
+                if current_playback is None:
                     return
                 try:
                     self._state = _PlaybackState.STARTING
                     await self._set_media_and_play(
-                        current_url,
+                        current_playback,
                         software_fallback=False,
                         cause="live_recovery",
                     )
@@ -659,13 +662,19 @@ class VlcPlayerAdapter(PlayerPort):
         if isinstance(result, int) and result < 0:
             raise RuntimeError(f"libVLC {operation} failed")
 
-    def _new_media(self, url: URL, *, software_fallback: bool) -> _VlcMedia:
+    def _new_media(self, playback: ResolvedPlayback, *, software_fallback: bool) -> _VlcMedia:
         """Create media while recording only aggregate playback configuration metadata."""
-        media = self._instance.media_new(url.value)
+        media = self._instance.media_new(playback.url.value)
         with self._diagnostic_lock:
             self._media_generation += 1
             self._media_created_at = time.perf_counter()
             media_generation = self._media_generation
+        for header in playback.transport.headers:
+            media.add_option(f":http-header={header.name}: {header.value}")
+        if playback.transport.user_agent is not None:
+            media.add_option(f":http-user-agent={playback.transport.user_agent}")
+        if playback.transport.referrer is not None:
+            media.add_option(f":http-referrer={playback.transport.referrer}")
         hardware_option = (
             "disabled"
             if self._playback_mode == "software"

@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
+from samotech_iptv.application.dtos.playback import ResolvedPlayback
 from samotech_iptv.core.logging import get_logger
 
 if TYPE_CHECKING:
     from samotech_iptv.application.ports.player_port import PlayerPort
     from samotech_iptv.application.ports.provider_capabilities import PlaybackProvider
+    from samotech_iptv.domain.value_objects.url import URL
 
 __all__ = ["PlayChannel"]
 
@@ -27,5 +29,9 @@ class PlayChannel:
         from samotech_iptv.domain.value_objects.channel_id import ChannelId
 
         _LOG.info("Resolving and playing channel %s", channel_id)
-        url = await self._provider.resolve_stream(ChannelId(channel_id))
-        await self._player.play(url)
+        playback = await self._provider.resolve_stream(ChannelId(channel_id))
+        await self._player.play(
+            playback
+            if isinstance(playback, ResolvedPlayback)
+            else ResolvedPlayback.from_url(cast("URL", playback))
+        )

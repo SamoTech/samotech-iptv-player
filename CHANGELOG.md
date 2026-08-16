@@ -1,5 +1,13 @@
 # Changelog
 
+## Phase 2 playback contract — 2026-08-16
+
+- Introduced the provider-neutral `PlaybackResource`, typed `TransportMetadata`, and ephemeral `ResolvedPlayback` contract.
+- Updated Xtream, M3U, and existing MAG resolution boundaries to return resolved playback objects while retaining provider URL construction, authentication, and session state inside infrastructure.
+- Updated the application player port and VLC adapter to consume resolved playback; supported typed headers, user-agent, and referrer metadata are translated into media options without changing existing caching, decoder, retry, recording, recovery, or lifecycle behavior.
+- Preserved Phase 1 stale-result protection and provider-switch invalidation, and added deterministic transport metadata and validation coverage.
+- No new M3U capabilities, MAG functionality, authentication behavior, persistence schema, or Phase 3+ work was introduced.
+
 ## Unreleased
 
 ### Added

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from samotech_iptv.application.dtos.playback import ResolvedPlayback
 from samotech_iptv.application.ports.provider_capabilities import (
     CapabilityProvider,
     CatalogProvider,
@@ -74,7 +75,7 @@ class M3UProviderAdapter(CatalogProvider, PlaybackProvider, SearchProvider, Capa
         """Load source text then translate it through the canonical M3U parser."""
         return (await self._load_playlist()).channels
 
-    async def resolve_stream(self, channel_id: ChannelId) -> URL:
+    async def resolve_stream(self, channel_id: ChannelId) -> ResolvedPlayback:
         """Resolve one parsed M3U channel through the supported player URL boundary."""
         playlist = await self._load_playlist()
         for channel in playlist.channels:
@@ -82,7 +83,7 @@ class M3UProviderAdapter(CatalogProvider, PlaybackProvider, SearchProvider, Capa
                 continue
             stream = playlist.stream_for(channel)
             try:
-                return URL(stream.url.value)
+                return ResolvedPlayback.from_url(URL(stream.url.value))
             except ValidationError as exc:
                 raise ProviderError("M3U channel has no supported playback URL") from exc
         raise ProviderError("M3U channel was not found")

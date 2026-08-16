@@ -66,8 +66,12 @@ from samotech_iptv.application.dtos.history import (
 from samotech_iptv.application.dtos.playback import (
     PlaybackAttempt,
     PlaybackOutcome,
+    PlaybackResource,
     PlaybackResult,
     PlaybackTarget,
+    ResolvedPlayback,
+    TransportHeader,
+    TransportMetadata,
 )
 from samotech_iptv.application.dtos.provider import (
     ProviderCapabilities,
@@ -112,7 +116,11 @@ __all__ = [
     "LoadSeriesSeasonsResponse",
     "LoadSeasonEpisodesRequest",
     "LoadSeasonEpisodesResponse",
+    "PlaybackResource",
     "PlaybackTarget",
+    "ResolvedPlayback",
+    "TransportHeader",
+    "TransportMetadata",
     "PlaybackAttempt",
     "PlaybackOutcome",
     "PlaybackResult",

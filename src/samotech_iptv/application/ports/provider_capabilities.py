@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
+    from samotech_iptv.application.dtos.playback import ResolvedPlayback
     from samotech_iptv.domain.entities.category import Category
     from samotech_iptv.domain.entities.channel import Channel
     from samotech_iptv.domain.entities.epg_entry import EPGEntry
@@ -34,7 +35,6 @@ if TYPE_CHECKING:
     from samotech_iptv.domain.value_objects.credential import Credential
     from samotech_iptv.domain.value_objects.provider_capability import ProviderCapability
     from samotech_iptv.domain.value_objects.provider_id import ProviderId
-    from samotech_iptv.domain.value_objects.url import URL
 
 __all__ = [
     "AuthenticationProvider",
@@ -143,7 +143,7 @@ class MoviePlaybackProvider(ABC):
     """Capability: resolve one canonical movie only at the provider-to-player boundary."""
 
     @abstractmethod
-    async def resolve_movie_stream(self, movie_id: str, resource_id: str) -> URL:
+    async def resolve_movie_stream(self, movie_id: str, resource_id: str) -> ResolvedPlayback:
         """Return a playable URL for a validated opaque movie identity."""
         ...
 
@@ -166,7 +166,7 @@ class EpisodePlaybackProvider(ABC):
     """Capability: resolve one canonical episode only at the provider-to-player boundary."""
 
     @abstractmethod
-    async def resolve_episode_stream(self, episode_id: str, resource_id: str) -> URL:
+    async def resolve_episode_stream(self, episode_id: str, resource_id: str) -> ResolvedPlayback:
         """Return a playable URL for a validated opaque episode identity."""
         ...
 
@@ -198,7 +198,7 @@ class PlaybackProvider(ABC):
     """Capability: resolve a playable stream URL for a channel."""
 
     @abstractmethod
-    async def resolve_stream(self, channel_id: ChannelId) -> URL:
+    async def resolve_stream(self, channel_id: ChannelId) -> ResolvedPlayback:
         """Return a playable URL for the given channel."""
         ...
 

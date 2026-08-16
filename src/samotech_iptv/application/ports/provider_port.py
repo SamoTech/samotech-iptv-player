@@ -13,12 +13,12 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
+    from samotech_iptv.application.dtos.playback import ResolvedPlayback
     from samotech_iptv.domain.entities.channel import Channel
     from samotech_iptv.domain.entities.epg_entry import EPGEntry
     from samotech_iptv.domain.value_objects.channel_id import ChannelId
     from samotech_iptv.domain.value_objects.credential import Credential
     from samotech_iptv.domain.value_objects.provider_id import ProviderId
-    from samotech_iptv.domain.value_objects.url import URL
 
 __all__ = ["ProviderPort"]
 
@@ -41,7 +41,7 @@ class ProviderPort(ABC):
     async def load_channels(self) -> Sequence[Channel]: ...
 
     @abstractmethod
-    async def resolve_stream(self, channel_id: ChannelId) -> URL: ...
+    async def resolve_stream(self, channel_id: ChannelId) -> ResolvedPlayback: ...
 
     @abstractmethod
     async def load_epg(self, channel_id: ChannelId) -> Sequence[EPGEntry]: ...

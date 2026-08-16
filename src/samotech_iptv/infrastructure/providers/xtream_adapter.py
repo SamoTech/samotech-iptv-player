@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import TYPE_CHECKING
 
+from samotech_iptv.application.dtos.playback import ResolvedPlayback
 from samotech_iptv.application.ports.provider_capabilities import (
     AuthenticationProvider,
     CapabilityProvider,
@@ -149,13 +150,15 @@ class XtreamProviderAdapter(
         client = await self._stored_client()
         return XtreamDomainTranslator.categories(await client.series_categories(), self.provider_id)
 
-    async def resolve_stream(self, channel_id: ChannelId) -> URL:
+    async def resolve_stream(self, channel_id: ChannelId) -> ResolvedPlayback:
         """Resolve an owned live channel to its validated Xtream playback URL."""
         client = await self._stored_client()
         stream_id = self._stream_id_for(channel_id)
         for record in await client.live_streams():
             if str(record.get("stream_id") or "").strip() == stream_id:
-                return client.live_stream_url(stream_id, self._live_extension(record))
+                return ResolvedPlayback.from_url(
+                    client.live_stream_url(stream_id, self._live_extension(record))
+                )
         raise ValidationError("channel_id", "Xtream live channel is not available")
 
     async def load_epg(self, channel_id: ChannelId) -> Sequence[EPGEntry]:
@@ -181,12 +184,14 @@ class XtreamProviderAdapter(
             for record in await client.series()
         ]
 
-    async def resolve_movie_stream(self, movie_id: str, resource_id: str) -> URL:
+    async def resolve_movie_stream(self, movie_id: str, resource_id: str) -> ResolvedPlayback:
         """Resolve one provider-owned opaque movie descriptor to a playback URL."""
         stream_id, extension = XtreamDomainTranslator.split_playback_resource(resource_id)
         if movie_id != f"{self.provider_id.value}:{stream_id}":
             raise ValidationError("movie_id", "movie does not belong to this Xtream provider")
-        return (await self._stored_client()).vod_stream_url(stream_id, extension)
+        return ResolvedPlayback.from_url(
+            (await self._stored_client()).vod_stream_url(stream_id, extension)
+        )
 
     async def load_movie_details(self, movie_id: str) -> Movie:
         """Load one owned Xtream VOD detail record through the shared client."""
@@ -218,11 +223,13 @@ class XtreamProviderAdapter(
         detail = await (await self._stored_client()).series_info(raw_series_id)
         return XtreamDomainTranslator.episodes(detail, series_id, season_number)
 
-    async def resolve_episode_stream(self, episode_id: str, resource_id: str) -> URL:
+    async def resolve_episode_stream(self, episode_id: str, resource_id: str) -> ResolvedPlayback:
         """Resolve one provider-owned opaque episode descriptor to a playback URL."""
         self._raw_owned_id(episode_id, "episode_id")
         stream_id, extension = XtreamDomainTranslator.split_playback_resource(resource_id)
-        return (await self._stored_client()).episode_stream_url(stream_id, extension)
+        return ResolvedPlayback.from_url(
+            (await self._stored_client()).episode_stream_url(stream_id, extension)
+        )
 
     async def search_channels(self, query: str, limit: int = 100) -> Sequence[Channel]:
         """Search retrieved canonical live channels locally without exposing provider DTOs."""

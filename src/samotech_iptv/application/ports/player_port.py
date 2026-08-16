@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from samotech_iptv.domain.value_objects.url import URL
+    from samotech_iptv.application.dtos.playback import ResolvedPlayback
 
 __all__ = ["PlayerPort"]
 
@@ -17,7 +17,7 @@ class PlayerPort(ABC):
     """Contract for the libVLC media-player backend."""
 
     @abstractmethod
-    async def play(self, url: URL) -> None: ...
+    async def play(self, playback: ResolvedPlayback) -> None: ...
 
     @abstractmethod
     async def stop(self) -> None: ...
