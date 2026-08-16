@@ -52,3 +52,10 @@ Additional research reviewed MIT `chazlarson/py-xtream-codes`, GPL-3.0 `superolm
 ## References
 
 See [KIDDAC_TECHNOLOGY_GAP_MATRIX.md](../KIDDAC_TECHNOLOGY_GAP_MATRIX.md) and the source-linked findings in `/home/ubuntu/kiddac_estalker_forensic_findings.md`, `/home/ubuntu/kiddac_xstreamity_forensic_findings.md`, and `/home/ubuntu/kiddac_external_research_findings.md`.
+
+
+## Current audit increment — 2026-08-16
+
+A follow-up product audit compared the source trace with public sanitized Xtream API documentation and typed client references. Those references corroborate the existing SamoTech choices: account/server metadata, live/VOD/Series category and detail actions, short EPG, nested seasons/episodes, opaque stream identifiers with container extensions, and defensive handling of provider response variation. One public API reference explicitly documents duplicate keys, content-dependent fields, inconsistent date/timestamp forms, numbered-object arrays, and base64 fields; this supports defensive translation rather than a rigid universal schema.
+
+The only production change selected from this review was no new provider code. Deterministic tests now cover an expired account versus an active zero-content account and a safe unusual `webm` container extension. The adapter/client/translator already provide the appropriate boundary. Public GitHub metadata for EStalker and XStreamity exposed no SPDX license, and the inspected trees exposed no tracked root license file; README acknowledgment therefore avoids any claim of permission or code-reuse rights.

@@ -98,7 +98,7 @@ The `domain` package contains framework-independent business records and validat
 
 ## Current implementation status and limitation
 
-The dependency-wiring, launch-lifecycle, primary registered live-stream, provider-management, XMLTV, and user-library foundations are now delivered: `build_production_desktop_application()` initializes safe SQLite state, restores provider metadata, constructs provider services and use cases, loads the persisted theme, and shares one libVLC player with the Qt shell; `samotech-iptv` and `python -m samotech_iptv` invoke that graph, run qasync, report startup failure generically, and close the shared HTTP resource; M3U, Xtream, and MAG resolve supported HTTP(S) live streams through the registered-provider path. The player also contains bounded, Live-only EOF recovery with deterministic local coverage; it is a mitigation rather than a root-cause claim, and native Windows/authorized-provider runtime confirmation remains pending. Favorites and History are now user-testable at their bounded library-view scope; replay/resume and non-live catalogue workflows remain future work.
+The dependency-wiring, launch-lifecycle, registered live-stream, provider-management, XMLTV, user-library, and Xtream non-live foundations are now delivered: `build_production_desktop_application()` initializes safe SQLite state, restores provider metadata, constructs provider services and use cases, loads the persisted theme, and shares one libVLC player with the Qt shell; `samotech-iptv` and `python -m samotech_iptv` invoke that graph, run qasync, report startup failure generically, and close the shared HTTP resource. M3U, Xtream, and MAG resolve supported HTTP(S) live streams through the registered-provider path, while Xtream Movie and Episode targets resolve through the same provider-neutral playback path and Series navigation remains container-only. The player also contains bounded, Live-only EOF recovery with deterministic local coverage; it is a mitigation rather than a root-cause claim, and native Windows/authorized-provider runtime confirmation remains pending. Favorites and History are user-testable at their bounded library-view scope; replay/resume and populated authorized real-Xtream runtime evidence remain pending.
 
 The detailed prioritization is maintained in [PRODUCT_GAP_ANALYSIS.md](PRODUCT_GAP_ANALYSIS.md). MAG protocol scope and compatibility evidence are documented in [docs/MAG_PROTOCOL.md](docs/MAG_PROTOCOL.md), [docs/MAG_FIRMWARE_COMPATIBILITY.md](docs/MAG_FIRMWARE_COMPATIBILITY.md), and [docs/MAG_TEST_LAB.md](docs/MAG_TEST_LAB.md).
 
@@ -206,6 +206,14 @@ Inspect → Implement → Test → Quality gate → Commit → Push main → Ver
 ```
 
 No feature branches or pull requests are used unless explicitly requested. Every change must pass the quality gate and must not include secrets or knowingly broken code. Contribution guidance is in [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Acknowledgements
+
+SamoTech IPTV Player would like to thank **KiddaC** for the engineering work behind [EStalker](https://github.com/kiddac/EStalker) and [XStreamity](https://github.com/kiddac/XStreamity).
+
+These publicly available projects were studied as technical and engineering references to better understand practical IPTV technologies and patterns, including Xtream/Stalker workflows, catalogue handling, Series/Season/Episode navigation, provider behavior, playback resolution, and related engineering concerns. SamoTech is an independent project and is **not a clone of EStalker or XStreamity**. Their Enigma2-specific application architecture, UI, global state model, service/decoder APIs, and legacy persistence model were not adopted as SamoTech architecture.
+
+The relevant concepts were evaluated and adapted only where they fit SamoTech’s own Python, domain/application, PySide6, qasync, and libVLC architecture. No external source code from EStalker or XStreamity was copied into the implementation. The repositories did not expose an SPDX license in the inspected GitHub metadata or a tracked root license file; this acknowledgment makes no claim of permission, endorsement, partnership, ownership, or code-reuse rights. Readers should respect the original projects and any license or attribution terms they publish.
 
 ## License
 

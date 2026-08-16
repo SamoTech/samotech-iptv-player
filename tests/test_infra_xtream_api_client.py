@@ -39,6 +39,17 @@ async def test_authenticate_accepts_active_user_response() -> None:
 
 
 @pytest.mark.asyncio
+async def test_authentication_distinguishes_expired_from_zero_content_accounts() -> None:
+    expired = _client({"user_info": {"auth": 0, "status": "Expired"}})
+    zero_content_active = _client({"user_info": {"auth": 1, "status": "Active"}})
+
+    assert await expired.authenticate() is False
+    assert await zero_content_active.authenticate() is True
+    assert await _client([]).vod_streams() == []
+    assert await _client([]).series() == []
+
+
+@pytest.mark.asyncio
 async def test_account_and_server_info_return_object_records() -> None:
     client = _client(
         {

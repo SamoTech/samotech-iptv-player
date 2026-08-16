@@ -175,3 +175,12 @@ The baseline commit for this release state is `7896c9e5036d278b68ffc5e1cde35b801
 - Added an opt-in local Movie/Series catalogue sort selector for provider order, title A–Z, newest-first, and rating ordering. The default preserves provider response order and all choices operate only on already-loaded canonical content.
 - Added deterministic native Qt coverage for the new sort behavior and retained large-catalogue identity/performance coverage through 100,000 content records.
 - Documented rejected legacy behavior, external-source licenses, catch-up limitations, MAG production evidence limits, and the unchanged PlayerPort/libVLC and Live EOF recovery boundaries.
+
+
+## Product-hardening reference study — 2026-08-16
+
+- Completed a source-level workflow trace and gap audit against public EStalker and XStreamity engineering patterns while preserving SamoTech’s provider, qasync, PySide6, SQLite/keyring, `ResolvedPlayback`, `PlayerPort`, shared libVLC, and Live-only recovery boundaries.
+- Added sanitized Xtream API-client coverage distinguishing expired authentication from an active account with zero VOD/Series content, plus a safe unusual `webm` container-extension fixture.
+- Added README acknowledgment linking [EStalker](https://github.com/kiddac/EStalker) and [XStreamity](https://github.com/kiddac/XStreamity). The projects were studied as public technical references only; no external source code was copied, no dependency was added, and no permission, endorsement, partnership, ownership, or license claim was inferred where GitHub metadata exposed no SPDX license or tracked root license file.
+- Reconciled stale product-gap claims with the verified Xtream Movie/Episode and Series discovery paths, bounded Favorites/History library workflows, local search/category/sort behavior, and the remaining authorized-runtime and contract-gated limitations.
+- Focused verification passed with 75 tests, the native PlayerShell probe, and the 100,000-record local catalogue performance probe. The full repository quality gate remains the final pre-commit verification.

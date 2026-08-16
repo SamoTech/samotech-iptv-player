@@ -112,3 +112,14 @@ Xtream retains the existing Live, VOD, Series, detail, episode, EPG, search, and
 
 
 The non-live catalogue controls also expose an opt-in local sort selector for provider order, title, year, and rating. Sorting is performed over the already-loaded canonical DTO snapshot after category/search filtering; the default preserves provider response order. It issues no network request, changes no provider contract, and leaves Series season/episode navigation and PlayerPort handoff unchanged.
+
+
+## Product-hardening adaptation — 2026-08-16
+
+The current implementation was audited against public EStalker and XStreamity engineering patterns without importing their Enigma2 UI, global playlist state, service references, decoder APIs, credential persistence, or provider-specific legacy behavior. The safe adaptation retained SamoTech’s existing capability-gated provider resolver, canonical domain records, qasync task ownership, generation-safe non-live flows, SQLite/keyring split, `ResolvedPlayback` handoff, PySide6 shell, and libVLC-only `PlayerPort`.
+
+The only new code increment in this audit is deterministic synthetic Xtream coverage for expired versus active zero-content accounts and a safe unusual `webm` container-extension fixture. The production adapter remains unchanged by the public-reference research because the existing translator and request boundary already cover the evidence-backed variation without a justified new abstraction. Movie/Series local search, category filtering, and opt-in title/year/rating sorting remain local operations over loaded DTO snapshots; the default preserves provider response order.
+
+Public EStalker and XStreamity repositories are acknowledged in `README.md` as technical references. Their GitHub metadata exposed no SPDX license and the inspected trees exposed no tracked root license file; SamoTech makes no permission, endorsement, partnership, or code-reuse claim. No source code was copied and no new dependency was added. See `docs/KIDDAC_TECHNOLOGY_ADAPTATION.md`, `docs/KIDDAC_COMPATIBILITY_MATRIX.md`, and `KIDDAC_TECHNOLOGY_GAP_MATRIX.md` for the evidence record and rejected/deferred behaviors.
+
+The existing bounded Live EOF recovery controller, provider/session contracts, and player ownership were not changed. Authorized real-provider validation, Windows desktop runtime validation, MAG production compatibility, executable catch-up, replay/resume, audio/subtitle selection, and remote XMLTV caching remain explicitly outside the current claim boundary.

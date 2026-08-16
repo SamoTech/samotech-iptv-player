@@ -32,6 +32,14 @@ MOVIE_VARIATIONS: list[dict[str, object]] = [
         "rating": None,
         "plot": "",
     },
+    {
+        "stream_id": 1003,
+        "name": "Unusual Container Movie",
+        "container_extension": "webm",
+        "stream_icon": "https://assets.example.test/movie-1003.webp",
+        "year": 2022,
+        "rating": 6,
+    },
 ]
 
 
@@ -63,6 +71,12 @@ def test_movie_variations_preserve_safe_identity_and_default_extension(
 
     assert movie.id.startswith("xtream-synthetic:")
     assert movie.stream_id.value.split("|", maxsplit=1)[1].isalnum()
+
+
+def test_unusual_container_extension_is_preserved_when_safe() -> None:
+    movie = XtreamDomainTranslator.movie(MOVIE_VARIATIONS[2], PROVIDER)
+
+    assert movie.stream_id.value == "1003|webm"
 
 
 def test_series_variations_preserve_optional_year_and_rating() -> None:
