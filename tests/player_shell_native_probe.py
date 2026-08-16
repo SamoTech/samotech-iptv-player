@@ -408,6 +408,17 @@ async def main() -> None:
         stream_id="movie-stream-1|mp4",
         category_id="sports",
         year=2024,
+        rating=8.2,
+        plot="A safe metadata fixture.",
+        genre="Drama",
+        duration_seconds=5400,
+        director="Example Director",
+        cast="Example Cast",
+        country="Synthetic",
+        release_date="2024-01-02",
+        poster_url="https://assets.example.test/movie.jpg",
+        backdrop_url="https://assets.example.test/backdrop.jpg",
+        container_extension="mp4",
     )
     newer_movie = ContentItemDTO(
         id="movie-2",
@@ -476,6 +487,11 @@ async def main() -> None:
     content_shell._toggle_sidebar()
     content_shell._select_content_index(ContentType.MOVIE, content_shell.content_model.index(0, 0))
     assert content_shell.selected_content is movie
+    detail_text = content_shell._content_detail_labels[ContentType.MOVIE].text()
+    assert "Movie · Arena Film" in detail_text
+    assert "2024 · ★ 8.2 · Drama · 1h 30m · MP4" in detail_text
+    assert "Example Director · Example Cast · Synthetic · 2024-01-02" in detail_text
+    assert "Artwork available" in detail_text
     assert played == ["b", "b"]
     content_shell._navigate_to_page(6)
     content_shell.search_input.setText("2024")

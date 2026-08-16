@@ -201,3 +201,74 @@ def test_channel_keeps_valid_channels_when_one_logo_is_invalid() -> None:
 def test_channel_rejects_malformed_xtream_live_stream(record: dict[str, object]) -> None:
     with pytest.raises(ValidationError):
         XtreamDomainTranslator.channel(record, ProviderId("xtream-demo"))
+
+
+def test_movie_maps_optional_commercial_metadata_without_exposing_urls() -> None:
+    movie = XtreamDomainTranslator.movie(
+        {
+            "stream_id": "42",
+            "name": "Metadata Movie",
+            "stream_icon": "https://assets.example.test/poster.jpg",
+            "backdrop_path": ["https://assets.example.test/backdrop.jpg"],
+            "year": "2025",
+            "rating": "8.4",
+            "duration_secs": "5400",
+            "genre": "Drama",
+            "director": "Example Director",
+            "actors": "Example Actor",
+            "country": "Synthetic",
+            "releasedate": "2025-01-02",
+            "container_extension": "mkv",
+            "plot": "A safe rich-metadata fixture.",
+        },
+        ProviderId("xtream-demo"),
+    )
+
+    assert movie.year == 2025
+    assert movie.rating == 8.4
+    assert movie.duration_seconds == 5400
+    assert movie.genre == "Drama"
+    assert movie.director == "Example Director"
+    assert movie.cast == "Example Actor"
+    assert str(movie.backdrop_url) == "https://assets.example.test/backdrop.jpg"
+    assert movie.container_extension == "mkv"
+    assert "https://" not in movie.stream_id.value
+
+
+def test_series_maps_optional_counts_and_safe_backdrop_fallback() -> None:
+    series = XtreamDomainTranslator.series(
+        {
+            "series_id": "84",
+            "name": "Metadata Series",
+            "cover": "https://assets.example.test/series.jpg",
+            "backdrop_path": ["", "https://assets.example.test/series-backdrop.jpg"],
+            "genre": "Drama",
+            "seasons": [{"season_number": 1}, {"season_number": 2}],
+            "episodes": [{"id": 1}, {"id": 2}, {"id": 3}],
+        },
+        ProviderId("xtream-demo"),
+    )
+
+    assert series.genre == "Drama"
+    assert series.season_count == 2
+    assert series.episode_count == 3
+    assert str(series.backdrop_url) == "https://assets.example.test/series-backdrop.jpg"
+
+
+def test_movie_ignores_invalid_optional_commercial_metadata() -> None:
+    movie = XtreamDomainTranslator.movie(
+        {
+            "stream_id": 7,
+            "name": "Sparse Movie",
+            "duration_secs": "not-a-duration",
+            "rating": "not-a-rating",
+            "backdrop_path": "not a url",
+            "genre": None,
+        },
+        ProviderId("xtream-demo"),
+    )
+
+    assert movie.duration_seconds is None
+    assert movie.rating is None
+    assert movie.backdrop_url is None
+    assert movie.genre is None

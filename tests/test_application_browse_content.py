@@ -67,6 +67,11 @@ async def test_browse_content_maps_existing_movie_identity_without_channel_dto_o
         year=2024,
         rating=8.5,
         plot="A bounded test fixture.",
+        duration_seconds=3600,
+        genre="Drama",
+        director="Example Director",
+        backdrop_url=None,
+        container_extension="mp4",
     )
     resolver = FakeContentResolver(FakeVodProvider([movie]), FakeSeriesProvider([]))
 
@@ -80,6 +85,10 @@ async def test_browse_content_maps_existing_movie_identity_without_channel_dto_o
     assert response.items[0].id == "movie-1"
     assert response.items[0].stream_id == "movie-stream-1"
     assert response.items[0].content_type is ContentType.MOVIE
+    assert response.items[0].duration_seconds == 3600
+    assert response.items[0].genre == "Drama"
+    assert response.items[0].director == "Example Director"
+    assert response.items[0].container_extension == "mp4"
     assert resolver.vod_ids == ["xtream-demo"]
     assert resolver.vod.calls == 1
 
@@ -93,6 +102,9 @@ async def test_browse_content_maps_existing_series_identity_without_playback_cla
         category_id="drama",
         year=2023,
         rating=7.5,
+        genre="Drama",
+        season_count=2,
+        episode_count=16,
     )
     resolver = FakeContentResolver(FakeVodProvider([]), FakeSeriesProvider([series]))
 
@@ -105,6 +117,9 @@ async def test_browse_content_maps_existing_series_identity_without_playback_cla
     assert response.items[0].id == "series-1"
     assert response.items[0].stream_id is None
     assert response.items[0].content_type is ContentType.SERIES
+    assert response.items[0].genre == "Drama"
+    assert response.items[0].season_count == 2
+    assert response.items[0].episode_count == 16
     assert resolver.series_ids == ["xtream-demo"]
     assert resolver.series.calls == 1
 
