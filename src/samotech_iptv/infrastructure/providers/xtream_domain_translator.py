@@ -227,18 +227,30 @@ class XtreamDomainTranslator:
         ):
             raise ValidationError("seasons", "Xtream series detail must include a list of seasons")
         seasons: list[Season] = []
-        for raw in raw_seasons:
-            number = XtreamDomainTranslator._season_number(raw)
-            title = str(raw.get("name") or raw.get("title") or "").strip() or None
-            seasons.append(
-                Season(
+        for index, raw in enumerate(raw_seasons, start=1):
+            try:
+                number = XtreamDomainTranslator._season_number(raw)
+                title = str(raw.get("name") or raw.get("title") or "").strip() or None
+                season = Season(
                     id=f"{series_id}:season:{number}",
                     series_id=series_id,
                     provider_id=provider_id,
                     number=number,
                     title=title,
                 )
-            )
+            except ValidationError:
+                _LOG.warning(
+                    "[IPTV] Xtream series detail record skipped family=season index=%d",
+                    index,
+                )
+                continue
+            if any(existing.number == season.number for existing in seasons):
+                _LOG.warning(
+                    "[IPTV] Xtream duplicate series detail record skipped family=season index=%d",
+                    index,
+                )
+                continue
+            seasons.append(season)
         return seasons
 
     @staticmethod
@@ -259,16 +271,16 @@ class XtreamDomainTranslator:
                 "episodes", "Xtream series detail season must include an episode list"
             )
         episodes: list[Episode] = []
-        for raw in candidates:
-            episode_id = XtreamDomainTranslator._required_text(raw, "id")
-            episode_number = XtreamDomainTranslator._episode_number(raw)
-            info = raw.get("info")
-            details = info if isinstance(info, Mapping) else {}
-            title = str(raw.get("title") or details.get("title") or "").strip()
-            if not title:
-                title = f"Episode {episode_number}"
-            episodes.append(
-                Episode(
+        for index, raw in enumerate(candidates, start=1):
+            try:
+                episode_id = XtreamDomainTranslator._required_text(raw, "id")
+                episode_number = XtreamDomainTranslator._episode_number(raw)
+                info = raw.get("info")
+                details = info if isinstance(info, Mapping) else {}
+                title = str(raw.get("title") or details.get("title") or "").strip()
+                if not title:
+                    title = f"Episode {episode_number}"
+                episode = Episode(
                     id=f"{series_id}:episode:{episode_id}",
                     series_id=series_id,
                     title=title,
@@ -282,7 +294,19 @@ class XtreamDomainTranslator:
                     duration_seconds=XtreamDomainTranslator._optional_duration(details),
                     plot=str(details.get("plot") or raw.get("plot") or "").strip() or None,
                 )
-            )
+            except ValidationError:
+                _LOG.warning(
+                    "[IPTV] Xtream series detail record skipped family=episode index=%d",
+                    index,
+                )
+                continue
+            if any(existing.id == episode.id for existing in episodes):
+                _LOG.warning(
+                    "[IPTV] Xtream duplicate series detail record skipped family=episode index=%d",
+                    index,
+                )
+                continue
+            episodes.append(episode)
         return episodes
 
     @staticmethod

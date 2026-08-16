@@ -25,6 +25,7 @@ from samotech_iptv.application.ports.provider_capabilities import (
 )
 from samotech_iptv.core.diagnostics import DiagnosticTrace
 from samotech_iptv.core.exceptions import AuthenticationError, ValidationError
+from samotech_iptv.core.logging import get_logger
 from samotech_iptv.domain.value_objects.provider_capability import ProviderCapability
 from samotech_iptv.domain.value_objects.provider_id import ProviderId
 from samotech_iptv.domain.value_objects.url import URL
@@ -51,6 +52,8 @@ if TYPE_CHECKING:
     from samotech_iptv.infrastructure.providers.provider_metadata import InfraProviderMetadata
 
 __all__ = ["XtreamProviderAdapter", "register_xtream_with_factory"]
+
+_LOG = get_logger(__name__)
 
 _CAPABILITIES = frozenset(
     {
@@ -136,10 +139,31 @@ class XtreamProviderAdapter(
         with trace.stage("Response processing", provider_id=self._metadata.provider_id):
             records = await client.live_streams()
         with trace.stage("Domain translation", records_received=len(records)):
-            channels = [
-                XtreamDomainTranslator.channel(record, self.provider_id, record_index=index)
-                for index, record in enumerate(records, start=1)
-            ]
+            channels = []
+            seen_ids: set[str] = set()
+            for index, record in enumerate(records, start=1):
+                try:
+                    channel = XtreamDomainTranslator.channel(
+                        record, self.provider_id, record_index=index
+                    )
+                except ValidationError:
+                    _LOG.warning(
+                        "[IPTV] Xtream catalogue record skipped "
+                        "provider_id=%s family=live index=%d",
+                        self._metadata.provider_id,
+                        index,
+                    )
+                    continue
+                if channel.id.value in seen_ids:
+                    _LOG.warning(
+                        "[IPTV] Xtream duplicate catalogue record skipped "
+                        "provider_id=%s family=live index=%d",
+                        self._metadata.provider_id,
+                        index,
+                    )
+                    continue
+                seen_ids.add(channel.id.value)
+                channels.append(channel)
         trace.result("PASS", records_received=len(records), records_translated=len(channels))
         return channels
 
@@ -189,18 +213,56 @@ class XtreamProviderAdapter(
     async def load_movies(self) -> Sequence[Movie]:
         """Retrieve stored credentials then translate Xtream VOD DTOs into movies."""
         client = await self._stored_client()
-        return [
-            XtreamDomainTranslator.movie(record, self.provider_id)
-            for record in await client.vod_streams()
-        ]
+        movies: list[Movie] = []
+        seen_ids: set[str] = set()
+        for index, record in enumerate(await client.vod_streams(), start=1):
+            try:
+                movie = XtreamDomainTranslator.movie(record, self.provider_id)
+            except ValidationError:
+                _LOG.warning(
+                    "[IPTV] Xtream catalogue record skipped provider_id=%s family=vod index=%d",
+                    self._metadata.provider_id,
+                    index,
+                )
+                continue
+            if movie.id in seen_ids:
+                _LOG.warning(
+                    "[IPTV] Xtream duplicate catalogue record skipped "
+                    "provider_id=%s family=vod index=%d",
+                    self._metadata.provider_id,
+                    index,
+                )
+                continue
+            seen_ids.add(movie.id)
+            movies.append(movie)
+        return movies
 
     async def load_series(self) -> Sequence[Series]:
         """Retrieve stored credentials then translate Xtream series DTOs into series."""
         client = await self._stored_client()
-        return [
-            XtreamDomainTranslator.series(record, self.provider_id)
-            for record in await client.series()
-        ]
+        series: list[Series] = []
+        seen_ids: set[str] = set()
+        for index, record in enumerate(await client.series(), start=1):
+            try:
+                item = XtreamDomainTranslator.series(record, self.provider_id)
+            except ValidationError:
+                _LOG.warning(
+                    "[IPTV] Xtream catalogue record skipped provider_id=%s family=series index=%d",
+                    self._metadata.provider_id,
+                    index,
+                )
+                continue
+            if item.id in seen_ids:
+                _LOG.warning(
+                    "[IPTV] Xtream duplicate catalogue record skipped "
+                    "provider_id=%s family=series index=%d",
+                    self._metadata.provider_id,
+                    index,
+                )
+                continue
+            seen_ids.add(item.id)
+            series.append(item)
+        return series
 
     async def resolve_movie_stream(self, movie_id: str, resource_id: str) -> ResolvedPlayback:
         """Resolve one provider-owned opaque movie descriptor to a playback URL."""
