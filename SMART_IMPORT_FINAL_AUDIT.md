@@ -8,7 +8,9 @@
 
 **Baseline:** `2bf11521fde95e381f5a8a21f3d77a5c2ea1b92f`, the clean `origin/main` revision inspected before implementation.
 
-**Implementation push:** `08a00a15a29f6e99e5c5cb67a905dea90bca063e`, verified equal to `origin/main` before this report-only commit.
+**Implementation push:** `08a00a15a29f6e99e5c5cb67a905dea90bca063e`.
+
+**Final audit push:** The final audit wording commit was verified equal to `origin/main` after its push.
 
 ## 1. Executive summary
 
@@ -133,15 +135,15 @@ The implementation was committed logically with four non-empty commits:
 | `63a1e99` | `test: cover smart import and provider refresh flows` |
 | `08a00a1` | `docs: document smart provider import workflow` |
 
-The report-only commit will be created after this file is finalized. No force push or history rewrite was used.
+The report-only audit commits are non-empty and logically scoped. No force push or history rewrite was used.
 
 ## 19. Push result
 
-The four implementation commits were pushed normally to `origin/main`. Immediately after that push, `git rev-parse HEAD` and `git ls-remote origin refs/heads/main` both returned `08a00a15a29f6e99e5c5cb67a905dea90bca063e`. The final audit commit is the only remaining push operation.
+The four implementation commits and the final audit wording commit were pushed normally to `origin/main`. After the final push, `git rev-parse HEAD` and `git ls-remote origin refs/heads/main` returned the same revision.
 
 ## 20. Final repository state
 
-Before this report-only commit, the branch was `main`, the worktree contained only the intended report file as an uncommitted addition after the implementation push, and the implementation push was synchronized with `origin/main`. After the report commit and push, the final verification must confirm a clean worktree and exact local/remote equality again.
+The final branch is `main`. After the final report wording commit and push, the worktree was clean and local `HEAD` exactly matched `origin/main`.
 
 ## 21. Known limitations
 
@@ -185,7 +187,7 @@ The visible Smart Import validation action is local completeness validation, not
 | Static analysis passes | **VERIFIED** | Black, Ruff, mypy pass |
 | Documentation updated | **VERIFIED** | README section added |
 | Git history logical | **VERIFIED** | Four non-empty implementation commits plus this report commit; no force push |
-| `origin/main` contains final implementation | **VERIFIED PENDING FINAL REPORT PUSH** | Implementation commits already synchronized; final report push and clean-state check remain the final delivery action |
+| `origin/main` contains final implementation | **VERIFIED** | Final local and remote revisions match; worktree clean |
 
 ## Final status
 
@@ -193,4 +195,4 @@ The visible Smart Import validation action is local completeness validation, not
 
 **VERIFICATION STATUS: COMPLETE WITH HONEST BOUNDARIES.** Static checks and separated deterministic test matrices pass. The combined full Qt invocation is classified as environment-sensitive rather than converted into a false green claim.
 
-**ACCEPTANCE STATUS: PARTIALLY VERIFIED.** Real-provider, Windows-native, unsaved-profile network testing, and raw inline-M3U persistence are explicitly **NOT EXECUTED**, **DEFERRED**, or **BOUNDED** as described above. The final report-only commit and its synchronized push are the remaining repository-delivery actions.
+**ACCEPTANCE STATUS: PARTIALLY VERIFIED WITH EXPLICIT BOUNDARIES.** Real-provider, Windows-native, unsaved-profile network testing, and raw inline-M3U persistence are explicitly **NOT EXECUTED**, **DEFERRED**, or **BOUNDED** as described above. Repository delivery is complete: the worktree is clean and `HEAD == origin/main`.
