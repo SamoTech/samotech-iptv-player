@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 from typing import TYPE_CHECKING
 
 from PySide6.QtWidgets import (
@@ -15,6 +14,7 @@ from PySide6.QtWidgets import (
 )
 
 from samotech_iptv.application.dtos.categories import CategoryDTO, LoadCategoriesRequest
+from samotech_iptv.presentation.task_owner import create_owned_task
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -46,7 +46,7 @@ class CategoryBrowserDialog(QDialog):
 
     def _schedule_category_load(self) -> None:
         """Queue asynchronous category loading on the supported Qt-aware event loop."""
-        asyncio.create_task(self.load_categories())
+        create_owned_task(self, self.load_categories())
 
     async def load_categories(self) -> LoadCategoriesResponse:
         """Load and render safe canonical live-category summaries for one provider."""

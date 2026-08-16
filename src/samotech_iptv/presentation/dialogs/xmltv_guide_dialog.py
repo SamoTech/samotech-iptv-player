@@ -19,6 +19,7 @@ from samotech_iptv.application.dtos import (
     RefreshXMLTVGuideRequest,
     XMLTVChannelMappingRequest,
 )
+from samotech_iptv.presentation.task_owner import create_owned_task
 
 if TYPE_CHECKING:
     from samotech_iptv.application.use_cases.configure_xmltv_binding import ConfigureXMLTVBinding
@@ -116,12 +117,10 @@ class XMLTVGuideDialog(QDialog):
 
     def _schedule_configure(self) -> None:
         """Queue configuration on the Qt-aware event loop."""
-        import asyncio  # noqa: PLC0415
 
-        asyncio.create_task(self.configure())
+        create_owned_task(self, self.configure())
 
     def _schedule_refresh(self) -> None:
         """Queue manual refresh on the Qt-aware event loop."""
-        import asyncio  # noqa: PLC0415
 
-        asyncio.create_task(self.refresh())
+        create_owned_task(self, self.refresh())

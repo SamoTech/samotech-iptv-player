@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 from typing import TYPE_CHECKING
 
 from PySide6.QtWidgets import (
@@ -10,6 +9,8 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QPushButton,
 )
+
+from samotech_iptv.presentation.task_owner import create_owned_task
 
 if TYPE_CHECKING:
     from samotech_iptv.application.dtos.favorites import FavoriteDTO
@@ -43,7 +44,7 @@ class FavoriteLibraryDialog(QDialog):
         self.setWindowTitle("Favorites")
 
     def _schedule_refresh(self) -> None:
-        asyncio.create_task(self.refresh())
+        create_owned_task(self, self.refresh())
 
     async def refresh(self) -> None:
         """Reload favorites and render a safe summary or generic error."""
@@ -66,7 +67,7 @@ class FavoriteLibraryDialog(QDialog):
         self.status_label.setText("")
 
     def _schedule_remove_selected(self) -> None:
-        asyncio.create_task(self.remove_selected())
+        create_owned_task(self, self.remove_selected())
 
     async def remove_selected(self) -> None:
         """Remove exactly one selected favorite and refresh the list."""

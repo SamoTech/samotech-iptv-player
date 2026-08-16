@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 from typing import TYPE_CHECKING
 
 from PySide6.QtWidgets import (
@@ -15,6 +14,7 @@ from samotech_iptv.application.dtos.provider_registration import (
     RegisterM3UProviderRequest,
     RegisterXtreamProviderResponse,
 )
+from samotech_iptv.presentation.task_owner import create_owned_task
 
 if TYPE_CHECKING:
     from samotech_iptv.application.use_cases.register_m3u_provider import RegisterM3UProvider
@@ -47,7 +47,7 @@ class M3UProviderDialog(QDialog):
 
     def _schedule_submit(self) -> None:
         """Queue registration on the supported Qt-aware event loop."""
-        asyncio.create_task(self.submit())
+        create_owned_task(self, self.submit())
 
     async def submit(self) -> RegisterXtreamProviderResponse:
         """Validate and submit transient input, closing only after successful registration."""

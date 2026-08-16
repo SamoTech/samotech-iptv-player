@@ -34,6 +34,7 @@ from samotech_iptv.application.dtos import (
     ProviderCapabilities,
     SearchRegisteredChannelsRequest,
 )
+from samotech_iptv.presentation.task_owner import cancel_owned_tasks, create_owned_task
 from samotech_iptv.presentation.viewmodels.channel_list_model import ChannelListModel
 from samotech_iptv.presentation.viewmodels.content_list_model import ContentListModel
 
@@ -336,7 +337,7 @@ class PlayerShell(QWidget):
         self.setTabOrder(self.load_button, self.search_button)
         self.setTabOrder(self.search_button, self.favorite_button)
         try:
-            asyncio.get_running_loop().create_task(self.refresh_providers())
+            create_owned_task(self, self.refresh_providers())
         except RuntimeError:
             pass
         self.installEventFilter(self)
@@ -395,6 +396,7 @@ class PlayerShell(QWidget):
 
     def _provider_changed(self, _: int) -> None:
         """Clear stale channel results when the active provider changes."""
+        cancel_owned_tasks(self)
         if self._invalidate_pending_playback is not None:
             self._invalidate_pending_playback()
         self._request_generation += 1
@@ -425,10 +427,8 @@ class PlayerShell(QWidget):
         self.channel_status.setText("No channels loaded")
         if provider_id:
             try:
-                asyncio.get_running_loop().create_task(self.refresh_categories(provider_id))
-                asyncio.get_running_loop().create_task(
-                    self.refresh_provider_capabilities(provider_id)
-                )
+                create_owned_task(self, self.refresh_categories(provider_id))
+                create_owned_task(self, self.refresh_provider_capabilities(provider_id))
             except RuntimeError:
                 pass
 
@@ -541,16 +541,16 @@ class PlayerShell(QWidget):
         self.pause_button = QPushButton("Pause")
         self.pause_button.setAccessibleName("Pause playback")
         self.pause_button.setToolTip("Pause the current stream")
-        self.pause_button.clicked.connect(lambda: asyncio.ensure_future(self._pause_playback()))
+        self.pause_button.clicked.connect(lambda: create_owned_task(self, self._pause_playback()))
         self.resume_button = QPushButton("Play")
         self.resume_button.setObjectName("primary")
         self.resume_button.setAccessibleName("Resume playback")
         self.resume_button.setToolTip("Resume the current stream")
-        self.resume_button.clicked.connect(lambda: asyncio.ensure_future(self._resume_playback()))
+        self.resume_button.clicked.connect(lambda: create_owned_task(self, self._resume_playback()))
         self.stop_button = QPushButton("Stop")
         self.stop_button.setAccessibleName("Stop playback")
         self.stop_button.setToolTip("Stop the current stream")
-        self.stop_button.clicked.connect(lambda: asyncio.ensure_future(self._stop_playback()))
+        self.stop_button.clicked.connect(lambda: create_owned_task(self, self._stop_playback()))
         self.fullscreen_button = QPushButton("Fullscreen")
         self.fullscreen_button.setAccessibleName("Toggle fullscreen")
         self.fullscreen_button.setToolTip("Enter or exit fullscreen mode (F)")
@@ -856,7 +856,7 @@ class PlayerShell(QWidget):
 
     def _schedule_content_load(self, content_type: ContentType) -> None:
         if not self._loading:
-            asyncio.create_task(self.load_content(content_type, self._begin_request()))
+            create_owned_task(self, self.load_content(content_type, self._begin_request()))
 
     async def load_content(self, content_type: ContentType, generation: int | None = None) -> None:
         """Explicitly load existing movie or series catalogues through application use cases."""
@@ -1016,13 +1016,13 @@ class PlayerShell(QWidget):
             return
         if content_type is ContentType.SERIES:
             if self._series_view_mode == "catalogue":
-                asyncio.create_task(self._load_series_seasons_for(item))
+                create_owned_task(self, self._load_series_seasons_for(item))
             elif self._series_view_mode == "seasons":
-                asyncio.create_task(self._load_series_episodes_for(item))
+                create_owned_task(self, self._load_series_episodes_for(item))
             else:
-                asyncio.create_task(self._play_content_item(item))
+                create_owned_task(self, self._play_content_item(item))
         else:
-            asyncio.create_task(self._load_and_play_movie(item))
+            create_owned_task(self, self._load_and_play_movie(item))
 
     def _activate_current_content(self, content_type: ContentType) -> None:
         """Activate the selected item without bypassing the list-model selection boundary."""
@@ -1205,7 +1205,7 @@ class PlayerShell(QWidget):
 
     def _schedule_load(self) -> None:
         if not self._loading:
-            asyncio.create_task(self.load_channels(self._begin_request()))
+            create_owned_task(self, self.load_channels(self._begin_request()))
 
     def _schedule_search(self) -> None:
         if not self._loading:
@@ -1213,19 +1213,19 @@ class PlayerShell(QWidget):
                 self._render_content_catalogue(self._active_content_type)
                 self.status_label.setText("● Ready")
                 return
-            asyncio.create_task(self.search_channels(self._begin_request()))
+            create_owned_task(self, self.search_channels(self._begin_request()))
 
     def _schedule_add_favorite(self) -> None:
         row = self.channel_list.currentIndex().row()
         if 0 <= row < self.channel_model.rowCount():
             channel = self.channel_model.channel_at(row)
-            asyncio.create_task(self.add_favorite(channel))
+            create_owned_task(self, self.add_favorite(channel))
 
     def _schedule_selected_channel(self, index: QModelIndex) -> None:
         row = index.row()
         if 0 <= row < self.channel_model.rowCount():
             channel = self.channel_model.channel_at(row)
-            asyncio.create_task(self.play_channel(channel))
+            create_owned_task(self, self.play_channel(channel))
 
     def _select_index(self, index: QModelIndex) -> None:
         """Record local selection without provider, resolver, cache, or playback work."""

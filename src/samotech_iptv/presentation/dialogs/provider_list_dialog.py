@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 from typing import TYPE_CHECKING
 
 from PySide6.QtWidgets import (
@@ -12,6 +11,8 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QPushButton,
 )
+
+from samotech_iptv.presentation.task_owner import create_owned_task
 
 if TYPE_CHECKING:
     from samotech_iptv.application.dtos.provider import ProviderMetadata
@@ -83,7 +84,7 @@ class ProviderListDialog(QDialog):
 
     def _schedule_remove_selected(self) -> None:
         """Queue provider deletion on the supported Qt-aware event loop."""
-        asyncio.create_task(self.remove_selected())
+        create_owned_task(self, self.remove_selected())
 
     async def remove_selected(self) -> None:
         """Remove a selected provider with generic safe status feedback."""

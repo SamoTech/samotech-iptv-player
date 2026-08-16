@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 from typing import TYPE_CHECKING
 
 from PySide6.QtWidgets import (
@@ -15,6 +14,7 @@ from PySide6.QtWidgets import (
 )
 
 from samotech_iptv.application.dtos import ChannelDTO, LoadChannelsRequest, LoadChannelsResponse
+from samotech_iptv.presentation.task_owner import create_owned_task
 from samotech_iptv.presentation.viewmodels.channel_list_model import ChannelListModel
 
 if TYPE_CHECKING:
@@ -70,19 +70,19 @@ class ChannelBrowserDialog(QDialog):
 
     def _schedule_channel_load(self) -> None:
         """Queue asynchronous catalogue loading on the supported Qt-aware event loop."""
-        asyncio.create_task(self.load_channels())
+        create_owned_task(self, self.load_channels())
 
     def _schedule_channel_search(self) -> None:
         """Queue provider-scoped channel search on the supported Qt-aware event loop."""
         if self._search_channels is not None:
-            asyncio.create_task(self.search_channels())
+            create_owned_task(self, self.search_channels())
 
     def _schedule_add_favorite(self) -> None:
         """Queue saving the current selected channel as a user favorite."""
         row = self.channel_list.currentIndex().row()
         if self._save_favorite is not None and 0 <= row < len(self._channels):
             channel = self.channel_model.channel_at(row)
-            asyncio.create_task(self.add_favorite(channel))
+            create_owned_task(self, self.add_favorite(channel))
 
     def _schedule_selected_channel(self, _: object) -> None:
         """Queue playback for the current safe channel row when playback is configured."""
@@ -90,7 +90,7 @@ class ChannelBrowserDialog(QDialog):
         if self._play_selected_channel is None or row < 0 or row >= len(self._channels):
             return
         channel = self.channel_model.channel_at(row)
-        asyncio.create_task(self._play_channel(channel))
+        create_owned_task(self, self._play_channel(channel))
 
     async def add_favorite(self, channel: ChannelDTO | int) -> None:
         """Save only the selected channel identifier through the application boundary."""

@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-import asyncio
 from typing import TYPE_CHECKING
 
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import QMainWindow
 
+from samotech_iptv.presentation.task_owner import create_owned_task
 from samotech_iptv.presentation.widgets.vlc_video_surface import VlcVideoSurface
 
 if TYPE_CHECKING:
@@ -339,7 +339,7 @@ class MainWindow(QMainWindow):
             self._remove_provider,
         )
         dialog.show()
-        asyncio.create_task(dialog.refresh())
+        create_owned_task(dialog, dialog.refresh())
         self._active_provider_list_dialog = dialog
         return dialog
 
@@ -351,7 +351,7 @@ class MainWindow(QMainWindow):
 
         dialog = FavoritesLibraryDialog(self._list_favorites, self._remove_favorite)
         dialog.show()
-        asyncio.create_task(dialog.refresh())
+        create_owned_task(dialog, dialog.refresh())
         self._active_favorites_library_dialog = dialog
         return dialog
 
@@ -361,7 +361,7 @@ class MainWindow(QMainWindow):
 
         dialog = HistoryLibraryDialog(self._load_history, self._clear_history)
         dialog.show()
-        asyncio.create_task(dialog.refresh())
+        create_owned_task(dialog, dialog.refresh())
         self._active_history_library_dialog = dialog
         return dialog
 
@@ -371,29 +371,29 @@ class MainWindow(QMainWindow):
 
         dialog = ThemeSettingsDialog(self._load_theme_preference, self._save_theme_preference)
         dialog.show()
-        asyncio.create_task(dialog.load())
+        create_owned_task(dialog, dialog.load())
         self._active_settings_dialog = dialog
         return dialog
 
     def _schedule_pause_playback(self) -> None:
         """Queue playback pause on the supported Qt-aware event loop."""
-        asyncio.create_task(self.pause_playback())
+        create_owned_task(self, self.pause_playback())
 
     def _schedule_resume_playback(self) -> None:
         """Queue playback resume on the supported Qt-aware event loop."""
-        asyncio.create_task(self.resume_playback())
+        create_owned_task(self, self.resume_playback())
 
     def _schedule_stop_playback(self) -> None:
         """Queue playback stop on the supported Qt-aware event loop."""
-        asyncio.create_task(self.stop_playback())
+        create_owned_task(self, self.stop_playback())
 
     def _schedule_start_recording(self) -> None:
         """Queue local stream recording on the supported Qt-aware event loop."""
-        asyncio.create_task(self.start_recording())
+        create_owned_task(self, self.start_recording())
 
     def _schedule_stop_recording(self) -> None:
         """Queue recording shutdown on the supported Qt-aware event loop."""
-        asyncio.create_task(self.stop_recording())
+        create_owned_task(self, self.stop_recording())
 
     async def pause_playback(self) -> None:
         """Pause playback with generic, credential-safe feedback."""

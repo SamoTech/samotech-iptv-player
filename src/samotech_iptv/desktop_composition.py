@@ -86,6 +86,7 @@ from samotech_iptv.infrastructure.providers.provider_resolution_service import (
 )
 from samotech_iptv.infrastructure.providers.provider_runtime_cache import ProviderRuntimeCache
 from samotech_iptv.infrastructure.providers.xtream_adapter import register_xtream_with_factory
+from samotech_iptv.presentation.task_owner import close_all_task_owners
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
@@ -206,8 +207,9 @@ async def build_production_desktop_application(
     )
 
     async def close() -> None:
-        """Release provider runtimes before the existing player and HTTP shutdown."""
+        """Cancel UI tasks, then release providers, player, and HTTP resources."""
         try:
+            await close_all_task_owners()
             await runtime_cache.close_all()
         finally:
             try:

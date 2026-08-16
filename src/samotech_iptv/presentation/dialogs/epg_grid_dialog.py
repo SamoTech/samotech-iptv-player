@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 from typing import TYPE_CHECKING
 
 from PySide6.QtWidgets import (
@@ -15,6 +14,7 @@ from PySide6.QtWidgets import (
 )
 
 from samotech_iptv.application.dtos import EPGEntryDTO, LoadEPGResponse, LoadRegisteredEPGRequest
+from samotech_iptv.presentation.task_owner import create_owned_task
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -46,7 +46,7 @@ class EPGGridDialog(QDialog):
 
     def _schedule_epg_load(self) -> None:
         """Queue EPG loading on the supported Qt-aware asynchronous event loop."""
-        asyncio.create_task(self.load_epg())
+        create_owned_task(self, self.load_epg())
 
     async def load_epg(self) -> LoadEPGResponse:
         """Load and display only title and schedule data for the selected channel."""

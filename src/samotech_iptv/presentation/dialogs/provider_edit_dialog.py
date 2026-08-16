@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 from typing import TYPE_CHECKING
 
 from PySide6.QtWidgets import (
@@ -14,6 +13,7 @@ from PySide6.QtWidgets import (
 )
 
 from samotech_iptv.application.dtos.provider_registration import UpdateProviderRequest
+from samotech_iptv.presentation.task_owner import create_owned_task
 
 if TYPE_CHECKING:
     from samotech_iptv.application.dtos.provider import ProviderMetadata
@@ -68,7 +68,7 @@ class ProviderEditDialog(QDialog):
 
     def _schedule_submit(self) -> None:
         """Queue the asynchronous update on the supported Qt-aware event loop."""
-        asyncio.create_task(self.submit())
+        create_owned_task(self, self.submit())
 
     async def submit(self) -> None:
         """Submit safe field changes and clear credential input regardless of outcome."""

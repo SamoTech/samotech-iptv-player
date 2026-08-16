@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 from typing import TYPE_CHECKING
 
 from PySide6.QtWidgets import (
@@ -14,6 +13,7 @@ from PySide6.QtWidgets import (
 )
 
 from samotech_iptv.domain.value_objects.theme_preference import ThemePreference
+from samotech_iptv.presentation.task_owner import create_owned_task
 
 if TYPE_CHECKING:
     from samotech_iptv.application.use_cases.load_theme_preference import LoadThemePreference
@@ -43,7 +43,7 @@ class ThemeSettingsDialog(QDialog):
 
     def _schedule_save(self) -> None:
         """Queue preference saving on the Qt-aware asynchronous event loop."""
-        asyncio.create_task(self.save())
+        create_owned_task(self, self.save())
 
     async def load(self) -> ThemePreference:
         """Load and show the persisted preference."""

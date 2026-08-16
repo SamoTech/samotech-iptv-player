@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 from typing import TYPE_CHECKING
 
 from PySide6.QtWidgets import (
@@ -13,6 +12,7 @@ from PySide6.QtWidgets import (
 )
 
 from samotech_iptv.application.dtos import LoadHistoryRequest
+from samotech_iptv.presentation.task_owner import create_owned_task
 
 if TYPE_CHECKING:
     from samotech_iptv.application.dtos import HistoryItemDTO
@@ -79,8 +79,8 @@ class HistoryLibraryDialog(QDialog):
 
     def _schedule_refresh(self) -> None:
         """Queue history refresh on the supported Qt-aware event loop."""
-        asyncio.create_task(self.refresh())
+        create_owned_task(self, self.refresh())
 
     def _schedule_clear(self) -> None:
         """Queue clear-all on the supported Qt-aware event loop."""
-        asyncio.create_task(self.clear())
+        create_owned_task(self, self.clear())
