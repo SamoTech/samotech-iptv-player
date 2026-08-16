@@ -184,3 +184,47 @@ def test_adapter_advertises_only_implemented_capabilities_and_registers_with_fac
         ProviderCapability.SEARCH,
     }
     assert factory.is_registered("xtream")
+
+
+class MalformedCatalogHttpClient(FakeHttpClient):
+    """Return realistic malformed and duplicate catalogue records for hardening tests."""
+
+    async def get_json(self, url: str) -> object:
+        if "get_live_streams" in url:
+            return [
+                {"stream_id": 1, "name": "Good Live"},
+                {"stream_id": 1, "name": "Duplicate Live"},
+                {"name": "Missing Live ID"},
+            ]
+        if "get_vod_streams" in url:
+            return [
+                {"stream_id": 42, "name": "Good Movie"},
+                {"stream_id": 42, "name": "Duplicate Movie"},
+                {"name": "Missing Movie ID"},
+            ]
+        if "get_series" in url:
+            return [
+                {"series_id": 84, "name": "Good Series"},
+                {"series_id": 84, "name": "Duplicate Series"},
+                {"name": "Missing Series ID"},
+            ]
+        return await super().get_json(url)
+
+
+@pytest.mark.asyncio
+async def test_adapter_skips_malformed_and_duplicate_catalogue_records() -> None:
+    context = FakeContext()
+    context._http_client = MalformedCatalogHttpClient()
+    adapter = XtreamProviderAdapter(
+        InfraProviderMetadata(
+            provider_id="xtream-demo",
+            provider_type="xtream",
+            base_url="https://portal.example.test",
+        ),
+        cast("ProviderContext", context),
+    )
+
+    assert await adapter.authenticate(Credential("user", "secret")) is True
+    assert [channel.name for channel in await adapter.load_channels()] == ["Good Live"]
+    assert [movie.title for movie in await adapter.load_movies()] == ["Good Movie"]
+    assert [series.title for series in await adapter.load_series()] == ["Good Series"]

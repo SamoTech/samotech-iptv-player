@@ -161,3 +161,28 @@ def test_unexpected_series_detail_shape_is_rejected_safely() -> None:
 
     with pytest.raises(ValidationError):
         XtreamDomainTranslator.episodes({"episodes": []}, "xtream-synthetic:2001", 1)
+
+
+def test_series_detail_skips_malformed_and_duplicate_nested_records() -> None:
+    detail = {
+        "seasons": [
+            {"season_number": 1, "name": "Season One"},
+            {"season_number": 1, "name": "Duplicate Season"},
+            {"name": "Missing Season Number"},
+        ],
+        "episodes": {
+            "1": [
+                {"id": 501, "episode_num": 1, "title": "Pilot"},
+                {"id": 501, "episode_num": 1, "title": "Duplicate Pilot"},
+                {"episode_num": 2, "title": "Missing Episode ID"},
+            ]
+        },
+    }
+
+    seasons = XtreamDomainTranslator.seasons(detail, PROVIDER, "xtream-synthetic:2001")
+    episodes = XtreamDomainTranslator.episodes(detail, "xtream-synthetic:2001", 1)
+
+    assert [(season.number, season.title) for season in seasons] == [(1, "Season One")]
+    assert [(episode.id, episode.episode_number) for episode in episodes] == [
+        ("xtream-synthetic:2001:episode:501", 1)
+    ]

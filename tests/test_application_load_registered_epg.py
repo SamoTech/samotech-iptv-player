@@ -34,7 +34,8 @@ class FakeEPGProvider(EPGProvider):
                 title="Morning News",
                 start=start,
                 end=start + timedelta(minutes=30),
-                description="Details at https://example.invalid/epg",
+                description="Details without provider credentials",
+                category="News",
             ),
             EPGEntry(
                 id="programme-2",
@@ -92,7 +93,8 @@ async def test_load_registered_epg_resolves_provider_and_returns_bounded_safe_en
     assert response.entries[0].title == "Morning News"
     assert response.entries[0].start == "2026-08-12T10:00:00+00:00"
     assert response.entries[0].end == "2026-08-12T10:30:00+00:00"
-    assert response.entries[0].description is None
+    assert response.entries[0].description == "Details without provider credentials"
+    assert response.entries[0].category == "News"
 
 
 @pytest.mark.asyncio

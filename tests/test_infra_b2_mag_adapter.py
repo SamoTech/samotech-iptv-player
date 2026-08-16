@@ -207,6 +207,7 @@ class TestProviderCapabilities:
             ProviderCapability.AUTHENTICATION,
             ProviderCapability.SESSION,
             ProviderCapability.LIVE,
+            ProviderCapability.CATEGORIES,
             ProviderCapability.EPG,
             ProviderCapability.SEARCH,
             ProviderCapability.STREAM_RESOLUTION,

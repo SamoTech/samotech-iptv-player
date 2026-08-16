@@ -129,3 +129,17 @@ def test_history_rejects_invalid_metadata_or_playback_state(
             duration_seconds=duration_seconds,
             position_seconds=position_seconds,
         )
+
+
+def test_history_rejects_updated_timestamp_before_started_timestamp() -> None:
+    with pytest.raises(ValidationError, match="Updated time"):
+        History(
+            id="history-1",
+            item_id="movie-1",
+            item_type="movie",
+            watched_at=_RECORDED_AT,
+            started_at=datetime(2026, 8, 12, tzinfo=UTC),
+            updated_at=datetime(2026, 8, 11, tzinfo=UTC),
+            duration_seconds=120,
+            position_seconds=30,
+        )

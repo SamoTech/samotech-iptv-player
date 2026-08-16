@@ -410,6 +410,7 @@ async def main() -> None:
     assert control_shell.elapsed_label.text() == "0:30"
     assert control_shell.duration_label.text() == "2:00"
     assert control_shell.seek_slider.value() == 250
+    assert control_shell.overlay_status.text() == "● Playing"
     control_shell._schedule_relative_seek(10)
     await asyncio.sleep(0)
     assert controls.seek_calls == [40_000]
@@ -417,6 +418,41 @@ async def main() -> None:
     control_shell._set_control_availability()
     assert not control_shell.seek_slider.isEnabled()
     assert control_shell.elapsed_label.text() == "LIVE"
+
+    episode_one = ContentItemDTO(
+        id="episode-1",
+        provider_id="provider-a",
+        content_type=ContentType.EPISODE,
+        title="Pilot",
+        stream_id="501|mp4",
+        series_id="series-1",
+        season=1,
+        episode_number=1,
+        duration_seconds=1200,
+    )
+    episode_two = ContentItemDTO(
+        id="episode-2",
+        provider_id="provider-a",
+        content_type=ContentType.EPISODE,
+        title="Second",
+        stream_id="502|mp4",
+        series_id="series-1",
+        season=1,
+        episode_number=2,
+        duration_seconds=1200,
+    )
+    control_shell.provider_selector.setEditText("provider-a")
+    control_shell._series_episodes = (episode_one, episode_two)
+    control_shell.selected_content = episode_one
+    control_shell._active_playback_content_type = ContentType.EPISODE
+    control_shell._set_control_availability()
+    assert not control_shell.previous_episode_button.isEnabled()
+    assert control_shell.next_episode_button.isEnabled()
+    control_shell._schedule_adjacent_episode(1)
+    for _ in range(3):
+        await asyncio.sleep(0)
+    assert control_shell.selected_content is episode_two
+    assert played[-1] == "episode-2"
 
     providers = FakeProviders(
         (ProviderMetadata("provider-a", "Provider A", "m3u", "https://safe.invalid", True),)
@@ -621,7 +657,7 @@ async def main() -> None:
     await content_shell._add_content_favorite(ContentType.MOVIE, movie)
     assert content_favorite.ids[-1] == "movie-1"
     assert "Favorite saved" in content_shell._content_detail_labels[ContentType.MOVIE].text()
-    assert played == ["b", "b"]
+    assert played == ["b", "b", "episode-2"]
     content_shell._navigate_to_page(6)
     content_shell.search_input.setText("2024")
     assert content_shell.global_search_model.stringList() == ["MOVIES  ·  Arena Film"]
@@ -640,7 +676,7 @@ async def main() -> None:
     assert content_shell.eventFilter(content_shell._content_lists[ContentType.MOVIE], movie_enter)
     await asyncio.sleep(0)
     assert "Playing" in content_shell._content_detail_labels[ContentType.MOVIE].text()
-    assert played == ["b", "b", "movie-1"]
+    assert played == ["b", "b", "episode-2", "movie-1"]
 
     content_shell._active_content_type = ContentType.SERIES
     content_shell.search_input.clear()
@@ -666,7 +702,7 @@ async def main() -> None:
     assert "Episode metadata" in episode_detail
     await asyncio.sleep(0)
     await asyncio.sleep(0)
-    assert played == ["b", "b", "movie-1", "series-1:episode:501"]
+    assert played == ["b", "b", "episode-2", "movie-1", "series-1:episode:501"]
 
     stale_categories = FakeCategories((CategoryDTO("sports", "Sports", "provider-a"),))
     stale_categories.wait_for_release = True
@@ -779,6 +815,15 @@ async def main() -> None:
     escape = QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Escape, Qt.KeyboardModifier.NoModifier)
     assert provider_shell.eventFilter(provider_shell.navigation, escape)
     assert not provider_shell.isFullScreen()
+    space = QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Space, Qt.KeyboardModifier.NoModifier)
+    assert provider_shell.eventFilter(provider_shell.navigation, space)
+    mute = QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_M, Qt.KeyboardModifier.NoModifier)
+    assert provider_shell.eventFilter(provider_shell.navigation, mute)
+    control_shell._hide_player_overlay()
+    assert control_shell._player_overlay.isHidden()
+    mouse_move = QEvent(QEvent.Type.MouseMove)
+    assert not control_shell.eventFilter(control_shell._player_stage, mouse_move)
+    assert not control_shell._player_overlay.isHidden()
     enter = QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Return, Qt.KeyboardModifier.NoModifier)
     assert provider_shell.eventFilter(provider_shell.channel_list, enter)
     await asyncio.sleep(0)
