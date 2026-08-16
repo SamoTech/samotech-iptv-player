@@ -59,6 +59,7 @@ _MAG_CAPABILITIES = frozenset(
         ProviderCapability.AUTHENTICATION,
         ProviderCapability.SESSION,
         ProviderCapability.LIVE,
+        ProviderCapability.CATEGORIES,
         ProviderCapability.EPG,
         ProviderCapability.SEARCH,
         ProviderCapability.STREAM_RESOLUTION,
