@@ -65,3 +65,12 @@ The high-value safe work is limited to robust optional metadata/account/server n
 - [EStalker source tree](https://github.com/kiddac/EStalker/tree/master/EStalker/usr/lib/enigma2/python/Plugins/Extensions/EStalker)
 - [XStreamity source tree](https://github.com/kiddac/XStreamity/tree/master/XStreamity/usr/lib/enigma2/python/Plugins/Extensions/XStreamity)
 - [External research findings](../kiddac_external_research_findings.md)
+
+
+## Advanced reconciliation — 2026-08-16
+
+The selected implementation scope has now delivered the previously deferred bounded artwork increment, but only for provider-supplied URLs. `BoundedArtworkLoader` is provider-scoped, shared-session, TTL/LRU, byte-bounded, cancellation-safe, URL-safe, and covered by deterministic tests. It is not a global page cache and does not perform external enrichment.
+
+The Favorites row is **IMPLEMENTED / PARTIAL** after adding optional provider identity, legacy SQLite migration, same-provider duplicate prevention, provider-aware dialog display, and Movie/Series action buttons. Episode Favorites remain blocked by the current domain item-type contract. The History/resume row remains **PARTIAL / DEFERRED** because neither completion-aware provider-scoped state nor typed player position/seek APIs exist. This audit adds no fake resume or watched threshold.
+
+The architecture decision against broad reference-service proliferation remains in force. No `ProviderSessionManager`, generic `ContentSearchService`, external `MetadataEnrichmentService`, or provider-specific catch-up/player service was added. Real populated Xtream acceptance remains blocked by unavailable authorized content evidence.

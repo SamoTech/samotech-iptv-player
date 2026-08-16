@@ -252,3 +252,23 @@ The current Xtream non-live status is **Partially Implemented with a materially 
 | Real-provider evidence | **BLOCKED BY EVIDENCE** | The authorized provider session previously returned zero VOD/Series records; no populated runtime claim is made. |
 
 Verification for this increment consists of the full offscreen pytest suite with 8,176 statements measured at 74% coverage, native PlayerShell and VLC lifecycle probes, the 100,000-record performance probe, Ruff, Black, mypy, and `git diff --check`; all passed in the final local run.
+
+
+## Advanced Xtream VOD/Series increment — 2026-08-16
+
+The advanced audit increment is complete within the existing architecture. Movie and Series DTOs now expose provider-supplied optional metadata including genre, director, cast, country, release date, duration, backdrop, container extension, and Series counts. PlayerShell renders richer inline detail summaries, bounded artwork placeholders/previews, local metadata search, explicit loading/empty/error states, Movie/Series Favorite actions, and safe Series → Season → Episode detail navigation. Episode Favorite remains unavailable because the existing Favorite contract excludes episodes.
+
+A shared-session `BoundedArtworkLoader` is injected from production composition. It validates non-secret HTTP(S) artwork URLs, limits individual and aggregate cache memory, expires entries, evicts LRU entries, invalidates by provider, preserves cancellation, and rejects malformed or oversized responses. Native Qt tests prove successful decode, placeholder behavior, and provider invalidation. Provider-scoped Favorites are persisted with a nullable SQLite migration for legacy rows and idempotent same-provider saves.
+
+| Capability | Classification | Evidence |
+|---|---|---|
+| Movie/Series details and metadata | IMPLEMENTED | Native Qt probe and full pytest with rich sanitized fixtures. |
+| Local search, category/filter, sort | IMPLEMENTED | Native probe, application tests, and 100,000-record performance probe. |
+| Artwork preview and bounded cache | IMPLEMENTED | Focused loader tests, shared binary HTTP test, native image decode probe. |
+| Favorites | IMPLEMENTED / PARTIAL | Provider-scoped persistence and duplicate prevention are tested; direct replay/navigation and Episode Favorites remain outside existing contracts. |
+| History | PARTIAL | Existing SQLite listing, progress display, and clear-all remain; provider enrichment and direct replay are not implemented. |
+| Watched state and true resume | DEFERRED / BLOCKED BY CONTRACT | `PlayerPort` lacks typed position/seek/read capabilities and History lacks provider/completion/upsert semantics. |
+| Real populated-provider acceptance | BLOCKED BY EVIDENCE | The authorized validation session previously returned zero VOD/Series records. |
+| Catch-up, tracks, external metadata enrichment | DEFERRED / PROVIDER-DEPENDENT | No approved provider-neutral capability or credential/licensing contract exists. |
+
+All implementation boundaries explicitly preserve Live EOF recovery, MAG, M3U, shared libVLC ownership, qasync task ownership, and stale-result protection.

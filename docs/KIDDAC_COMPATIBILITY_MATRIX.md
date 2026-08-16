@@ -44,3 +44,12 @@
 ## SamoTech status reconciliation — 2026-08-16
 
 The Movie/Series detail row is **PARTIAL by deliberate boundary**: SamoTech now exposes provider-supplied optional metadata and an inline detail panel with deterministic fallback, while remote artwork loading/cache and external metadata enrichment remain deferred. The local search, sort, category/filter, provider switching, playback handoff, and diagnostics rows remain as classified above. No EStalker or XStreamity source code was copied, and their behavior is treated only as technical reference.
+
+
+## Advanced reconciliation — 2026-08-16
+
+The earlier Artwork/posters row is updated from “future work” to **IMPLEMENTED / PARTIAL** for provider-supplied artwork only. SamoTech now uses a shared-session, provider-scoped, bounded TTL/LRU loader with URL safety, response-size limits, native Qt decode/error placeholders, stale-generation protection, and provider invalidation. External TMDB-style enrichment remains **DEFERRED / REJECTED** until a product, licensing, credential, and privacy contract exists.
+
+The Favorites row is **IMPLEMENTED / PARTIAL**: Favorites carry optional provider identity, legacy SQLite rows migrate safely, same-provider duplicates are prevented, and Movie/Series actions are exposed. Episode Favorites remain outside the existing domain item-type contract. The History/resume behavior is **PARTIAL / DEFERRED** because the existing History and `PlayerPort` contracts do not provide provider-scoped completion or typed seek/progress capabilities.
+
+The safe adaptation boundary remains unchanged: EStalker and XStreamity were inspected only as engineering references. No Enigma2 service APIs, global playlist state, decoder controls, provider-specific legacy URL construction, credential persistence, or source code were copied. Live EOF recovery, MAG, M3U, shared libVLC ownership, qasync task ownership, and stale-result protections remain preserved.

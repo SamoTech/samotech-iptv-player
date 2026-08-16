@@ -123,3 +123,20 @@ The prior comprehensive Favorites/History presentation gap is now reduced: Favor
 The earlier Movie/Series detail gap remains **PARTIAL**, but its reason is now narrower. The application has a commercial-grade local detail presentation for the metadata that is actually supplied by the Xtream payload, including safe optional metadata propagation, duration formatting, Series counts, episode duration, plot, people, and artwork availability. This is **IMPLEMENTED** at the translator, use-case, and native Qt fixture levels.
 
 The remaining gap is evidence and scope, not an architectural omission. No populated authorized Xtream VOD/Series runtime claim is made because the authorized validation session returned zero records. Remote artwork download and bounded caching, resume reconstruction, per-item history deletion/replay, catch-up, track selection, and broader provider-specific enrichment remain **DEFERRED**, **PARTIAL**, or **BLOCKED BY EVIDENCE** as appropriate. The existing search, category, sort, Favorites, History, stale-result, and playback boundaries are retained rather than reimplemented.
+
+
+## Advanced Xtream reconciliation — 2026-08-16
+
+The earlier Movie/Series detail gap is now narrower. Provider-supplied optional metadata, inline Movie/Series/Episode detail summaries, local metadata search, category filtering, opt-in sort, bounded artwork preview, provider invalidation, and Movie/Series Favorite actions are implemented within the existing architecture and covered by deterministic/native tests.
+
+| Capability | Updated classification | Evidence and remaining boundary |
+|---|---|---|
+| Movie details | IMPLEMENTED / PROVIDER-DEPENDENT | Safe optional metadata, detail presentation, bounded artwork, local actions, and Movie playback handoff are implemented; populated real-provider content remains unvalidated. |
+| Series → Season → Episode | IMPLEMENTED / PROVIDER-DEPENDENT | Safe navigation, Series counts, Episode duration/plot, stale protection, and Episode playback handoff are tested; portal-specific completeness remains provider-dependent. |
+| Artwork | IMPLEMENTED / PARTIAL | Shared-session bounded loader, URL safety, TTL/LRU memory limits, decode/error placeholders, and provider invalidation are implemented; external enrichment and remote artwork policy beyond provider-supplied URLs are deferred. |
+| Favorites | IMPLEMENTED / PARTIAL | Provider-scoped persistence, legacy migration, duplicate prevention, and Movie/Series actions are implemented; Episode Favorites, direct replay/navigation, and richer library enrichment remain outside current contracts. |
+| History | PARTIAL | Existing listing, position display, recency, and clear-all remain; provider-scoped identity, per-item replay, and completion-aware resume state are not implemented. |
+| Watched/resume | DEFERRED / BLOCKED BY CONTRACT | Current History and PlayerPort contracts cannot safely derive watched state or reconstruct resume. No guessed threshold or fake UI state was added. |
+| Real-provider acceptance | BLOCKED BY EVIDENCE | The authorized session used previously authenticated but returned zero VOD/Series records, so populated acceptance is not claimed. |
+
+The advanced increment intentionally did not alter the bounded Live EOF recovery controller, MAG or M3U behavior, shared libVLC player ownership, provider URL construction boundaries, or qasync stale-task protection. Catch-up, audio/subtitle tracks, TMDB/external enrichment, remote XMLTV retention, and broader portal quirks remain future work gated by evidence and contract decisions.

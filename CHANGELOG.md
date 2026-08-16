@@ -201,3 +201,23 @@ The baseline commit for this release state is `7896c9e5036d278b68ffc5e1cde35b801
 ### Explicitly not claimed
 
 - Populated authorized real-provider VOD/Series runtime validation, remote artwork loading/cache, resume reconstruction, catch-up, and audio/subtitle track APIs.
+
+
+## Advanced Xtream VOD/Series increment — 2026-08-16
+
+### Added
+
+- Added provider-supplied Movie and Series optional metadata propagation for detail panels, local search, category filtering, and sorting.
+- Added a provider-scoped `ArtworkPort` and bounded shared-session artwork loader with URL safety, response-size limits, TTL/LRU eviction, provider invalidation, cancellation preservation, and deterministic placeholders.
+- Added provider identity to Favorites with legacy SQLite migration and idempotent same-provider duplicate prevention.
+- Added Movie and Series Favorite actions and provider-aware Favorites library summaries.
+- Added explicit non-live loading, empty, unavailable, and metadata-search states.
+
+### Preserved or deferred by contract
+
+- Preserved Live EOF recovery, MAG, M3U, qasync ownership, stale-result protection, shared libVLC ownership, and typed `PlayerPort` handoff.
+- Deferred watched-state inference, true resume, progress updates, catch-up, track selection, external metadata enrichment, and populated real-provider acceptance because the current contracts or evidence do not support safe claims.
+
+### Verification
+
+The full offscreen pytest suite, native PlayerShell probe, native 100,000-record performance probe, Ruff, Black, mypy, and `git diff --check` passed. The native VLC lifecycle probe was executed at its repository path and reported `SKIP reason=windows_required`; no Windows runtime claim is made from the Linux environment.
