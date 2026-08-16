@@ -595,6 +595,7 @@ class PlayerShell(QWidget):
         self._active_content_type = ContentType.LIVE
         self._active_playback_content_type = None
         self._last_persisted_progress = None
+        self._set_control_availability()
         self._active_content_category_id = None
         self.selected_content = None
         self._clear_artwork_labels()
@@ -811,6 +812,16 @@ class PlayerShell(QWidget):
         self.restart_button.setToolTip("Restart the current movie or episode")
         self.restart_button.clicked.connect(self._schedule_restart)
         overlay_center.addWidget(self.restart_button)
+        self.previous_episode_button = QPushButton("Previous episode")
+        self.previous_episode_button.setAccessibleName("Play previous episode")
+        self.previous_episode_button.setToolTip("Play the previous episode when available")
+        self.previous_episode_button.clicked.connect(lambda: self._schedule_adjacent_episode(-1))
+        self.next_episode_button = QPushButton("Next episode")
+        self.next_episode_button.setAccessibleName("Play next episode")
+        self.next_episode_button.setToolTip("Play the next episode when available")
+        self.next_episode_button.clicked.connect(lambda: self._schedule_adjacent_episode(1))
+        overlay_center.addWidget(self.previous_episode_button)
+        overlay_center.addWidget(self.next_episode_button)
         overlay_center.addStretch(1)
         overlay_layout.addLayout(overlay_center)
 
@@ -1875,6 +1886,7 @@ class PlayerShell(QWidget):
             self._series_view_mode = "episodes"
             self._content_activate_buttons[ContentType.SERIES].setText("Play episode")
             self._render_content_catalogue(ContentType.SERIES)
+            self._set_control_availability()
         except asyncio.CancelledError:
             raise
         except Exception:
@@ -1936,6 +1948,7 @@ class PlayerShell(QWidget):
             )
             if getattr(result, "outcome", None) is PlaybackOutcome.PLAYED:
                 self._content_detail_labels[label].setText(f"Playing · {item.title}")
+                self._set_control_availability()
                 return
             self._content_detail_labels[label].setText("Unable to start playback")
         except asyncio.CancelledError:
@@ -2133,6 +2146,15 @@ class PlayerShell(QWidget):
             self.seek_slider,
         ):
             button.setEnabled(seekable)
+        episode_index = self._current_episode_index()
+        self.previous_episode_button.setEnabled(
+            seekable and episode_index is not None and episode_index > 0
+        )
+        self.next_episode_button.setEnabled(
+            seekable
+            and episode_index is not None
+            and episode_index + 1 < len(self._series_episodes)
+        )
         self.audio_button.setEnabled(has_player)
         self.subtitle_button.setEnabled(has_player)
         self.aspect_button.setEnabled(has_player)
@@ -2166,6 +2188,7 @@ class PlayerShell(QWidget):
                 self._player_port.get_volume(),
                 self._player_port.is_muted(),
             )
+            self._render_backend_state()
             if (
                 self._is_seekable_mode
                 and duration_ms
@@ -2331,6 +2354,39 @@ class PlayerShell(QWidget):
         except Exception:
             self._set_status_text("● Mute unavailable")
 
+    def _current_episode_index(self) -> int | None:
+        """Return the selected episode index only within the active provider-scoped list."""
+        if (
+            self.selected_content is None
+            or self.selected_content.content_type is not ContentType.EPISODE
+        ):
+            return None
+        for index, episode in enumerate(self._series_episodes):
+            if (
+                episode.id == self.selected_content.id
+                and episode.provider_id == self.selected_content.provider_id
+            ):
+                return index
+        return None
+
+    def _schedule_adjacent_episode(self, offset: int) -> None:
+        """Schedule a proven adjacent episode through the normal guarded playback path."""
+        if offset not in {-1, 1}:
+            return
+        current_index = self._current_episode_index()
+        if current_index is None:
+            return
+        target_index = current_index + offset
+        if not 0 <= target_index < len(self._series_episodes):
+            return
+        target = self._series_episodes[target_index]
+        self.selected_content = target
+        self._select_content_metadata(ContentType.SERIES, target)
+        self._active_non_live_action = (ContentType.EPISODE, target.id, "playback")
+        generation = self._begin_non_live_request()
+        create_owned_task(self, self._play_content_item(target, generation))
+        self._set_control_availability()
+
     def _schedule_restart(self) -> None:
         if self._player_port is not None and self._is_seekable_mode:
             create_owned_task(self, self._restart_playback())
@@ -2467,6 +2523,27 @@ class PlayerShell(QWidget):
             raise
         except Exception:
             self._set_status_text("● Aspect ratio unavailable")
+
+    def _render_backend_state(self) -> None:
+        """Render only the typed public player state; never expose native details."""
+        if self._player_port is None:
+            return
+        state = getattr(self._player_port, "state", None)
+        state_value = str(getattr(state, "value", "") or "").casefold()
+        labels = {
+            "loading": "● Loading",
+            "buffering": "● Buffering",
+            "recovering": "● Reconnecting",
+            "playing": "● Playing",
+            "paused": "● Paused",
+            "stopping": "● Stopping",
+            "stopped": "● Stopped",
+            "ended": "● Ended",
+            "error": "● Playback error",
+        }
+        label = labels.get(state_value)
+        if label is not None:
+            self._set_status_text(label)
 
     def _show_playback_info(self) -> None:
         if self._player_port is None:
