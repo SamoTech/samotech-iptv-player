@@ -38,6 +38,13 @@ class FakeLabel:
         self.value = value
 
 
+class FakeButton:
+    """Minimal QPushButton double for dialog wiring."""
+
+    def __init__(self, _: str) -> None:
+        self.clicked = type("Signal", (), {"connect": lambda self, callback: None})()
+
+
 class FakeLineEdit:
     """Minimal QLineEdit double for ephemeral credential collection."""
 
@@ -72,17 +79,21 @@ class FakeRegistration:
         return self.response
 
 
-def _install_fake_pyside6() -> None:
+def _install_fake_pyside6() -> tuple[object | None, object | None]:
+    original_pyside = sys.modules.get("PySide6")
+    original_widgets = sys.modules.get("PySide6.QtWidgets")
     qtwidgets = ModuleType("PySide6.QtWidgets")
     qtwidgets.QDialog = FakeDialog
     qtwidgets.QFormLayout = FakeFormLayout
     qtwidgets.QLabel = FakeLabel
     qtwidgets.QLineEdit = FakeLineEdit
+    qtwidgets.QPushButton = FakeButton
     sys.modules.setdefault("PySide6", ModuleType("PySide6"))
     sys.modules["PySide6.QtWidgets"] = qtwidgets
+    return original_pyside, original_widgets
 
 
-_install_fake_pyside6()
+_original_pyside, _original_widgets = _install_fake_pyside6()
 
 from samotech_iptv.application.dtos.provider_registration import (  # noqa: E402
     RegisterXtreamProviderResponse,
@@ -90,6 +101,15 @@ from samotech_iptv.application.dtos.provider_registration import (  # noqa: E402
 from samotech_iptv.presentation.dialogs.xtream_provider_dialog import (  # noqa: E402
     XtreamProviderDialog,
 )
+
+if _original_pyside is None:
+    sys.modules.pop("PySide6", None)
+else:
+    sys.modules["PySide6"] = _original_pyside
+if _original_widgets is None:
+    sys.modules.pop("PySide6.QtWidgets", None)
+else:
+    sys.modules["PySide6.QtWidgets"] = _original_widgets
 
 
 def _dialog(response: RegisterXtreamProviderResponse) -> XtreamProviderDialog:

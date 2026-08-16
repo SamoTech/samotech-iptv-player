@@ -78,6 +78,8 @@ class FakeButton:
         self.clicked = FakeSignal()
 
 
+original_pyside = sys.modules.get("PySide6")
+original_widgets = sys.modules.get("PySide6.QtWidgets")
 widgets = ModuleType("PySide6.QtWidgets")
 widgets.QDialog = FakeDialog
 widgets.QFormLayout = FakeFormLayout
@@ -92,6 +94,15 @@ from samotech_iptv.presentation.dialogs.mag_provider_dialog import MAGProviderDi
 from samotech_iptv.presentation.dialogs.xtream_provider_dialog import (  # noqa: E402
     XtreamProviderDialog,
 )
+
+if original_pyside is None:
+    sys.modules.pop("PySide6", None)
+else:
+    sys.modules["PySide6"] = original_pyside
+if original_widgets is None:
+    sys.modules.pop("PySide6.QtWidgets", None)
+else:
+    sys.modules["PySide6.QtWidgets"] = original_widgets
 
 
 class FakeRegistration:
