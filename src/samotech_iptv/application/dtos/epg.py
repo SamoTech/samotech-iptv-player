@@ -26,6 +26,7 @@ class EPGEntryDTO:
     start: str  # ISO-8601
     end: str  # ISO-8601
     description: str | None = None
+    category: str | None = None
 
 
 @dataclass(frozen=True)

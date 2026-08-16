@@ -33,6 +33,7 @@ class LoadRegisteredEPG:
             _LOG.exception("Unable to load EPG for registered provider id=%s", request.provider_id)
             return LoadEPGResponse(error=_SAFE_LOAD_FAILURE)
 
+        limit = max(0, min(request.limit, 500))
         return LoadEPGResponse(
             entries=[
                 EPGEntryDTO(
@@ -41,8 +42,9 @@ class LoadRegisteredEPG:
                     title=entry.title,
                     start=entry.start.isoformat(),
                     end=entry.end.isoformat(),
-                    description=None,
+                    description=entry.description,
+                    category=entry.category,
                 )
-                for entry in entries[: request.limit]
+                for entry in entries[:limit]
             ]
         )
