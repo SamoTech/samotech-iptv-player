@@ -409,6 +409,16 @@ async def main() -> None:
         category_id="sports",
         year=2024,
     )
+    newer_movie = ContentItemDTO(
+        id="movie-2",
+        provider_id="provider-a",
+        content_type=ContentType.MOVIE,
+        title="Beta Film",
+        stream_id="movie-stream-2|mp4",
+        category_id="sports",
+        year=2025,
+        rating=8.9,
+    )
     series = ContentItemDTO(
         id="series-1",
         provider_id="provider-a",
@@ -452,6 +462,10 @@ async def main() -> None:
     assert content_shell.content_model.item_at(0) is movie
     movie_list = content_shell._content_lists[ContentType.MOVIE]
     assert movie_list.viewMode().name == "IconMode"
+    content_shell._content_catalogues[ContentType.MOVIE] = (movie, newer_movie)
+    content_shell._content_sort_selectors[ContentType.MOVIE].setCurrentIndex(2)
+    assert content_shell.content_model.item_at(0) is newer_movie
+    content_shell._content_sort_selectors[ContentType.MOVIE].setCurrentIndex(0)
     assert movie_list.gridSize().width() == 172
     assert content_shell.sidebar_toggle.text() == "Menu"
     assert content_shell._player_overlay is not None

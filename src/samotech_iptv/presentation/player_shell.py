@@ -356,6 +356,7 @@ class PlayerShell(QWidget):
         self._provider_capabilities = ProviderCapabilities()
         self._content_lists: dict[ContentType, QListView] = {}
         self._content_category_selectors: dict[ContentType, QComboBox] = {}
+        self._content_sort_selectors: dict[ContentType, QComboBox] = {}
         self._content_status_labels: dict[ContentType, QLabel] = {}
         self._content_detail_labels: dict[ContentType, QLabel] = {}
         self._content_back_buttons: dict[ContentType, QPushButton] = {}
@@ -1066,6 +1067,16 @@ class PlayerShell(QWidget):
         category_selector.currentIndexChanged.connect(
             lambda _: self._content_category_changed(content_type)
         )
+        sort_selector = QComboBox()
+        sort_selector.addItem("Provider order", "provider")
+        sort_selector.addItem("Title A–Z", "title")
+        sort_selector.addItem("Newest first", "year_desc")
+        sort_selector.addItem("Rating", "rating_desc")
+        sort_selector.setAccessibleName(f"{title_text} sort order")
+        sort_selector.setToolTip("Sort the loaded catalogue without network activity")
+        sort_selector.currentIndexChanged.connect(
+            lambda _: self._content_sort_changed(content_type)
+        )
         activate_button = QPushButton(
             "Play selected" if content_type is ContentType.MOVIE else "Open series"
         )
@@ -1075,6 +1086,7 @@ class PlayerShell(QWidget):
         activate_button.clicked.connect(lambda: self._activate_current_content(content_type))
         actions.addWidget(load_button)
         actions.addWidget(category_selector)
+        actions.addWidget(sort_selector)
         actions.addWidget(activate_button)
         if content_type is ContentType.SERIES:
             back_button = QPushButton("Back")
@@ -1111,6 +1123,7 @@ class PlayerShell(QWidget):
         layout.addWidget(status)
         self._content_lists[content_type] = content_list
         self._content_category_selectors[content_type] = category_selector
+        self._content_sort_selectors[content_type] = sort_selector
         self._content_status_labels[content_type] = status
         self._content_detail_labels[content_type] = detail
         self._content_activate_buttons[content_type] = activate_button
@@ -1369,6 +1382,11 @@ class PlayerShell(QWidget):
         ].currentData()
         self._render_content_catalogue(content_type)
 
+    def _content_sort_changed(self, content_type: ContentType) -> None:
+        """Sort the active local catalogue without issuing another provider request."""
+        if self._active_content_type is content_type:
+            self._render_content_catalogue(content_type)
+
     def _render_content_catalogue(self, content_type: ContentType) -> None:
         """Render local title, genre, and year matches from the active non-live snapshot."""
         if content_type is ContentType.SERIES and self._series_view_mode != "catalogue":
@@ -1407,6 +1425,33 @@ class PlayerShell(QWidget):
                 ).casefold()
             )
         )
+        sort_key = self._content_sort_selectors[content_type].currentData()
+        if sort_key == "year_desc":
+            filtered = tuple(
+                sorted(
+                    filtered,
+                    key=lambda item: (
+                        item.year is not None,
+                        item.year if item.year is not None else -1,
+                        item.title.casefold(),
+                    ),
+                    reverse=True,
+                )
+            )
+        elif sort_key == "rating_desc":
+            filtered = tuple(
+                sorted(
+                    filtered,
+                    key=lambda item: (
+                        item.rating is not None,
+                        item.rating if item.rating is not None else -1.0,
+                        item.title.casefold(),
+                    ),
+                    reverse=True,
+                )
+            )
+        elif sort_key == "title":
+            filtered = tuple(sorted(filtered, key=lambda item: item.title.casefold()))
         self.content_model.replace_items(filtered)
         title = "movies" if content_type is ContentType.MOVIE else "series"
         self._content_status_labels[content_type].setText(

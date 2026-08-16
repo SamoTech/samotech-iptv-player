@@ -167,3 +167,11 @@ The baseline commit for this release state is `7896c9e5036d278b68ffc5e1cde35b801
 - Added deterministic API-client, translator, adapter, resolver, security-boundary, malformed-response, and sparse-metadata tests. Existing MAG capability declarations remain unchanged because the current MAG facade and authorized fixtures do not establish VOD, Series, or executable catch-up contracts.
 - Preserved the existing `PlayerPort`/libVLC boundary, provider credentials/keyring ownership, playback URL construction boundary, generation-safe workflows, and presentation architecture.
 - Full offscreen pytest with coverage, native Qt/player probe, Ruff, Black, mypy, and `git diff --check` pass.
+
+
+## KiddaC technology adaptation — 2026-08-16
+
+- Added `KIDDAC_TECHNOLOGY_GAP_MATRIX.md` and source-linked adaptation records comparing SamoTech with EStalker and XStreamity without cloning Enigma2 code, UI, global state, filesystem assumptions, or decoder APIs.
+- Added an opt-in local Movie/Series catalogue sort selector for provider order, title A–Z, newest-first, and rating ordering. The default preserves provider response order and all choices operate only on already-loaded canonical content.
+- Added deterministic native Qt coverage for the new sort behavior and retained large-catalogue identity/performance coverage through 100,000 content records.
+- Documented rejected legacy behavior, external-source licenses, catch-up limitations, MAG production evidence limits, and the unchanged PlayerPort/libVLC and Live EOF recovery boundaries.

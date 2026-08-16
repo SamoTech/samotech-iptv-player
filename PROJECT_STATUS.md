@@ -220,3 +220,10 @@ The runtime observation must distinguish normal Live playback, a failure that do
 The normalized provider model set now includes secret-free `ProviderSession`, `AccountInfo`, `ServerInfo`, and `CatchupEvent` records. Xtream account and server metadata are executable through explicit capability ports and resolver methods, with deterministic tests covering active, expired, unknown, malformed, and sparse response variations. The existing Xtream Live/VOD/Series/EPG/search/playback workflows remain intact. MAG retains its verified live/session/EPG/search/playback capability declaration; MAG VOD, Series, and executable catch-up remain unsupported because the current legacy facade and authorized fixtures do not establish those contracts.
 
 The complete offscreen test suite with coverage, native Qt/player probe, Ruff, Black, mypy, and `git diff --check` all pass after this update. Coverage is reported as an evidence metric rather than a release threshold; no backend or player contract was changed.
+
+
+## KiddaC technology adaptation status
+
+The EStalker and XStreamity source studies are complete and are recorded in `KIDDAC_TECHNOLOGY_GAP_MATRIX.md` and the adaptation documentation. The safe implementation increment is intentionally narrow: the existing Xtream/MAG normalized provider boundaries remain authoritative, and Movie/Series catalogues now provide local category/search/sort controls over loaded canonical snapshots. The default sort preserves provider response order; title, newest, and rating ordering are explicit local choices that do not issue provider requests.
+
+EStalker Enigma2 UI/global state/service APIs, fabricated device identities, raw credential-bearing timeshift URLs, and unverified handshake tricks remain rejected. Catch-up, hidden-content policy, TMDB-style enrichment, and broad provider failover remain documented partial or blocked areas rather than unsupported claims. The prior Live-only EOF recovery policy and shared PlayerPort/libVLC boundary are unchanged.
