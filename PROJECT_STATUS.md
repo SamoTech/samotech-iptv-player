@@ -236,3 +236,19 @@ The current origin/main implementation was traced end-to-end from qasync startup
 The evidence-backed implementation increment is intentionally small: deterministic sanitized Xtream fixtures now distinguish expired authentication from an active account with zero VOD/Series content and preserve a safe unusual `webm` container extension. No provider or player contract was changed. Public EStalker and XStreamity projects are acknowledged in `README.md`; no source code was copied, no new dependency was added, and no license or endorsement claim is made where repository metadata did not expose an explicit license.
 
 The focused verification set passed: 75 tests, the deterministic native PlayerShell probe, and the 100,000-record local catalogue performance probe. The full quality-gate suite remains the required final check. The following remain not executed or not established: authorized populated real-Xtream runtime validation, authorized MAG production compatibility, authorized Windows desktop Live EOF runtime, executable catch-up, replay/resume reconstruction, remote XMLTV caching/scheduling, and audio/subtitle track selection.
+
+## Commercial Xtream VOD/Series increment — 2026-08-16
+
+The current Xtream non-live status is **Partially Implemented with a materially improved detail experience**. Movie and Series metadata now has a safe optional path from provider payload through canonical entities and presentation DTOs into an inline detail panel. The panel is covered by a native offscreen PlayerShell probe and does not claim remote artwork loading, resume reconstruction, or catch-up.
+
+| Area | Current classification | Evidence and boundary |
+|---|---|---|
+| Movie catalogue/detail | **IMPLEMENTED / PARTIAL** | Synthetic rich-metadata translator and application tests, native detail-panel assertions, and full suite pass. Populated authorized real-provider validation is not executed. |
+| Series/season/episode navigation | **IMPLEMENTED / PARTIAL** | Existing generation-safe Series → Season → Episode flow plus metadata/count propagation and episode duration mapping are covered synthetically. Series containers remain non-playable. |
+| Search/category/sort | **IMPLEMENTED** | Existing local loaded-snapshot controls and native/performance probes remain green; no provider request is introduced. |
+| Artwork | **PARTIAL / DEFERRED** | Provider poster/backdrop metadata is retained and availability is shown; network loading, bounded disk/memory cache, and fallback policy remain deferred. |
+| Favorites/history/resume | **IMPLEMENTED / PARTIAL** | Existing SQLite Favorites/History bounded library behavior is preserved. Replay/resume reconstruction and per-record deletion remain unimplemented. |
+| Playback | **IMPLEMENTED for existing eligible targets** | Existing Movie/Episode resolution and shared libVLC handoff are regression-tested. No fake resume or new track APIs were added. |
+| Real-provider evidence | **BLOCKED BY EVIDENCE** | The authorized provider session previously returned zero VOD/Series records; no populated runtime claim is made. |
+
+Verification for this increment consists of the full offscreen pytest suite with 8,176 statements measured at 74% coverage, native PlayerShell and VLC lifecycle probes, the 100,000-record performance probe, Ruff, Black, mypy, and `git diff --check`; all passed in the final local run.

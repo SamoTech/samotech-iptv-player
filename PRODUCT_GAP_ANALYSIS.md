@@ -117,3 +117,9 @@ Favorites and History list views, refresh, empty/error states, Favorite removal,
 ## Current library status — 2026-08-13
 
 The prior comprehensive Favorites/History presentation gap is now reduced: Favorites listing, empty state, refresh, generic errors, and single-record removal are implemented; History recent listing, duration, persisted playback-position display, recency, refresh, generic errors, and confirmation-protected clear-all are implemented. History per-record deletion, replay, resume, provider reconstruction, and stream reconstruction remain out of scope.
+
+## Xtream VOD/Series reconciliation — 2026-08-16
+
+The earlier Movie/Series detail gap remains **PARTIAL**, but its reason is now narrower. The application has a commercial-grade local detail presentation for the metadata that is actually supplied by the Xtream payload, including safe optional metadata propagation, duration formatting, Series counts, episode duration, plot, people, and artwork availability. This is **IMPLEMENTED** at the translator, use-case, and native Qt fixture levels.
+
+The remaining gap is evidence and scope, not an architectural omission. No populated authorized Xtream VOD/Series runtime claim is made because the authorized validation session returned zero records. Remote artwork download and bounded caching, resume reconstruction, per-item history deletion/replay, catch-up, track selection, and broader provider-specific enrichment remain **DEFERRED**, **PARTIAL**, or **BLOCKED BY EVIDENCE** as appropriate. The existing search, category, sort, Favorites, History, stale-result, and playback boundaries are retained rather than reimplemented.

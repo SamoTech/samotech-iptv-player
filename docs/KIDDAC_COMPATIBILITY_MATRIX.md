@@ -40,3 +40,7 @@
 - [XStreamity source](https://github.com/kiddac/XStreamity/tree/master/XStreamity/usr/lib/enigma2/python/Plugins/Extensions/XStreamity)
 - [KIDDAC technology adaptation](KIDDAC_TECHNOLOGY_ADAPTATION.md)
 - [KIDDAC technology gap matrix](../KIDDAC_TECHNOLOGY_GAP_MATRIX.md)
+
+## SamoTech status reconciliation — 2026-08-16
+
+The Movie/Series detail row is **PARTIAL by deliberate boundary**: SamoTech now exposes provider-supplied optional metadata and an inline detail panel with deterministic fallback, while remote artwork loading/cache and external metadata enrichment remain deferred. The local search, sort, category/filter, provider switching, playback handoff, and diagnostics rows remain as classified above. No EStalker or XStreamity source code was copied, and their behavior is treated only as technical reference.
