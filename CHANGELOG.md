@@ -1,5 +1,13 @@
 # Changelog
 
+## Xtream VOD and Series hardening — 2026-08-16
+
+- Hardened the existing Xtream Movie and Series → Season → Episode flow with presentation-side provider/content/action freshness checks around asynchronous detail, discovery, and playback completions.
+- Stale movie, season, episode, provider-switched, navigated-away, duplicate, and disposed-owner completions no longer mutate current non-live UI state or initiate stale playback.
+- Added deterministic offscreen Qt/async coverage for stale VOD detail, stale Series seasons, stale episode lists, provider switching, rapid episode selection, and safe playback outcomes.
+- Updated architecture documentation to distinguish repository-observed Xtream behavior from provider-dependent compatibility assumptions. No live, MAG, M3U, VLC recovery, retry, decoder, qasync, or packaging behavior changed.
+- Authorized real-Xtream runtime validation remains pending and is not claimed.
+
 ## Phase 2 playback contract — 2026-08-16
 
 - Introduced the provider-neutral `PlaybackResource`, typed `TransportMetadata`, and ephemeral `ResolvedPlayback` contract.

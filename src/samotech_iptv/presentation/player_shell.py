@@ -254,6 +254,9 @@ class PlayerShell(QWidget):
         self._provider_ids: list[str] = []
         self._active_category_id: str | None = None
         self._request_generation = 0
+        self._non_live_generation = 0
+        self._active_non_live_action: tuple[ContentType, str, str] | None = None
+        self._disposed = False
         self._loading = False
         self.selected_channel: ChannelDTO | None = None
         self.playing_channel: ChannelDTO | None = None
@@ -400,6 +403,7 @@ class PlayerShell(QWidget):
         if self._invalidate_pending_playback is not None:
             self._invalidate_pending_playback()
         self._request_generation += 1
+        self._invalidate_non_live_requests()
         self._set_loading(False)
         self._catalogue_channels = ()
         self._search_channels_result = None
@@ -829,6 +833,7 @@ class PlayerShell(QWidget):
         if not 0 <= index < len(self._navigation_pages):
             return
         page_index = self._navigation_pages[index]
+        self._invalidate_non_live_requests()
         self.pages.setCurrentIndex(page_index)
         if page_index == 1:
             self._active_content_type = ContentType.LIVE
@@ -1016,13 +1021,25 @@ class PlayerShell(QWidget):
             return
         if content_type is ContentType.SERIES:
             if self._series_view_mode == "catalogue":
-                create_owned_task(self, self._load_series_seasons_for(item))
+                action = (ContentType.SERIES, item.id, "seasons")
             elif self._series_view_mode == "seasons":
-                create_owned_task(self, self._load_series_episodes_for(item))
+                action = (ContentType.SERIES, item.id, "episodes")
             else:
-                create_owned_task(self, self._play_content_item(item))
+                action = (ContentType.EPISODE, item.id, "playback")
         else:
-            create_owned_task(self, self._load_and_play_movie(item))
+            action = (ContentType.MOVIE, item.id, "playback")
+        if self._active_non_live_action == action:
+            return
+        self._active_non_live_action = action
+        generation = self._begin_non_live_request()
+        if action[2] == "seasons":
+            create_owned_task(self, self._load_series_seasons_for(item, generation))
+        elif action[2] == "episodes":
+            create_owned_task(self, self._load_series_episodes_for(item, generation))
+        elif action[0] is ContentType.MOVIE:
+            create_owned_task(self, self._load_and_play_movie(item, generation))
+        else:
+            create_owned_task(self, self._play_content_item(item, generation))
 
     def _activate_current_content(self, content_type: ContentType) -> None:
         """Activate the selected item without bypassing the list-model selection boundary."""
@@ -1030,130 +1047,233 @@ class PlayerShell(QWidget):
         if index.isValid():
             self._activate_content_index(content_type, index)
 
-    async def _load_and_play_movie(self, item: ContentItemDTO) -> None:
-        if self._load_movie_details is None:
-            self._content_detail_labels[ContentType.MOVIE].setText("Movie details are unavailable")
-            return
-        response = await self._load_movie_details.execute(
-            LoadMovieDetailsRequest(provider_id=item.provider_id, movie_id=item.id)
+    async def _load_and_play_movie(
+        self, item: ContentItemDTO, generation: int | None = None
+    ) -> None:
+        provider_id = item.provider_id
+        action = (ContentType.MOVIE, item.id, "playback")
+        if generation is None:
+            self._active_non_live_action = action
+        request_generation = (
+            generation if generation is not None else self._begin_non_live_request()
         )
-        if response.unsupported:
-            self._content_detail_labels[ContentType.MOVIE].setText("Movie playback is unavailable")
-            return
-        if response.error is not None or response.item is None:
-            self._content_detail_labels[ContentType.MOVIE].setText("Unable to load movie details")
-            return
-        self.selected_content = response.item
-        self._select_content_metadata(ContentType.MOVIE, response.item)
-        await self._play_content_item(response.item)
-
-    async def _load_series_seasons_for(self, item: ContentItemDTO) -> None:
-        if self._load_series_seasons is None:
-            self._content_detail_labels[ContentType.SERIES].setText(
-                "Series details are unavailable"
+        try:
+            if self._load_movie_details is None:
+                if self._non_live_current(request_generation, provider_id, action):
+                    self._content_detail_labels[ContentType.MOVIE].setText(
+                        "Movie details are unavailable"
+                    )
+                return
+            response = await self._load_movie_details.execute(
+                LoadMovieDetailsRequest(provider_id=provider_id, movie_id=item.id)
             )
-            return
-        response = await self._load_series_seasons.execute(
-            LoadSeriesSeasonsRequest(provider_id=item.provider_id, series_id=item.id)
-        )
-        if response.unsupported:
-            self._content_detail_labels[ContentType.SERIES].setText(
-                "Series details are unavailable"
-            )
-            return
-        if response.error is not None:
-            self._content_detail_labels[ContentType.SERIES].setText("Unable to load seasons")
-            return
-        self._series_context_id = item.id
-        self._series_seasons = tuple(
-            ContentItemDTO(
-                id=season.id,
-                provider_id=season.provider_id,
-                content_type=ContentType.SERIES,
-                title=season.title or f"Season {season.number}",
-                series_id=season.series_id,
-                season=season.number,
-            )
-            for season in response.seasons
-        )
-        self._series_view_mode = "seasons"
-        self._content_back_buttons[ContentType.SERIES].setEnabled(True)
-        self._content_activate_buttons[ContentType.SERIES].setText("Open season")
-        self._render_content_catalogue(ContentType.SERIES)
-
-    async def _load_series_episodes_for(self, item: ContentItemDTO) -> None:
-        if self._load_season_episodes is None or item.series_id is None or item.season is None:
-            self._content_detail_labels[ContentType.SERIES].setText("Episodes are unavailable")
-            return
-        response = await self._load_season_episodes.execute(
-            LoadSeasonEpisodesRequest(
-                provider_id=item.provider_id,
-                series_id=item.series_id,
-                season=item.season,
-            )
-        )
-        if response.unsupported:
-            self._content_detail_labels[ContentType.SERIES].setText("Episodes are unavailable")
-            return
-        if response.error is not None:
-            self._content_detail_labels[ContentType.SERIES].setText("Unable to load episodes")
-            return
-        self._series_episodes = tuple(
-            ContentItemDTO(
-                id=episode.id,
-                provider_id=episode.provider_id,
-                content_type=ContentType.EPISODE,
-                title=episode.title,
-                stream_id=episode.resource_id,
-                series_id=episode.series_id,
-                season=episode.season,
-                episode_number=episode.episode_number,
-                plot=episode.plot,
-            )
-            for episode in response.episodes
-        )
-        self._series_view_mode = "episodes"
-        self._content_activate_buttons[ContentType.SERIES].setText("Play episode")
-        self._render_content_catalogue(ContentType.SERIES)
-
-    async def _play_content_item(self, item: ContentItemDTO) -> None:
-        if item.content_type is ContentType.MOVIE:
-            if not item.stream_id:
+            if not self._non_live_current(request_generation, provider_id, action):
+                return
+            if getattr(response, "stale", False) or response.unsupported:
                 self._content_detail_labels[ContentType.MOVIE].setText(
                     "Movie playback is unavailable"
                 )
                 return
-            target = PlaybackTarget.movie(item.provider_id, item.id, item.stream_id)
-        elif item.content_type is ContentType.EPISODE:
-            if (
-                not item.stream_id
-                or item.series_id is None
-                or item.season is None
-                or item.episode_number is None
-            ):
-                self._content_detail_labels[ContentType.SERIES].setText(
-                    "Episode playback is unavailable"
+            if response.error is not None or response.item is None:
+                self._content_detail_labels[ContentType.MOVIE].setText(
+                    "Unable to load movie details"
                 )
                 return
-            target = PlaybackTarget.episode(
-                item.provider_id,
-                item.id,
-                item.stream_id,
-                item.series_id,
-                item.season,
-                item.episode_number,
+            self.selected_content = response.item
+            self._select_content_metadata(ContentType.MOVIE, response.item)
+            await self._play_content_item(response.item, request_generation)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            if self._non_live_current(request_generation, provider_id, action):
+                self._content_detail_labels[ContentType.MOVIE].setText(
+                    "Unable to load movie details"
+                )
+        finally:
+            self._finish_non_live_request(request_generation, action)
+
+    async def _load_series_seasons_for(
+        self, item: ContentItemDTO, generation: int | None = None
+    ) -> None:
+        provider_id = item.provider_id
+        action = (ContentType.SERIES, item.id, "seasons")
+        if generation is None:
+            self._active_non_live_action = action
+        request_generation = (
+            generation if generation is not None else self._begin_non_live_request()
+        )
+        try:
+            if self._load_series_seasons is None:
+                if self._non_live_current(request_generation, provider_id, action):
+                    self._content_detail_labels[ContentType.SERIES].setText(
+                        "Series details are unavailable"
+                    )
+                return
+            response = await self._load_series_seasons.execute(
+                LoadSeriesSeasonsRequest(provider_id=provider_id, series_id=item.id)
             )
-        else:
-            return
-        result = await self._play_selected_channel(target)
-        label = ContentType.MOVIE if item.content_type is ContentType.MOVIE else ContentType.SERIES
-        if getattr(result, "outcome", None) is PlaybackOutcome.PLAYED:
-            self._content_detail_labels[label].setText(f"Playing · {item.title}")
-            return
-        self._content_detail_labels[label].setText("Unable to start playback")
+            if not self._non_live_current(request_generation, provider_id, action):
+                return
+            if getattr(response, "stale", False) or response.unsupported:
+                self._content_detail_labels[ContentType.SERIES].setText(
+                    "Series details are unavailable"
+                )
+                return
+            if response.error is not None:
+                self._content_detail_labels[ContentType.SERIES].setText("Unable to load seasons")
+                return
+            self._series_context_id = item.id
+            self._series_seasons = tuple(
+                ContentItemDTO(
+                    id=season.id,
+                    provider_id=season.provider_id,
+                    content_type=ContentType.SERIES,
+                    title=season.title or f"Season {season.number}",
+                    series_id=season.series_id,
+                    season=season.number,
+                )
+                for season in response.seasons
+            )
+            self._series_view_mode = "seasons"
+            self._content_back_buttons[ContentType.SERIES].setEnabled(True)
+            self._content_activate_buttons[ContentType.SERIES].setText("Open season")
+            self._render_content_catalogue(ContentType.SERIES)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            if self._non_live_current(request_generation, provider_id, action):
+                self._content_detail_labels[ContentType.SERIES].setText("Unable to load seasons")
+        finally:
+            self._finish_non_live_request(request_generation, action)
+
+    async def _load_series_episodes_for(
+        self, item: ContentItemDTO, generation: int | None = None
+    ) -> None:
+        provider_id = item.provider_id
+        series_id = item.series_id
+        season = item.season
+        action = (ContentType.SERIES, item.id, "episodes")
+        if generation is None:
+            self._active_non_live_action = action
+        request_generation = (
+            generation if generation is not None else self._begin_non_live_request()
+        )
+        try:
+            if self._load_season_episodes is None or series_id is None or season is None:
+                if self._non_live_current(request_generation, provider_id, action):
+                    self._content_detail_labels[ContentType.SERIES].setText(
+                        "Episodes are unavailable"
+                    )
+                return
+            response = await self._load_season_episodes.execute(
+                LoadSeasonEpisodesRequest(
+                    provider_id=provider_id,
+                    series_id=series_id,
+                    season=season,
+                )
+            )
+            if not self._non_live_current(request_generation, provider_id, action):
+                return
+            if getattr(response, "stale", False) or response.unsupported:
+                self._content_detail_labels[ContentType.SERIES].setText("Episodes are unavailable")
+                return
+            if response.error is not None:
+                self._content_detail_labels[ContentType.SERIES].setText("Unable to load episodes")
+                return
+            self._series_episodes = tuple(
+                ContentItemDTO(
+                    id=episode.id,
+                    provider_id=episode.provider_id,
+                    content_type=ContentType.EPISODE,
+                    title=episode.title,
+                    stream_id=episode.resource_id,
+                    series_id=episode.series_id,
+                    season=episode.season,
+                    episode_number=episode.episode_number,
+                    plot=episode.plot,
+                )
+                for episode in response.episodes
+            )
+            self._series_view_mode = "episodes"
+            self._content_activate_buttons[ContentType.SERIES].setText("Play episode")
+            self._render_content_catalogue(ContentType.SERIES)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            if self._non_live_current(request_generation, provider_id, action):
+                self._content_detail_labels[ContentType.SERIES].setText("Unable to load episodes")
+        finally:
+            self._finish_non_live_request(request_generation, action)
+
+    async def _play_content_item(self, item: ContentItemDTO, generation: int | None = None) -> None:
+        provider_id = item.provider_id
+        action = (
+            ContentType.MOVIE if item.content_type is ContentType.MOVIE else ContentType.EPISODE,
+            item.id,
+            "playback",
+        )
+        if generation is None:
+            self._active_non_live_action = action
+        request_generation = (
+            generation if generation is not None else self._begin_non_live_request()
+        )
+        try:
+            if not self._non_live_current(request_generation, provider_id, action):
+                return
+            if item.content_type is ContentType.MOVIE:
+                if not item.stream_id:
+                    self._content_detail_labels[ContentType.MOVIE].setText(
+                        "Movie playback is unavailable"
+                    )
+                    return
+                target = PlaybackTarget.movie(item.provider_id, item.id, item.stream_id)
+            elif item.content_type is ContentType.EPISODE:
+                if (
+                    not item.stream_id
+                    or item.series_id is None
+                    or item.season is None
+                    or item.episode_number is None
+                ):
+                    self._content_detail_labels[ContentType.SERIES].setText(
+                        "Episode playback is unavailable"
+                    )
+                    return
+                target = PlaybackTarget.episode(
+                    item.provider_id,
+                    item.id,
+                    item.stream_id,
+                    item.series_id,
+                    item.season,
+                    item.episode_number,
+                )
+            else:
+                return
+            result = await self._play_selected_channel(target)
+            if not self._non_live_current(request_generation, provider_id, action):
+                return
+            label = (
+                ContentType.MOVIE if item.content_type is ContentType.MOVIE else ContentType.SERIES
+            )
+            if getattr(result, "outcome", None) is PlaybackOutcome.PLAYED:
+                self._content_detail_labels[label].setText(f"Playing · {item.title}")
+                return
+            self._content_detail_labels[label].setText("Unable to start playback")
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            if self._non_live_current(request_generation, provider_id, action):
+                label = (
+                    ContentType.MOVIE
+                    if item.content_type is ContentType.MOVIE
+                    else ContentType.SERIES
+                )
+                self._content_detail_labels[label].setText("Unable to start playback")
+        finally:
+            self._finish_non_live_request(request_generation, action)
 
     def _back_series_navigation(self) -> None:
         """Return from episode or season context without provider calls or player mutation."""
+        self._invalidate_non_live_requests()
         if self._series_view_mode == "episodes":
             self._series_view_mode = "seasons"
             self._content_activate_buttons[ContentType.SERIES].setText("Open season")
@@ -1189,6 +1309,33 @@ class PlayerShell(QWidget):
         self._content_detail_labels[content_type].setText(
             f"Selected · {item.title}" + (f" · {metadata}" if metadata else "")
         )
+
+    def _begin_non_live_request(self) -> int:
+        self._non_live_generation += 1
+        return self._non_live_generation
+
+    def _invalidate_non_live_requests(self) -> None:
+        self._non_live_generation += 1
+        self._active_non_live_action = None
+
+    def _non_live_current(
+        self,
+        generation: int,
+        provider_id: str,
+        action: tuple[ContentType, str, str],
+    ) -> bool:
+        return (
+            not self._disposed
+            and generation == self._non_live_generation
+            and provider_id == self._provider_id()
+            and action == self._active_non_live_action
+        )
+
+    def _finish_non_live_request(
+        self, generation: int, action: tuple[ContentType, str, str]
+    ) -> None:
+        if generation == self._non_live_generation and action == self._active_non_live_action:
+            self._active_non_live_action = None
 
     def _begin_request(self) -> int:
         self._request_generation += 1
@@ -1400,6 +1547,13 @@ class PlayerShell(QWidget):
     def _render_channels(self, channels: Sequence[ChannelDTO]) -> None:
         self._channels = list(channels)
         self.channel_model.replace_channels(self._channels)
+
+    def closeEvent(self, event: object) -> None:  # noqa: N802
+        """Invalidate non-live completions before the Qt owner is disposed."""
+        self._disposed = True
+        self._invalidate_non_live_requests()
+        cancel_owned_tasks(self)
+        super().closeEvent(event)  # type: ignore[arg-type]
 
     def _toggle_fullscreen(self) -> None:
         window = self.window()
