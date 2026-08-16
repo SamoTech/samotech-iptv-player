@@ -43,6 +43,8 @@ async def test_record_history_persists_safe_playback_metadata() -> None:
     assert [(record.item_id, record.item_type) for record in repository.records] == [
         ("channel-1", "channel")
     ]
+    assert repository.records[0].duration_seconds == 0
+    assert repository.records[0].position_seconds == 0
 
 
 @pytest.mark.asyncio

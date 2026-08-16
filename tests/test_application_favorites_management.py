@@ -42,6 +42,7 @@ async def test_list_favorites_returns_safe_summary_dtos() -> None:
                 item_id="channel-1",
                 item_type="channel",
                 added_at=datetime(2026, 8, 12, tzinfo=UTC),
+                provider_id="provider-a",
             )
         ]
     )
@@ -50,8 +51,9 @@ async def test_list_favorites_returns_safe_summary_dtos() -> None:
 
     assert response.error is None
     assert [
-        (favorite.id, favorite.item_id, favorite.item_type) for favorite in response.favorites
-    ] == [("favorite-1", "channel-1", "channel")]
+        (favorite.id, favorite.item_id, favorite.item_type, favorite.provider_id)
+        for favorite in response.favorites
+    ] == [("favorite-1", "channel-1", "channel", "provider-a")]
 
 
 @pytest.mark.asyncio

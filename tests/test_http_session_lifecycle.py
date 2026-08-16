@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 from aiohttp import web
 
+from samotech_iptv.infrastructure.network.exceptions import HttpClientError
 from samotech_iptv.infrastructure.network.http_client import AsyncHttpClient
 from samotech_iptv.infrastructure.network.http_session import HttpSession
 from samotech_iptv.infrastructure.providers.m3u_adapter import M3UProviderAdapter
@@ -22,6 +23,7 @@ async def local_http_server() -> str:
             content_type="audio/x-mpegurl",
         ),
     )
+    app.router.add_get("/artwork.jpg", lambda _: web.Response(body=b"image-bytes"))
     runner = web.AppRunner(app)
     await runner.setup()
     site = web.TCPSite(runner, "127.0.0.1", 0)
@@ -62,6 +64,23 @@ async def test_http_client_local_operation_requires_open_and_closes(
     assert client._session.is_open is True  # type: ignore[union-attr]
     await client.close()
     assert client._session.is_open is False  # type: ignore[union-attr]
+
+
+@pytest.mark.asyncio
+async def test_http_client_get_bytes_reuses_open_session_and_enforces_limit(
+    local_http_server: str,
+) -> None:
+    client = AsyncHttpClient()
+    await client.open()
+    try:
+        assert (
+            await client.get_bytes(f"{local_http_server}/artwork.jpg", max_bytes=32)
+            == b"image-bytes"
+        )
+        with pytest.raises(HttpClientError, match="size limit"):
+            await client.get_bytes(f"{local_http_server}/artwork.jpg", max_bytes=4)
+    finally:
+        await client.close()
 
 
 @pytest.mark.asyncio

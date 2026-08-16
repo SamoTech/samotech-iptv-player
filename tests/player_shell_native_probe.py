@@ -85,6 +85,27 @@ class FakeFavorite:
         return SimpleNamespace(success=True)
 
 
+class FakeArtwork:
+    _PNG = bytes.fromhex(
+        "89504e470d0a1a0a0000000d4948445200000001000000010804000000b51c0c02"
+        "0000000b4944415478da6364f80f00010501012718e3660000000049454e44ae426082"
+    )
+
+    def __init__(self) -> None:
+        self.requests: list[object] = []
+        self.cleared_providers: list[str] = []
+
+    async def load(self, request: object) -> bytes:
+        self.requests.append(request)
+        return self._PNG
+
+    def clear_provider(self, provider_id: str) -> None:
+        self.cleared_providers.append(provider_id)
+
+    def clear(self) -> None:
+        return None
+
+
 class FakeProviders:
     def __init__(self, providers: tuple[ProviderMetadata, ...]) -> None:
         self.providers = providers
@@ -207,6 +228,7 @@ def make_shell(
     movie_details: FakeMovieDetails | None = None,
     series_seasons: FakeSeriesSeasons | None = None,
     season_episodes: FakeSeasonEpisodes | None = None,
+    artwork_loader: FakeArtwork | None = None,
     invalidate_pending_playback: object | None = None,
 ) -> PlayerShell:
     return PlayerShell(
@@ -231,6 +253,7 @@ def make_shell(
         load_movie_details=movie_details,  # type: ignore[arg-type]
         load_series_seasons=series_seasons,  # type: ignore[arg-type]
         load_season_episodes=season_episodes,  # type: ignore[arg-type]
+        artwork_loader=artwork_loader,  # type: ignore[arg-type]
         invalidate_pending_playback=invalidate_pending_playback,  # type: ignore[arg-type]
     )
 
@@ -437,15 +460,22 @@ async def main() -> None:
         title="Arena Series",
         category_id="sports",
         year=2023,
+        rating=8.6,
+        genre="Drama",
+        plot="A safe series fixture.",
+        season_count=1,
+        episode_count=1,
     )
     content = FakeContent({ContentType.MOVIE: (movie,), ContentType.SERIES: (series,)})
+    content_favorite = FakeFavorite()
+    artwork = FakeArtwork()
     capabilities = FakeCapabilities(
         ProviderCapabilities(live_tv=True, vod_movies=True, vod_series=True, epg=False)
     )
     content_shell = make_shell(
         FakeBrowse(),
         FakeSearch(),
-        FakeFavorite(),
+        content_favorite,
         play,
         categories=FakeCategories((CategoryDTO("sports", "Sports", "provider-a"),)),
         content=content,
@@ -453,6 +483,7 @@ async def main() -> None:
         movie_details=FakeMovieDetails(movie),
         series_seasons=FakeSeriesSeasons(),
         season_episodes=FakeSeasonEpisodes(),
+        artwork_loader=artwork,
     )
     content_shell.provider_selector.setEditText("provider-a")
     await content_shell.refresh_provider_capabilities("provider-a")
@@ -492,6 +523,14 @@ async def main() -> None:
     assert "2024 · ★ 8.2 · Drama · 1h 30m · MP4" in detail_text
     assert "Example Director · Example Cast · Synthetic · 2024-01-02" in detail_text
     assert "Artwork available" in detail_text
+    await asyncio.sleep(0)
+    artwork_label = content_shell._content_artwork_labels[ContentType.MOVIE]
+    assert artwork.requests
+    assert artwork_label.pixmap() is not None
+    assert not artwork_label.pixmap().isNull()  # type: ignore[union-attr]
+    await content_shell._add_content_favorite(ContentType.MOVIE, movie)
+    assert content_favorite.ids[-1] == "movie-1"
+    assert "Favorite saved" in content_shell._content_detail_labels[ContentType.MOVIE].text()
     assert played == ["b", "b"]
     content_shell._navigate_to_page(6)
     content_shell.search_input.setText("2024")
@@ -519,6 +558,10 @@ async def main() -> None:
     series_index = content_shell.content_model.index(0, 0)
     content_shell._content_lists[ContentType.SERIES].setCurrentIndex(series_index)
     content_shell._activate_content_index(ContentType.SERIES, series_index)
+    series_detail = content_shell._content_detail_labels[ContentType.SERIES].text()
+    assert "Series · Arena Series" in series_detail
+    assert "2023 · ★ 8.6 · Drama · Category: sports · 1 season(s) · 1 episode(s)" in series_detail
+    assert "A safe series fixture." in series_detail
     await asyncio.sleep(0)
     assert content_shell._series_view_mode == "seasons"
     season_index = content_shell.content_model.index(0, 0)
@@ -527,6 +570,10 @@ async def main() -> None:
     assert content_shell._series_view_mode == "episodes"
     episode_index = content_shell.content_model.index(0, 0)
     content_shell._activate_content_index(ContentType.SERIES, episode_index)
+    episode_detail = content_shell._content_detail_labels[ContentType.SERIES].text()
+    assert "Episode · Pilot · S01 E01" in episode_detail
+    assert "20m 00s" in episode_detail
+    assert "Episode metadata" in episode_detail
     await asyncio.sleep(0)
     await asyncio.sleep(0)
     assert played == ["b", "b", "movie-1", "series-1:episode:501"]
@@ -550,6 +597,20 @@ async def main() -> None:
     await stale_content_load
     assert ContentType.MOVIE not in stale_content_shell._content_catalogues
     assert stale_content_shell.content_model.rowCount() == 0
+
+    invalidation_artwork = FakeArtwork()
+    artwork_shell = make_shell(
+        FakeBrowse(),
+        FakeSearch(),
+        FakeFavorite(),
+        play,
+        artwork_loader=invalidation_artwork,
+    )
+    artwork_shell.provider_selector.setEditText("provider-a")
+    artwork_shell._provider_changed(0)
+    artwork_shell.provider_selector.setEditText("provider-b")
+    artwork_shell._provider_changed(0)
+    assert invalidation_artwork.cleared_providers == ["provider-a", "provider-b"]
 
     stale_series_content = FakeContent({ContentType.SERIES: (series,)})
     stale_series_content.wait_for_release = True
@@ -648,6 +709,7 @@ async def main() -> None:
     print("playback_stale_provider_protection=PASS")
     print("playback_stale_result_protection=PASS")
     print("keyboard_accessibility=PASS")
+    print("artwork_preview_and_provider_invalidation=PASS")
     print("player_shell_native_probe=PASS")
     app.quit()
 

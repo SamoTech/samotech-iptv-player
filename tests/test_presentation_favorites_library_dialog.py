@@ -158,7 +158,9 @@ async def test_favorites_refresh_renders_safe_canonical_summary() -> None:
     await dialog.refresh()
 
     assert list_favorites.calls == 1
-    assert dialog.favorite_summary_label.value == "favorite-1 · channel · channel-1"
+    assert (
+        dialog.favorite_summary_label.value == "favorite-1 · legacy provider · channel · channel-1"
+    )
     assert dialog.status_label.value == ""
 
 
