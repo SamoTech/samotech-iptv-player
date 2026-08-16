@@ -205,11 +205,19 @@ If resume is prioritized, first define a provider-scoped content identity and Hi
 
 ## 32. Git Commit/Push Evidence
 
-At report drafting time the implementation, tests, documentation, and this report are intentionally uncommitted so logical commit boundaries can be reviewed. The required delivery sequence is a normal push with separate logical subjects: `feat: complete advanced xtream vod and series experience`, `test: harden advanced xtream vod and series workflows`, and `docs: update advanced xtream commercial readiness`. The final report must be amended after push with exact commit IDs, remote synchronization, and clean-tree evidence.
+The required logical commits were created and pushed normally without force-push or history rewrite:
+
+| Commit | Subject |
+|---|---|
+| `a4c8e62` | `feat: complete advanced xtream vod and series experience` |
+| `1952dd6` | `test: harden advanced xtream vod and series workflows` |
+| `280dd21` | `docs: update advanced xtream commercial readiness` |
+
+After the normal push, `HEAD` and `origin/main` both resolved to `280dd2144a6dbe6fd70c60a6da95909968428e20`. A final report-evidence amendment is being committed as a normal follow-up documentation commit so this report itself contains the completed synchronization evidence.
 
 ## 33. Final Repository State
 
-The expected final state after delivery is a clean working tree with `HEAD == origin/main`, the single report present at `ADVANCED_XTREAM_VOD_SERIES_FINAL_AUDIT.md`, no transient `uv.lock`, no credentials or secret-bearing changed files, and no modifications to Live EOF recovery, MAG, M3U, or VLC recovery behavior. Final exact repository state is recorded in the post-push amendment to this report.
+The post-push state before this evidence amendment was clean and synchronized: `HEAD == origin/main == 280dd2144a6dbe6fd70c60a6da95909968428e20`. The report is present at `ADVANCED_XTREAM_VOD_SERIES_FINAL_AUDIT.md`; transient `uv.lock` was removed; no credentials or secret-bearing changed files were found; and no Live EOF recovery, MAG, M3U, or VLC recovery implementation files were changed. The evidence amendment is committed and pushed normally as a final `docs:` follow-up, after which the working tree is verified clean again.
 
 ## References
 
