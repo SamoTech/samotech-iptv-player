@@ -59,8 +59,10 @@ jobs:
       - name: Security regression tests
         run: pytest -q tests/test_security_sensitive_logging.py tests/test_core_diagnostics.py
 
-      - name: pytest (unit + integration)
-        run: pytest -q --cov=src --cov-report=xml
+      - name: pytest (unit + integration, non-presentation corpus)
+        run: >-
+          pytest -q --cov=src --cov-report=xml
+          $(find tests -type f -name 'test_*.py' ! -name 'test_presentation_*.py' | sort)
 
       - name: Upload coverage
         uses: codecov/codecov-action@v4

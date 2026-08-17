@@ -36,6 +36,8 @@ def test_ci_workflow_has_blocking_security_regression_gate() -> None:
     workflow = (_ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
     assert "Security regression tests" in workflow
     assert "tests/test_security_sensitive_logging.py" in workflow
+    assert "test_presentation_*.py" in workflow
+    assert "pytest (unit + integration, non-presentation corpus)" in workflow
     assert (
         "continue-on-error"
         not in workflow.split("Security regression tests", 1)[1].split("Upload coverage", 1)[0]
