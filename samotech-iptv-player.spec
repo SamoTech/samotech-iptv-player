@@ -25,6 +25,7 @@ if not plugins_root.is_dir():
 
 vlc_binaries = [(str(path), "vlc") for path in vlc_root.glob("*.dll")]
 vlc_datas = [(str(plugins_root), "vlc/plugins")]
+application_datas = [(str(project_root / "pyproject.toml"), ".")]
 for directory_name in ("lua", "locale"):
     directory = vlc_root / directory_name
     if directory.is_dir():
@@ -50,7 +51,7 @@ analysis = Analysis(
     [str(project_root / "src" / "samotech_iptv" / "desktop_entrypoint.py")],
     pathex=[str(project_root / "src"), str(project_root)],
     binaries=vlc_binaries,
-    datas=vlc_datas,
+    datas=vlc_datas + application_datas,
     hiddenimports=sorted(set(hiddenimports)),
     hookspath=[],
     hooksconfig={},

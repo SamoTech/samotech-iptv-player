@@ -5,6 +5,8 @@ Only primitive values (str, int, float).  No imports from other layers.
 
 from __future__ import annotations
 
+from samotech_iptv.version import __version__
+
 __all__ = [
     "APP_NAME",
     "APP_VERSION",
@@ -16,7 +18,7 @@ __all__ = [
 ]
 
 APP_NAME: str = "SamoTech IPTV Player"
-APP_VERSION: str = "0.1.0"
+APP_VERSION: str = __version__
 
 # Pagination
 DEFAULT_PAGE_SIZE: int = 100

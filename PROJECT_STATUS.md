@@ -14,7 +14,13 @@ The Windows x64 portable-executable pipeline is **IMPLEMENTED and VERIFIED** thr
 
 The executable bundles Python application code, PySide6/Qt runtime components, `python-vlc`, VLC 3.0.23 native libraries, and the VLC plugin tree through an explicit PyInstaller spec. A runtime hook configures `PYTHON_VLC_LIB_PATH`, `PYTHON_VLC_MODULE_PATH`, `VLC_PLUGIN_PATH`, and the Windows DLL search path relative to the extracted application bundle. The generated executable was executed outside the repository from a temporary path containing spaces and non-ASCII characters with a sanitized `PATH`; Python was present on the runner before sanitization, while VLC and `libvlc.dll` were not found through `PATH`, and both executable smoke modes passed.
 
-The release process is **IMPLEMENTED** for normal pushes and version tags: non-tag artifacts use the short-SHA naming form, tag runs use the versioned naming form, and `SHA256SUMS.txt` is uploaded beside the executable. A tag-triggered release has not been executed in this validation run and is therefore **NOT EXECUTED**, although its blocking workflow configuration is present. Windows presentation test modules remain **BLOCKED as a runner-environment limitation** because collection caused a fatal Qt access violation; they are excluded explicitly while the non-presentation Windows corpus remains blocking. Installer creation, ARM64, auto-update infrastructure, authorized-provider acceptance, and production subtitle interoperability remain **DEFERRED**, **OUT OF SCOPE**, or **NOT EXECUTED** as applicable.
+The release process is **IMPLEMENTED and VERIFIED** for normal pushes and version tags: non-tag artifacts use the short-SHA naming form, tag runs use the versioned naming form, `SHA256SUMS.txt` is uploaded beside the executable, and the first published release is `v0.1.0`. Windows presentation test modules remain **BLOCKED as a runner-environment limitation** because collection caused a fatal Qt access violation; they are excluded explicitly while the non-presentation Windows corpus remains blocking. Installer creation, ARM64, auto-update infrastructure, authorized-provider acceptance, and production subtitle interoperability remain **DEFERRED**, **OUT OF SCOPE**, or **NOT EXECUTED** as applicable.
+
+<!-- ZERO_TOUCH_RELEASE_LIMITATIONS_BEGIN -->
+- Windows presentation test modules remain excluded from the Windows release test corpus because their collection causes a fatal Qt access violation; the generated executable’s Qt smoke test remains blocking.
+- The distribution target is Windows x64 portable EXE only. Installers, ARM64, auto-update, Microsoft Store distribution, and universal provider acceptance are not included.
+- Authorized-provider acceptance, real-provider subtitle interoperability, and broad codec/enterprise-environment certification are separate runtime validations and are not claimed by the release pipeline.
+<!-- ZERO_TOUCH_RELEASE_LIMITATIONS_END -->
 
 ## Product purpose
 
