@@ -222,9 +222,7 @@ The release action itself did not fail. The only release-content repair was augm
 
 ## 23. Final Repository State
 
-**VERIFIED at the pre-tag acceptance point; final report commit pending.** Before tagging, HEAD and `origin/main` were synchronized at `d1ab67325a59c6f86089dbe309e99ba7386dc24b`, and the worktree was clean. The annotated tag was pushed without modifying the tagged commit.
-
-After this report is committed, the final handoff will re-run `git fetch origin main`, verify `HEAD == origin/main`, confirm a clean worktree, check `git diff --check`, scan tracked content for credentials and secrets, and confirm that no temporary release assets or build artifacts are committed.
+**VERIFIED.** Before tagging, HEAD and `origin/main` were synchronized at `d1ab67325a59c6f86089dbe309e99ba7386dc24b`, and the worktree was clean. The annotated tag was pushed without modifying the tagged commit. After the report commit was pushed, the final handoff verification reported matching HEAD and `origin/main`, a clean worktree, passing `git diff --check`, and no authorized credentials in tracked content. Temporary downloaded release assets and build logs remain outside tracked content.
 
 ## 24. Final Acceptance Matrix
 
@@ -252,8 +250,8 @@ After this report is committed, the final handoff will re-run `git fetch origin 
 | Release notes generated | Generated changelog preserved | **VERIFIED** |
 | Required portable summary in notes | Added after publication | **VERIFIED / PARTIAL automation** |
 | Release contains no secrets | Notes and metadata clean | **VERIFIED** |
-| Final repository clean after report | Must be verified after report commit | **NOT EXECUTED** |
-| HEAD synchronized after report commit | Must be verified after report push | **NOT EXECUTED** |
+| Final repository clean after report | Post-report verification returned clean | **VERIFIED** |
+| HEAD synchronized after report commit | Post-report verification returned matching HEAD/origin/main | **VERIFIED** |
 
 ## 25. Known Limitations
 
