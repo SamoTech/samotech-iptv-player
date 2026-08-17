@@ -36,6 +36,16 @@ def test_windows_workflow_keeps_release_gates_blocking() -> None:
     assert "permissions:\n      contents: write" in workflow
 
 
+def test_publish_job_preserves_uploaded_artifact_layout() -> None:
+    workflow = (_ROOT / ".github/workflows/windows-portable-build.yml").read_text(encoding="utf-8")
+    publish_job = workflow.split("  publish-release:", 1)[1]
+    download_block = publish_job.split("      - name: Publish tagged GitHub Release", 1)[0]
+
+    assert "uses: actions/download-artifact@v4" in download_block
+    assert "path: ." in download_block
+    assert "path: dist/release" not in download_block
+
+
 def test_ci_workflow_has_blocking_security_regression_gate() -> None:
     workflow = (_ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
     assert "Security regression tests" in workflow
