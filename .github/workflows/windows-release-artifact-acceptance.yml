@@ -109,7 +109,22 @@ jobs:
                       Write-Error (Get-Content $stderr -Raw)
                       throw "$prefix exited with $($process.ExitCode)"
                     }
-                    if (-not (Test-Path $diagnosticPath)) { throw "$prefix did not produce a startup diagnostic" }
+                    if (-not (Test-Path $diagnosticPath)) {
+                      Write-Host "diagnostic_missing=$prefix"
+                      Write-Host "case_exe=$caseExe"
+                      Write-Host "case_exe_exists=$(Test-Path $caseExe)"
+                      Write-Host "case_exe_length=$((Get-Item $caseExe).Length)"
+                      if (Test-Path $stdout) { Write-Host "stdout=$((Get-Content $stdout -Raw))" }
+                      if (Test-Path $stderr) { Write-Host "stderr=$((Get-Content $stderr -Raw))" }
+                      $zone = Get-Item -Path $caseExe -Stream Zone.Identifier -ErrorAction SilentlyContinue
+                      if ($null -ne $zone) {
+                        Write-Host "zone_identifier_stream_length=$($zone.Length)"
+                        Write-Host "zone_identifier=$(Get-Content -Path ($caseExe + ':Zone.Identifier') -Raw)"
+                      } else {
+                        Write-Host "zone_identifier_stream=absent"
+                      }
+                      throw "$prefix did not produce a startup diagnostic"
+                    }
                     $diagnostic = Get-Content $diagnosticPath -Raw | ConvertFrom-Json
                     if ($diagnostic.status -ne "ready") { throw "$prefix diagnostic status was not ready" }
                     if ($argument -eq "--packaged-vlc-test" -and $diagnostic.last_successful_stage -ne "VLC_READY") { throw "$prefix did not record VLC_READY" }
