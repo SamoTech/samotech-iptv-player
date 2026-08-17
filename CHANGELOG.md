@@ -1,5 +1,21 @@
 # Changelog
 
+## Commercial provider and subtitle hardening — 2026-08-17
+
+### Added
+
+- Added credential-free Provider Health snapshots with distinct connected, unauthenticated, unknown, and error classifications derived from declared capabilities and adapter authentication state without loading full catalogues or exposing credentials.
+- Added non-blocking post-save provider onboarding: Save → safe health check → capability summary → Ready/error feedback, while preserving provider registration, qasync, and Qt task ownership.
+- Added unified local search filters for All, Live, Movies, Series, and Episodes. Episode title, plot, season, and episode number are searchable over explicitly loaded canonical records without adding network requests.
+- Added local SRT, ASS, SSA, and VTT subtitle validation and loading through `PlayerPort` into libVLC, subtitle-slave removal, bounded subtitle-delay controls, and media/session-safe invalidation across provider, media, and playback switches.
+- Added focused provider-health, local-subtitle, VLC adapter, search-filter, episode-search, stale-session, and native PlayerShell regression evidence.
+
+### Preserved boundaries and limitations
+
+- Provider adapters, MAG, Xtream, M3U, shared libVLC ownership, qasync, typed playback resolution, and bounded Live EOF recovery remain preserved.
+- The UI never imports libVLC, constructs provider URLs, reads credentials, uploads subtitle files, or persists subtitle contents. Subtitle controls are capability-gated by the injected player contract.
+- Catch-up/archive remains not implemented because no current provider advertises a verified capability. Windows-native VLC validation, real populated-provider acceptance, and production subtitle runtime acceptance remain unexecuted in this Linux environment.
+
 ## Desktop UI/UX modernization — 2026-08-16
 
 ### Added

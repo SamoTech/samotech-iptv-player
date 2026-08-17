@@ -310,3 +310,23 @@ Player 3 is **implemented and deterministically validated** within the preserved
 | Catch-up/archive | **NOT IMPLEMENTED** | No current provider advertises `ProviderCapability.CATCHUP`; no fake resolver or UI was added. |
 
 The authoritative detailed record is [PLAYER_3_FINAL_AUDIT.md](PLAYER_3_FINAL_AUDIT.md). The controlled real-provider procedure is [docs/PLAYER_3_REAL_PROVIDER_ACCEPTANCE.md](docs/PLAYER_3_REAL_PROVIDER_ACCEPTANCE.md), and the architecture/runtime evidence supplements are [docs/PLAYER_3_ARCHITECTURE.md](docs/PLAYER_3_ARCHITECTURE.md) and [docs/PLAYER_3_RUNTIME_VALIDATION.md](docs/PLAYER_3_RUNTIME_VALIDATION.md).
+
+
+## Commercial Provider Experience plus subtitle enhancement — 2026-08-17
+
+The current milestone is **implemented and deterministically validated within the preserved Player 3 architecture**. Provider Health, non-blocking onboarding, unified content-type search, local subtitle loading, subtitle-slave removal, bounded subtitle delay, and subtitle session invalidation are executable through their stated application, presentation, and libVLC boundaries. Populated authorized-provider acceptance and Windows-native validation remain **NOT EXECUTED** in this Linux environment.
+
+| Capability | Status | Evidence and claim boundary |
+|---|---|---|
+| Provider Health | **Implemented / credential-free** | `CheckProviderHealth` distinguishes connected, unauthenticated, unknown, and safe error states from declared capabilities and adapter auth state without loading full catalogues or exposing credentials. Focused application tests and provider-management tests pass. |
+| Post-save onboarding | **Implemented / non-blocking** | Main-window save flow schedules the optional health check after persistence and reports safe readiness/error feedback without blocking Qt or changing provider ownership. |
+| Unified search | **Implemented / local-only** | All, Live, Movies, Series, and Episodes filters operate over loaded canonical records. Episode title, plot, season, and episode-number matching is covered by native PlayerShell assertions. No provider request or alternate URL path was added. |
+| Series flow | **Implemented / bounded** | Existing Series → Season → Episode navigation, provider-scoped identity, playback handoff, and stale-result guards remain intact; no auto-play behavior was invented. |
+| Local subtitles | **Implemented / capability-gated** | SRT, ASS, SSA, and VTT files are inspected locally for size, encoding, and structure, then attached through `PlayerPort` without media restart. UTF-8 and non-ASCII text remain file-local and are not logged or persisted. |
+| Subtitle source removal | **Implemented / libVLC-backed** | `MediaPlayer.add_slave` attaches a subtitle source and `Media.slaves_clear` removes subtitle slaves through verified python-vlc/libVLC APIs. Embedded/provider subtitle tracks remain separate from local subtitle source management. |
+| Subtitle delay | **Implemented / bounded** | `video_get_spu_delay` and `video_set_spu_delay` provide the actual delay boundary; UI adjustments are bounded to ±60 seconds and are capability-gated. |
+| Catch-up/archive | **NOT IMPLEMENTED** | No current provider advertises `ProviderCapability.CATCHUP`; no inferred archive URL or fake capability was added. |
+
+Subtitle security is local-only: the UI does not upload, persist, execute, or log subtitle contents. File validation rejects missing, unsupported, empty, malformed, inaccessible, and oversized files. Session tokens invalidate pending subtitle work on provider change, media replacement, channel/episode selection, stop, and shutdown so stale asynchronous work cannot mutate the current player session.
+
+The deterministic quality evidence for this increment is recorded in `COMMERCIAL_SUBTITLE_FINAL_AUDIT.md`. The Linux native PlayerShell probe passes. The Windows-only native VLC lifecycle probe reports the expected `SKIP reason=windows_required`; the optional VLC track-shape probe cannot run in this sandbox because the native binding exposes no `libvlc_new` function. Neither condition is promoted to a product failure or a native playback claim.
