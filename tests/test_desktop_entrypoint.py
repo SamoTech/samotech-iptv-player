@@ -151,7 +151,9 @@ def test_entrypoint_composes_then_runs_desktop(monkeypatch: MonkeyPatch) -> None
 
     monkeypatch.setattr(desktop_entrypoint, "build_production_desktop_application", build)
     monkeypatch.setattr(
-        desktop_entrypoint, "run_desktop_application", lambda value: value is desktop
+        desktop_entrypoint,
+        "run_desktop_application",
+        lambda value, **_: value is desktop,
     )
 
     assert desktop_entrypoint.run(["samotech-iptv", "--example"]) is True

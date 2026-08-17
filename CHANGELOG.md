@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.1.3 — 2026-08-17
+
+### Fixed
+
+- Made Windows VLC discovery deterministic for source execution through an explicit `VLC_RUNTIME_DIR`, while frozen execution continues to resolve its bundled runtime relative to `_MEIPASS` and does not rely on the current working directory.
+- Replaced stale installed-metadata version precedence with the authoritative `pyproject.toml` version source so startup diagnostics and runtime metadata identify the actual checkout or bundle.
+
+### Added
+
+- Added a redacted, atomic startup journal with ordered checkpoints through `VLC_READY`, `MAIN_WINDOW_SHOWN`, and `APPLICATION_READY`; startup failures retain the last successful stage and sanitized loader/dependency error details.
+- Added blocking generated-EXE and exact-published-artifact checks for startup diagnostics, VLC readiness, and `MAIN_WINDOW_SHOWN` under arbitrary-CWD and sanitized-PATH cases.
+
+### Release validation
+
+- Promotes the confirmed source-mode loader fix and diagnostic evidence path through the existing CodeQL, Linux, Windows, native VLC, PyInstaller, packaged-VLC, Qt smoke, sanitized-PATH, artifact, and published-artifact acceptance workflows.
+
 ## v0.1.2 — 2026-08-17
 
 ### Fixed

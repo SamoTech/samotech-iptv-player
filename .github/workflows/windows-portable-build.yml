@@ -134,15 +134,32 @@ jobs:
         shell: pwsh
         run: |
           $exe = Resolve-Path "dist\SamoTech-IPTV-Player-Windows-x64.exe"
-          & $exe --packaged-vlc-test
+          $diagnosticPath = Join-Path $env:RUNNER_TEMP "samotech-packaged-vlc-diagnostic.json"
+          $env:SAMOTECH_STARTUP_DIAGNOSTIC_PATH = $diagnosticPath
+          & $exe --packaged-vlc-test --diagnostic
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Test-Path $diagnosticPath)) { throw "Packaged-VLC diagnostic artifact was not created" }
+          $diagnostic = Get-Content $diagnosticPath -Raw | ConvertFrom-Json
+          if ($diagnostic.status -ne "ready") { throw "Packaged-VLC diagnostic status was not ready" }
+          if ($diagnostic.last_successful_stage -ne "VLC_READY") { throw "Packaged-VLC diagnostic did not reach VLC_READY" }
 
-      - name: Run generated EXE Qt/application smoke test
+      - name: Run generated EXE Qt/application smoke test with startup diagnostics
         shell: pwsh
         run: |
           $exe = Resolve-Path "dist\SamoTech-IPTV-Player-Windows-x64.exe"
-          & $exe --smoke-test
+          $diagnosticPath = Join-Path $env:RUNNER_TEMP "samotech-qt-startup-diagnostic.json"
+          $env:SAMOTECH_STARTUP_DIAGNOSTIC_PATH = $diagnosticPath
+          & $exe --smoke-test --diagnostic
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Test-Path $diagnosticPath)) { throw "Qt startup diagnostic artifact was not created" }
+          $diagnostic = Get-Content $diagnosticPath -Raw | ConvertFrom-Json
+          if ($diagnostic.status -ne "ready") { throw "Qt startup diagnostic status was not ready" }
+          if ($diagnostic.last_successful_stage -ne "APPLICATION_READY") { throw "Qt startup did not reach APPLICATION_READY" }
+          if ($diagnostic.completed_stages -notcontains "VLC_READY") { throw "Qt startup did not record VLC_READY" }
+          if ($diagnostic.completed_stages -notcontains "MAIN_WINDOW_SHOWN") { throw "Qt startup did not record MAIN_WINDOW_SHOWN" }
+          New-Item -ItemType Directory -Force -Path build\startup-diagnostics | Out-Null
+          Copy-Item $diagnosticPath build\startup-diagnostics\generated-qt-startup-diagnostic.json -Force
+          Write-Host "startup_diagnostic=PASS last_stage=$($diagnostic.last_successful_stage)"
 
       - name: Validate outside repository with sanitized PATH
         shell: pwsh
@@ -161,10 +178,15 @@ jobs:
           $oldPath = $env:Path
           try {
             $env:Path = "$env:SystemRoot\System32;$env:SystemRoot"
-            & $cleanExe --packaged-vlc-test
+            $env:SAMOTECH_STARTUP_DIAGNOSTIC_PATH = Join-Path $cleanRoot "startup-diagnostic.json"
+            & $cleanExe --packaged-vlc-test --diagnostic
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            & $cleanExe --smoke-test
+            & $cleanExe --smoke-test --diagnostic
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            if (-not (Test-Path $env:SAMOTECH_STARTUP_DIAGNOSTIC_PATH)) { throw "Sanitized-PATH startup diagnostic was not created" }
+            $diagnostic = Get-Content $env:SAMOTECH_STARTUP_DIAGNOSTIC_PATH -Raw | ConvertFrom-Json
+            if ($diagnostic.status -ne "ready") { throw "Sanitized-PATH startup diagnostic status was not ready" }
+            if ($diagnostic.completed_stages -notcontains "MAIN_WINDOW_SHOWN") { throw "Sanitized-PATH startup did not reach MAIN_WINDOW_SHOWN" }
           } finally {
             $env:Path = $oldPath
           }
@@ -236,7 +258,7 @@ jobs:
             "pyside6=6.11.1",
             "python_vlc=3.0.21203",
             "vlc=$env:VLC_VERSION",
-            "validation_summary=PASS: blocking Windows build, native VLC, packaged-VLC, Qt smoke, sanitized PATH, artifact audit, checksum, and upload gates"
+            "validation_summary=PASS: blocking Windows build, native VLC, packaged-VLC, Qt smoke, startup diagnostics, MAIN_WINDOW_SHOWN, sanitized PATH, artifact audit, checksum, and upload gates"
           ) | Set-Content -Encoding utf8 build/release-metadata.txt
           python scripts/generate_release_notes.py `
             --template packaging/release_notes_template.md `
@@ -254,6 +276,7 @@ jobs:
             dist/release/SHA256SUMS.txt
             dist/release/release-notes.md
             build-metadata.txt
+            build/startup-diagnostics/*.json
           if-no-files-found: error
 
 

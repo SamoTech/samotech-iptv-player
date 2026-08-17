@@ -100,3 +100,39 @@ def test_packaged_vlc_mode_dispatches_to_probe(monkeypatch: MonkeyPatch) -> None
 
 async def _record(events: list[str], value: str) -> None:
     events.append(value)
+
+
+def test_source_mode_uses_vlc_runtime_dir_from_arbitrary_cwd(
+    monkeypatch: MonkeyPatch, tmp_path: Path
+) -> None:
+    runtime_root = tmp_path / "runtime with spaces"
+    plugins = runtime_root / "plugins"
+    plugins.mkdir(parents=True)
+    (runtime_root / "libvlc.dll").write_bytes(b"synthetic")
+    (runtime_root / "libvlccore.dll").write_bytes(b"synthetic")
+    stale_root = tmp_path / "stale"
+    stale_root.mkdir()
+
+    unrelated_cwd = tmp_path / "unrelated-cwd"
+    unrelated_cwd.mkdir()
+    monkeypatch.setattr(sys, "platform", "win32")
+    monkeypatch.delattr(sys, "_MEIPASS", raising=False)
+    monkeypatch.chdir(unrelated_cwd)
+    monkeypatch.setenv("VLC_RUNTIME_DIR", str(runtime_root))
+    monkeypatch.setenv("PYTHON_VLC_LIB_PATH", str(stale_root / "libvlc.dll"))
+    monkeypatch.setenv("PYTHON_VLC_MODULE_PATH", str(stale_root / "plugins"))
+    monkeypatch.setenv("VLC_PLUGIN_PATH", str(stale_root / "plugins"))
+    monkeypatch.setattr(packaged_runtime, "_CONFIGURED_VLC_ROOT", None)
+    monkeypatch.setattr(
+        packaged_runtime.os,
+        "add_dll_directory",
+        lambda _: object(),
+        raising=False,
+    )
+
+    result = packaged_runtime.configure_bundled_runtime()
+
+    assert result == runtime_root.resolve()
+    assert packaged_runtime.os.environ["PYTHON_VLC_LIB_PATH"] == str(runtime_root / "libvlc.dll")
+    assert packaged_runtime.os.environ["PYTHON_VLC_MODULE_PATH"] == str(plugins)
+    assert packaged_runtime.os.environ["VLC_PLUGIN_PATH"] == str(plugins)

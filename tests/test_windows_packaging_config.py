@@ -22,6 +22,9 @@ def test_windows_workflow_keeps_release_gates_blocking() -> None:
     assert "tests/vlc_native_lifecycle_probe.py" in workflow
     assert "--packaged-vlc-test" in workflow
     assert "--smoke-test" in workflow
+    assert "--diagnostic" in workflow
+    assert "MAIN_WINDOW_SHOWN" in workflow
+    assert "SAMOTECH_STARTUP_DIAGNOSTIC_PATH" in workflow
     assert "SHA256SUMS.txt" in workflow
     assert "actions/upload-artifact@v4" in workflow
     assert "softprops/action-gh-release@v3" in workflow
@@ -93,6 +96,9 @@ def test_exact_release_acceptance_workflow_is_blocking_and_artifact_focused() ->
     assert "ProductVersion" in workflow
     assert "--packaged-vlc-test" in workflow
     assert "--smoke-test" in workflow
+    assert "--diagnostic" in workflow
+    assert "MAIN_WINDOW_SHOWN" in workflow
+    assert "SAMOTECH_STARTUP_DIAGNOSTIC_PATH" in workflow
     assert "SystemDrive" in workflow
     assert "SamoTech Portable Acceptance 测试" in workflow
     assert "Downloads\\SamoTech Portable Acceptance" in workflow

@@ -4,11 +4,11 @@
 
 This procedure is the **single final acceptance gate** for native Windows, Qt, and libVLC behavior. It does not replace automated tests. It is to be run only with authorized provider accounts and sources, and it must produce a credential-safe evidence record. Do not paste passwords, MAC identities, tokens, cookies, M3U source URLs, resolved stream URLs, or verbose provider payloads into the resulting log.
 
-The application currently relies on the standard native VLC installation discovered by the `python-vlc` binding. It does not set `VLC_PLUGIN_PATH`, call `os.add_dll_directory`, or implement a custom DLL search path. Consequently, this procedure validates the process-visible Windows installation and treats custom DLL/plugin-path overrides as a remediation target rather than normal configuration.
+The supported portable release uses the VLC runtime bundled inside the PyInstaller extraction directory. The runtime hook configures `PYTHON_VLC_LIB_PATH`, `PYTHON_VLC_MODULE_PATH`, `VLC_PLUGIN_PATH`, and the Windows DLL search path relative to that bundle before the application imports `python-vlc`; it does not rely on the current working directory or a globally installed VLC. Source execution may use the same deterministic contract by setting `VLC_RUNTIME_DIR` to a matching 64-bit VLC root before startup. A startup diagnostic journal records the last successful checkpoint and retains sanitized native-loader failures.
 
 ## Preconditions
 
-Use a 64-bit supported Windows desktop with a user session capable of rendering video and playing audio. Install 64-bit Python 3.12 or newer and a 64-bit VLC distribution. The standard expected installation layout is:
+For published portable-EXE acceptance, use a 64-bit supported Windows desktop with a user session capable of rendering video and playing audio. No separate Python or VLC installation is required. For source-mode acceptance, use 64-bit Python 3.12 or newer and set `VLC_RUNTIME_DIR` to one matching 64-bit VLC distribution. The source-mode expected runtime layout is:
 
 ```text
 C:\Program Files\VideoLAN\VLC\vlc.exe
@@ -17,7 +17,7 @@ C:\Program Files\VideoLAN\VLC\libvlccore.dll
 C:\Program Files\VideoLAN\VLC\plugins\
 ```
 
-Do not mix VLC DLLs, plugins, or `python-vlc` bindings from different VLC installations. Leave `VLC_PLUGIN_PATH` unset for the standard installation. If a custom installation is required, make its architecture and plugin directory explicit in the evidence record and ensure it contains the matching `libvlc.dll`, `libvlccore.dll`, and `plugins` tree.
+Do not mix VLC DLLs, plugins, or `python-vlc` bindings from different VLC installations. For source mode, `VLC_RUNTIME_DIR` must identify the matching runtime root containing `libvlc.dll`, `libvlccore.dll`, and `plugins`; the application derives the binding and plugin paths from that root. Do not solve a loader failure by installing VLC globally, copying DLLs beside the executable, or relying on the current working directory.
 
 Create a clean source-install environment from a fresh checkout:
 
@@ -90,18 +90,20 @@ A failure from the final command is a native-runtime failure. Capture only the e
 
 ## Live acceptance sequence
 
-Start the desktop application with credential-safe diagnostics enabled:
+Start the desktop application with credential-safe startup diagnostics enabled. For a source checkout, use an explicit diagnostic path outside the repository; for the published portable EXE, the same argument is supported without a Python or VLC installation:
 
 ```powershell
-$env:IPTV_DEBUG = '1'
-samotech-iptv
+$env:SAMOTECH_STARTUP_DIAGNOSTIC_PATH = Join-Path $env:TEMP 'samotech-startup-diagnostic.json'
+samotech-iptv --diagnostic
 ```
+
+The journal is a redacted JSON artifact. It must show `VLC_READY`, `MAIN_WINDOW_SHOWN`, and `APPLICATION_READY` for a successful desktop launch. If startup fails, preserve the journal and record its `last_successful_stage`, `failure_type`, and sanitized `failure_message`; do not paste provider credentials or resolved URLs.
 
 Enter each authorized source interactively through the application. Do not redirect the console output to an artifact until it has been reviewed for secret-bearing values. The application is expected to log only redacted diagnostic metadata, but human review remains mandatory.
 
 | Order | Acceptance action | Pass criterion | Evidence to record |
 |---:|---|---|---|
-| 1 | Complete the native libVLC initialization command. | A real instance and media player are created and released. | PASS/FAIL and safe environment facts. |
+| 1 | Complete the native libVLC initialization command and startup-diagnostic launch. | A real instance and media player are created and released; the desktop journal reaches `VLC_READY`, `MAIN_WINDOW_SHOWN`, and `APPLICATION_READY`. | PASS/FAIL, checkpoint stages, and safe environment facts. |
 | 2 | Register or select the authorized M3U provider, then load channels. | The channel list loads without session errors. | Channel count and failure category only. |
 | 3 | Select an M3U live channel and invoke registered stream resolution. | Resolution completes through the registered-provider workflow. | PASS/FAIL only; never the URL. |
 | 4 | Play the selected M3U channel. | Video, audio, and Qt responsiveness are observed. | PASS/FAIL, elapsed startup time, and safe failure category. |

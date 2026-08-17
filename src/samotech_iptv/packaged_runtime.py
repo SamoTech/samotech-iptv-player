@@ -33,8 +33,23 @@ def _windows_dll_directory(path: Path) -> None:
 
 
 def _bundled_vlc_root(root: Path) -> Path | None:
-    candidates = [root / "vlc", root]
+    """Find the intended VLC root without consulting the current directory.
+
+    Frozen applications must use their extracted bundle. Source execution may
+    opt into the same deterministic contract through ``VLC_RUNTIME_DIR``.
+    """
+    frozen_root = getattr(sys, "_MEIPASS", None)
+    candidates: list[Path] = []
+    if not (isinstance(frozen_root, str) and frozen_root):
+        configured_root = os.environ.get("VLC_RUNTIME_DIR")
+        if configured_root:
+            candidates.append(Path(configured_root).expanduser().resolve())
+    candidates.extend((root / "vlc", root))
+    seen: set[Path] = set()
     for candidate in candidates:
+        if candidate in seen:
+            continue
+        seen.add(candidate)
         if (candidate / "libvlc.dll").is_file() and (candidate / "libvlccore.dll").is_file():
             return candidate
     return None
@@ -60,8 +75,9 @@ def configure_bundled_runtime() -> Path | None:
         return vlc_root
 
     _windows_dll_directory(vlc_root)
-    os.environ.setdefault("PYTHON_VLC_LIB_PATH", str(vlc_root / "libvlc.dll"))
-    os.environ.setdefault("PYTHON_VLC_MODULE_PATH", str(plugins))
-    os.environ.setdefault("VLC_PLUGIN_PATH", str(plugins))
+    # Replace stale process values so the binding cannot mix runtimes.
+    os.environ["PYTHON_VLC_LIB_PATH"] = str(vlc_root / "libvlc.dll")
+    os.environ["PYTHON_VLC_MODULE_PATH"] = str(plugins)
+    os.environ["VLC_PLUGIN_PATH"] = str(plugins)
     _CONFIGURED_VLC_ROOT = vlc_root
     return vlc_root
