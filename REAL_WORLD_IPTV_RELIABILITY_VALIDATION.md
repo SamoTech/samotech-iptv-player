@@ -243,11 +243,11 @@ The logical commit sequence for this reliability phase is:
 | 4 | `test: add reliability validation matrix coverage` | Regression and validation test additions. |
 | 5 | `docs: document real-world IPTV reliability validation` | README, CHANGELOG, PROJECT_STATUS, and this report. |
 
-The exact hashes will be filled after the commits are created and the post-push verification is complete. No empty commits, force-push, history rewrite, or environment-generated lockfile is permitted.
+The five pre-push logical commits are `9c44df5` (audit), `48e64e1` (compatibility), `5d48ac7` (fix), `3ccc3f7` (tests), and `4ccef48` (documentation). A final report-reconciliation commit will be added after the first normal push so the report can record the exact synchronized remote revision. No empty commits, force-push, history rewrite, or environment-generated lockfile is permitted.
 
 ## 34. Push Verification
 
-This section is intentionally pending until the logical commits are created and pushed. The required final evidence is `git fetch origin main`, `HEAD == origin/main`, a clean worktree, no staged changes, no untracked files, and a normal `git push origin main` result. The final report will be updated once with the exact synchronized revision and then included in the final documentation commit.
+The logical commits have been created locally. The required final evidence is `git fetch origin main`, `HEAD == origin/main`, a clean worktree, no staged changes, no untracked files, and a normal `git push origin main` result. The exact synchronized revision will be recorded in the final report-reconciliation commit after the first push.
 
 ## 35. Remaining Blockers
 
