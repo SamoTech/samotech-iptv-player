@@ -1,5 +1,22 @@
 # Changelog
 
+## Real-world IPTV reliability validation — 2026-08-17
+
+### Added
+
+- Extended synthetic compatibility fixtures for realistic Xtream, MAG/Stalker, Extended M3U, XMLTV, and local subtitle variations, including Unicode/Arabic, sparse/null/malformed metadata, duplicates, escaped M3U attributes, EPG overlaps, subtitle encodings, and large local catalogues.
+- Added deterministic reliability evidence for provider workflows, failure handling, artwork/provider invalidation, stale-result protection, playback identity, local subtitles, and 10K/50K/100K catalogue behavior.
+
+### Fixed
+
+- Fixed the Extended M3U `#EXTINF` separator scanner so backslash-escaped quotes inside quoted attributes no longer prevent valid display-name parsing. Strict URL, title, stream, and channel-number validation remains unchanged.
+
+### Preserved boundaries and limitations
+
+- Provider architecture, MAG/Xtream/M3U ownership, shared libVLC, qasync, PlayerPort, and existing Live EOF recovery were preserved.
+- The final classification is **C — PARTIAL**. Populated authorized-provider acceptance, Windows-native VLC validation, real-provider subtitle interoperability, and native VLC track-shape validation remain blocked or not executed. Catch-up/archive remains unimplemented without a verified provider-neutral contract.
+- See [REAL_WORLD_IPTV_RELIABILITY_VALIDATION.md](REAL_WORLD_IPTV_RELIABILITY_VALIDATION.md) for the single authoritative evidence record.
+
 ## Commercial provider and subtitle hardening — 2026-08-17
 
 ### Added

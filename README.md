@@ -215,6 +215,14 @@ These publicly available projects were studied as technical and engineering refe
 
 The relevant concepts were evaluated and adapted only where they fit SamoTech’s own Python, domain/application, PySide6, qasync, and libVLC architecture. No external source code from EStalker or XStreamity was copied into the implementation. The repositories did not expose an SPDX license in the inspected GitHub metadata or a tracked root license file; this acknowledgment makes no claim of permission, endorsement, partnership, ownership, or code-reuse rights. Readers should respect the original projects and any license or attribution terms they publish.
 
+## Real-world reliability validation — 2026-08-17
+
+The current reliability phase extends deterministic compatibility coverage for realistic Xtream, MAG/Stalker, Extended M3U, XMLTV, and local subtitle variations. It validates Unicode/Arabic and sparse metadata, duplicate and malformed records, escaped M3U attributes, EPG overlaps and timestamps, subtitle encodings and malformed files, artwork/provider invalidation, provider switching, stale asynchronous results, playback identity, and large local catalogues through 100,000 records.
+
+One verified compatibility defect was fixed: the Extended M3U `#EXTINF` separator scanner now honors backslash-escaped quotes inside quoted attributes while preserving strict stream, title, URL, and channel-number validation. The full validation record is [`REAL_WORLD_IPTV_RELIABILITY_VALIDATION.md`](REAL_WORLD_IPTV_RELIABILITY_VALIDATION.md).
+
+The reliability evidence is **C — PARTIAL** rather than an unconditional commercial-readiness claim. Synthetic and Linux/offscreen evidence passes, but populated authorized-provider acceptance, Windows-native VLC validation, real-provider subtitle interoperability, and native VLC track-shape validation remain explicitly blocked, not executed, or unsupported. Catch-up/archive remains unimplemented because no current provider advertises a verified provider-neutral contract.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).

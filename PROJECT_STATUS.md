@@ -330,3 +330,24 @@ The current milestone is **implemented and deterministically validated within th
 Subtitle security is local-only: the UI does not upload, persist, execute, or log subtitle contents. File validation rejects missing, unsupported, empty, malformed, inaccessible, and oversized files. Session tokens invalidate pending subtitle work on provider change, media replacement, channel/episode selection, stop, and shutdown so stale asynchronous work cannot mutate the current player session.
 
 The deterministic quality evidence for this increment is recorded in `COMMERCIAL_SUBTITLE_FINAL_AUDIT.md`. The Linux native PlayerShell probe passes. The Windows-only native VLC lifecycle probe reports the expected `SKIP reason=windows_required`; the optional VLC track-shape probe cannot run in this sandbox because the native binding exposes no `libvlc_new` function. Neither condition is promoted to a product failure or a native playback claim.
+
+
+## Real-world IPTV reliability validation — 2026-08-17
+
+This phase is **C — PARTIAL** on evidence. It extends the previous commercial-provider/subtitle implementation with realistic synthetic compatibility validation and one minimum verified compatibility fix, while preserving provider ownership, the shared player, qasync, PlayerPort, and Live EOF recovery.
+
+| Evidence area | Result | Claim boundary |
+|---|---|---|
+| Xtream synthetic compatibility | **VERIFIED** | Numeric/string IDs, sparse/null/malformed optional fields, duplicates, Unicode/Arabic, list-shaped artwork, empty/nested detail, and opaque Episode identity pass. |
+| MAG/Stalker synthetic protocol labs | **VERIFIED / SYNTHETIC** | Existing handshake/session, failure, expiry, categories, Live, EPG, search, stream, and redaction labs pass; production portal compatibility remains unresolved. |
+| Extended M3U | **VERIFIED / FIXED** | Escaped-quote regression reproduced and fixed minimally; strict title/stream/URL validation remains. |
+| XMLTV/EPG | **VERIFIED** | Bounded mapped parsing, offsets, Arabic/Unicode, icons, valid overlap, malformed/empty/unsafe input pass; remote caching/scheduling remain out of scope. |
+| Local subtitles | **VERIFIED / SYNTHETIC** | SRT/ASS/SSA/VTT, Arabic/RTL/LTR, UTF-8/UTF-16 BOM, malformed/duplicate/truncated/large input, attachment/removal/delay/session safety pass through current contracts. |
+| Provider/search/playback concurrency | **VERIFIED** | Provider switching, stale results, artwork invalidation, Episode identity, playback identity, and subtitle generation guards pass. |
+| Large local catalogues | **VERIFIED** | Native performance probe passes at 10K/50K/100K; no optimization was made without a proven performance defect. |
+| Security | **PASS** | Refined scan found zero production/documentation findings; seven credential-shaped matches are intentional synthetic tests. Boundary AST scan found zero violations. |
+| Windows/native VLC | **NOT EXECUTED / BLOCKED** | Linux reports `windows_required`; optional track-shape probe cannot resolve native `libvlc_new`. |
+| Populated authorized provider | **BLOCKED BY EVIDENCE** | No populated authorized sequence was executed; previous evidence showed zero VOD/Series. |
+| Catch-up/archive | **NOT IMPLEMENTED** | No current provider advertises a verified provider-neutral capability. |
+
+The broad non-presentation matrix contains 816 passing tests and the isolated Qt matrix contains 64 passing tests. Black, Ruff, mypy, `git diff --check`, the native PlayerShell probe, and the performance probe pass. The full evidence record is [REAL_WORLD_IPTV_RELIABILITY_VALIDATION.md](REAL_WORLD_IPTV_RELIABILITY_VALIDATION.md).
