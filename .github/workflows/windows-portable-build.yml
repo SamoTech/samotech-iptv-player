@@ -87,7 +87,12 @@ jobs:
         shell: pwsh
         env:
           QT_QPA_PLATFORM: offscreen
-        run: pytest -q --ignore-glob='test_presentation_*.py'
+        run: |
+          $testFiles = @(Get-ChildItem -Path tests -Filter 'test_*.py' -File |
+            Where-Object { $_.Name -notlike 'test_presentation_*.py' } |
+            ForEach-Object { $_.FullName })
+          if ($testFiles.Count -eq 0) { throw "No Windows non-Qt tests were selected" }
+          pytest -q $testFiles
 
       - name: Windows native VLC lifecycle against bundled runtime
         shell: pwsh
