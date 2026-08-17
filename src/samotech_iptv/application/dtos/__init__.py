@@ -83,6 +83,8 @@ from samotech_iptv.application.dtos.player import (
 )
 from samotech_iptv.application.dtos.provider import (
     ProviderCapabilities,
+    ProviderHealth,
+    ProviderHealthStatus,
     ProviderMetadata,
 )
 from samotech_iptv.application.dtos.provider_registration import (
@@ -108,6 +110,8 @@ __all__ = [
     "PlayerCapabilities",
     "PlayerDiagnostics",
     "ProviderMetadata",
+    "ProviderHealth",
+    "ProviderHealthStatus",
     "SubtitleTrack",
     "ProviderCapabilities",
     "RegisterXtreamProviderRequest",

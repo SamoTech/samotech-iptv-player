@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING
 from samotech_iptv.application.channel_catalogue_cache import ChannelCatalogueCache
 from samotech_iptv.application.use_cases.browse_channels import BrowseChannels
 from samotech_iptv.application.use_cases.browse_content import BrowseContent
+from samotech_iptv.application.use_cases.check_provider_health import CheckProviderHealth
 from samotech_iptv.application.use_cases.clear_history import ClearHistory
 from samotech_iptv.application.use_cases.configure_xmltv_binding import ConfigureXMLTVBinding
 from samotech_iptv.application.use_cases.list_favorites import ListFavorites
@@ -209,6 +210,7 @@ async def build_production_desktop_application(
         load_season_episodes=LoadSeasonEpisodes(provider_resolution_service),
         artwork_loader=artwork_loader,
         record_history=record_history,
+        check_provider_health=CheckProviderHealth(provider_resolution_service),
     )
 
     async def close() -> None:

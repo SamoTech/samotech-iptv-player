@@ -19,6 +19,7 @@ if TYPE_CHECKING:
     from samotech_iptv.application.ports.player_port import PlayerPort
     from samotech_iptv.application.use_cases.browse_channels import BrowseChannels
     from samotech_iptv.application.use_cases.browse_content import BrowseContent
+    from samotech_iptv.application.use_cases.check_provider_health import CheckProviderHealth
     from samotech_iptv.application.use_cases.clear_history import ClearHistory
     from samotech_iptv.application.use_cases.configure_xmltv_binding import ConfigureXMLTVBinding
     from samotech_iptv.application.use_cases.list_favorites import ListFavorites
@@ -113,6 +114,7 @@ def build_desktop_application(
     load_season_episodes: LoadSeasonEpisodes | None = None,
     artwork_loader: ArtworkPort | None = None,
     record_history: RecordHistory | None = None,
+    check_provider_health: CheckProviderHealth | None = None,
 ) -> DesktopApplication:
     """Compose the Qt shell around externally configured registered-provider logic."""
     existing_application = QApplication.instance()
@@ -158,5 +160,6 @@ def build_desktop_application(
         load_season_episodes=load_season_episodes,
         artwork_loader=artwork_loader,
         record_history=record_history,
+        check_provider_health=check_provider_health,
     )
     return DesktopApplication(application=application, main_window=main_window)
