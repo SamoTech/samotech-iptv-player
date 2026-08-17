@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.1.2 — 2026-08-17
+
+### Fixed
+
+- Canonicalized local M3U line endings to LF so LF and CRLF playlists behave identically across platforms; added regression coverage for both forms.
+
+### Release validation
+
+- Promotes the validated Windows portable-release candidate through the existing CodeQL, Linux, Windows, native VLC, PyInstaller, packaged-VLC, Qt smoke, sanitized-PATH, artifact, and acceptance workflows.
+
 ## Zero-touch Windows release pipeline — 2026-08-17
 
 ### Added
