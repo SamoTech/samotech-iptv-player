@@ -7,6 +7,12 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      release_ref:
+        description: "Immutable release tag or ref to build and publish"
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: read
@@ -19,9 +25,23 @@ jobs:
       PYTHON_VERSION: "3.13"
       VLC_VERSION: "3.0.23"
       VLC_ZIP_SHA256: "992d19dbd0b8a7cde9167d2f7780b1ef6f92acc8a71acfa736101a21f35181e1"
+      RELEASE_REF: ${{ inputs.release_ref || '' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_ref || github.ref }}
+
+      - name: Resolve release identity
+        shell: pwsh
+        run: |
+          $sourceCommit = (git rev-parse HEAD).Trim()
+          $releaseTag = $env:GITHUB_REF_NAME
+          if ($env:RELEASE_REF) { $releaseTag = $env:RELEASE_REF }
+          "BUILD_COMMIT=$sourceCommit" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "RELEASE_TAG=$releaseTag" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          Write-Host "Build source commit: $sourceCommit"
+          Write-Host "Release tag: $releaseTag"
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -47,11 +67,11 @@ jobs:
           Write-Host "Application version: $version"
 
       - name: Validate tag and application version
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') || inputs.release_ref != ''
         shell: pwsh
         run: |
-          if ($env:GITHUB_REF_NAME -ne "v$env:APP_VERSION") {
-            throw "Release tag $env:GITHUB_REF_NAME does not match application version $env:APP_VERSION"
+          if ($env:RELEASE_TAG -ne "v$env:APP_VERSION") {
+            throw "Release tag $env:RELEASE_TAG does not match application version $env:APP_VERSION"
           }
 
       - name: Acquire pinned official VLC runtime
@@ -157,7 +177,7 @@ jobs:
         shell: pwsh
         run: |
           $shortSha = $env:GITHUB_SHA.Substring(0, 7)
-          if ($env:GITHUB_REF -like "refs/tags/v*") {
+          if ($env:RELEASE_TAG -like "v*") {
             $artifactName = "SamoTech-IPTV-Player-Windows-x64-v$env:APP_VERSION.exe"
           } else {
             $artifactName = "SamoTech-IPTV-Player-Windows-x64-build-$shortSha.exe"
@@ -180,7 +200,7 @@ jobs:
           $buildTimestamp = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
           "BUILD_TIMESTAMP_UTC=$buildTimestamp" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           @(
-            "commit=$env:GITHUB_SHA",
+            "commit=$env:BUILD_COMMIT",
             "version=$env:APP_VERSION",
             "python=$env:PYTHON_VERSION",
             "pyinstaller=6.22.1",
@@ -196,14 +216,14 @@ jobs:
           Get-Content build-metadata.txt | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
 
       - name: Generate automated release notes
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') || inputs.release_ref != ''
         shell: pwsh
         run: |
           $artifactSize = (Get-Item $env:ARTIFACT_PATH).Length
           @(
             "version=$env:APP_VERSION",
-            "release_tag=$env:GITHUB_REF_NAME",
-            "commit=$env:GITHUB_SHA",
+            "release_tag=$env:RELEASE_TAG",
+            "commit=$env:BUILD_COMMIT",
             "workflow_run=$env:GITHUB_RUN_ID",
             "workflow_url=https://github.com/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID",
             "artifact=$env:ARTIFACT_NAME",
@@ -239,7 +259,7 @@ jobs:
 
   publish-release:
     name: Publish tagged Windows release
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') || inputs.release_ref != ''
     needs: windows-portable
     runs-on: windows-latest
     permissions:
@@ -254,6 +274,7 @@ jobs:
       - name: Publish tagged GitHub Release
         uses: softprops/action-gh-release@v3
         with:
+          tag_name: ${{ inputs.release_ref || github.ref_name }}
           files: |
             dist/release/*.exe
             dist/release/SHA256SUMS.txt

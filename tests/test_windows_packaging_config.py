@@ -44,6 +44,10 @@ def test_publish_job_preserves_uploaded_artifact_layout() -> None:
     assert "uses: actions/download-artifact@v4" in download_block
     assert "path: ." in download_block
     assert "path: dist/release" not in download_block
+    assert "tag_name: ${{ inputs.release_ref || github.ref_name }}" in workflow
+    assert "ref: ${{ inputs.release_ref || github.ref }}" in workflow
+    assert '"BUILD_COMMIT=$sourceCommit"' in workflow
+    assert '"commit=$env:BUILD_COMMIT"' in workflow
 
 
 def test_ci_workflow_has_blocking_security_regression_gate() -> None:
