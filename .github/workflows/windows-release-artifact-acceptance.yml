@@ -99,15 +99,17 @@ jobs:
                     $env:Path = $pathMode.Value
                     $env:SAMOTECH_STARTUP_DIAGNOSTIC_PATH = $diagnosticPath
                     Remove-Item $diagnosticPath -Force -ErrorAction SilentlyContinue
-                    $process = Start-Process -FilePath $caseExe -ArgumentList @($argument, "--diagnostic") -WorkingDirectory $cwd -PassThru -NoNewWindow -RedirectStandardOutput $stdout -RedirectStandardError $stderr
-                    if (-not ($process.WaitForExit(90 * 1000))) {
-                      $process.Kill()
-                      throw "$prefix timed out"
+                    Push-Location $cwd
+                    try {
+                      & $caseExe $argument "--diagnostic" > $stdout 2> $stderr
+                      $exitCode = $LASTEXITCODE
+                    } finally {
+                      Pop-Location
                     }
-                    if ($process.ExitCode -ne 0) {
+                    if ($exitCode -ne 0) {
                       Write-Host (Get-Content $stdout -Raw)
                       Write-Error (Get-Content $stderr -Raw)
-                      throw "$prefix exited with $($process.ExitCode)"
+                      throw "$prefix exited with $exitCode"
                     }
                     if (-not (Test-Path $diagnosticPath)) {
                       Write-Host "diagnostic_missing=$prefix"
@@ -133,7 +135,7 @@ jobs:
                       if ($diagnostic.completed_stages -notcontains "VLC_READY") { throw "$prefix did not record VLC_READY" }
                       if ($diagnostic.completed_stages -notcontains "MAIN_WINDOW_SHOWN") { throw "$prefix did not record MAIN_WINDOW_SHOWN" }
                     }
-                    Write-Host "$prefix exit_code=$($process.ExitCode) startup_stage=$($diagnostic.last_successful_stage)"
+                    Write-Host "$prefix exit_code=$exitCode startup_stage=$($diagnostic.last_successful_stage)"
                   } finally {
                     $env:Path = $oldPath
                     Remove-Item Env:SAMOTECH_STARTUP_DIAGNOSTIC_PATH -ErrorAction SilentlyContinue

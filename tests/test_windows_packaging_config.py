@@ -99,8 +99,9 @@ def test_exact_release_acceptance_workflow_is_blocking_and_artifact_focused() ->
     assert "--diagnostic" in workflow
     assert "MAIN_WINDOW_SHOWN" in workflow
     assert "SAMOTECH_STARTUP_DIAGNOSTIC_PATH" in workflow
-    assert 'ArgumentList @($argument, "--diagnostic")' in workflow
+    assert '& $caseExe $argument "--diagnostic"' in workflow
     assert 'samotech-release-acceptance-diagnostics' in workflow
+    assert 'Push-Location $cwd' in workflow
     assert "SystemDrive" in workflow
     assert "SamoTech Portable Acceptance 测试" in workflow
     assert "Downloads\\SamoTech Portable Acceptance" in workflow
