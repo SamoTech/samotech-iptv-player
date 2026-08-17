@@ -134,9 +134,14 @@ class M3UParser:
     def _split_extinf_metadata_and_name(line: str) -> tuple[str, str]:
         """Split EXTINF fields at the first comma outside a quoted attribute value."""
         quote: str | None = None
+        escaped = False
         for index, character in enumerate(line):
             if quote is not None:
-                if character == quote:
+                if escaped:
+                    escaped = False
+                elif character == "\\":
+                    escaped = True
+                elif character == quote:
                     quote = None
                 continue
             if character in {"'", '"'}:
