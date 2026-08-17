@@ -123,3 +123,35 @@ def test_xmltv_parser_rejects_nonpositive_limits(value: int) -> None:
         XMLTVParser(max_document_characters=value)
     with pytest.raises(ValueError, match="positive"):
         XMLTVParser(max_entries=value)
+
+
+_RICH_XMLTV_DOCUMENT = """<?xml version="1.0" encoding="UTF-8"?>
+<tv source-info-name="synthetic">
+  <channel id="arabic.example">
+    <display-name lang="ar">قناة الأخبار</display-name>
+    <display-name lang="en">Arabic News</display-name>
+    <icon src="https://assets.example.test/channel.png" />
+  </channel>
+  <programme channel="arabic.example" start="20260812120000 +0300" stop="20260812130000 +0300">
+    <title lang="ar">نشرة الظهر</title>
+    <desc lang="ar">أخبار محلية ودولية</desc>
+    <category lang="ar">أخبار</category>
+  </programme>
+  <programme channel="arabic.example" start="20260812125000 +0300" stop="20260812140000 +0300">
+    <title lang="en">Market Update</title>
+  </programme>
+</tv>
+"""
+
+
+def test_xmltv_parser_handles_rich_multilingual_metadata_and_valid_overlap() -> None:
+    entries = XMLTVParser().parse(
+        _RICH_XMLTV_DOCUMENT,
+        {"arabic.example": ChannelId("m3u-demo:arabic")},
+    )
+
+    assert [entry.title for entry in entries] == ["نشرة الظهر", "Market Update"]
+    assert entries[0].description == "أخبار محلية ودولية"
+    assert entries[0].category == "أخبار"
+    assert entries[0].start.isoformat() == "2026-08-12T12:00:00+03:00"
+    assert entries[1].end.isoformat() == "2026-08-12T14:00:00+03:00"

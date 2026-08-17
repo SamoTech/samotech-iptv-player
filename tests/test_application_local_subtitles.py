@@ -82,3 +82,34 @@ def test_huge_subtitle_file_is_rejected_before_full_read(tmp_path: Path) -> None
 
     with pytest.raises(LocalSubtitleError, match="too large"):
         inspect_local_subtitle(path)
+
+
+def test_duplicate_srt_cues_are_structurally_validated_without_content_retention(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "duplicate.srt"
+    path.write_text(
+        "1\n00:00:01,000 --> 00:00:02,000\nمرحبا\n\n" "1\n00:00:01,000 --> 00:00:02,000\nمرحبا\n",
+        encoding="utf-8",
+    )
+
+    result = inspect_local_subtitle(path)
+
+    assert result.suffix == ".srt"
+
+
+def test_utf16_bom_subtitle_is_accepted_as_safe_legacy_text(tmp_path: Path) -> None:
+    path = tmp_path / "utf16.vtt"
+    path.write_text("WEBVTT\n\n00:00:01.000 --> 00:00:02.000\nمرحبا\n", encoding="utf-16")
+
+    result = inspect_local_subtitle(path)
+
+    assert result.suffix == ".vtt"
+
+
+def test_truncated_subtitle_timestamp_fails_structure_validation(tmp_path: Path) -> None:
+    path = tmp_path / "truncated.srt"
+    path.write_text("1\n00:00:01,000 -->\nIncomplete\n", encoding="utf-8")
+
+    with pytest.raises(LocalSubtitleError, match="timestamps"):
+        inspect_local_subtitle(path)

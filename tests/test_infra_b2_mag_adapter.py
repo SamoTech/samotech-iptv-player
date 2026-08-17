@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
-from typing import TYPE_CHECKING, Any, cast
+from typing import Any, cast
 
 import pytest
 
@@ -11,6 +11,7 @@ from samotech_iptv.core.exceptions import AuthenticationError, ValidationError
 from samotech_iptv.domain.value_objects.channel_id import ChannelId
 from samotech_iptv.domain.value_objects.credential import Credential
 from samotech_iptv.domain.value_objects.provider_capability import ProviderCapability
+from samotech_iptv.domain.value_objects.provider_id import ProviderId
 from samotech_iptv.infrastructure.providers.mag_adapter import (
     MagProviderAdapter,
     register_with_factory,
@@ -109,10 +110,6 @@ class ExpiringMagProvider(FakeMagProvider):
 
             raise AuthError("session expired")
         return await super().get_channels()
-
-
-if TYPE_CHECKING:
-    from samotech_iptv.domain.value_objects.provider_id import ProviderId
 
 
 @pytest.fixture
@@ -405,3 +402,25 @@ class TestRealLegacyConstruction:
         assert legacy_credentials.portal_url == metadata.base_url
         assert legacy_credentials.mac_address == credential.username
         assert not hasattr(metadata, "auth_token")
+
+
+def test_mag_channel_fixture_preserves_unicode_and_ignores_malformed_optional_logo() -> None:
+    channels = MagDomainTranslator.channels(
+        [
+            {
+                "id": "9001",
+                "name": "قناة رياضية",
+                "logo": "not-a-url",
+                "tv_genre_id": "sports",
+                "number": "7",
+                "xmltv_id": "arabic.sports",
+            }
+        ],
+        ProviderId("mag-test"),
+    )
+
+    assert channels[0].name == "قناة رياضية"
+    assert channels[0].logo_url is None
+    assert channels[0].category_id == "sports"
+    assert channels[0].epg_channel_id == "arabic.sports"
+    assert channels[0].number == 7

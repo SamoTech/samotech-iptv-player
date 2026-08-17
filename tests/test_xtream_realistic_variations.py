@@ -186,3 +186,42 @@ def test_series_detail_skips_malformed_and_duplicate_nested_records() -> None:
     assert [(episode.id, episode.episode_number) for episode in episodes] == [
         ("xtream-synthetic:2001:episode:501", 1)
     ]
+
+
+def test_unicode_and_list_shaped_artwork_are_translated_without_secret_payloads() -> None:
+    movie = XtreamDomainTranslator.movie(
+        {
+            "stream_id": "9001",
+            "name": "فيلم عربي – اختبار",
+            "stream_icon": ["", "https://assets.example.test/poster-9001.jpg"],
+            "backdrop_path": ["https://assets.example.test/backdrop-9001.jpg"],
+            "year": "2026",
+            "rating": "9.0",
+        },
+        PROVIDER,
+    )
+
+    assert movie.title == "فيلم عربي – اختبار"
+    assert str(movie.poster_url) == "https://assets.example.test/poster-9001.jpg"
+    assert str(movie.backdrop_url) == "https://assets.example.test/backdrop-9001.jpg"
+
+
+def test_sparse_episode_defaults_title_and_preserves_opaque_identity() -> None:
+    detail = {
+        "episodes": {
+            "2": [
+                {
+                    "id": "9002",
+                    "episode_num": "2",
+                    "info": {"plot": "مرحبا"},
+                }
+            ]
+        }
+    }
+
+    episodes = XtreamDomainTranslator.episodes(detail, "xtream-synthetic:2001", 2)
+
+    assert episodes[0].id == "xtream-synthetic:2001:episode:9002"
+    assert episodes[0].title == "Episode 2"
+    assert episodes[0].plot == "مرحبا"
+    assert episodes[0].stream_id.value == "9002|mp4"
