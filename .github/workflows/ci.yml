@@ -56,6 +56,9 @@ jobs:
       - name: mypy typecheck
         run: mypy src/
 
+      - name: Security regression tests
+        run: pytest -q tests/test_security_sensitive_logging.py tests/test_core_diagnostics.py
+
       - name: pytest (unit + integration)
         run: pytest -q --cov=src --cov-report=xml
 

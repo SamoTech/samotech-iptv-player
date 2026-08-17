@@ -40,6 +40,10 @@ Provider adapters own their provider-specific sessions. The MAG/Stalker adapter 
 
 Qt dialogs show safe provider summaries and generic failures where detailed errors could expose sensitive infrastructure information. Logs must not include passwords, MAC addresses, tokens, tokenized URLs, resolved playback URLs, or local recording paths. Tests must use fake credentials, fake portal hosts, fake device identities, and fake media URLs.
 
+#### Mandatory safe-diagnostics rule
+
+Never log raw provider URLs, credentials, authorization headers, cookies, raw provider responses, or sensitive exceptions. This rule applies equally to Xtream, MAG/Stalker, M3U, VLC, HTTP, authentication, diagnostics, and CI scripts. Sanitize values **before** they reach the logger by using the centralized APIs in `samotech_iptv.core.safe_logging`: `sanitize_url()`, `sanitize_headers()`, `sanitize_mapping()`, `sanitize_exception()`, and `safe_label()`. Log safe operational fields such as provider type, scheme, hostname, event name, status, category, and counts instead. Do not rely on log-level changes, visual masking after logging, or broad CI redaction as a substitute for safe application logging.
+
 ### Parsing and input safety
 
 - Canonical `URL` and `StreamURI` value objects validate the URL/URI forms they represent.
