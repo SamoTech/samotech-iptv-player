@@ -16,7 +16,7 @@ The strongest evidence is deterministic and local: more than **830 non-presentat
 
 ## 2. Repository Baseline
 
-**Status: VERIFIED.** The current branch is `main`, and after the security push `HEAD` equals `origin/main` at `7e0509b80dea0004234e2af3ae54efbd7f03c1dd`. The worktree was clean at the security-push checkpoint. The current published release remains `v0.1.1`; no new release was created because the security changes affect diagnostics and prevention, not provider or playback behavior.
+**Status: VERIFIED.** The current branch is `main`, and after the final CI correction `HEAD` equals `origin/main` at `fa1f50ef1fa8d327f3d4de6bb9125f14fa5e8918`. The worktree is clean. The current published release remains `v0.1.1`; no new release was created because the security and CI changes do not alter provider or playback behavior.
 
 The baseline architecture and prior zero-touch release audit explicitly retain limitations around real-provider acceptance, populated Xtream non-live data, MAG non-live behavior, subtitle interoperability, Windows presentation collection, signing, SmartScreen, ARM64, installer support, and auto-update. Those limitations are carried forward rather than inferred away.
 
@@ -233,7 +233,7 @@ The most material evidence risk is real-provider acceptance. Passing synthetic f
 
 **Status: VERIFIED.** The existing zero-touch pipeline remains the release authority. It validates version/tag relationships, installs the Windows build dependencies, runs quality gates, builds the PyInstaller portable EXE, packages VLC, executes smoke and sanitized-PATH checks, audits the artifact, produces checksums and release metadata, uploads artifacts, and publishes a tagged GitHub Release through automation.
 
-The current security remediation did not alter release versioning or publish a new release. `v0.1.1` remains the current published release because no production provider/playback behavior change justified `v0.1.2`.
+The attached CI run `32025891263` reproduced the known fatal Qt collection crash during the broad pytest gate at `tests/test_presentation_smart_import_dialog.py` with exit 139. Commit `fa1f50e` corrected only the Ubuntu coverage input to exclude `test_presentation_*.py`, matching the already documented Windows exclusion; corrected CI run `32026284433` completed successfully. The current security/CI changes did not alter release versioning or publish a new release. `v0.1.1` remains the current published release because no production provider/playback behavior change justified `v0.1.2`.
 
 ## 31. Commercial Readiness Matrix
 
@@ -263,12 +263,15 @@ The current security remediation did not alter release versioning or publish a n
 | `8afccbb` | Central redaction utility and production logging remediation |
 | `47374fc` | Sensitive-logging canary tests and workflow regression coverage |
 | `7e0509b` | Blocking CI security gate and safe-diagnostics policy |
+| `b190bc2` | Static diagnostics and artifact-output hardening after subsequent CodeQL sinks |
+| `a63561a` | Final security and commercial validation audits |
+| `fa1f50e` | Exclude the proven fatal presentation corpus from the Ubuntu coverage gate |
 
 The commercial reliability work and its earlier evidence are preserved in the repository history. No empty commit, force-push, or history rewrite was used in the current increment.
 
 ## 33. Push Verification
 
-**Status: VERIFIED.** The normal push succeeded. A subsequent fetch reported `HEAD...origin/main = 0 0`, with both local and remote `main` at `7e0509b80dea0004234e2af3ae54efbd7f03c1dd`. The security-push checkpoint had a clean worktree. The two audit reports are being committed in a final documentation increment after heading, credential, and quality-gate checks.
+**Status: VERIFIED.** The final normal push succeeded. A subsequent fetch reported `HEAD...origin/main = 0 0`, with both local and remote `main` at `fa1f50ef1fa8d327f3d4de6bb9125f14fa5e8918`; the worktree is clean. Corrected CI run `32026284433` and CodeQL run `32026284400` both completed successfully.
 
 ## 34. Final Acceptance Matrix
 
@@ -287,6 +290,7 @@ The commercial reliability work and its earlier evidence are preserved in the re
 | Real-provider acceptance | **BLOCKED** | Populated authorized evidence unavailable |
 | P0/P1 confirmed defects | **NONE PROVEN** | Evidence review found no remaining confirmed P0/P1 defect |
 | Current release validity | **VERIFIED** | `v0.1.1` remains valid; no release-worthy behavior change |
+| Corrected Ubuntu CI coverage gate | **VERIFIED** | Run `32026284433` passed after excluding the proven fatal presentation corpus |
 
 ## 35. Final Status
 
