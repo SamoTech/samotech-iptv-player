@@ -1,262 +1,282 @@
-# SamoTech IPTV Player — Windows Portable EXE Build Audit
+# SamoTech IPTV Player — First Automated GitHub Release Acceptance Audit
 
 **Audit date:** 2026-08-17 UTC+03:00
 **Repository:** [SamoTech/samotech-iptv-player](https://github.com/SamoTech/samotech-iptv-player)
-**Verified packaging commit:** `a7b57d5a5bb6efd48bedd66ec5e5dc7a69038d32`
-**Final audit revision:** the final `origin/main` audit commit verified at handoff
-**Windows workflow run:** [32013261624](https://github.com/SamoTech/samotech-iptv-player/actions/runs/32013261624)
-**Final classification:** **B — PORTABLE EXE READY WITH KNOWN LIMITATIONS**
+**Tagged release:** [`v0.1.0`](https://github.com/SamoTech/samotech-iptv-player/releases/tag/v0.1.0)
+**Tagged build commit:** `d1ab67325a59c6f86089dbe309e99ba7386dc24b`
+**Workflow run:** [32016330754](https://github.com/SamoTech/samotech-iptv-player/actions/runs/32016330754)
+**Final status:** **A — FIRST GITHUB RELEASE VERIFIED**
 
-This report is the single authoritative record for the Windows portable-executable delivery described by the packaging specification. Each conclusion is explicitly classified as **IMPLEMENTED**, **VERIFIED**, **PARTIAL**, **BLOCKED**, **DEFERRED**, or **NOT EXECUTED**. The report does not reproduce provider credentials, tokens, cookies, MAC identities, resolved stream URLs, or raw provider payloads.
+This report is the single authoritative record for the first automated release acceptance. Every result is classified as **IMPLEMENTED**, **VERIFIED**, **PARTIAL**, **BLOCKED**, **DEFERRED**, or **NOT EXECUTED**. The report does not reproduce provider credentials, tokens, cookies, MAC addresses, private stream URLs, or raw provider payloads.
 
-## 1. Executive Summary
+## 1. Initial Repository State
 
-**VERIFIED.** The repository now contains a blocking GitHub Actions pipeline that builds and executes a true one-file Windows x64 PyInstaller executable with bundled VLC 3.0.23 runtime components. The successful Windows run passed source-quality gates, the Windows non-presentation regression corpus, native VLC lifecycle validation, PyInstaller packaging, both generated-executable smoke modes, sanitized-`PATH` validation from a Unicode temporary directory, artifact auditing, checksum generation, and artifact upload. The generated executable itself—not merely the build directory—was run by the Windows runner.
+**VERIFIED.** Before release work, `git fetch origin main` completed successfully. The repository was on branch `main`, with HEAD `d1ab673` (`docs: finalize portable exe audit wording`), a clean worktree, and `git rev-list --left-right --count HEAD...origin/main` reporting `0 0`. The pre-tag HEAD and `origin/main` resolved to `d1ab67325a59c6f86089dbe309e99ba7386dc24b`.
 
-The evidence supports **B — PORTABLE EXE READY WITH KNOWN LIMITATIONS**, not an unconditional production-readiness classification. The workflow’s tag-release branch is configured but was not exercised in this non-tag run. Windows presentation test collection remains blocked by a fatal Qt access violation in the runner environment and is explicitly excluded; the non-presentation corpus remains blocking. Installer creation, ARM64, auto-update infrastructure, authorized-provider acceptance, and real-provider subtitle interoperability remain outside this milestone.
+No production code, packaging code, provider behavior, VLC packaging, installer, or auto-update system was changed for the release acceptance. The existing portable build was preserved.
 
-## 2. Initial Repository State
+## 2. Existing Release State
 
-**VERIFIED.** The implementation began from the repository’s current `origin/main` state and preserved the existing provider-neutral architecture. The delivered changes are packaging, runtime-discovery, CI, regression, documentation, and Windows path-compatibility work. Xtream, MAG, M3U, shared libVLC, qasync, `PlayerPort`, `ResolvedPlayback`, and Live EOF recovery boundaries were not rewritten.
+**VERIFIED.** Before creating the tag, GitHub reported no releases for the repository. This was confirmed through the repository release listing rather than assumed from local state. After the tagged workflow completed, the repository contained exactly one published release: `v0.1.0`.
 
-The final packaging-related commits are logically separated: `build: add autonomous windows portable packaging`, `ci: validate packaged windows executable`, `test: add packaged runtime smoke coverage`, `fix: handle windows drive-letter paths in local source loaders`, and `fix: accept windows drive-letter xmltv sources`, followed by the documentation commits prepared for this audit. The verified Windows run was triggered by commit `a7b57d5`.
+## 3. Existing Tag State
 
-## 3. Packaging Audit
+**VERIFIED.** Before tag creation, neither a local `v0.1.0` tag nor an origin tag reference for `v0.1.0` existed. The authoritative application version was `0.1.0`, so the correct first release tag was `v0.1.0`. The created tag is annotated: tag object `71d7c0bc4f1e03c1b8922d4e6edad4a3901909cb`, resolving to commit `d1ab67325a59c6f86089dbe309e99ba7386dc24b`.
 
-**IMPLEMENTED.** The repository contains an explicit `samotech-iptv-player.spec`, a runtime hook, a strict Windows build script, a pinned VLC acquisition script, a generated-artifact audit script, and a dedicated workflow. The spec fails early when the VLC runtime is missing required native files and does not rely on the developer’s working directory or an installed system VLC tree.
+## 4. Workflow Audit
 
-The build target is a PyInstaller one-file executable named internally `SamoTech-IPTV-Player-Windows-x64.exe`. Release naming is applied after validation, preventing a failed or partial build from being published as a release artifact. Installer technologies such as MSI, NSIS, Inno Setup, WiX, and MSIX were not introduced.
+**IMPLEMENTED; VERIFIED.** The current `.github/workflows/windows-portable-build.yml` satisfies the release requirements:
 
-## 4. Dependency Audit
+| Requirement | Evidence | Classification |
+|---|---|---|
+| Tag trigger `v*.*.*` | `on.push.tags: ["v*.*.*"]` | **VERIFIED** |
+| Write permission | `permissions: contents: write` | **VERIFIED** |
+| Required release action | `softprops/action-gh-release@v2` | **VERIFIED** |
+| Release gate ordering | Release step is after all build, test, smoke, audit, checksum, and upload steps | **VERIFIED** |
+| Release assets | `dist/release/*.exe` and `dist/release/SHA256SUMS.txt` | **VERIFIED** |
+| Generated release notes | `generate_release_notes: true` | **VERIFIED** |
+| Blocking gates | No critical `continue-on-error` or failure suppression | **VERIFIED** |
 
-**IMPLEMENTED; VERIFIED for the CI build.** Build-critical versions are pinned in `packaging/windows-build-requirements.txt` and the workflow environment. The verified build used Python 3.13, PyInstaller 6.22.1, PySide6 6.11.1, `python-vlc` 3.0.21203, `qasync` 0.28.0, `aiohttp` 3.14.3, `defusedxml` 0.7.1, and `keyring` 25.7.0. VLC 3.0.23 win64 was acquired from the official VideoLAN ZIP and verified against SHA256 `992d19dbd0b8a7cde9167d2f7780b1ef6f92acc8a71acfa736101a21f35181e1`.
+The workflow continues to use the existing portable build; no competing release workflow was created.
 
-The runtime dependency categories are covered as follows.
+## 5. Application Version
 
-| Category | Evidence and classification |
-|---|---|
-| Python runtime and packages | **VERIFIED** through the Windows PyInstaller build and generated-EXE execution. |
-| PySide6/Qt binaries and platform support | **VERIFIED** through the Qt/application smoke mode and PyInstaller build. |
-| `python-vlc` binding | **VERIFIED** through packaged-VLC smoke and native lifecycle gates. |
-| `libvlc.dll` and `libvlccore.dll` | **VERIFIED** by pinned runtime checks, spec collection, native probe, packaged-VLC smoke, and artifact execution. |
-| VLC plugins, Lua, and locale data | **IMPLEMENTED** explicitly in the spec; **VERIFIED** indirectly through plugin checks and packaged-VLC smoke. |
-| Application resources and metadata | **IMPLEMENTED** through PyInstaller analysis and Windows version metadata; broad resource-specific runtime acceptance is **PARTIAL**. |
-| Authorized provider data | **NOT EXECUTED** and intentionally not required by the build. |
-
-## 5. PyInstaller/Nuitka Evaluation
-
-**VERIFIED decision.** PyInstaller was selected over Nuitka because the application already uses Python-level provider modules, PySide6, qasync, and a native VLC boundary, while the requirement favors the simplest reproducible one-file distribution. The explicit spec provides controllable native-binary, plugin, data, runtime-hook, hidden-import, and Windows-version handling without adding a second compiler toolchain.
-
-Nuitka was not introduced because no evidence in this task demonstrated a meaningful reliability advantage over the working PyInstaller path. Avoiding multiple packaging systems is deliberate and preserves a single release implementation.
-
-## 6. Packaging Decision
-
-**IMPLEMENTED; VERIFIED.** The chosen distribution is a true single-file, windowed PyInstaller executable for Windows x64. The successful run executed the generated file, proving the primary portability path rather than merely proving that a file was emitted.
-
-The result is not an installer and does not install Python, VLC, or application dependencies. The executable is versioned by the application’s authoritative `pyproject.toml` version for tag builds and by short commit SHA for ordinary push builds.
-
-## 7. VLC/libVLC Packaging
-
-**IMPLEMENTED; VERIFIED.** The spec collects `libvlc.dll` and `libvlccore.dll` beneath a bundled `vlc/` tree and includes the full VLC `plugins`, `lua`, and `locale` content selected from the pinned official VLC runtime. The workflow separately verifies that the native DLLs exist and that the plugin tree contains DLL modules before packaging.
-
-The successful Windows job passed the native VLC lifecycle probe and the packaged-VLC smoke mode. The latter creates safe synthetic local WAV media and exercises the bundled runtime rather than a real IPTV endpoint. The packaged executable therefore has direct evidence for native library loading, plugin discovery, media construction, and lifecycle startup.
-
-## 8. PySide6 Packaging
-
-**IMPLEMENTED; VERIFIED.** PyInstaller analyzes the PySide6 application and bundles the Qt runtime required by the windowed executable. The generated executable’s `--smoke-test` mode initialized the application and processed Qt events successfully on the Windows runner. The workflow also ran with the runner’s ordinary environment before the later sanitized-`PATH` check.
-
-The known limitation is not a packaging failure: collection of `test_presentation_*.py` modules caused a fatal Windows Qt access violation, so those test files are excluded from the Windows corpus. The actual generated executable’s Qt smoke mode remains a blocking pass.
-
-## 9. Resource Packaging
-
-**PARTIAL.** The spec uses PyInstaller’s application analysis and explicit package collection rather than current-working-directory assumptions. The runtime helper resolves the packaged root from PyInstaller’s extraction directory and falls back to the source tree only for source execution. The executable was run from a temporary directory containing spaces and non-ASCII characters, which verifies the principal path-resolution concern.
-
-A dedicated acceptance matrix for every optional icon, font, translation, and future resource variant was not required by the current application composition and is **NOT EXECUTED**. No unsupported claim is made that all future resource types are packaged.
-
-## 10. GitHub Actions Workflow
-
-**IMPLEMENTED; VERIFIED.** `.github/workflows/windows-portable-build.yml` runs on `windows-latest` for push, pull request, workflow-dispatch, and `v*.*.*` tag events. It performs checkout, Python setup, pinned dependency installation, pinned VLC acquisition and verification, quality gates, Windows tests, native VLC validation, PyInstaller packaging, executable smoke tests, clean-environment validation, artifact audit, naming, checksum generation, metadata summary, and artifact upload.
-
-All critical gates are blocking. The workflow contains no `continue-on-error: true` for required steps, and every failure-sensitive PowerShell invocation checks `$LASTEXITCODE` or throws. The tagged-release step is conditional and executes only after the prior job succeeds.
-
-## 11. Build Reproducibility
-
-**IMPLEMENTED; VERIFIED for the tested commit.** The workflow records the commit SHA, application version, Python version, PyInstaller version, VLC version, artifact name, SHA256, and artifact size in `build-metadata.txt` and the GitHub step summary. VLC acquisition is hash-pinned, build inputs are version-pinned, the PyInstaller work path is separated, and the build script clears prior `dist` and PyInstaller work output.
-
-Bit-for-bit reproducibility across two independent Windows runs was not executed. The supported claim is functionally reproducible packaging from pinned inputs, not byte-identical output across all runner images.
-
-## 12. EXE Build Evidence
-
-**VERIFIED.** Windows workflow run `32013261624` completed successfully on commit `a7b57d5a5bb6efd48bedd66ec5e5dc7a69038d32`. The job completed in approximately 4 minutes 3 seconds and passed all required steps through artifact upload.
-
-The validated non-tag artifact was named `SamoTech-IPTV-Player-Windows-x64-build-a7b57d5.exe`. The artifact-content audit reported `artifact_bytes=135489582` for the generated executable and `artifact_audit=PASS`.
-
-## 13. EXE Smoke Test
-
-**VERIFIED.** The workflow ran the actual generated executable with both `--packaged-vlc-test` and `--smoke-test`. Both steps exited successfully. The packaged-VLC mode exercised synthetic local media through the bundled runtime; the Qt/application mode initialized the desktop composition, processed events, and closed without a missing-DLL, Qt-platform, import, or libVLC initialization failure.
-
-The same two modes were then run again after copying the executable outside the repository, strengthening the portability evidence beyond an in-place build-directory execution.
-
-## 14. Clean Environment Validation
-
-**VERIFIED.** The workflow copied the generated EXE to a temporary directory named `SamoTech Portable Validation 空 folder`, then sanitized `PATH` to Windows system directories before executing both smoke modes. The runner reported Python available before sanitization, while `vlc` and `libvlc.dll` were not available through `PATH`; the executable still passed both modes.
-
-This proves the tested EXE does not require a separately discoverable VLC installation or Python command through `PATH`. It is a clean-process validation on a GitHub-hosted Windows runner, not a claim that every possible enterprise Windows policy or antivirus configuration has been tested.
-
-## 15. Native VLC Validation
-
-**VERIFIED.** The Windows-native lifecycle probe passed binding import, native instance creation, media creation, playback events, media replacement, stop, and cleanup against the pinned runtime. The job log reported `native_vlc_buffering_observed=PASS`, `native_vlc_media_replacement=PASS`, `native_vlc_stop_cleanup=PASS`, and `native_vlc_lifecycle=PASS`.
-
-This is provider-free synthetic-media native validation. It does not claim successful playback against an authorized IPTV provider or prove a particular provider’s stream transport behavior.
-
-## 16. Synthetic Media Validation
-
-**VERIFIED for packaged VLC lifecycle.** The packaged-VLC smoke mode generates a deterministic silent WAV in the test process and uses it to exercise media creation and safe lifecycle behavior. No real IPTV credentials, streams, or copyrighted media are used by the build gate.
-
-A separate matrix of multiple synthetic video codecs and long-running playback durations was not executed. The current claim is the required safe synthetic-media lifecycle, not exhaustive codec certification.
-
-## 17. Subtitle Validation
-
-**PARTIAL / NOT EXECUTED as a packaged acceptance matrix.** The application and source-level tests include local subtitle support for SRT, ASS, SSA, and VTT through the preserved `PlayerPort`/libVLC boundary, and the VLC plugin tree is bundled broadly rather than reduced to a minimal subset. The Windows portable workflow does not yet run a dedicated packaged-EXE subtitle fixture for each format with Arabic text.
-
-Therefore subtitle operation remains a documented follow-up acceptance item. This limitation does not invalidate the packaged VLC load and synthetic media lifecycle evidence.
-
-## 18. Provider Module Validation
-
-**VERIFIED for synthetic/provider-free import and regression gates; real providers NOT EXECUTED.** The Windows non-presentation corpus covers the Xtream, MAG, M3U, XMLTV, and provider-boundary modules with fake or local data. The build does not require real provider credentials or network access to a real IPTV service.
-
-Authorized Xtream acceptance and production MAG portal compatibility remain separate runtime concerns. No real provider credentials were placed in the repository, workflow, build metadata, report, or artifact.
-
-## 19. Security Scan
-
-**VERIFIED for the committed source and generated artifact gate.** The repository scan found the authorized Xtream username and password absent from tracked files. The artifact audit script scans executable bytes for private keys, AWS-style key IDs, credential-bearing URLs, bearer tokens, JWT-like material, and development leftovers when a package root is supplied. The successful Windows job reported `artifact_audit=PASS`.
-
-The workflow does not print secret environment variables or dump the workspace. Test fixtures use synthetic values. Because executable byte scanning cannot prove semantic absence of every possible secret representation, the result is strong automated evidence rather than a cryptographic guarantee.
-
-## 20. Artifact Content Audit
-
-**VERIFIED.** The post-build audit passed on the generated EXE and reported the aggregate byte count without exposing matching content. The audit checks for secret-shaped data and development artifacts such as Python source, bytecode, and `.git` material when package-root inspection is requested.
-
-The one-file PyInstaller format inherently extracts internal components at runtime into a temporary directory, but the distributed artifact is one EXE and no user-managed `vlc/`, `Python/`, `plugins/`, or Qt folder is required beside it for the tested smoke path.
-
-## 21. Artifact Size
-
-**VERIFIED.** The generated executable size recorded by the artifact audit was **135,489,582 bytes** (approximately 129.2 MiB using binary units). The uploaded GitHub artifact archive metadata was **135,029,895 bytes**, which is the Actions artifact container size and should not be confused with the raw executable size.
-
-The size is accepted as a reliability-first consequence of bundling the full VLC plugin tree and Qt runtime. No plugins were removed merely to optimize size. A separate compression/build-time optimization study is deferred.
-
-## 22. SHA256
-
-**VERIFIED.** The workflow generated `SHA256SUMS.txt` automatically beside the EXE. The validated non-tag executable hash was:
+**VERIFIED.** `pyproject.toml` is the authoritative version source and declares:
 
 ```text
-bb14aaa8bd2ea13d62d4a5bdac56ffc10ddd101b5906a2f584466b5d5a65c7ef  SamoTech-IPTV-Player-Windows-x64-build-a7b57d5.exe
+version = "0.1.0"
 ```
 
-The checksum is generated from the final renamed artifact after all executable validation steps have passed. A user does not need to generate it manually.
+The tagged Windows job logged `Application version: 0.1.0`. No duplicate manually maintained application version was invented.
 
-## 23. GitHub Artifact
+## 6. Release Tag
 
-**VERIFIED.** Run `32013261624` uploaded the artifact named `windows-portable-a7b57d5a5bb6efd48bedd66ec5e5dc7a69038d32`. GitHub reported the uploaded artifact container at approximately 135 MB and marked it unexpired. It contains the release EXE, `SHA256SUMS.txt`, and `build-metadata.txt` according to the workflow upload configuration.
+**VERIFIED.** The release tag is `v0.1.0`, derived directly from the authoritative application version. It was created as an annotated tag and pushed normally to origin. No duplicate tag was created, no existing tag was overwritten, and no force-push or history rewrite was used.
 
-The local download attempt was not relied upon for the conclusion because the transfer stalled in this environment; the authoritative GitHub run and artifact API metadata confirmed the upload.
+## 7. Tag Push Evidence
 
-## 24. GitHub Release
+**VERIFIED.** The tag push returned:
 
-**IMPLEMENTED; NOT EXECUTED in this audit run.** The workflow triggers on `v*.*.*` tags and conditionally invokes the GitHub Release action only after the blocking build job succeeds. It attaches the versioned EXE and `SHA256SUMS.txt` and requests generated release notes.
+```text
+[new tag] v0.1.0 -> v0.1.0
+```
 
-No tag was pushed for this audit, so no release record is claimed. The next release acceptance should push a version tag and verify the attached assets without changing the workflow’s blocking behavior.
+The tag triggered workflow run `32016330754` with event `push`, branch/ref `v0.1.0`, and head SHA `d1ab67325a59c6f86089dbe309e99ba7386dc24b`.
 
-## 25. Failure Gates
+## 8. GitHub Actions Run
 
-**IMPLEMENTED; VERIFIED by successful step sequencing.** Dependency installation, VLC acquisition, runtime-file verification, Ruff, Black, mypy, pytest, native VLC lifecycle, PyInstaller, both executable smoke modes, clean-environment validation, artifact audit, naming/checksum generation, and artifact upload are ordered blocking steps. A failure stops later build and publication steps.
+**VERIFIED.** The tag-triggered workflow completed successfully:
 
-The workflow does not use failure suppression for critical gates. The tag-release action is downstream of the successful job and therefore does not publish a release when validation fails.
+| Field | Result |
+|---|---|
+| Run | `32016330754` |
+| Job | `95346482024` |
+| Event | `push` |
+| Ref | `v0.1.0` |
+| Head SHA | `d1ab67325a59c6f86089dbe309e99ba7386dc24b` |
+| Duration | approximately 4 minutes 8 seconds |
+| Conclusion | `success` |
 
-## 26. Quality Gates
+The workflow sequence passed dependency installation, VLC acquisition and verification, Ruff, Black, mypy, pytest, native VLC lifecycle, PyInstaller, both generated-EXE smoke modes, sanitized-`PATH` validation, artifact audit, versioned naming, checksum generation, metadata, artifact upload, and release publication.
 
-**VERIFIED.** The successful Windows run passed Ruff, Black, mypy, and the Windows non-presentation pytest corpus. Local verification after the Windows fixes also passed focused M3U, XMLTV, domain-binding, and packaged-runtime tests; broad local non-presentation pytest with coverage completed successfully with a total coverage report of 62%. `git diff --check` passed before the fix commits and will be repeated before the documentation push.
+## 9. Windows Build Evidence
 
-A known runner limitation remains: presentation test collection causes a fatal Windows Qt access violation. Excluding those files is explicit and narrowly scoped; it does not convert a failing test into a pass or weaken the production executable smoke gates.
+**VERIFIED.** The Windows runner built the tagged commit with Python 3.13, PyInstaller 6.22.1, PySide6 6.11.1, `python-vlc` 3.0.21203, and the pinned VLC 3.0.23 win64 runtime. VLC acquisition was verified against SHA256 `992d19dbd0b8a7cde9167d2f7780b1ef6f92acc8a71acfa736101a21f35181e1`.
 
-## 27. Documentation
+The generated artifact was named using the required tagged-release form:
 
-**IMPLEMENTED.** `README.md` now documents the portable executable, no separate Python/VLC requirement for the generated artifact, workflow triggers, naming, checksum, Windows x64 scope, and limitations. `CHANGELOG.md` records the packaging milestone, Windows path fixes, verified run, artifact hash, and deferred release/tag limitation. `PROJECT_STATUS.md` records the authoritative current-state classification and evidence boundaries.
+```text
+SamoTech-IPTV-Player-Windows-x64-v0.1.0.exe
+```
 
-This report is the single detailed audit record. Other historical reports remain date-scoped and are not substituted for this document.
+The generated EXE size reported by the artifact audit and GitHub Release asset metadata is **135,490,319 bytes**.
 
-## 28. Git Commit History
+## 10. EXE Validation
 
-**VERIFIED.** Packaging implementation, CI changes, test coverage, Windows path fixes, and documentation are separated into logical commits with `build:`, `ci:`, `test:`, `fix:`, and `docs:` prefixes. No force-push or history rewrite was used. The two Windows path fixes were production-code corrections backed by observed Windows CI failures and regression coverage, satisfying the specification’s rule not to weaken tests merely because CI failed.
+**VERIFIED.** The actual executable generated by the tagged commit was executed, not merely checked for existence. The workflow passed both:
 
-## 29. Push Evidence
+```text
+--packaged-vlc-test
+--smoke-test
+```
 
-**VERIFIED.** The fix commits and documentation commits were pushed normally to `origin/main`. The successful workflow run was triggered by commit `a7b57d5`; the final audit revision is the clean `origin/main` commit verified at handoff. The workflow URL and immutable packaging commit are recorded at the top of this report for direct inspection.
+The packaged-VLC test exercised the bundled runtime with safe synthetic media. The Qt/application smoke mode initialized the packaged application, processed Qt events, and exited successfully. The same modes passed again from outside the repository during sanitized-environment validation.
 
-The final documentation push was verified against `origin/main` after publication.
+## 11. VLC Validation
 
-## 30. Final Repository State
+**VERIFIED.** The Windows native VLC lifecycle probe passed against the pinned bundled runtime. The job reported successful native binding/instance/media lifecycle, media replacement, stop, cleanup, and final lifecycle status. The packaged-VLC smoke mode also passed against the runtime that was included in the generated executable.
 
-**VERIFIED.** After the final audit push, the verification command reported matching `HEAD` and `origin/main`, `worktree=clean`, required documentation present, and authorized credentials absent from tracked content. `git diff --check` also passed, and no regenerated `uv.lock` was committed.
+This is provider-free synthetic-media validation. It does not claim live playback against an authorized IPTV provider.
 
-Ignored caches and local coverage outputs are not release inputs. No force-push or history rewrite was used.
+## 12. Qt Validation
 
-## 31. Known Limitations
+**VERIFIED for the generated executable.** The tagged workflow’s generated-EXE Qt/application smoke test passed. No missing Qt platform plugin, Python import, or application initialization failure occurred.
 
-**PARTIAL / BLOCKED / NOT EXECUTED as labeled.** The known limitations are the Windows Qt presentation-test collection access violation, unexecuted tag-release publication, unexecuted dedicated packaged subtitle matrix, unexecuted bit-for-bit reproducibility comparison, and the normal provider/runtime limitations already recorded by the project. The portable executable itself has passed the required generated-EXE smoke and clean-environment gates.
+A separate test-collection limitation remains documented: importing `tests/test_presentation_smart_import_dialog.py` during the full Linux pre-release pytest collection caused a fatal Qt access violation. The Windows workflow intentionally excludes `test_presentation_*.py` from its non-Qt corpus while keeping the generated executable’s Qt smoke test blocking.
 
-The build does not claim that every VLC codec, subtitle track, DRM system, provider portal, antivirus policy, or Windows configuration is compatible. It claims the tested bundled VLC and Qt lifecycle on the GitHub Windows runner.
+## 13. Clean Environment Validation
 
-## 32. Deferred Installer Phase
+**VERIFIED.** The workflow copied the tagged executable into a temporary directory containing spaces and non-ASCII characters, then sanitized `PATH` to Windows system directories before running both executable smoke modes. The runner logged:
 
-**DEFERRED by specification.** No MSI, MSIX, NSIS, Inno Setup, WiX, or other installer was created. No auto-updater was added. GitHub Release publication is the distribution mechanism for future version tags, while the current deliverable is the portable EXE and checksum only.
+```text
+where_python_available_before_sanitize=True
+where_vlc_available_before_sanitize=False
+where_libvlc_available_before_sanitize=False
+```
 
-## 33. Remaining Risks
+Both smoke modes passed after sanitization. This verifies the tested EXE does not depend on a separately discoverable VLC installation or Python command through `PATH`.
 
-**PARTIAL.** The principal remaining risks are operational rather than hidden build dependencies: Windows presentation test collection remains unstable; subtitle-format acceptance inside the packaged executable needs a dedicated fixture matrix; tag-release publication needs one real tag validation; and broad third-party Windows environments may expose antivirus, codec, or policy differences not represented by a single hosted runner.
+## 14. Artifact Audit
 
-Provider-specific authentication, stream transport, MAG portal compatibility, authorized Xtream population, and real live EOF recovery remain separate acceptance domains. They were intentionally not coupled to packaging CI and no credentials were required to produce the artifact.
+**VERIFIED.** The generated-artifact audit reported:
 
-## 34. Final Acceptance Matrix
+```text
+artifact_bytes=135490319
+artifact_audit=PASS
+```
 
-**Final classification: B — PORTABLE EXE READY WITH KNOWN LIMITATIONS.** The matrix below distinguishes the verified deliverable from items that are partial, blocked, deferred, or not executed.
+The audit scans executable bytes for secret-shaped material and development leftovers. No credentials, private keys, credential-bearing URLs, bearer tokens, JWT-like material, Python source/bytecode, or repository artifacts were reported by the blocking audit.
 
-| Area | Acceptance item | Classification | Evidence or boundary |
-|---|---|---|---|
-| Build | Windows x64 runner builds successfully | **VERIFIED** | Run `32013261624` passed. |
-| Build | Pinned dependencies and VLC runtime | **VERIFIED** | Python 3.13, PyInstaller 6.22.1, PySide6 6.11.1, `python-vlc` 3.0.21203, VLC 3.0.23. |
-| Build | PySide6, python-vlc, libVLC, VLC plugins, Qt plugins | **IMPLEMENTED / VERIFIED** | Explicit spec collection plus generated-EXE and native runtime passes. |
-| Build | Application resources | **PARTIAL** | Runtime-relative root and primary executable resources pass; exhaustive future-resource matrix not executed. |
-| Portability | No Python or separate VLC required | **VERIFIED** | Sanitized-`PATH` execution passed; `vlc` and `libvlc.dll` absent from PATH. |
-| Portability | Works outside repository with spaces and Unicode path | **VERIFIED** | Temporary `SamoTech Portable Validation 空 folder` execution passed. |
-| Execution | Generated EXE actually starts and exits | **VERIFIED** | `--smoke-test` passed in build and clean environment. |
-| Execution | Packaged libVLC loads and synthetic media lifecycle works | **VERIFIED** | `--packaged-vlc-test` passed; native lifecycle passed. |
-| Execution | Native VLC lifecycle | **VERIFIED** | Binding, instance, media replacement, stop, cleanup, and lifecycle pass. |
-| Execution | Subtitle SRT/ASS/SSA/VTT packaged matrix | **NOT EXECUTED** | Source boundary exists; dedicated packaged fixture remains. |
-| Providers | Xtream/MAG/M3U modules and synthetic boundaries | **VERIFIED** | Non-presentation Windows corpus and local tests pass. |
-| Providers | Authorized provider acceptance | **NOT EXECUTED** | Deliberately excluded from normal build CI. |
-| Security | Repository credentials absent | **VERIFIED** | Tracked-file scan found no authorized credentials. |
-| Security | Generated artifact audit | **VERIFIED** | `artifact_audit=PASS`. |
-| Automation | Push builds and uploads artifact | **VERIFIED** | Successful run uploaded artifact and metadata. |
-| Automation | Tag builds and publishes release | **IMPLEMENTED / NOT EXECUTED** | Conditional release step exists; no tag run in evidence. |
-| Automation | SHA256 generated automatically | **VERIFIED** | `SHA256SUMS.txt` generated with recorded hash. |
-| Quality | pytest, Ruff, Black, mypy, diff check | **VERIFIED** | Windows CI and local focused/broad checks passed; presentation collection limitation documented. |
-| Scope | Installer, ARM64, auto-updater | **DEFERRED / OUT OF SCOPE** | Not implemented by this phase. |
+## 15. SHA256
 
-The deliverable is therefore **ready for portable-EXE distribution through the verified push-artifact path, with the limitations above disclosed**. It must not be described as a universal IPTV-provider acceptance, subtitle-certification, installer, ARM64, or tag-release proof until those separate gates are executed.
+**VERIFIED.** The tagged workflow generated `SHA256SUMS.txt` with this entry:
+
+```text
+89c271df0ff3fbc79051fd8eaf3a71697eb0c63a9d87c42abebe4306769e4ae6  SamoTech-IPTV-Player-Windows-x64-v0.1.0.exe
+```
+
+The same SHA256 was reported in the tagged Windows job metadata and by the GitHub Release asset digest.
+
+## 16. GitHub Artifact
+
+**VERIFIED.** The successful tagged run uploaded the Actions artifact:
+
+```text
+windows-portable-d1ab67325a59c6f86089dbe309e99ba7386dc24b
+```
+
+GitHub reported the artifact container size as **135,030,640 bytes**, created at `2026-08-17T09:43:26Z`, and `expired=false`. The workflow configuration includes the versioned EXE, `SHA256SUMS.txt`, and `build-metadata.txt` in the uploaded artifact.
+
+## 17. GitHub Release
+
+**VERIFIED.** Exactly one release exists for the new version, and it is the published `v0.1.0` release:
+
+| Field | Result |
+|---|---|
+| Release name | `v0.1.0` |
+| Tag | `v0.1.0` |
+| Draft | `false` |
+| Prerelease | `false` |
+| Published | `2026-08-17T09:43:34Z` |
+| Release URL | https://github.com/SamoTech/samotech-iptv-player/releases/tag/v0.1.0 |
+| Tag-resolved commit | `d1ab67325a59c6f86089dbe309e99ba7386dc24b` |
+
+The release action executed only after the required build and artifact gates passed. No failed or partial release was published.
+
+## 18. Release Assets
+
+**VERIFIED.** The release contains exactly the required two assets, both in `uploaded` state:
+
+| Asset | Size | GitHub asset digest |
+|---|---:|---|
+| `SamoTech-IPTV-Player-Windows-x64-v0.1.0.exe` | 135,490,319 bytes | `sha256:89c271df0ff3fbc79051fd8eaf3a71697eb0c63a9d87c42abebe4306769e4ae6` |
+| `SHA256SUMS.txt` | 111 bytes | `sha256:8ae0c15c5e652eab2e2f40751410944e4684c0e3644c578131c0add6fd17c207` |
+
+The EXE asset URL is https://github.com/SamoTech/samotech-iptv-player/releases/download/v0.1.0/SamoTech-IPTV-Player-Windows-x64-v0.1.0.exe. The checksum asset URL is https://github.com/SamoTech/samotech-iptv-player/releases/download/v0.1.0/SHA256SUMS.txt.
+
+## 19. Release Notes
+
+**VERIFIED with a documented repair.** The release action generated GitHub’s changelog section successfully. The generated notes initially described historical changes but did not include the required portable-EXE user-facing summary, so the release body was augmented without changing assets, code, packaging, or workflow gates. The final release notes describe Windows x64 Portable EXE distribution, no separate Python installation, no separate VLC installation, the portable artifact, and known limitations.
+
+The final notes explicitly avoid claims of universal IPTV compatibility, MAG VOD/Series support, real-provider acceptance, subtitle certification, ARM64 support, installer support, Microsoft Store distribution, or auto-update support. A release-note augmentation was necessary; therefore the result is **VERIFIED** for content but **PARTIAL** against a strict zero-manual-intervention interpretation of release-note authoring.
+
+## 20. Independent Checksum Verification
+
+**VERIFIED.** Both release assets were downloaded from the published GitHub Release. The downloaded EXE was 135,490,319 bytes. Independent local hashing produced:
+
+```text
+89c271df0ff3fbc79051fd8eaf3a71697eb0c63a9d87c42abebe4306769e4ae6
+```
+
+Running `sha256sum -c SHA256SUMS.txt` from the downloaded asset directory returned:
+
+```text
+SamoTech-IPTV-Player-Windows-x64-v0.1.0.exe: OK
+```
+
+The published checksum, the independently calculated local hash, and GitHub’s EXE asset digest match exactly.
+
+## 21. Security Review
+
+**VERIFIED.** The generated artifact audit passed. The repository’s tracked-content credential scan found no authorized Xtream username or password. The release notes and release metadata contain no provider credentials, tokens, cookies, MAC addresses, private stream URLs, or other private acceptance data.
+
+The release did not use a real provider, real IPTV stream, or authorized credentials as a build dependency. Existing credential boundaries and provider architecture were preserved.
+
+## 22. Failure and Repair Evidence
+
+**PARTIAL; no production-code repair was required.** The full Linux pre-release pytest command exited with code 139 during collection of `tests/test_presentation_smart_import_dialog.py`, demonstrating the existing Qt access-violation limitation. No production code was modified to conceal or bypass that failure. The independent non-presentation pytest corpus was then run successfully, matching the established Windows workflow exclusion.
+
+One local checksum command initially failed because it was run from the repository root while `SHA256SUMS.txt` contained a relative basename. The verification was corrected by running `sha256sum -c` from the downloaded asset directory; it then returned `OK`. This was a command-location error, not a release defect.
+
+The release action itself did not fail. The only release-content repair was augmenting generated release notes with the required portable-EXE summary after confirming that the assets and workflow result were correct.
+
+## 23. Final Repository State
+
+**VERIFIED at the pre-tag acceptance point; final report commit pending.** Before tagging, HEAD and `origin/main` were synchronized at `d1ab67325a59c6f86089dbe309e99ba7386dc24b`, and the worktree was clean. The annotated tag was pushed without modifying the tagged commit.
+
+After this report is committed, the final handoff will re-run `git fetch origin main`, verify `HEAD == origin/main`, confirm a clean worktree, check `git diff --check`, scan tracked content for credentials and secrets, and confirm that no temporary release assets or build artifacts are committed.
+
+## 24. Final Acceptance Matrix
+
+| Acceptance item | Result | Classification |
+|---|---|---|
+| Current main verified before release | Branch `main`, ahead/behind `0 0`, clean | **VERIFIED** |
+| Working tree clean before tag | No status entries | **VERIFIED** |
+| Application version verified | `0.1.0` from `pyproject.toml` | **VERIFIED** |
+| Correct version tag created | Annotated `v0.1.0` | **VERIFIED** |
+| Tag pushed normally | `v0.1.0 -> v0.1.0` | **VERIFIED** |
+| GitHub Actions triggered | Run `32016330754` | **VERIFIED** |
+| Windows runner completed | Job success in about 4m8s | **VERIFIED** |
+| Portable EXE built | Versioned EXE emitted | **VERIFIED** |
+| Actual EXE validated | Packaged-VLC and Qt smoke passed | **VERIFIED** |
+| Native VLC validation passed | Lifecycle probe passed | **VERIFIED** |
+| Qt smoke passed | Generated EXE smoke passed | **VERIFIED** |
+| Sanitized PATH validation passed | Unicode temporary path, no VLC on PATH | **VERIFIED** |
+| Artifact audit passed | `artifact_audit=PASS` | **VERIFIED** |
+| SHA256 generated | `SHA256SUMS.txt` uploaded | **VERIFIED** |
+| GitHub Actions artifact uploaded | Artifact present and unexpired | **VERIFIED** |
+| GitHub Release created | Exactly one published `v0.1.0` release | **VERIFIED** |
+| Release EXE attached | Correct versioned filename | **VERIFIED** |
+| Release SHA256 attached | `SHA256SUMS.txt` present | **VERIFIED** |
+| SHA256 independently verified | Downloaded EXE hash matched checksum | **VERIFIED** |
+| Release notes generated | Generated changelog preserved | **VERIFIED** |
+| Required portable summary in notes | Added after publication | **VERIFIED / PARTIAL automation** |
+| Release contains no secrets | Notes and metadata clean | **VERIFIED** |
+| Final repository clean after report | Must be verified after report commit | **NOT EXECUTED** |
+| HEAD synchronized after report commit | Must be verified after report push | **NOT EXECUTED** |
+
+## 25. Known Limitations
+
+**PARTIAL / BLOCKED / DEFERRED as labeled.** The full Linux pytest collection remains blocked by the known Qt access violation in `test_presentation_smart_import_dialog.py`; the Windows release workflow excludes presentation test modules while retaining blocking generated-EXE Qt smoke validation. Release-note content required a post-publication augmentation because the action-generated notes did not include the portable distribution summary. A strict zero-manual-intervention claim therefore applies to build, validation, checksum, asset upload, and release publication, but not to the final notes augmentation performed in this acceptance.
+
+This release does not certify universal IPTV provider compatibility, real-provider acceptance, MAG VOD/Series, subtitle-format interoperability, ARM64, installers, auto-update, Microsoft Store distribution, or long-running codec compatibility. These remain deferred, out of scope, or not executed.
+
+## 26. Final Status
+
+**A — FIRST GITHUB RELEASE VERIFIED.** The authoritative version tag `v0.1.0` triggered the Windows workflow, the tagged Windows runner built and executed the actual portable EXE, native VLC and Qt validation passed, the sanitized-`PATH` test passed, the artifact was audited and checksummed, GitHub Actions uploaded the artifact, GitHub published exactly one release, both release assets are present, and the checksum was independently verified from the downloaded release assets.
+
+The status is **A** under the specification’s explicit rule: a tagged workflow completed successfully and the GitHub Release contains the verified portable EXE and checksum. This classification does not expand the release’s documented scope or erase the known Qt collection and release-note automation limitations.
 
 ## References
 
-[1]: https://github.com/SamoTech/samotech-iptv-player/actions/runs/32013261624 "Successful Windows Portable EXE workflow run"
+[1]: https://github.com/SamoTech/samotech-iptv-player/actions/runs/32016330754 "Successful v0.1.0 tagged Windows workflow run"
 
-[2]: https://github.com/SamoTech/samotech-iptv-player/commit/a7b57d5a5bb6efd48bedd66ec5e5dc7a69038d32 "Verified packaging commit"
+[2]: https://github.com/SamoTech/samotech-iptv-player/releases/tag/v0.1.0 "Published v0.1.0 GitHub Release"
 
-[3]: https://github.com/SamoTech/samotech-iptv-player/blob/main/.github/workflows/windows-portable-build.yml "Blocking Windows portable-build workflow"
+[3]: https://github.com/SamoTech/samotech-iptv-player/blob/main/.github/workflows/windows-portable-build.yml "Windows portable-build and release workflow"
 
-[4]: https://github.com/SamoTech/samotech-iptv-player/blob/main/samotech-iptv-player.spec "Reproducible PyInstaller specification"
+[4]: https://github.com/SamoTech/samotech-iptv-player/blob/main/pyproject.toml "Authoritative application version"
 
-[5]: https://github.com/SamoTech/samotech-iptv-player/blob/main/src/samotech_iptv/packaged_runtime.py "Runtime-relative bundled VLC discovery"
+[5]: https://github.com/SamoTech/samotech-iptv-player/blob/main/scripts/audit_windows_artifact.py "Generated artifact audit script"
 
-[6]: https://github.com/SamoTech/samotech-iptv-player/blob/main/scripts/audit_windows_artifact.py "Generated artifact audit script"
-
-[7]: https://github.com/SamoTech/samotech-iptv-player/blob/main/README.md "Project README and portable executable usage"
+[6]: https://github.com/SamoTech/samotech-iptv-player/releases/download/v0.1.0/SHA256SUMS.txt "Published v0.1.0 checksum asset"
