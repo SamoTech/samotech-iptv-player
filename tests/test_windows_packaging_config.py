@@ -32,6 +32,16 @@ def test_windows_workflow_keeps_release_gates_blocking() -> None:
     assert "BUILD_TIMESTAMP_UTC" in workflow
 
 
+def test_ci_workflow_has_blocking_security_regression_gate() -> None:
+    workflow = (_ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+    assert "Security regression tests" in workflow
+    assert "tests/test_security_sensitive_logging.py" in workflow
+    assert (
+        "continue-on-error"
+        not in workflow.split("Security regression tests", 1)[1].split("Upload coverage", 1)[0]
+    )
+
+
 def test_windows_build_script_preserves_downloaded_vlc_runtime() -> None:
     script = (_ROOT / "scripts/build_windows.ps1").read_text(encoding="utf-8")
     assert "build\\pyinstaller" in script or 'Join-Path "build" "pyinstaller"' in script
