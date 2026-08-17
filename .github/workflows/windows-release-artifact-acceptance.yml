@@ -68,36 +68,47 @@ jobs:
           QT_QPA_PLATFORM: windows
         run: |
           $cases = @(
-            @{ Name = "c-drive-space"; Root = (Join-Path $env:RUNNER_TEMP "SamoTech Portable Acceptance") },
-            @{ Name = "unicode-path"; Root = (Join-Path $env:RUNNER_TEMP "SamoTech Portable Acceptance 测试") },
-            @{ Name = "downloads-like"; Root = (Join-Path $env:USERPROFILE "Downloads\SamoTech Portable Acceptance") },
-            @{ Name = "arbitrary-cwd"; Root = (Join-Path $env:RUNNER_TEMP "SamoTech Arbitrary CWD") }
+            @{ Name = "c-drive"; Root = (Join-Path $env:SystemDrive "SamoTech Portable Acceptance"); Cwd = $null },
+            @{ Name = "spaces"; Root = (Join-Path $env:RUNNER_TEMP "SamoTech Portable Acceptance"); Cwd = $null },
+            @{ Name = "unicode"; Root = (Join-Path $env:RUNNER_TEMP "SamoTech Portable Acceptance 测试"); Cwd = $null },
+            @{ Name = "downloads-like"; Root = (Join-Path $env:USERPROFILE "Downloads\SamoTech Portable Acceptance"); Cwd = $null },
+            @{ Name = "temporary"; Root = (Join-Path $env:TEMP "SamoTech Portable Acceptance"); Cwd = $null },
+            @{ Name = "arbitrary-cwd"; Root = (Join-Path $env:RUNNER_TEMP "SamoTech Portable Acceptance CWD"); Cwd = $env:SystemRoot }
+          )
+          $pathModes = @(
+            @{ Name = "normal-path"; Value = $env:Path },
+            @{ Name = "sanitized-path"; Value = "$env:SystemRoot\System32;$env:SystemRoot" }
           )
           foreach ($case in $cases) {
             $root = $case.Root
             New-Item -ItemType Directory -Force -Path $root | Out-Null
             $caseExe = Join-Path $root "SamoTech-IPTV-Player-Windows-x64.exe"
             Copy-Item $env:RELEASE_EXE $caseExe -Force
-            $cwd = if ($case.Name -eq "arbitrary-cwd") { $env:SystemRoot } else { $root }
-            foreach ($argument in @("--packaged-vlc-test", "--smoke-test")) {
-              $stdout = Join-Path $root "$($case.Name)-$($argument.TrimStart('-')).stdout.log"
-              $stderr = Join-Path $root "$($case.Name)-$($argument.TrimStart('-')).stderr.log"
-              $oldPath = $env:Path
-              try {
-                $env:Path = "$env:SystemRoot\System32;$env:SystemRoot"
-                $process = Start-Process -FilePath $caseExe -ArgumentList $argument -WorkingDirectory $cwd -PassThru -NoNewWindow -RedirectStandardOutput $stdout -RedirectStandardError $stderr
-                if (-not ($process.WaitForExit(90 * 1000))) {
-                  $process.Kill()
-                  throw "$($case.Name) $argument timed out"
+            $cwd = if ($null -eq $case.Cwd) { $root } else { $case.Cwd }
+            foreach ($pathMode in $pathModes) {
+              foreach ($launchNumber in @(1, 2)) {
+                foreach ($argument in @("--packaged-vlc-test", "--smoke-test")) {
+                  $prefix = "$($case.Name)-$($pathMode.Name)-launch$launchNumber-$($argument.TrimStart('-'))"
+                  $stdout = Join-Path $root "$prefix.stdout.log"
+                  $stderr = Join-Path $root "$prefix.stderr.log"
+                  $oldPath = $env:Path
+                  try {
+                    $env:Path = $pathMode.Value
+                    $process = Start-Process -FilePath $caseExe -ArgumentList $argument -WorkingDirectory $cwd -PassThru -NoNewWindow -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+                    if (-not ($process.WaitForExit(90 * 1000))) {
+                      $process.Kill()
+                      throw "$prefix timed out"
+                    }
+                    if ($process.ExitCode -ne 0) {
+                      Write-Host (Get-Content $stdout -Raw)
+                      Write-Error (Get-Content $stderr -Raw)
+                      throw "$prefix exited with $($process.ExitCode)"
+                    }
+                    Write-Host "$prefix exit_code=$($process.ExitCode)"
+                  } finally {
+                    $env:Path = $oldPath
+                  }
                 }
-                if ($process.ExitCode -ne 0) {
-                  Write-Host (Get-Content $stdout -Raw)
-                  Write-Error (Get-Content $stderr -Raw)
-                  throw "$($case.Name) $argument exited with $($process.ExitCode)"
-                }
-                Write-Host "$($case.Name) $argument exit_code=$($process.ExitCode)"
-              } finally {
-                $env:Path = $oldPath
               }
             }
           }
@@ -109,5 +120,5 @@ jobs:
             "release_tag=$env:RELEASE_TAG",
             "artifact=$([IO.Path]::GetFileName($env:RELEASE_EXE))",
             "result=PASS",
-            "checks=checksum,PE versions,packaged VLC smoke,Qt smoke,spaces,Unicode,Downloads-like path,arbitrary working directory,sanitized PATH"
+            "checks=checksum,PE versions,packaged VLC smoke,Qt smoke,C drive,temporary directory,spaces,Unicode,Downloads-like path,arbitrary working directory,normal PATH,sanitized PATH,first launch,second launch"
           ) | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append

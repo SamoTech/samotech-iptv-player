@@ -61,3 +61,25 @@ def test_pinned_windows_packaging_requirements_are_present() -> None:
         "qasync==0.28.0",
     ):
         assert requirement in requirements
+
+
+def test_exact_release_acceptance_workflow_is_blocking_and_artifact_focused() -> None:
+    workflow = (_ROOT / ".github/workflows/windows-release-artifact-acceptance.yml").read_text(
+        encoding="utf-8"
+    )
+    assert "workflow_dispatch" in workflow
+    assert "gh release download" in workflow
+    assert "SHA256SUMS.txt" in workflow
+    assert "Get-FileHash -Algorithm SHA256" in workflow
+    assert "FileVersion" in workflow
+    assert "ProductVersion" in workflow
+    assert "--packaged-vlc-test" in workflow
+    assert "--smoke-test" in workflow
+    assert "SystemDrive" in workflow
+    assert "SamoTech Portable Acceptance 测试" in workflow
+    assert "Downloads\\SamoTech Portable Acceptance" in workflow
+    assert "SystemRoot\\System32;$env:SystemRoot" in workflow
+    assert "arbitrary-cwd" in workflow
+    assert "launch$launchNumber" in workflow
+    assert "@(1, 2)" in workflow
+    assert "continue-on-error" not in workflow
