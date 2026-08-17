@@ -68,15 +68,13 @@ jobs:
           QT_QPA_PLATFORM: windows
         run: |
           $cases = @(
-            @{ Name = "c-drive"; Root = (Join-Path $env:SystemDrive "SamoTech Portable Acceptance"); Cwd = $env:SystemRoot },
+            @{ Name = "c-drive"; Root = (Join-Path $env:SystemDrive "SamoTech Portable Acceptance"); Cwd = $null },
             @{ Name = "spaces"; Root = (Join-Path $env:RUNNER_TEMP "SamoTech Portable Acceptance"); Cwd = $null },
             @{ Name = "unicode"; Root = (Join-Path $env:RUNNER_TEMP "SamoTech Portable Acceptance 测试"); Cwd = $null },
             @{ Name = "downloads-like"; Root = (Join-Path $env:USERPROFILE "Downloads\SamoTech Portable Acceptance"); Cwd = $null },
             @{ Name = "temporary"; Root = (Join-Path $env:TEMP "SamoTech Portable Acceptance"); Cwd = $null },
             @{ Name = "arbitrary-cwd"; Root = (Join-Path $env:RUNNER_TEMP "SamoTech Portable Acceptance CWD"); Cwd = $env:SystemRoot }
           )
-          $diagnosticRoot = Join-Path $env:RUNNER_TEMP "samotech-release-acceptance-diagnostics"
-          New-Item -ItemType Directory -Force -Path $diagnosticRoot | Out-Null
           $pathModes = @(
             @{ Name = "normal-path"; Value = $env:Path },
             @{ Name = "sanitized-path"; Value = "$env:SystemRoot\System32;$env:SystemRoot" }
@@ -93,45 +91,24 @@ jobs:
                   $prefix = "$($case.Name)-$($pathMode.Name)-launch$launchNumber-$($argument.TrimStart('-'))"
                   $stdout = Join-Path $root "$prefix.stdout.log"
                   $stderr = Join-Path $root "$prefix.stderr.log"
-                  $diagnosticPath = Join-Path $diagnosticRoot "$prefix.startup-diagnostic.json"
-                  $diagnosticFallbackPath = Join-Path (Join-Path $env:TEMP "SamoTech\IPTV Player") (Split-Path $diagnosticPath -Leaf)
+                  $diagnosticPath = Join-Path $root "$prefix.startup-diagnostic.json"
                   $oldPath = $env:Path
                   try {
                     $env:Path = $pathMode.Value
                     $env:SAMOTECH_STARTUP_DIAGNOSTIC_PATH = $diagnosticPath
                     Remove-Item $diagnosticPath -Force -ErrorAction SilentlyContinue
-                    $process = Start-Process -FilePath $caseExe -ArgumentList @($argument, "--diagnostic") -WorkingDirectory $cwd -PassThru
+                    $process = Start-Process -FilePath $caseExe -ArgumentList @($argument, "--diagnostic") -WorkingDirectory $cwd -PassThru -NoNewWindow -RedirectStandardOutput $stdout -RedirectStandardError $stderr
                     if (-not ($process.WaitForExit(90 * 1000))) {
                       $process.Kill()
                       throw "$prefix timed out"
                     }
                     if ($process.ExitCode -ne 0) {
-                      if (Test-Path $stdout) { Write-Host "stdout=$((Get-Content $stdout -Raw))" }
-                      if (Test-Path $stderr) { Write-Host "stderr=$((Get-Content $stderr -Raw))" }
+                      Write-Host (Get-Content $stdout -Raw)
+                      Write-Error (Get-Content $stderr -Raw)
                       throw "$prefix exited with $($process.ExitCode)"
                     }
-                    $actualDiagnosticPath = $diagnosticPath
-                    if (-not (Test-Path $actualDiagnosticPath) -and (Test-Path $diagnosticFallbackPath)) {
-                      $actualDiagnosticPath = $diagnosticFallbackPath
-                      Write-Host "$prefix diagnostic_path_fallback=$actualDiagnosticPath"
-                    }
-                    if (-not (Test-Path $actualDiagnosticPath)) {
-                      Write-Host "diagnostic_missing=$prefix"
-                      Write-Host "case_exe=$caseExe"
-                      Write-Host "case_exe_exists=$(Test-Path $caseExe)"
-                      Write-Host "case_exe_length=$((Get-Item $caseExe).Length)"
-                      if (Test-Path $stdout) { Write-Host "stdout=$((Get-Content $stdout -Raw))" }
-                      if (Test-Path $stderr) { Write-Host "stderr=$((Get-Content $stderr -Raw))" }
-                      $zone = Get-Item -Path $caseExe -Stream Zone.Identifier -ErrorAction SilentlyContinue
-                      if ($null -ne $zone) {
-                        Write-Host "zone_identifier_stream_length=$($zone.Length)"
-                        Write-Host "zone_identifier=$(Get-Content -Path ($caseExe + ':Zone.Identifier') -Raw)"
-                      } else {
-                        Write-Host "zone_identifier_stream=absent"
-                      }
-                      throw "$prefix did not produce a startup diagnostic"
-                    }
-                    $diagnostic = Get-Content $actualDiagnosticPath -Raw | ConvertFrom-Json
+                    if (-not (Test-Path $diagnosticPath)) { throw "$prefix did not produce a startup diagnostic" }
+                    $diagnostic = Get-Content $diagnosticPath -Raw | ConvertFrom-Json
                     if ($diagnostic.status -ne "ready") { throw "$prefix diagnostic status was not ready" }
                     if ($argument -eq "--packaged-vlc-test" -and $diagnostic.last_successful_stage -ne "VLC_READY") { throw "$prefix did not record VLC_READY" }
                     if ($argument -eq "--smoke-test") {
@@ -143,8 +120,6 @@ jobs:
                   } finally {
                     $env:Path = $oldPath
                     Remove-Item Env:SAMOTECH_STARTUP_DIAGNOSTIC_PATH -ErrorAction SilentlyContinue
-                    Remove-Item $diagnosticPath -Force -ErrorAction SilentlyContinue
-                    Remove-Item $diagnosticFallbackPath -Force -ErrorAction SilentlyContinue
                   }
                 }
               }
