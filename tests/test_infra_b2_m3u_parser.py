@@ -133,3 +133,36 @@ def test_parse_rejects_invalid_playlist_entries(
 ) -> None:
     with pytest.raises(M3UParserError, match=message):
         parser.parse(playlist, provider_id)
+
+
+def test_parse_unicode_arabic_and_catchup_metadata_without_claiming_archive_support(
+    parser: M3UParser, provider_id: ProviderId
+) -> None:
+    parsed = parser.parse(
+        "#EXTM3U\n"
+        '#EXTINF:-1 tvg-id="arabic.news" group-title="أخبار" '
+        'catchup="append" catchup-source="https://archive.example.test/{start}",'
+        "قناة الأخبار العربية\n"
+        "https://stream.example.test/live/arabic-news.m3u8\n",
+        provider_id,
+    )
+
+    assert len(parsed.channels) == 1
+    assert parsed.channels[0].name == "قناة الأخبار العربية"
+    assert parsed.channels[0].category_id == "أخبار"
+    assert parsed.channels[0].epg_channel_id == "arabic.news"
+    assert parsed.streams[0].transport is StreamTransport.HTTPS
+
+
+def test_parse_escaped_quotes_inside_ignored_attribute(
+    parser: M3UParser, provider_id: ProviderId
+) -> None:
+    parsed = parser.parse(
+        "#EXTM3U\n"
+        '#EXTINF:-1 http-user-agent="Agent \\" IPTV" group-title="News",Quoted Agent\n'
+        "https://stream.example.test/live/quoted.ts\n",
+        provider_id,
+    )
+
+    assert parsed.channels[0].name == "Quoted Agent"
+    assert parsed.channels[0].category_id == "News"
