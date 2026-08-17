@@ -24,7 +24,12 @@ def test_windows_workflow_keeps_release_gates_blocking() -> None:
     assert "--smoke-test" in workflow
     assert "SHA256SUMS.txt" in workflow
     assert "actions/upload-artifact@v4" in workflow
-    assert "softprops/action-gh-release@v2" in workflow
+    assert "softprops/action-gh-release@v3" in workflow
+    assert "Validate tag and application version" in workflow
+    assert "Generate automated release notes" in workflow
+    assert "scripts/generate_release_notes.py" in workflow
+    assert "body_path: dist/release/release-notes.md" in workflow
+    assert "BUILD_TIMESTAMP_UTC" in workflow
 
 
 def test_windows_build_script_preserves_downloaded_vlc_runtime() -> None:
