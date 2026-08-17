@@ -209,13 +209,14 @@ The logical commits created before this report are:
 | 3 | `f8bffce` | `feat: add local subtitle loading, delay controls, and session-safe subtitle management` |
 | 4 | `4692d54` | `test: add provider health, local subtitle, and VLC subtitle regression coverage` |
 | 5 | `a519330` | `docs: document commercial provider experience and subtitle enhancement` |
-| 6 | Pending | `docs: write COMMERCIAL_SUBTITLE_FINAL_AUDIT.md` |
+| 6 | `0d77d38` | `docs: write COMMERCIAL_SUBTITLE_FINAL_AUDIT.md` |
+| 7 | Final documentation reconciliation | Corrected post-push synchronization wording after the report commit; no implementation changes. |
 
-No force-push or history rewrite is permitted. The report commit is intentionally last so the final document contains post-push synchronization evidence.
+No force-push or history rewrite is permitted. The report was created in commit `0d77d38` and then reconciled in a normal follow-up documentation commit so the checked-in text reflects the final verification sequence.
 
 ## 26. Final status and evidence index
 
-At report drafting time, implementation, deterministic tests, isolated Qt validation, performance, security review, documentation updates, and the five logical commits were complete. The remaining delivery action is the report commit followed by a normal push and final verification that `HEAD == origin/main` with an empty worktree.
+Implementation, deterministic tests, isolated Qt validation, performance, security review, documentation updates, seven logical commits including this final wording reconciliation, normal pushes, and post-push synchronization verification are complete. The final verification recorded equal local `HEAD` and `origin/main` revisions with an empty worktree after removing the regenerated environment `uv.lock` artifact.
 
 The final classification is **READY FOR HANDOFF WITH EXPLICIT ACCEPTANCE LIMITATIONS**: the requested commercial provider-health, onboarding, search, subtitle, delay, removal, and session-safety work is implemented and verified within the available architecture and environment. Catch-up/archive is not implemented. Windows-native validation, native VLC track-shape validation, and populated authorized-provider acceptance are not executed or environment-blocked as described above.
 
