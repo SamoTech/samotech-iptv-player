@@ -31,6 +31,9 @@ class FakeMedia:
     def add_option(self, option: str) -> None:
         self.options.append(option)
 
+    def slaves_clear(self) -> None:
+        self.options.append("slaves-clear")
+
 
 class FakePlayer:
     """Deterministic libVLC player double."""
@@ -46,6 +49,8 @@ class FakePlayer:
         self.subtitle_active = 4
         self.subtitle_selected: list[int] = []
         self.aspect_ratio: str | None = None
+        self.slaves: list[tuple[object, str, bool]] = []
+        self.subtitle_delay_us = 0
 
     def is_playing(self) -> int:
         return int(self.playing)
@@ -86,6 +91,17 @@ class FakePlayer:
     def video_set_spu(self, track_id: int) -> int:
         self.subtitle_selected.append(track_id)
         self.subtitle_active = track_id
+        return 0
+
+    def add_slave(self, slave_type: object, uri: str, select: bool) -> int:
+        self.slaves.append((slave_type, uri, select))
+        return 0
+
+    def video_get_spu_delay(self) -> int:
+        return self.subtitle_delay_us
+
+    def video_set_spu_delay(self, delay_us: int) -> int:
+        self.subtitle_delay_us = delay_us
         return 0
 
     def video_get_aspect_ratio(self) -> str | None:
@@ -837,3 +853,50 @@ def test_transport_metadata_rejects_duplicate_or_line_break_headers() -> None:
         TransportMetadata(
             headers=(TransportHeader("X-Test", "one"), TransportHeader("x-test", "two"))
         )
+
+
+@pytest.mark.asyncio
+async def test_vlc_adapter_attaches_local_subtitle_only_for_current_generation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    player = FakePlayer()
+    adapter = _adapter(player)
+    module = importlib.import_module("samotech_iptv.infrastructure.player.vlc_player_adapter")
+    monkeypatch.setattr(
+        module.vlc,
+        "MediaSlaveType",
+        SimpleNamespace(subtitle="subtitle"),
+        raising=False,
+    )
+    await adapter.play(URL("https://stream.example.test/movie.m3u8"))
+    subtitle = tmp_path / "arabic.srt"
+    subtitle.write_text(
+        "1\n00:00:01,000 --> 00:00:02,000\nمرحبا بالعالم\n",
+        encoding="utf-8",
+    )
+
+    await adapter.attach_local_subtitle(
+        subtitle,
+        expected_generation=adapter.media_generation,
+    )
+
+    assert player.slaves == [("subtitle", subtitle.resolve().as_uri(), True)]
+    with pytest.raises(RuntimeError, match="session changed"):
+        await adapter.attach_local_subtitle(
+            subtitle,
+            expected_generation=adapter.media_generation + 1,
+        )
+
+
+@pytest.mark.asyncio
+async def test_vlc_adapter_supports_bounded_subtitle_delay() -> None:
+    player = FakePlayer()
+    adapter = _adapter(player)
+
+    assert await adapter.get_subtitle_delay_ms() == 0
+    await adapter.set_subtitle_delay_ms(1_500)
+
+    assert player.subtitle_delay_us == 1_500_000
+    assert await adapter.get_subtitle_delay_ms() == 1_500
+    with pytest.raises(ValueError, match="between -5000 and 5000"):
+        await adapter.set_subtitle_delay_ms(5_001)

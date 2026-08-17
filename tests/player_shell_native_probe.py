@@ -702,6 +702,13 @@ async def main() -> None:
     assert "Episode metadata" in episode_detail
     await asyncio.sleep(0)
     await asyncio.sleep(0)
+    content_shell._navigate_to_page(6)
+    content_shell.global_search_filter.setCurrentIndex(4)
+    content_shell.search_input.setText("Pilot")
+    assert content_shell.global_search_model.stringList() == ["EPISODES  ·  Pilot"]
+    assert content_shell.global_search_status.text() == "1 loaded result(s)"
+    content_shell.global_search_filter.setCurrentIndex(0)
+    assert content_shell.global_search_model.stringList() == ["EPISODES  ·  Pilot"]
     assert played == ["b", "b", "episode-2", "movie-1", "series-1:episode:501"]
 
     stale_categories = FakeCategories((CategoryDTO("sports", "Sports", "provider-a"),))
