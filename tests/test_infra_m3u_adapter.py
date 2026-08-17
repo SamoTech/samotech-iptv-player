@@ -80,10 +80,13 @@ class FakeSourceLoader:
 
 
 @pytest.mark.asyncio
-async def test_source_loader_reads_local_playlist(tmp_path: Path) -> None:
-    """A local M3U file is loaded without using the remote HTTP boundary."""
+@pytest.mark.parametrize("line_ending", ["\n", "\r\n"])
+async def test_source_loader_reads_local_playlist_with_canonical_lf(
+    tmp_path: Path, line_ending: str
+) -> None:
+    """Local M3U text has one canonical LF representation on every platform."""
     playlist_path = tmp_path / "channels.m3u"
-    playlist_path.write_text(_PLAYLIST, encoding="utf-8")
+    playlist_path.write_bytes(_PLAYLIST.replace("\n", line_ending).encode("utf-8"))
 
     loader = M3USourceLoader(FakeHttpClient())  # type: ignore[arg-type]
 

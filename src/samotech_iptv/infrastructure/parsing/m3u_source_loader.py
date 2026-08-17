@@ -97,7 +97,7 @@ class M3USourceLoader:
             data = handle.read(_MAX_M3U_SOURCE_BYTES + 1)
         if len(data) > _MAX_M3U_SOURCE_BYTES:
             raise ValueError("M3U source exceeds the configured size limit")
-        return data.decode("utf-8")
+        return data.decode("utf-8").replace("\r\n", "\n").replace("\r", "\n")
 
     @staticmethod
     def _local_path(source: str, scheme: str) -> Path:
