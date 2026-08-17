@@ -62,3 +62,8 @@ async def test_guide_service_loads_only_explicitly_mapped_entries(tmp_path: Path
     assert len(entries) == 1
     assert entries[0].channel_id == ChannelId("news")
     assert entries[0].title == "Morning News"
+
+
+def test_loader_classifies_windows_drive_paths_as_local() -> None:
+    assert LocalXMLTVSourceLoader._is_windows_drive_path(r"C:\\guide.xml") is True
+    assert LocalXMLTVSourceLoader._is_windows_drive_path("https://guides.example/demo.xml") is False

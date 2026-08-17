@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
 from urllib.parse import unquote, urlsplit, urlunsplit
@@ -42,6 +43,8 @@ class M3USourceLoader:
 
     async def load(self, source: str) -> str:
         """Load a local file or HTTP(S) playlist source through its proper boundary."""
+        if self._is_windows_drive_path(source):
+            return await self._load_local(Path(source))
         parsed = urlsplit(source)
         if parsed.scheme.casefold() in {"http", "https"}:
             return await self._load_remote(source)
@@ -84,9 +87,18 @@ class M3USourceLoader:
 
     @staticmethod
     def _local_path(source: str, scheme: str) -> Path:
+        if M3USourceLoader._is_windows_drive_path(source):
+            return Path(source)
         if scheme == "file":
-            return Path(unquote(urlsplit(source).path))
+            path = unquote(urlsplit(source).path)
+            if sys.platform == "win32" and path.startswith("/") and len(path) >= 3:
+                path = path[1:]
+            return Path(path)
         return Path(source)
+
+    @staticmethod
+    def _is_windows_drive_path(source: str) -> bool:
+        return len(source) >= 3 and source[1] == ":" and source[2] in {"/", "\\"}
 
     @staticmethod
     def _redact_source(source: str) -> str:

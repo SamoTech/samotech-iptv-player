@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import sys
 from pathlib import Path
 from typing import Protocol
 from urllib.parse import unquote, urlsplit
@@ -34,6 +35,8 @@ class LocalXMLTVSourceLoader:
 
     @staticmethod
     def _local_path(source: str) -> Path:
+        if LocalXMLTVSourceLoader._is_windows_drive_path(source):
+            return Path(source)
         parsed = urlsplit(source)
         scheme = parsed.scheme.casefold()
         if scheme not in {"", "file"}:
@@ -41,5 +44,12 @@ class LocalXMLTVSourceLoader:
         if scheme == "file":
             if parsed.netloc or parsed.query or parsed.fragment:
                 raise XMLTVSourceError("XMLTV source must identify a local file")
-            return Path(unquote(parsed.path))
+            path = unquote(parsed.path)
+            if sys.platform == "win32" and path.startswith("/") and len(path) >= 3:
+                path = path[1:]
+            return Path(path)
         return Path(source)
+
+    @staticmethod
+    def _is_windows_drive_path(source: str) -> bool:
+        return len(source) >= 3 and source[1] == ":" and source[2] in {"/", "\\"}

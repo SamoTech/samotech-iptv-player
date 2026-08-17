@@ -42,9 +42,17 @@ def test_configure_bundled_runtime_sets_runtime_relative_vlc_paths(
     result = packaged_runtime.configure_bundled_runtime()
 
     assert result == vlc_root
-    assert packaged_runtime.os.environ["PYTHON_VLC_LIB_PATH"].endswith("vlc/libvlc.dll")
-    assert packaged_runtime.os.environ["PYTHON_VLC_MODULE_PATH"].endswith("vlc/plugins")
-    assert packaged_runtime.os.environ["VLC_PLUGIN_PATH"].endswith("vlc/plugins")
+    assert (
+        packaged_runtime.os.environ["PYTHON_VLC_LIB_PATH"]
+        .replace("\\", "/")
+        .endswith("vlc/libvlc.dll")
+    )
+    assert (
+        packaged_runtime.os.environ["PYTHON_VLC_MODULE_PATH"]
+        .replace("\\", "/")
+        .endswith("vlc/plugins")
+    )
+    assert packaged_runtime.os.environ["VLC_PLUGIN_PATH"].replace("\\", "/").endswith("vlc/plugins")
     assert handles == [str(vlc_root)]
 
 

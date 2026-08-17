@@ -200,3 +200,8 @@ async def test_m3u_adapter_rejects_unknown_or_non_http_playback_urls_safely() ->
 
     assert "rtsp" not in str(unsupported_error.value)
     assert "unknown" not in str(unknown_error.value)
+
+
+def test_source_loader_classifies_windows_drive_paths_as_local() -> None:
+    assert M3USourceLoader._is_windows_drive_path(r"C:\\playlist.m3u") is True
+    assert M3USourceLoader._is_windows_drive_path("https://playlist.example/list.m3u") is False
