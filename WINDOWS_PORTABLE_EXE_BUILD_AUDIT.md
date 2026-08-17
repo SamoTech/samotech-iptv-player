@@ -2,7 +2,8 @@
 
 **Audit date:** 2026-08-17 UTC+03:00
 **Repository:** [SamoTech/samotech-iptv-player](https://github.com/SamoTech/samotech-iptv-player)
-**Verified commit:** `a7b57d5a5bb6efd48bedd66ec5e5dc7a69038d32`
+**Verified packaging commit:** `a7b57d5a5bb6efd48bedd66ec5e5dc7a69038d32`
+**Final audit revision:** `7fc414b4476b80a9c50302abddba5374cbf42c88`
 **Windows workflow run:** [32013261624](https://github.com/SamoTech/samotech-iptv-player/actions/runs/32013261624)
 **Final classification:** **B — PORTABLE EXE READY WITH KNOWN LIMITATIONS**
 
@@ -190,15 +191,15 @@ This report is the single detailed audit record. Other historical reports remain
 
 ## 29. Push Evidence
 
-**VERIFIED.** The fix commits were pushed normally to `origin/main`, and the successful workflow run was triggered by commit `a7b57d5`. The workflow URL and immutable commit are recorded at the top of this report for direct inspection.
+**VERIFIED.** The fix commits and documentation commits were pushed normally to `origin/main`. The successful workflow run was triggered by commit `a7b57d5`; the final audit revision is `7fc414b`. The workflow URL and immutable packaging commit are recorded at the top of this report for direct inspection.
 
-The final documentation push is a separate step after this report is written and will be verified against `origin/main` before handoff.
+The final documentation push was verified against `origin/main` after publication.
 
 ## 30. Final Repository State
 
-**VERIFIED as the final handoff condition.** After the documentation commits are pushed, the repository is required to have no staged, unstaged, or untracked tracked-content changes, `HEAD == origin/main`, and no regenerated `uv.lock` added by local `uv run` commands. Ignored caches and local coverage outputs are not release inputs and are not committed.
+**VERIFIED.** After the final audit push, the verification command reported `HEAD=7fc414b4476b80a9c50302abddba5374cbf42c88`, `origin/main=7fc414b4476b80a9c50302abddba5374cbf42c88`, `worktree=clean`, required documentation present, and authorized credentials absent from tracked content. `git diff --check` also passed, and no regenerated `uv.lock` was committed.
 
-The final verification command checks commit equality, clean status, diff whitespace, credential absence, and the documentation files listed in the specification. The handoff is not complete until those checks report clean.
+Ignored caches and local coverage outputs are not release inputs. No force-push or history rewrite was used.
 
 ## 31. Known Limitations
 
