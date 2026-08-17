@@ -31,6 +31,7 @@ dev = [
     "mypy>=1.10",
     "ruff>=0.6",
     "types-defusedxml>=0.7",
+    "pyinstaller==6.22.1",
 ]
 
 [tool.pytest.ini_options]

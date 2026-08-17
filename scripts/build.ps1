@@ -1,8 +1,8 @@
-# build.ps1 — Build Windows executable via PyInstaller
+param(
+    [string]$VlcRoot = $env:VLC_RUNTIME_DIR
+)
+
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-Write-Host "Building SamoTech IPTV Player..." -ForegroundColor Cyan
-uv run pyinstaller samotech-iptv-player.spec
-
-Write-Host "Build complete. Artifact: dist/" -ForegroundColor Green
+& (Join-Path $PSScriptRoot "build_windows.ps1") -VlcRoot $VlcRoot
