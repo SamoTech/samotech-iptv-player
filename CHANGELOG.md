@@ -1,5 +1,26 @@
 # Changelog
 
+## Windows portable EXE pipeline — 2026-08-17
+
+### Added
+
+- Added a reproducible PyInstaller one-file Windows x64 build with pinned Python 3.13, PyInstaller 6.22.1, PySide6 6.11.1, `python-vlc` 3.0.21203, and VLC 3.0.23 runtime acquisition verified by SHA256.
+- Added runtime-relative bundled-VLC discovery, explicit VLC DLL/plugin/lua/locale collection, safe `--smoke-test` and `--packaged-vlc-test` modes, artifact content auditing, automatic naming, `SHA256SUMS.txt`, GitHub artifact upload, and tag-triggered release publishing.
+- Added a blocking Windows workflow that validates the actual generated executable in a sanitized `PATH` and Unicode temporary directory without requiring a system VLC installation.
+
+### Fixed
+
+- Fixed M3U and XMLTV local-source validation on Windows so drive-letter paths are not misclassified as URL schemes; local `file:///C:/...` URIs are normalized correctly.
+- Made packaged-runtime path assertions separator-independent across POSIX and Windows test hosts.
+
+### Verification and limitations
+
+- Windows run `32013261624` passed the non-presentation tests, native VLC lifecycle, PyInstaller build, packaged-VLC smoke, Qt/application smoke, clean-environment validation, artifact audit, checksum generation, and artifact upload for commit `a7b57d5`.
+- The generated artifact was `SamoTech-IPTV-Player-Windows-x64-build-a7b57d5.exe` with SHA256 `bb14aaa8bd2ea13d62d4a5bdac56ffc10ddd101b5906a2f584466b5d5a65c7ef`; tag-triggered release publication is configured but was not exercised by this non-tag run.
+- Presentation test modules remain excluded from the Windows corpus because their collection causes a fatal Windows Qt access violation; this is documented as an environment limitation, not a weakened product assertion. Authorized-provider runtime acceptance, installer creation, ARM64 builds, and auto-update infrastructure remain out of scope.
+
+See [WINDOWS_PORTABLE_EXE_BUILD_AUDIT.md](WINDOWS_PORTABLE_EXE_BUILD_AUDIT.md) for the complete evidence matrix.
+
 ## Real-world IPTV reliability validation — 2026-08-17
 
 ### Added

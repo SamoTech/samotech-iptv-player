@@ -5,8 +5,16 @@
 **Product:** SamoTech IPTV Player
 **Package version:** `0.1.0`
 **Current baseline:** The `main` revision containing the approved bounded Live EOF recovery and Windows validation increment; use `git rev-parse HEAD` for its immutable revision identifier.
-**Current product milestone:** Player 3 commercial hardening — **implemented and deterministically validated within the preserved Player 2 architecture; populated authorized Xtream runtime evidence remains not executed**. Xtream malformed/duplicate catalogue handling, MAG live categories, EPG metadata propagation, adjacent-episode controls, typed backend-state rendering, history timestamp invariants, and credential-free error taxonomy are covered by focused tests. Windows-native validation remains not executed in this Linux environment; the bounded Live EOF recovery remains unchanged.
+**Current product milestone:** Windows x64 portable executable pipeline — **implemented and verified through blocking GitHub Actions packaging and generated-EXE smoke gates**, while populated authorized Xtream evidence and authorized Windows Live EOF runtime acceptance remain not executed. The preserved Player 3 commercial-hardening behavior, provider architecture, shared libVLC, qasync, and bounded Live EOF recovery remain unchanged.
 **Baseline verified:** 2026-08-15 UTC+03:00
+
+## Windows portable executable milestone — 2026-08-17
+
+The Windows x64 portable-executable pipeline is **IMPLEMENTED and VERIFIED** through the dedicated blocking GitHub Actions workflow. Commit `a7b57d5` passed the pinned VLC acquisition and hash check, Ruff, Black, mypy, the Windows non-presentation regression corpus, the native VLC lifecycle probe, PyInstaller one-file build, packaged-VLC smoke test, Qt/application smoke test, sanitized-`PATH` validation, artifact audit, checksum generation, and GitHub artifact upload. The generated artifact was `SamoTech-IPTV-Player-Windows-x64-build-a7b57d5.exe` with SHA256 `bb14aaa8bd2ea13d62d4a5bdac56ffc10ddd101b5906a2f584466b5d5a65c7ef`.
+
+The executable bundles Python application code, PySide6/Qt runtime components, `python-vlc`, VLC 3.0.23 native libraries, and the VLC plugin tree through an explicit PyInstaller spec. A runtime hook configures `PYTHON_VLC_LIB_PATH`, `PYTHON_VLC_MODULE_PATH`, `VLC_PLUGIN_PATH`, and the Windows DLL search path relative to the extracted application bundle. The generated executable was executed outside the repository from a temporary path containing spaces and non-ASCII characters with a sanitized `PATH`; Python was present on the runner before sanitization, while VLC and `libvlc.dll` were not found through `PATH`, and both executable smoke modes passed.
+
+The release process is **IMPLEMENTED** for normal pushes and version tags: non-tag artifacts use the short-SHA naming form, tag runs use the versioned naming form, and `SHA256SUMS.txt` is uploaded beside the executable. A tag-triggered release has not been executed in this validation run and is therefore **NOT EXECUTED**, although its blocking workflow configuration is present. Windows presentation test modules remain **BLOCKED as a runner-environment limitation** because collection caused a fatal Qt access violation; they are excluded explicitly while the non-presentation Windows corpus remains blocking. Installer creation, ARM64, auto-update infrastructure, authorized-provider acceptance, and production subtitle interoperability remain **DEFERRED**, **OUT OF SCOPE**, or **NOT EXECUTED** as applicable.
 
 ## Product purpose
 

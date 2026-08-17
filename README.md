@@ -4,7 +4,7 @@
 
 SamoTech IPTV Player is a Python project for connecting authorized IPTV sources through provider-specific adapters, translating their records into a canonical domain model, resolving eligible media streams, and presenting the supported workflow in a PySide6/Qt desktop shell backed exclusively by libVLC. It is designed to grow across provider ecosystems without coupling the application domain, use cases, or desktop UI to a provider protocol.
 
-The repository currently contains substantial, tested foundations for M3U, Xtream Codes, and MAG/Stalker live-TV workflows, SQLite-backed non-secret user state, OS-keyring credential ownership, a Qt/libVLC presentation shell, recording controls, persisted theme settings, and a production lifecycle that safely wires, starts, and closes those components. It exposes a supported source-install entry point, although release packaging, installers, updates, and production diagnostics remain future work.
+The repository currently contains substantial, tested foundations for M3U, Xtream Codes, and MAG/Stalker live-TV workflows, SQLite-backed non-secret user state, OS-keyring credential ownership, a Qt/libVLC presentation shell, recording controls, persisted theme settings, and a production lifecycle that safely wires, starts, and closes those components. It exposes a supported source-install entry point and a verified Windows x64 portable-executable pipeline; installers, updates, and production diagnostics remain future work.
 
 For the authoritative current-state matrices, known limitations, verification baseline, and next milestone, read [PROJECT_STATUS.md](PROJECT_STATUS.md). The delivery sequence is maintained in [ROADMAP.md](ROADMAP.md).
 
@@ -122,6 +122,14 @@ pip install .
 
 On a real desktop system, libVLC itself must also be available to the operating system; `python-vlc` is a Python binding, not a bundled VLC runtime.
 
+## Windows portable executable
+
+The repository now produces a **single-file Windows x64 portable executable** through the blocking [Windows Portable EXE workflow](.github/workflows/windows-portable-build.yml). A successful workflow run builds the PyInstaller one-file artifact with Python, PySide6, `python-vlc`, Qt runtime components, VLC 3.0.23 `libvlc.dll`/`libvlccore.dll`, and the VLC plugin tree bundled into the executable. End users do not need to install Python, PySide6, `python-vlc`, or VLC separately.
+
+For a normal push, the artifact is named `SamoTech-IPTV-Player-Windows-x64-build-<shortsha>.exe`. A version tag such as `v0.1.0` produces `SamoTech-IPTV-Player-Windows-x64-v0.1.0.exe`; the workflow publishes the executable and `SHA256SUMS.txt` automatically when the required validation gates pass. The current verified build evidence is recorded in [WINDOWS_PORTABLE_EXE_BUILD_AUDIT.md](WINDOWS_PORTABLE_EXE_BUILD_AUDIT.md).
+
+The generated executable is tested from outside the repository with a sanitized Windows `PATH`, including a temporary directory containing spaces and non-ASCII characters. The packaged runtime discovers VLC relative to the executable rather than through the working directory or a system VLC installation. The current release scope is Windows x64 only; installers, auto-updaters, ARM64 builds, and remote/tokenized XMLTV sources remain out of scope or deferred.
+
 ## Development setup and testing
 
 Run the project’s quality gate before every commit:
@@ -134,7 +142,7 @@ pytest -q
 git diff --check
 ```
 
-The GitHub CI workflow also verifies the project on Python 3.13. Its Windows job installs standard VLC, runs a provider-free native libVLC lifecycle probe, and runs the deterministic Live EOF recovery suite as blocking gates; only the later PyInstaller artifact step is best-effort. The Windows job has executed successfully, but that CI evidence does not replace the separate authorized Windows Live IPTV runtime procedure. The deterministic MAG protocol lab is included in the pytest suite; it is a local protocol simulation and does not claim production portal compatibility. See [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+The GitHub quality workflow verifies the project on Python 3.13, while the dedicated Windows Portable EXE workflow acquires pinned VLC 3.0.23, runs Ruff, Black, mypy, the non-presentation regression corpus, the native VLC lifecycle probe, PyInstaller packaging, both generated-EXE smoke modes, clean-environment validation, artifact auditing, and checksum generation as blocking steps. The successful Windows run proves the packaged executable’s CI lifecycle; it does not replace separate authorized Windows Live IPTV acceptance. The deterministic MAG protocol lab remains a local protocol simulation and does not claim production portal compatibility. See [`.github/workflows/ci.yml`](.github/workflows/ci.yml) and [`.github/workflows/windows-portable-build.yml`](.github/workflows/windows-portable-build.yml).
 
 The Ubuntu quality job intentionally runs the real offscreen PySide6 player-shell probes. It installs only the runner-native `libegl1` package required to provide `libEGL.so.1`, verifies `PySide6.QtGui` and `PySide6.QtWidgets` imports with `QT_QPA_PLATFORM=offscreen`, then executes both standalone probes before the coverage suite. This is CI-environment provisioning rather than an application dependency or a test skip.
 
