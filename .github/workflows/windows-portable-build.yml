@@ -85,6 +85,8 @@ jobs:
 
       - name: pytest
         shell: pwsh
+        env:
+          QT_QPA_PLATFORM: offscreen
         run: pytest -q
 
       - name: Windows native VLC lifecycle against bundled runtime
