@@ -225,7 +225,9 @@ If SamoTech IPTV Player is useful to you, you can support continued development 
 
 ## Attribution
 
-SamoTech IPTV Player is an independent project. Public EStalker and XStreamity repositories are acknowledged as technical references only; no external source code was copied into this implementation, and no partnership, endorsement, ownership, or code-reuse claim is made. See the existing attribution and project documentation for context.
+SamoTech IPTV Player thanks **KiddaC** for the engineering work behind [EStalker](https://github.com/kiddac/EStalker) and [XStreamity](https://github.com/kiddac/XStreamity). These public repositories were studied as technical references for practical IPTV patterns, including Xtream/Stalker workflows, catalogue handling, Series/Season/Episode navigation, provider behavior, playback resolution, and related engineering concerns.
+
+SamoTech IPTV Player is an independent project and is **not a clone of EStalker or XStreamity**. Their Enigma2-specific architecture, UI, global-state model, service/decoder APIs, and legacy persistence model were not adopted as SamoTech architecture. No external source code was copied into this implementation, and no partnership, endorsement, ownership, or code-reuse claim is made. Readers should respect the original projects and any license or attribution terms they publish.
 
 ## License
 
