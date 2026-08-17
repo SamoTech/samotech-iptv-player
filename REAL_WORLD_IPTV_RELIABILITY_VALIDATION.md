@@ -242,12 +242,13 @@ The logical commit sequence for this reliability phase is:
 | 3 | `fix: handle escaped quotes in M3U EXTINF attributes` | Minimum parser fix proven by regression. |
 | 4 | `test: add reliability validation matrix coverage` | Regression and validation test additions. |
 | 5 | `docs: document real-world IPTV reliability validation` | README, CHANGELOG, PROJECT_STATUS, and this report. |
+| 6 | `docs: reconcile reliability audit commit evidence` | Pre-push commit hashes and final report synchronization reconciliation. |
 
-The five pre-push logical commits are `9c44df5` (audit), `48e64e1` (compatibility), `5d48ac7` (fix), `3ccc3f7` (tests), and `4ccef48` (documentation). A final report-reconciliation commit will be added after the first normal push so the report can record the exact synchronized remote revision. No empty commits, force-push, history rewrite, or environment-generated lockfile is permitted.
+The six logical commits are `9c44df5` (audit), `48e64e1` (compatibility), `5d48ac7` (fix), `3ccc3f7` (tests), `4ccef48` (documentation), and `36fcd02` (report reconciliation). No empty commits, force-push, history rewrite, or environment-generated lockfile was used.
 
 ## 34. Push Verification
 
-The logical commits have been created locally. The required final evidence is `git fetch origin main`, `HEAD == origin/main`, a clean worktree, no staged changes, no untracked files, and a normal `git push origin main` result. The exact synchronized revision will be recorded in the final report-reconciliation commit after the first push.
+The first normal push succeeded from `9474efa` to `36fcd02`. A subsequent final report reconciliation records the final synchronization below. Before the final reconciliation push, `HEAD` and `origin/main` were both `36fcd0258fa22603df7e00f7903ecf0f1ff1814a`, with an empty porcelain status, zero staged files, and zero untracked files.
 
 ## 35. Remaining Blockers
 
