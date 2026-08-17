@@ -83,11 +83,11 @@ jobs:
         shell: pwsh
         run: mypy src/
 
-      - name: pytest
+      - name: pytest (Windows non-Qt corpus)
         shell: pwsh
         env:
           QT_QPA_PLATFORM: offscreen
-        run: pytest -q
+        run: pytest -q --ignore-glob='test_presentation_*.py'
 
       - name: Windows native VLC lifecycle against bundled runtime
         shell: pwsh
