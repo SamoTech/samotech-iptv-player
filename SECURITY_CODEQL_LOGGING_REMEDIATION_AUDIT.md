@@ -130,7 +130,7 @@ The affected application, provider, M3U, diagnostics, and packaging suites were 
 
 ## 17. Canary Tests
 
-**Status: IMPLEMENTED / VERIFIED.** The tests use unique synthetic `SAMOSAFE_*` values rather than authorized provider data. Assertions verify that these canaries never occur in captured log records or captured artifact-audit output while safe operational context remains present.
+**Status: IMPLEMENTED / VERIFIED.** The tests use unique synthetic values rather than authorized provider data. Assertions verify that these canaries never occur in captured log records or captured artifact-audit output while safe operational context remains present.
 
 The canary strings are intentionally confined to the test source. They are not reproduced in this report, production source, workflow output, or documentation, and the pre-commit artifact scan found no canary locations outside the test file.
 
