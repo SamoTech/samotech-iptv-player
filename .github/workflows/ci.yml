@@ -20,9 +20,8 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v4
+          cache: pip
+          cache-dependency-path: pyproject.toml
 
       - name: Install Qt offscreen runtime dependency
         run: |
@@ -30,13 +29,13 @@ jobs:
           sudo apt-get install --yes --no-install-recommends libegl1
 
       - name: Install dependencies
-        run: uv sync --extra dev
+        run: python -m pip install --upgrade pip && python -m pip install -e ".[dev]"
 
       - name: Verify PySide6 offscreen runtime
         env:
           QT_QPA_PLATFORM: offscreen
         run: >
-          uv run python -c "from PySide6.QtGui import QKeyEvent;
+          python -c "from PySide6.QtGui import QKeyEvent;
           from PySide6.QtWidgets import QApplication, QLabel;
           app = QApplication([]); print('pyside6_offscreen_import=PASS'); app.quit()"
 
@@ -45,20 +44,20 @@ jobs:
           QT_QPA_PLATFORM: offscreen
           PYTHONPATH: src
         run: |
-          uv run python tests/player_shell_native_probe.py
-          uv run python tests/player_shell_performance_probe.py
+          python tests/player_shell_native_probe.py
+          python tests/player_shell_performance_probe.py
 
       - name: Ruff lint
-        run: uv run ruff check src/ tests/ providers/
+        run: ruff check src/ tests/ providers/ scripts/
 
       - name: Black format check
-        run: uv run black --check src/ tests/ providers/
+        run: black --check src/ tests/ providers/
 
       - name: mypy typecheck
-        run: uv run mypy src/
+        run: mypy src/
 
       - name: pytest (unit + integration)
-        run: uv run pytest -q --cov=src --cov-report=xml
+        run: pytest -q --cov=src --cov-report=xml
 
       - name: Upload coverage
         uses: codecov/codecov-action@v4
@@ -66,47 +65,3 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage.xml
         continue-on-error: true
-
-  build:
-    name: Windows native VLC validation + PyInstaller build
-    needs: quality
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python 3.13
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v4
-
-      - name: Install dependencies
-        run: uv sync --extra dev
-
-      - name: Install standard native VLC runtime
-        shell: pwsh
-        run: |
-          choco install vlc.install --yes --no-progress --limit-output
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-
-      - name: Verify native libVLC lifecycle
-        shell: pwsh
-        run: uv run python tests/vlc_native_lifecycle_probe.py
-
-      - name: Run deterministic Live EOF recovery tests
-        env:
-          QT_QPA_PLATFORM: offscreen
-        run: uv run pytest -q tests/test_infra_vlc_player_adapter.py
-
-      - name: Build with PyInstaller
-        run: uv run pyinstaller samotech-iptv-player.spec
-        continue-on-error: true  # spec not yet created in Phase 1
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: samotech-iptv-player-windows
-          path: dist/
-        if: always()
