@@ -107,8 +107,8 @@ jobs:
                       Pop-Location
                     }
                     if ($exitCode -ne 0) {
-                      Write-Host (Get-Content $stdout -Raw)
-                      Write-Error (Get-Content $stderr -Raw)
+                      if (Test-Path $stdout) { Write-Host "stdout=$((Get-Content $stdout -Raw))" }
+                      if (Test-Path $stderr) { Write-Host "stderr=$((Get-Content $stderr -Raw))" }
                       throw "$prefix exited with $exitCode"
                     }
                     if (-not (Test-Path $diagnosticPath)) {
