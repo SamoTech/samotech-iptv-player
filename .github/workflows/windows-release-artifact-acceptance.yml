@@ -1,0 +1,113 @@
+name: Windows Release Artifact Acceptance
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: GitHub Release tag whose exact EXE asset must be validated
+        required: true
+        default: v0.1.1
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  release-artifact-acceptance:
+    name: Validate exact published Windows release artifact
+    runs-on: windows-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: ${{ inputs.release_tag }}
+      RELEASE_REPOSITORY: ${{ github.repository }}
+    steps:
+      - name: Download exact release assets
+        shell: pwsh
+        run: |
+          $assetName = "SamoTech-IPTV-Player-Windows-x64-$env:RELEASE_TAG.exe"
+          $releaseRoot = Join-Path $env:RUNNER_TEMP "samotech-release-acceptance"
+          New-Item -ItemType Directory -Force -Path $releaseRoot | Out-Null
+          gh release download $env:RELEASE_TAG `
+            --repo $env:RELEASE_REPOSITORY `
+            --pattern $assetName `
+            --pattern SHA256SUMS.txt `
+            --dir $releaseRoot
+          if (-not (Test-Path (Join-Path $releaseRoot $assetName))) {
+            throw "Expected release EXE was not downloaded: $assetName"
+          }
+          "RELEASE_ROOT=$releaseRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "RELEASE_EXE=$releaseRoot\$assetName" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Verify checksum, PE metadata, and artifact identity
+        shell: pwsh
+        run: |
+          $checksumFile = Join-Path $env:RELEASE_ROOT "SHA256SUMS.txt"
+          $expected = (Get-Content $checksumFile | Select-Object -First 1).Split()[0].ToLowerInvariant()
+          $actual = (Get-FileHash -Algorithm SHA256 $env:RELEASE_EXE).Hash.ToLowerInvariant()
+          if ($expected -ne $actual) {
+            throw "Release checksum mismatch: expected $expected, actual $actual"
+          }
+          $version = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($env:RELEASE_EXE)
+          if ($version.FileVersion -ne $env:RELEASE_TAG.TrimStart('v')) {
+            throw "FileVersion $($version.FileVersion) does not match $env:RELEASE_TAG"
+          }
+          if ($version.ProductVersion -ne $env:RELEASE_TAG.TrimStart('v')) {
+            throw "ProductVersion $($version.ProductVersion) does not match $env:RELEASE_TAG"
+          }
+          $pe = Get-Item $env:RELEASE_EXE
+          Write-Host "artifact=$($pe.Name)"
+          Write-Host "size_bytes=$($pe.Length)"
+          Write-Host "sha256=$actual"
+          Write-Host "file_version=$($version.FileVersion)"
+          Write-Host "product_version=$($version.ProductVersion)"
+          Write-Host "architecture=Windows x64 workflow runner"
+
+      - name: Execute actual release artifact across path and environment matrix
+        shell: pwsh
+        env:
+          QT_QPA_PLATFORM: windows
+        run: |
+          $cases = @(
+            @{ Name = "c-drive-space"; Root = (Join-Path $env:RUNNER_TEMP "SamoTech Portable Acceptance") },
+            @{ Name = "unicode-path"; Root = (Join-Path $env:RUNNER_TEMP "SamoTech Portable Acceptance 测试") },
+            @{ Name = "downloads-like"; Root = (Join-Path $env:USERPROFILE "Downloads\SamoTech Portable Acceptance") },
+            @{ Name = "arbitrary-cwd"; Root = (Join-Path $env:RUNNER_TEMP "SamoTech Arbitrary CWD") }
+          )
+          foreach ($case in $cases) {
+            $root = $case.Root
+            New-Item -ItemType Directory -Force -Path $root | Out-Null
+            $caseExe = Join-Path $root "SamoTech-IPTV-Player-Windows-x64.exe"
+            Copy-Item $env:RELEASE_EXE $caseExe -Force
+            $cwd = if ($case.Name -eq "arbitrary-cwd") { $env:SystemRoot } else { $root }
+            foreach ($argument in @("--packaged-vlc-test", "--smoke-test")) {
+              $stdout = Join-Path $root "$($case.Name)-$($argument.TrimStart('-')).stdout.log"
+              $stderr = Join-Path $root "$($case.Name)-$($argument.TrimStart('-')).stderr.log"
+              $oldPath = $env:Path
+              try {
+                $env:Path = "$env:SystemRoot\System32;$env:SystemRoot"
+                $process = Start-Process -FilePath $caseExe -ArgumentList $argument -WorkingDirectory $cwd -PassThru -NoNewWindow -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+                if (-not ($process.WaitForExit(90 * 1000))) {
+                  $process.Kill()
+                  throw "$($case.Name) $argument timed out"
+                }
+                if ($process.ExitCode -ne 0) {
+                  Write-Host (Get-Content $stdout -Raw)
+                  Write-Error (Get-Content $stderr -Raw)
+                  throw "$($case.Name) $argument exited with $($process.ExitCode)"
+                }
+                Write-Host "$($case.Name) $argument exit_code=$($process.ExitCode)"
+              } finally {
+                $env:Path = $oldPath
+              }
+            }
+          }
+
+      - name: Publish acceptance summary
+        shell: pwsh
+        run: |
+          @(
+            "release_tag=$env:RELEASE_TAG",
+            "artifact=$([IO.Path]::GetFileName($env:RELEASE_EXE))",
+            "result=PASS",
+            "checks=checksum,PE versions,packaged VLC smoke,Qt smoke,spaces,Unicode,Downloads-like path,arbitrary working directory,sanitized PATH"
+          ) | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
