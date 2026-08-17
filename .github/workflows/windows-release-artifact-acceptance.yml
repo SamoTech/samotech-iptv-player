@@ -68,7 +68,7 @@ jobs:
           QT_QPA_PLATFORM: windows
         run: |
           $cases = @(
-            @{ Name = "c-drive"; Root = (Join-Path $env:SystemDrive "SamoTech Portable Acceptance"); Cwd = $null },
+            @{ Name = "c-drive"; Root = (Join-Path $env:SystemDrive "SamoTech Portable Acceptance"); Cwd = $env:SystemRoot },
             @{ Name = "spaces"; Root = (Join-Path $env:RUNNER_TEMP "SamoTech Portable Acceptance"); Cwd = $null },
             @{ Name = "unicode"; Root = (Join-Path $env:RUNNER_TEMP "SamoTech Portable Acceptance 测试"); Cwd = $null },
             @{ Name = "downloads-like"; Root = (Join-Path $env:USERPROFILE "Downloads\SamoTech Portable Acceptance"); Cwd = $null },
