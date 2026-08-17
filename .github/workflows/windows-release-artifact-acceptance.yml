@@ -94,24 +94,28 @@ jobs:
                   $stdout = Join-Path $root "$prefix.stdout.log"
                   $stderr = Join-Path $root "$prefix.stderr.log"
                   $diagnosticPath = Join-Path $diagnosticRoot "$prefix.startup-diagnostic.json"
+                  $diagnosticFallbackPath = Join-Path (Join-Path $env:TEMP "SamoTech\IPTV Player") (Split-Path $diagnosticPath -Leaf)
                   $oldPath = $env:Path
                   try {
                     $env:Path = $pathMode.Value
                     $env:SAMOTECH_STARTUP_DIAGNOSTIC_PATH = $diagnosticPath
                     Remove-Item $diagnosticPath -Force -ErrorAction SilentlyContinue
-                    Push-Location $cwd
-                    try {
-                      & $caseExe $argument "--diagnostic" > $stdout 2> $stderr
-                      $exitCode = $LASTEXITCODE
-                    } finally {
-                      Pop-Location
+                    $process = Start-Process -FilePath $caseExe -ArgumentList @($argument, "--diagnostic") -WorkingDirectory $cwd -PassThru -NoNewWindow -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+                    if (-not ($process.WaitForExit(90 * 1000))) {
+                      $process.Kill()
+                      throw "$prefix timed out"
                     }
-                    if ($exitCode -ne 0) {
+                    if ($process.ExitCode -ne 0) {
                       if (Test-Path $stdout) { Write-Host "stdout=$((Get-Content $stdout -Raw))" }
                       if (Test-Path $stderr) { Write-Host "stderr=$((Get-Content $stderr -Raw))" }
-                      throw "$prefix exited with $exitCode"
+                      throw "$prefix exited with $($process.ExitCode)"
                     }
-                    if (-not (Test-Path $diagnosticPath)) {
+                    $actualDiagnosticPath = $diagnosticPath
+                    if (-not (Test-Path $actualDiagnosticPath) -and (Test-Path $diagnosticFallbackPath)) {
+                      $actualDiagnosticPath = $diagnosticFallbackPath
+                      Write-Host "$prefix diagnostic_path_fallback=$actualDiagnosticPath"
+                    }
+                    if (-not (Test-Path $actualDiagnosticPath)) {
                       Write-Host "diagnostic_missing=$prefix"
                       Write-Host "case_exe=$caseExe"
                       Write-Host "case_exe_exists=$(Test-Path $caseExe)"
@@ -127,7 +131,7 @@ jobs:
                       }
                       throw "$prefix did not produce a startup diagnostic"
                     }
-                    $diagnostic = Get-Content $diagnosticPath -Raw | ConvertFrom-Json
+                    $diagnostic = Get-Content $actualDiagnosticPath -Raw | ConvertFrom-Json
                     if ($diagnostic.status -ne "ready") { throw "$prefix diagnostic status was not ready" }
                     if ($argument -eq "--packaged-vlc-test" -and $diagnostic.last_successful_stage -ne "VLC_READY") { throw "$prefix did not record VLC_READY" }
                     if ($argument -eq "--smoke-test") {
@@ -135,10 +139,12 @@ jobs:
                       if ($diagnostic.completed_stages -notcontains "VLC_READY") { throw "$prefix did not record VLC_READY" }
                       if ($diagnostic.completed_stages -notcontains "MAIN_WINDOW_SHOWN") { throw "$prefix did not record MAIN_WINDOW_SHOWN" }
                     }
-                    Write-Host "$prefix exit_code=$exitCode startup_stage=$($diagnostic.last_successful_stage)"
+                    Write-Host "$prefix exit_code=$($process.ExitCode) startup_stage=$($diagnostic.last_successful_stage)"
                   } finally {
                     $env:Path = $oldPath
                     Remove-Item Env:SAMOTECH_STARTUP_DIAGNOSTIC_PATH -ErrorAction SilentlyContinue
+                    Remove-Item $diagnosticPath -Force -ErrorAction SilentlyContinue
+                    Remove-Item $diagnosticFallbackPath -Force -ErrorAction SilentlyContinue
                   }
                 }
               }
