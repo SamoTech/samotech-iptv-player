@@ -11,7 +11,7 @@
 ### Verification and limitations
 
 - Deterministic tests cover dynamic substitution, version/tag consistency, artifact and checksum fields, limitation extraction, missing metadata failure, and rejection of stale hard-coded release data.
-- The next release acceptance will validate the complete zero-touch path with the semantic patch version `v0.1.1`; Windows presentation-test collection remains an environment limitation and is not silently re-enabled.
+- Tagged workflow run `32019974720` published `v0.1.1` without manual release-note editing. The generated release body contains the current artifact filename, SHA256, commit, workflow, validation summary, build metadata, and project-status limitations. Windows presentation-test collection remains an environment limitation and is not silently re-enabled.
 
 ## Windows portable EXE pipeline — 2026-08-17
 
