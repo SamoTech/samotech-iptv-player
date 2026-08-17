@@ -75,6 +75,8 @@ jobs:
             @{ Name = "temporary"; Root = (Join-Path $env:TEMP "SamoTech Portable Acceptance"); Cwd = $null },
             @{ Name = "arbitrary-cwd"; Root = (Join-Path $env:RUNNER_TEMP "SamoTech Portable Acceptance CWD"); Cwd = $env:SystemRoot }
           )
+          $diagnosticRoot = Join-Path $env:RUNNER_TEMP "samotech-release-acceptance-diagnostics"
+          New-Item -ItemType Directory -Force -Path $diagnosticRoot | Out-Null
           $pathModes = @(
             @{ Name = "normal-path"; Value = $env:Path },
             @{ Name = "sanitized-path"; Value = "$env:SystemRoot\System32;$env:SystemRoot" }
@@ -91,13 +93,13 @@ jobs:
                   $prefix = "$($case.Name)-$($pathMode.Name)-launch$launchNumber-$($argument.TrimStart('-'))"
                   $stdout = Join-Path $root "$prefix.stdout.log"
                   $stderr = Join-Path $root "$prefix.stderr.log"
-                  $diagnosticPath = Join-Path $root "$prefix.startup-diagnostic.json"
+                  $diagnosticPath = Join-Path $diagnosticRoot "$prefix.startup-diagnostic.json"
                   $oldPath = $env:Path
                   try {
                     $env:Path = $pathMode.Value
                     $env:SAMOTECH_STARTUP_DIAGNOSTIC_PATH = $diagnosticPath
                     Remove-Item $diagnosticPath -Force -ErrorAction SilentlyContinue
-                    $process = Start-Process -FilePath $caseExe -ArgumentList "$argument --diagnostic" -WorkingDirectory $cwd -PassThru -NoNewWindow -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+                    $process = Start-Process -FilePath $caseExe -ArgumentList @($argument, "--diagnostic") -WorkingDirectory $cwd -PassThru -NoNewWindow -RedirectStandardOutput $stdout -RedirectStandardError $stderr
                     if (-not ($process.WaitForExit(90 * 1000))) {
                       $process.Kill()
                       throw "$prefix timed out"
