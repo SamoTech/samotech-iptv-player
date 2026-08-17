@@ -298,7 +298,7 @@ The distribution is Windows x64 portable EXE only. The release does not claim un
 | No credentials exposed | Release outputs and logs scanned | **VERIFIED** |
 | No developer paths in release outputs | Body and checksum clean | **VERIFIED** |
 | SmartScreen/code signing | No signing infrastructure | **DEFERRED** |
-| Final repository clean and synchronized | To be checked after this report commit | **NOT EXECUTED** |
+| Final repository clean and synchronized | Post-report verification: matching HEAD/origin/main, clean worktree, diff check passed, report present, credentials absent | **VERIFIED** |
 
 ## 31. Final Status
 
