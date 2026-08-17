@@ -120,8 +120,8 @@ def test_exception_and_diagnostic_trace_capture_are_secret_free(
                 raise error
 
     output = caplog.text
-    assert "provider.example" in output
-    assert "status" in output
+    assert "diagnostic_exception" in output
+    assert "STAGE FAIL" in output
     assert all(canary not in output for canary in _CANARIES.values())
 
 
@@ -164,10 +164,10 @@ def test_artifact_audit_never_prints_matched_secret_content(
 
     assert audit_windows_artifact.main() == 1
     output = capsys.readouterr().out
-    assert "secret_findings=1" in output
-    assert "artifact_audit=FAIL" in output
+    assert output.strip() == "artifact_audit=FAIL"
     assert _CANARIES["token"] not in output
-    assert "finding=" not in output
+    assert "secret_findings=" not in output
+    assert "finding_count=" not in output
 
 
 def test_sanitize_exception_returns_type_and_safe_summary() -> None:

@@ -48,16 +48,8 @@ def main() -> int:
         development_count = _count_development_files(args.package_root)
 
     total_findings = secret_count + development_count
-    print(f"artifact={args.exe.name}")
-    print(f"artifact_bytes={len(payload)}")
-    print(f"secret_findings={secret_count}")
-    print(f"development_file_findings={development_count}")
-    print(f"finding_count={total_findings}")
-    if total_findings:
-        print("artifact_audit=FAIL")
-        return 1
-    print("artifact_audit=PASS")
-    return 0
+    print("artifact_audit=FAIL" if total_findings else "artifact_audit=PASS")
+    return 1 if total_findings else 0
 
 
 if __name__ == "__main__":

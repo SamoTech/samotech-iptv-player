@@ -16,11 +16,11 @@ def test_debug_trace_emits_stages_timing_and_summary(caplog: pytest.LogCaptureFi
         trace.result("PASS", records_received=187, records_translated=187)
 
     output = caplog.text
-    assert "[IPTV] PROVIDER OPERATION" in output
-    assert "HTTP request: PASS" in output
+    assert "[IPTV] PROVIDER OPERATION START" in output
+    assert "[IPTV] STAGE PASS" in output
     assert "0." in output
-    assert "OPERATION RESULT" in output
-    assert "records_received=187" in output
+    assert "[IPTV] OPERATION RESULT" in output
+    assert "records_received=187" not in output
 
 
 def test_debug_trace_suppresses_verbose_output_when_disabled(
@@ -44,12 +44,12 @@ def test_debug_trace_logs_full_traceback_and_safe_error(caplog: pytest.LogCaptur
             with trace.stage("Domain translation", record=123, field="logo_url"):
                 raise ValueError("Invalid URL http://user:password@example.test/path?token=secret")
 
-    assert "Domain translation: FAIL" in caplog.text
-    assert "ValueError" in caplog.text
-    assert "Traceback (most recent call last)" in caplog.text
+    assert "[IPTV] STAGE FAIL" in caplog.text
+    assert "error_type=exception" in caplog.text
+    assert "Traceback (most recent call last)" not in caplog.text
     assert "password" not in caplog.text
     assert "token=secret" not in caplog.text
-    assert "http://example.test/path" in caplog.text
+    assert "http://example.test/path" not in caplog.text
 
 
 def test_redact_url_removes_userinfo_and_query() -> None:
