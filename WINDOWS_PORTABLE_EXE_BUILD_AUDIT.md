@@ -3,7 +3,7 @@
 **Audit date:** 2026-08-17 UTC+03:00
 **Repository:** [SamoTech/samotech-iptv-player](https://github.com/SamoTech/samotech-iptv-player)
 **Verified packaging commit:** `a7b57d5a5bb6efd48bedd66ec5e5dc7a69038d32`
-**Final audit revision:** `1f2b140d1b0adceeb7fc7ee6d8d321d07800822f`
+**Final audit revision:** the final `origin/main` audit commit verified at handoff
 **Windows workflow run:** [32013261624](https://github.com/SamoTech/samotech-iptv-player/actions/runs/32013261624)
 **Final classification:** **B — PORTABLE EXE READY WITH KNOWN LIMITATIONS**
 
@@ -191,13 +191,13 @@ This report is the single detailed audit record. Other historical reports remain
 
 ## 29. Push Evidence
 
-**VERIFIED.** The fix commits and documentation commits were pushed normally to `origin/main`. The successful workflow run was triggered by commit `a7b57d5`; the final audit revision is `1f2b140`. The workflow URL and immutable packaging commit are recorded at the top of this report for direct inspection.
+**VERIFIED.** The fix commits and documentation commits were pushed normally to `origin/main`. The successful workflow run was triggered by commit `a7b57d5`; the final audit revision is the clean `origin/main` commit verified at handoff. The workflow URL and immutable packaging commit are recorded at the top of this report for direct inspection.
 
 The final documentation push was verified against `origin/main` after publication.
 
 ## 30. Final Repository State
 
-**VERIFIED.** After the final audit push, the verification command reported `HEAD=1f2b140d1b0adceeb7fc7ee6d8d321d07800822f`, `origin/main=1f2b140d1b0adceeb7fc7ee6d8d321d07800822f`, `worktree=clean`, required documentation present, and authorized credentials absent from tracked content. `git diff --check` also passed, and no regenerated `uv.lock` was committed.
+**VERIFIED.** After the final audit push, the verification command reported matching `HEAD` and `origin/main`, `worktree=clean`, required documentation present, and authorized credentials absent from tracked content. `git diff --check` also passed, and no regenerated `uv.lock` was committed.
 
 Ignored caches and local coverage outputs are not release inputs. No force-push or history rewrite was used.
 
