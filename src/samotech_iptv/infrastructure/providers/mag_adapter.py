@@ -175,7 +175,12 @@ class MagProviderAdapter(
         except asyncio.CancelledError:
             raise
         except Exception as exc:  # pragma: no cover - shutdown must be best effort
-            _LOG.warning("[%s] Error during MAG session close: %s", self._meta.provider_id, exc)
+            log_exception(
+                _LOG,
+                "MAG session close failed",
+                exc,
+                provider_id=self._meta.provider_id,
+            )
         finally:
             self._is_authenticated = False
             self._session_token = None

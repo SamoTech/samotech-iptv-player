@@ -8,6 +8,8 @@ import asyncio
 import logging
 from typing import Any
 
+from samotech_iptv.core.diagnostics import log_exception
+
 from ..base.errors import AuthError
 from ..base.provider import BaseProvider
 from ..registry import register
@@ -151,17 +153,18 @@ class MAGProvider(BaseProvider):
             await self._session.close()
         except asyncio.CancelledError:
             raise
-        except Exception:
-            log.warning("MAG session cleanup failed after authentication failure", exc_info=True)
+        except Exception as exc:
+            log_exception(log, "MAG session cleanup failed after authentication failure", exc)
         finally:
             try:
                 await self._connection.close()
             except asyncio.CancelledError:
                 raise
-            except Exception:
-                log.warning(
+            except Exception as exc:
+                log_exception(
+                    log,
                     "MAG connection cleanup failed after authentication failure",
-                    exc_info=True,
+                    exc,
                 )
 
     async def close(self) -> None:

@@ -6,7 +6,9 @@ from typing import TYPE_CHECKING
 
 from samotech_iptv.application.dtos import LoadChannelsRequest, LoadChannelsResponse
 from samotech_iptv.application.use_cases.load_channels import LoadChannels
+from samotech_iptv.core.diagnostics import log_exception
 from samotech_iptv.core.logging import get_logger
+from samotech_iptv.core.safe_logging import safe_label
 
 if TYPE_CHECKING:
     from samotech_iptv.application.channel_catalogue_cache import ChannelCatalogueCache
@@ -33,8 +35,13 @@ class BrowseChannels:
         try:
             provider = self._provider_resolver.resolve_catalog_provider(request.provider_id)
         except Exception as exc:  # noqa: BLE001
-            _LOG.error("Unable to resolve channel provider id=%s: %s", request.provider_id, exc)
-            return LoadChannelsResponse(error=str(exc))
+            log_exception(
+                _LOG,
+                "Unable to resolve channel provider",
+                exc,
+                provider_id=request.provider_id,
+            )
+            return LoadChannelsResponse(error=safe_label(exc))
         response = await LoadChannels(provider).execute(request)
         if (
             self._catalogue_cache is not None

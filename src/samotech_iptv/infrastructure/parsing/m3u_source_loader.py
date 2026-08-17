@@ -6,11 +6,12 @@ import asyncio
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
-from urllib.parse import unquote, urlsplit, urlunsplit
+from urllib.parse import unquote, urlsplit
 
 from samotech_iptv.core.diagnostics import log_exception
 from samotech_iptv.core.exceptions import ValidationError
 from samotech_iptv.core.logging import get_logger
+from samotech_iptv.core.safe_logging import sanitize_url
 from samotech_iptv.domain.value_objects.url import URL
 from samotech_iptv.infrastructure.network.exceptions import HttpError
 from samotech_iptv.infrastructure.network.timeouts import TimeoutConfig
@@ -79,10 +80,12 @@ class M3USourceLoader:
     async def _load_local(path: Path) -> str:
         try:
             text = await asyncio.to_thread(path.read_text, encoding="utf-8")
-            _LOG.debug("M3U source stage=content_retrieval local_path=%s bytes=%d", path, len(text))
+            _LOG.debug(
+                "M3U source stage=content_retrieval source_kind=local_file bytes=%d", len(text)
+            )
             return text
         except (OSError, UnicodeDecodeError) as exc:
-            log_exception(_LOG, "M3U source stage=local_read", exc, path=path)
+            log_exception(_LOG, "M3U source stage=local_read", exc, source_kind="local_file")
             raise M3USourceError("Unable to read local M3U source") from exc
 
     @staticmethod
@@ -106,7 +109,4 @@ class M3USourceLoader:
         parsed = urlsplit(source)
         if not parsed.scheme or not parsed.netloc:
             return "<local-source>"
-        hostname = parsed.hostname or "<invalid-host>"
-        if parsed.port is not None:
-            hostname = f"{hostname}:{parsed.port}"
-        return urlunsplit((parsed.scheme, hostname, parsed.path, "", ""))
+        return sanitize_url(source)

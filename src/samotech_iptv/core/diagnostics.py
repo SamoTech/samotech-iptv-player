@@ -3,52 +3,31 @@
 from __future__ import annotations
 
 import logging
-import re
 import time
 import traceback
 from contextlib import contextmanager
 from typing import TYPE_CHECKING
-from urllib.parse import urlsplit, urlunsplit
 
 from samotech_iptv.core.logging import get_logger
+from samotech_iptv.core.safe_logging import (
+    safe_label,
+    sanitize_exception,
+    sanitize_url,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
-__all__ = ["DiagnosticTrace", "log_exception", "redact_url", "safe_label"]
+__all__ = [
+    "DiagnosticTrace",
+    "log_exception",
+    "redact_url",
+    "safe_label",
+]
 
 _LOG = get_logger("diagnostics")
 
-
-def safe_label(value: object, limit: int = 120) -> str:
-    """Normalize a diagnostic label and redact embedded URLs and controls."""
-    normalized = " ".join(str(value).split())
-    normalized = re.sub(
-        r"https?://[^\s)]+",
-        lambda match: redact_url(match.group(0)),
-        normalized,
-        flags=re.IGNORECASE,
-    )
-    normalized = re.sub(
-        r"(?i)(username|password|token|api[_-]?key|authorization|cookie)=([^&\s,;]+)",
-        r"\1=<REDACTED>",
-        normalized,
-    )
-    return normalized[:limit]
-
-
-def redact_url(value: str) -> str:
-    """Keep only scheme, host, port, and path from a credential-bearing URL."""
-    try:
-        parsed = urlsplit(value)
-        if not parsed.scheme or not parsed.netloc:
-            return "<redacted>"
-        host = parsed.hostname or "<invalid-host>"
-        if parsed.port is not None:
-            host = f"{host}:{parsed.port}"
-        return urlunsplit((parsed.scheme, host, parsed.path, "", ""))
-    except ValueError:
-        return "<redacted>"
+redact_url = sanitize_url
 
 
 def log_exception(
@@ -61,7 +40,7 @@ def log_exception(
             "%s error_type=%s message=%s %s\\nFULL TRACEBACK:\\n%s",
             message,
             type(exc).__name__,
-            safe_label(exc),
+            sanitize_exception(exc),
             safe_fields,
             safe_label(traceback.format_exc(), limit=10000),
         )
@@ -78,7 +57,7 @@ class DiagnosticTrace:
     """Emit detailed provider-operation stages only when DEBUG logging is enabled."""
 
     def __init__(self, operation: str, provider_id: str, provider_type: str) -> None:
-        self.operation = operation
+        self.operation = safe_label(operation)
         self.provider_id = safe_label(provider_id)
         self.provider_type = safe_label(provider_type)
         self._started = time.perf_counter()
@@ -101,8 +80,9 @@ class DiagnosticTrace:
     @contextmanager
     def stage(self, name: str, **fields: object) -> Iterator[None]:
         started = time.perf_counter()
+        safe_name = safe_label(name)
         if self.enabled:
-            _LOG.debug("[IPTV] %s: START %s", name, self._fields(fields))
+            _LOG.debug("[IPTV] %s: START %s", safe_name, self._fields(fields))
         try:
             yield
         except Exception as exc:  # noqa: BLE001
@@ -110,10 +90,10 @@ class DiagnosticTrace:
                 _LOG.error(
                     "[IPTV] %s: FAIL %.3fs error_type=%s message=%s %s\n"
                     "[IPTV] FULL TRACEBACK:\n%s",
-                    name,
+                    safe_name,
                     time.perf_counter() - started,
                     type(exc).__name__,
-                    safe_label(exc),
+                    sanitize_exception(exc),
                     self._fields(fields),
                     safe_label(traceback.format_exc(), limit=10000),
                 )
@@ -122,7 +102,7 @@ class DiagnosticTrace:
             if self.enabled:
                 _LOG.debug(
                     "[IPTV] %s: PASS %.3fs %s",
-                    name,
+                    safe_name,
                     time.perf_counter() - started,
                     self._fields(fields),
                 )
@@ -133,7 +113,7 @@ class DiagnosticTrace:
                 "[IPTV] OPERATION RESULT operation=%s provider=%s result=%s duration=%.3fs %s",
                 self.operation,
                 self.provider_id,
-                result,
+                safe_label(result),
                 time.perf_counter() - self._started,
                 self._fields(fields),
             )

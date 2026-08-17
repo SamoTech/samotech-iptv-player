@@ -6,15 +6,13 @@ import argparse
 import re
 from pathlib import Path
 
-_SECRET_PATTERNS = {
-    "private_key": re.compile(rb"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----"),
-    "aws_key": re.compile(rb"\bAKIA[0-9A-Z]{16}\b"),
-    "credential_url": re.compile(rb"https?://[^\s/@:]+:[^\s/@]+@"),
-    "bearer_literal": re.compile(rb"(?i)\bBearer\s+[A-Za-z0-9._-]{24,}"),
-    "jwt_literal": re.compile(
-        rb"\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b"
-    ),
-}
+_SECRET_PATTERNS = (
+    re.compile(rb"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----"),
+    re.compile(rb"\bAKIA[0-9A-Z]{16}\b"),
+    re.compile(rb"https?://[^\s/@:]+:[^\s/@]+@"),
+    re.compile(rb"(?i)\bBearer\s+[A-Za-z0-9._-]{24,}"),
+    re.compile(rb"\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b"),
+)
 
 
 def _parse_args() -> argparse.Namespace:
@@ -24,32 +22,39 @@ def _parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def _count_secret_findings(payload: bytes) -> int:
+    return sum(1 for pattern in _SECRET_PATTERNS if pattern.search(payload) is not None)
+
+
+def _count_development_files(package_root: Path) -> int:
+    forbidden_suffixes = {".py", ".pyc", ".pyo"}
+    return sum(
+        1
+        for path in package_root.rglob("*")
+        if path.is_file() and (path.suffix.lower() in forbidden_suffixes or path.name == ".git")
+    ) + int((package_root / ".git").exists())
+
+
 def main() -> int:
     args = _parse_args()
     if not args.exe.is_file():
-        raise SystemExit(f"artifact does not exist: {args.exe}")
+        raise SystemExit("artifact does not exist")
     payload = args.exe.read_bytes()
-    findings: list[str] = []
-    for label, pattern in _SECRET_PATTERNS.items():
-        if pattern.search(payload):
-            findings.append(label)
+    secret_count = _count_secret_findings(payload)
+    development_count = 0
     if args.package_root is not None:
         if not args.package_root.is_dir():
-            raise SystemExit(f"package root does not exist: {args.package_root}")
-        forbidden_suffixes = {".py", ".pyc", ".pyo"}
-        for path in args.package_root.rglob("*"):
-            if path.is_file() and (
-                path.suffix.lower() in forbidden_suffixes or path.name == ".git"
-            ):
-                findings.append(f"development_file:{path.name}")
-        if (args.package_root / ".git").exists():
-            findings.append("git_directory")
+            raise SystemExit("package root does not exist")
+        development_count = _count_development_files(args.package_root)
+
+    total_findings = secret_count + development_count
     print(f"artifact={args.exe.name}")
     print(f"artifact_bytes={len(payload)}")
-    print(f"secret_findings={len(findings)}")
-    for finding in findings:
-        print(f"finding={finding}")
-    if findings:
+    print(f"secret_findings={secret_count}")
+    print(f"development_file_findings={development_count}")
+    print(f"finding_count={total_findings}")
+    if total_findings:
+        print("artifact_audit=FAIL")
         return 1
     print("artifact_audit=PASS")
     return 0

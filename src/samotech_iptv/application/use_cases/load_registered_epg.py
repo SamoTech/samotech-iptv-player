@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from samotech_iptv.application.dtos import EPGEntryDTO, LoadEPGResponse, LoadRegisteredEPGRequest
+from samotech_iptv.core.diagnostics import log_exception
 from samotech_iptv.core.logging import get_logger
 from samotech_iptv.domain.value_objects import ChannelId
 
@@ -29,8 +30,13 @@ class LoadRegisteredEPG:
         try:
             provider = self._provider_resolver.resolve_epg_provider(request.provider_id)
             entries = await provider.load_epg(ChannelId(request.channel_id))
-        except Exception:  # noqa: BLE001
-            _LOG.exception("Unable to load EPG for registered provider id=%s", request.provider_id)
+        except Exception as exc:  # noqa: BLE001
+            log_exception(
+                _LOG,
+                "Unable to load EPG for registered provider",
+                exc,
+                provider_id=request.provider_id,
+            )
             return LoadEPGResponse(error=_SAFE_LOAD_FAILURE)
 
         limit = max(0, min(request.limit, 500))

@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from samotech_iptv.application.dtos.provider_registration import RegisterXtreamProviderResponse
+from samotech_iptv.core.diagnostics import log_exception
 from samotech_iptv.core.error_taxonomy import safe_user_message
 from samotech_iptv.core.logging import get_logger
 
@@ -28,7 +29,7 @@ class RegisterM3UProvider:
         try:
             provider_id = await self._registration.register_m3u(request)
         except Exception as exc:  # noqa: BLE001
-            _LOG.error("M3U provider registration failed: %s", exc)
+            log_exception(_LOG, "M3U provider registration failed", exc)
             return RegisterXtreamProviderResponse(
                 error=safe_user_message(exc, fallback="Unable to register M3U provider")
             )
