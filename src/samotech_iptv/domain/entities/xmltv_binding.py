@@ -49,11 +49,16 @@ class XMLTVBinding:
     def __post_init__(self) -> None:
         if not self.source or self.source != self.source.strip():
             raise ValidationError("source", "XMLTV source must be non-empty and trimmed")
-        parsed = urlsplit(self.source)
-        if parsed.scheme.casefold() not in {"", "file"}:
+        if self._is_windows_drive_path(self.source):
+            parsed = None
+        else:
+            parsed = urlsplit(self.source)
+        if parsed is not None and parsed.scheme.casefold() not in {"", "file"}:
             raise ValidationError("source", "XMLTV source must be a local path or file URI")
-        if parsed.scheme.casefold() == "file" and (
-            parsed.netloc or parsed.query or parsed.fragment
+        if (
+            parsed is not None
+            and parsed.scheme.casefold() == "file"
+            and (parsed.netloc or parsed.query or parsed.fragment)
         ):
             raise ValidationError("source", "XMLTV file URI must identify a local file only")
         if not self.mappings:
@@ -63,6 +68,10 @@ class XMLTVBinding:
         source_channel_ids = [mapping.source_channel_id for mapping in self.mappings]
         if len(source_channel_ids) != len(set(source_channel_ids)):
             raise ValidationError("mappings", "XMLTV source channel IDs must be unique")
+
+    @staticmethod
+    def _is_windows_drive_path(source: str) -> bool:
+        return len(source) >= 3 and source[1] == ":" and source[2] in {"/", "\\"}
 
     @property
     def channel_mapping(self) -> dict[str, ChannelId]:
