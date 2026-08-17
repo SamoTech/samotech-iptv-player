@@ -17,6 +17,7 @@ from PySide6.QtCore import (
 from PySide6.QtGui import QColor, QFont, QImage, QKeyEvent, QPainter, QPixmap
 from PySide6.QtWidgets import (
     QComboBox,
+    QFileDialog,
     QFrame,
     QHBoxLayout,
     QLabel,
@@ -49,6 +50,11 @@ from samotech_iptv.application.dtos import (
     PlaybackTarget,
     ProviderCapabilities,
     SearchRegisteredChannelsRequest,
+)
+from samotech_iptv.application.local_subtitles import (
+    LocalSubtitleError,
+    LocalSubtitleFile,
+    inspect_local_subtitle,
 )
 from samotech_iptv.application.ports.artwork_port import ArtworkRequest, ArtworkRole
 from samotech_iptv.presentation.task_owner import cancel_owned_tasks, create_owned_task
@@ -398,6 +404,8 @@ class PlayerShell(QWidget):
         self._active_playback_content_type: ContentType | None = None
         self._control_poll_pending = False
         self._last_persisted_progress: tuple[str, int, int] | None = None
+        self._subtitle_session_token = 0
+        self._local_subtitle_file: LocalSubtitleFile | None = None
         self._disposed = False
         settings = QSettings("SamoTech", "IPTVPlayer")
         self._sidebar_expanded = bool(settings.value("sidebar_expanded", True, type=bool))
@@ -578,6 +586,7 @@ class PlayerShell(QWidget):
         previous_provider_id = self._provider_id()
         cancel_owned_tasks(self)
         self._artwork_generation += 1
+        self._invalidate_local_subtitle_session()
         if self._artwork_loader is not None:
             self._artwork_loader.clear_provider(previous_provider_id)
         if self._invalidate_pending_playback is not None:
@@ -1036,6 +1045,17 @@ class PlayerShell(QWidget):
         subtitle.setObjectName("pageSubtitle")
         subtitle.setWordWrap(True)
         layout.addWidget(subtitle)
+        self.global_search_filter = QComboBox()
+        self.global_search_filter.addItem("All", "ALL")
+        self.global_search_filter.addItem("Live", "LIVE")
+        self.global_search_filter.addItem("Movies", "MOVIES")
+        self.global_search_filter.addItem("Series", "SERIES")
+        self.global_search_filter.addItem("Episodes", "EPISODES")
+        self.global_search_filter.setAccessibleName("Global search content filter")
+        self.global_search_filter.currentIndexChanged.connect(
+            lambda _: self._render_global_search()
+        )
+        layout.addWidget(self.global_search_filter)
         self.global_search_list = QListView()
         self.global_search_list.setObjectName("channels")
         self.global_search_list.setAccessibleName("Global search results")
@@ -1066,10 +1086,13 @@ class PlayerShell(QWidget):
         if not hasattr(self, "global_search_model"):
             return
         results: list[tuple[str, object]] = []
+        filter_kind = getattr(self, "global_search_filter", None)
+        selected_kind = filter_kind.currentData() if filter_kind is not None else "ALL"
         if query:
-            for channel_item in self._catalogue_channels:
-                if query in self._channel_summary(channel_item).casefold():
-                    results.append(("LIVE", channel_item))
+            if selected_kind in {"ALL", "LIVE"}:
+                for channel_item in self._catalogue_channels:
+                    if query in self._channel_summary(channel_item).casefold():
+                        results.append(("LIVE", channel_item))
             for content_item in self._content_catalogues.get(ContentType.MOVIE, ()):
                 searchable = " ".join(
                     filter(
@@ -1088,7 +1111,7 @@ class PlayerShell(QWidget):
                         ),
                     )
                 )
-                if query in searchable.casefold():
+                if selected_kind in {"ALL", "MOVIES"} and query in searchable.casefold():
                     results.append(("MOVIES", content_item))
             for content_item in self._content_catalogues.get(ContentType.SERIES, ()):
                 searchable = " ".join(
@@ -1108,8 +1131,28 @@ class PlayerShell(QWidget):
                         ),
                     )
                 )
-                if query in searchable.casefold():
+                if selected_kind in {"ALL", "SERIES"} and query in searchable.casefold():
                     results.append(("SERIES", content_item))
+            if selected_kind in {"ALL", "EPISODES"}:
+                for episode in self._series_episodes:
+                    searchable = " ".join(
+                        filter(
+                            None,
+                            (
+                                episode.title,
+                                episode.plot,
+                                episode.series_id,
+                                str(episode.season) if episode.season is not None else None,
+                                (
+                                    str(episode.episode_number)
+                                    if episode.episode_number is not None
+                                    else None
+                                ),
+                            ),
+                        )
+                    )
+                    if query in searchable.casefold():
+                        results.append(("EPISODES", episode))
         self._global_search_results = results
         labels = [
             f"{kind}  ·  {getattr(item, 'title', getattr(item, 'name', ''))}"
@@ -1703,6 +1746,7 @@ class PlayerShell(QWidget):
 
     def _activate_content_index(self, content_type: ContentType, index: QModelIndex) -> None:
         """Activate one safe non-live context through existing application use cases."""
+        self._invalidate_local_subtitle_session()
         self._select_content_index(content_type, index)
         item = self.selected_content
         if item is None:
@@ -1896,6 +1940,7 @@ class PlayerShell(QWidget):
             self._finish_non_live_request(request_generation, action)
 
     async def _play_content_item(self, item: ContentItemDTO, generation: int | None = None) -> None:
+        self._invalidate_local_subtitle_session()
         provider_id = item.provider_id
         action = (
             ContentType.MOVIE if item.content_type is ContentType.MOVIE else ContentType.EPISODE,
@@ -2449,10 +2494,88 @@ class PlayerShell(QWidget):
         if self._player_port is not None:
             create_owned_task(self, self._show_subtitle_menu())
 
+    def _choose_local_subtitle(self) -> None:
+        """Open a local-only picker and schedule validation/attachment off the UI path."""
+        if self._player_port is None or not self._is_seekable_mode:
+            self._set_status_text("● Local subtitles require a movie or episode")
+            return
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Load Local Subtitle",
+            "",
+            "Subtitles (*.srt *.ass *.ssa *.vtt)",
+        )
+        if path:
+            create_owned_task(self, self._load_local_subtitle(path))
+
+    async def _load_local_subtitle(self, path: str) -> None:
+        """Validate and attach one local subtitle only to the current playback session."""
+        if self._player_port is None or not self._is_seekable_mode:
+            return
+        token = self._subtitle_session_token
+        expected_generation = getattr(self._player_port, "media_generation", None)
+        try:
+            subtitle = await asyncio.to_thread(inspect_local_subtitle, path)
+            if token != self._subtitle_session_token or not self._is_seekable_mode:
+                return
+            attach = getattr(self._player_port, "attach_local_subtitle", None)
+            if not callable(attach):
+                raise RuntimeError("Local subtitle attachment is unavailable")
+            await attach(subtitle.path, expected_generation=expected_generation)
+            if token != self._subtitle_session_token:
+                return
+            self._local_subtitle_file = subtitle
+            self._set_status_text(f"● Local subtitle attached · {subtitle.display_name}")
+        except asyncio.CancelledError:
+            raise
+        except (LocalSubtitleError, ValueError, RuntimeError):
+            if token == self._subtitle_session_token:
+                self._set_status_text("● Local subtitle unavailable")
+
+    def _remove_local_subtitle(self) -> None:
+        """Remove local subtitle slaves without changing embedded/provider track selection."""
+        self._local_subtitle_file = None
+        if self._player_port is not None:
+            create_owned_task(self, self._clear_local_subtitles())
+
+    async def _clear_local_subtitles(self) -> None:
+        if self._player_port is None:
+            return
+        try:
+            await self._player_port.clear_local_subtitles()
+            self._set_status_text("● Local subtitles removed")
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            self._set_status_text("● Local subtitle removal unavailable")
+
     async def _show_subtitle_menu(self) -> None:
         if self._player_port is None:
             return
         menu = QMenu(self)
+        local_action = menu.addAction("Load local subtitle…")
+        local_supported = bool(
+            getattr(getattr(self._player_port, "capabilities", None), "local_subtitles", False)
+        )
+        local_action.setEnabled(local_supported and self._is_seekable_mode)
+        local_action.triggered.connect(lambda: self._choose_local_subtitle())
+        if self._local_subtitle_file is not None:
+            remove_action = menu.addAction(
+                f"Remove local · {self._local_subtitle_file.display_name}"
+            )
+            remove_action.triggered.connect(lambda: self._remove_local_subtitle())
+        capabilities = getattr(self._player_port, "capabilities", None)
+        if getattr(capabilities, "subtitle_delay", False):
+            delay_menu = menu.addMenu("Subtitle delay")
+            for delay_ms in (-5_000, -1_000, 0, 1_000, 5_000):
+                label = "0 ms" if delay_ms == 0 else f"{delay_ms:+d} ms"
+                action = delay_menu.addAction(label)
+                action.triggered.connect(
+                    lambda _checked=False, selected_delay=delay_ms: create_owned_task(
+                        self, self._set_subtitle_delay(selected_delay)
+                    )
+                )
+        menu.addSeparator()
         off_action = menu.addAction("Subtitles off")
         off_action.triggered.connect(
             lambda _checked=False: create_owned_task(self, self._select_subtitle_track(None))
@@ -2492,6 +2615,17 @@ class PlayerShell(QWidget):
             raise
         except Exception:
             self._set_status_text("● Subtitle track unavailable")
+
+    async def _set_subtitle_delay(self, delay_ms: int) -> None:
+        if self._player_port is None:
+            return
+        try:
+            await self._player_port.set_subtitle_delay_ms(delay_ms)
+            self._set_status_text(f"● Subtitle delay {delay_ms:+d} ms")
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            self._set_status_text("● Subtitle delay unavailable")
 
     def _show_aspect_menu(self) -> None:
         menu = QMenu(self)
@@ -2560,6 +2694,8 @@ class PlayerShell(QWidget):
                 "mute",
                 "audio_tracks",
                 "subtitle_tracks",
+                "local_subtitles",
+                "subtitle_delay",
             ):
                 if getattr(capabilities, name, False):
                     supported.append(name.replace("_", " "))
@@ -2574,6 +2710,11 @@ class PlayerShell(QWidget):
         self.status_label.setText(text)
         if hasattr(self, "overlay_status"):
             self.overlay_status.setText(text)
+
+    def _invalidate_local_subtitle_session(self) -> None:
+        """Invalidate local subtitle work whenever provider or media identity changes."""
+        self._subtitle_session_token += 1
+        self._local_subtitle_file = None
 
     def _begin_non_live_request(self) -> int:
         self._non_live_generation += 1
@@ -2770,6 +2911,7 @@ class PlayerShell(QWidget):
         )
 
     async def play_channel(self, channel: ChannelDTO) -> None:
+        self._invalidate_local_subtitle_session()
         request_generation = self._request_generation
         provider_id = channel.provider_id
         self.selected_channel = channel
@@ -2825,6 +2967,7 @@ class PlayerShell(QWidget):
     def closeEvent(self, event: object) -> None:  # noqa: N802
         """Invalidate non-live completions before the Qt owner is disposed."""
         self._disposed = True
+        self._invalidate_local_subtitle_session()
         self._overlay_timer.stop()
         self._progress_timer.stop()
         self._invalidate_non_live_requests()
