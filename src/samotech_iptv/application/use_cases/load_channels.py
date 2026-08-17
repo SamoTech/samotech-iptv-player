@@ -10,6 +10,7 @@ from samotech_iptv.application.dtos import (
     LoadChannelsResponse,
 )
 from samotech_iptv.core.diagnostics import DiagnosticTrace, log_exception, safe_label
+from samotech_iptv.core.error_taxonomy import safe_user_message
 from samotech_iptv.core.logging import get_logger
 
 if TYPE_CHECKING:
@@ -48,7 +49,9 @@ class LoadChannels:
                 error=safe_label(exc),
                 records_received=0,
             )
-            return LoadChannelsResponse(error=str(exc))
+            return LoadChannelsResponse(
+                error=safe_user_message(exc, fallback="Unable to load channels")
+            )
         dtos = [
             ChannelDTO(
                 id=str(ch.id),

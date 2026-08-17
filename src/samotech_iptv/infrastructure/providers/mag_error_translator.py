@@ -54,24 +54,24 @@ def translate_mag_error(exc: Exception) -> SamotechError:
     except ImportError:
         # Legacy package not importable in isolated test environments
         _log.debug("providers.base not importable — treating as ProviderError")
-        return ProviderError(f"MAG provider error: {exc}")
+        return ProviderError("MAG provider error")
 
     if isinstance(exc, LegacyAuthError):
         _log.debug("Translating LegacyAuthError -> AuthenticationError")
-        return AuthenticationError(f"MAG authentication failed: {exc}")
+        return AuthenticationError("MAG authentication failed")
 
     if isinstance(exc, LegacyNetworkError):
         _log.debug("Translating LegacyNetworkError -> NetworkError")
-        return NetworkError(f"MAG network error: {exc}")
+        return NetworkError("MAG network error")
 
     if isinstance(exc, LegacyProviderError):
         _log.debug("Translating LegacyProviderError -> ProviderError")
-        return ProviderError(f"MAG provider error: {exc}")
+        return ProviderError("MAG provider error")
 
     _log.warning("Translating unexpected %s -> ProviderError", type(exc).__name__)
-    return ProviderError(f"Unexpected MAG error: {exc}")
+    return ProviderError("Unexpected MAG error")
 
 
 def translate_mag_and_raise(exc: Exception) -> NoReturn:
     """Translate and immediately raise.  Convenience for ``except`` blocks."""
-    raise translate_mag_error(exc) from exc
+    raise translate_mag_error(exc) from None

@@ -194,6 +194,8 @@ class VlcPlayerAdapter(PlayerPort):
         self._session_token = 0
         self._intentional_action = False
         self._event_loop: asyncio.AbstractEventLoop | None = None
+        self._event_manager: object | None = None
+        self._event_subscriptions: list[tuple[object, object]] = []
         self._recovery_task: asyncio.Task[None] | None = None
         self._watchdog_task: asyncio.Task[None] | None = None
         self._stability_task: asyncio.Task[None] | None = None
@@ -217,6 +219,7 @@ class VlcPlayerAdapter(PlayerPort):
             return
         try:
             event_manager = event_manager_factory()
+            self._event_manager = event_manager
             event_names = {
                 "MediaPlayerOpening": "CONNECTING",
                 "MediaPlayerBuffering": "BUFFERING",
@@ -228,10 +231,12 @@ class VlcPlayerAdapter(PlayerPort):
             for event_name, label in event_names.items():
                 event_type = getattr(event_types, event_name, None)
                 if event_type is not None:
-                    event_manager.event_attach(
-                        event_type,
-                        lambda _event, event_label=label: self._on_native_event(event_label),
-                    )
+
+                    def callback(_event: object, event_label: str = label) -> None:
+                        self._on_native_event(event_label)
+
+                    event_manager.event_attach(event_type, callback)
+                    self._event_subscriptions.append((event_type, callback))
                     self._event_subscription_count += 1
                     _LOG.info(
                         "[IPTV] PLAYBACK_DIAGNOSTIC SUBSCRIBE player_id=%d event=%s "
@@ -321,7 +326,7 @@ class VlcPlayerAdapter(PlayerPort):
             await self._invalidate_recovery(_PlaybackState.STARTING)
             if self._current_playback is not None or self.is_playing:
                 _LOG.info("[IPTV] PLAYBACK STOPPED reason=channel_switch")
-                await self._invoke("stop", "channel_switch")
+                await self._stop_and_release_media("channel_switch")
             _LOG.info("[IPTV] PLAYBACK START")
             self._current_playback = playback
             last_error: Exception | None = None
@@ -347,7 +352,7 @@ class VlcPlayerAdapter(PlayerPort):
                         type(exc).__name__,
                         attempt,
                     )
-                    await self._invoke("stop", "immediate_play_failure")
+                    await self._stop_and_release_media("immediate_play_failure")
                     if attempt < self._play_retry_count:
                         _LOG.info("[IPTV] PLAYBACK RETRY retry=%d mode=software", attempt + 1)
             self._current_playback = None
@@ -364,7 +369,7 @@ class VlcPlayerAdapter(PlayerPort):
                 raise RuntimeError("Cannot restart without active playback")
             playback = self._current_playback
             await self._invalidate_recovery(_PlaybackState.STARTING, intentional=True)
-            await self._invoke("stop", "channel_switch")
+            await self._stop_and_release_media("channel_switch")
             await self._set_media_and_play(playback, cause="channel_switch")
             self._recording_destination = None
             self._intentional_action = False
@@ -373,9 +378,8 @@ class VlcPlayerAdapter(PlayerPort):
         """Stop libVLC playback and terminate any active recording output."""
         async with self._play_lock:
             await self._invalidate_recovery(_PlaybackState.STOPPING, intentional=True)
-            await self._invoke("stop", "explicit_stop")
+            await self._stop_and_release_media("explicit_stop")
             self._current_playback = None
-            self._current_media = None
             self._recording_destination = None
             self._publish_state(_PlaybackState.STOPPED, reason="explicit_stop")
             _LOG.info("[IPTV] PLAYBACK STOPPED")
@@ -388,10 +392,10 @@ class VlcPlayerAdapter(PlayerPort):
             self._closed = True
             await self._invalidate_recovery(_PlaybackState.STOPPING, intentional=True)
             self._current_playback = None
-            self._current_media = None
             self._recording_destination = None
+            self._unsubscribe_events()
             try:
-                await self._invoke("stop", "shutdown")
+                await self._stop_and_release_media("shutdown")
                 self._publish_state(_PlaybackState.STOPPED, reason="shutdown")
             except Exception:  # noqa: BLE001
                 _LOG.debug("[IPTV] PLAYBACK stop during shutdown failed", exc_info=True)
@@ -675,10 +679,16 @@ class VlcPlayerAdapter(PlayerPort):
                 raise FileExistsError("Recording destination already exists")
             output_path.parent.mkdir(parents=True, exist_ok=True)
             await self._invalidate_recovery(_PlaybackState.STARTING, intentional=True)
+            await self._stop_and_release_media("recording_restart")
             media = self._new_media(self._current_playback, software_fallback=False)
             media.add_option(self._recording_option(output_path))
-            self._player.set_media(media)
-            await self._invoke("play", "recording_restart")
+            self._current_media = media
+            try:
+                self._player.set_media(media)
+                await self._invoke("play", "recording_restart")
+            except Exception:
+                await self._release_current_media()
+                raise
             self._recording_destination = output_path
 
     async def stop_recording(self) -> None:
@@ -687,6 +697,7 @@ class VlcPlayerAdapter(PlayerPort):
             if self._recording_destination is None or self._current_playback is None:
                 raise RuntimeError("No active recording")
             await self._invalidate_recovery(_PlaybackState.STARTING, intentional=True)
+            await self._stop_and_release_media("recording_restart")
             await self._set_media_and_play(
                 self._current_playback,
                 software_fallback=False,
@@ -722,8 +733,12 @@ class VlcPlayerAdapter(PlayerPort):
         ):
             media.add_option(":avcodec-hw=none")
         self._current_media = media
-        self._player.set_media(media)
-        await self._invoke("play", cause)
+        try:
+            self._player.set_media(media)
+            await self._invoke("play", cause)
+        except Exception:
+            await self._release_current_media()
+            raise
 
     async def _invalidate_recovery(
         self,
@@ -894,6 +909,7 @@ class VlcPlayerAdapter(PlayerPort):
                     return
                 try:
                     self._publish_state(_PlaybackState.STARTING, reason="live_recovery")
+                    await self._stop_and_release_media("live_recovery")
                     await self._set_media_and_play(
                         current_playback,
                         software_fallback=False,
@@ -975,6 +991,34 @@ class VlcPlayerAdapter(PlayerPort):
             raise ValueError("Recording destination contains unsupported characters")
         escaped = value.replace("\\", "\\\\").replace("'", "\\'")
         return f":sout=#duplicate{{dst=display,dst=std{{access=file,mux=ts,dst='{escaped}'}}}}"
+
+    async def _stop_and_release_media(self, cause: _CommandCause) -> None:
+        """Stop the native player and release the media it currently owns."""
+        try:
+            await self._invoke("stop", cause)
+        finally:
+            await self._release_current_media()
+
+    async def _release_current_media(self) -> None:
+        """Release and forget the current media object, even after stop failure."""
+        media = self._current_media
+        self._current_media = None
+        if media is not None:
+            await self._release(media, "media")
+
+    def _unsubscribe_events(self) -> None:
+        """Detach all native event subscriptions when the player is closed."""
+        manager = self._event_manager
+        detach = getattr(manager, "event_detach", None)
+        if callable(detach):
+            for event_type, _callback in self._event_subscriptions:
+                try:
+                    detach(event_type)
+                except Exception:  # noqa: BLE001
+                    _LOG.debug("[IPTV] PLAYBACK event detachment unavailable", exc_info=True)
+        self._event_subscriptions.clear()
+        self._event_manager = None
+        self._event_subscription_count = 0
 
     async def _release(self, target: object, target_name: str) -> None:
         """Release a libVLC object when its binding exposes the expected method."""

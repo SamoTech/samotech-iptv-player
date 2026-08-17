@@ -30,6 +30,10 @@ def test_windows_workflow_keeps_release_gates_blocking() -> None:
     assert "scripts/generate_release_notes.py" in workflow
     assert "body_path: dist/release/release-notes.md" in workflow
     assert "BUILD_TIMESTAMP_UTC" in workflow
+    assert "permissions:\n  contents: read" in workflow
+    assert "publish-release" in workflow
+    assert "needs: windows-portable" in workflow
+    assert "permissions:\n      contents: write" in workflow
 
 
 def test_ci_workflow_has_blocking_security_regression_gate() -> None:

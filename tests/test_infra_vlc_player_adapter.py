@@ -133,6 +133,13 @@ class FakeEventManager:
     def event_attach(self, event_type: object, callback: object) -> None:
         self.attachments.append((event_type, callback))
 
+    def event_detach(self, event_type: object) -> None:
+        self.attachments = [
+            (attached_type, callback)
+            for attached_type, callback in self.attachments
+            if attached_type is not event_type
+        ]
+
     def emit(self, event_type: object) -> None:
         for attached_type, callback in self.attachments:
             if attached_type is event_type:
@@ -399,7 +406,7 @@ async def test_vlc_adapter_records_active_stream_with_duplicate_file_output(tmp_
     assert player.media.options == [
         f":sout=#duplicate{{dst=display,dst=std{{access=file,mux=ts,dst='{escaped_destination}'}}}}"
     ]
-    assert player.calls == ["play", "play"]
+    assert player.calls == ["play", "stop", "play"]
 
     await adapter.stop_recording()
 
@@ -407,7 +414,7 @@ async def test_vlc_adapter_records_active_stream_with_duplicate_file_output(tmp_
     assert player.media is not None
     assert player.media.url == "https://example.test/live.m3u8"
     assert player.media.options == [":network-caching=1000"]
-    assert player.calls == ["play", "play", "play"]
+    assert player.calls == ["play", "stop", "play", "stop", "play"]
 
 
 @pytest.mark.asyncio
@@ -562,7 +569,7 @@ async def test_unexpected_eof_rebuilds_live_media_once(monkeypatch: pytest.Monke
     player.events.emit(event_types.MediaPlayerEndReached)
     await _flush_asyncio()
 
-    assert player.calls == ["play", "play"]
+    assert player.calls == ["play", "stop", "play"]
     assert adapter._media_generation == 2
     await adapter.close()
 
@@ -576,7 +583,7 @@ async def test_unexpected_stopped_rebuilds_live_media_once(monkeypatch: pytest.M
     player.events.emit(event_types.MediaPlayerStopped)
     await _flush_asyncio()
 
-    assert player.calls == ["play", "play"]
+    assert player.calls == ["play", "stop", "play"]
     await adapter.close()
 
 
@@ -610,6 +617,7 @@ async def test_application_shutdown_does_not_trigger_live_recovery(
     await _flush_asyncio()
 
     assert player.calls == ["play", "stop", "release"]
+    assert player.events.attachments == []
 
 
 @pytest.mark.asyncio
@@ -678,7 +686,7 @@ async def test_prolonged_buffering_rebuilds_live_media(monkeypatch: pytest.Monke
     player.events.emit(event_types.MediaPlayerBuffering)
     await _flush_asyncio()
 
-    assert player.calls == ["play", "play"]
+    assert player.calls == ["play", "stop", "play"]
     await adapter.close()
 
 
@@ -704,7 +712,7 @@ async def test_concurrent_eof_and_buffering_schedule_one_recovery_sequence(
     player.events.emit(event_types.MediaPlayerEndReached)
     await _flush_asyncio()
 
-    assert player.calls == ["play", "play"]
+    assert player.calls == ["play", "stop", "play"]
     await adapter.close()
 
 
@@ -747,7 +755,7 @@ async def test_recovery_stops_after_configured_attempt_limit(
     player.events.emit(event_types.MediaPlayerEndReached)
     await _flush_asyncio(20)
 
-    assert player.calls == ["play", "play"]
+    assert player.calls == ["play", "stop", "play"]
     assert adapter._state.name == "FAILED"
     await adapter.close()
 
@@ -781,7 +789,7 @@ async def test_recording_restart_does_not_trigger_live_recovery(
     await adapter._handle_native_event("END", adapter._media_generation, adapter._session_token)
     await _flush_asyncio()
 
-    assert player.calls == ["play", "play"]
+    assert player.calls == ["play", "stop", "play"]
     await adapter.close()
 
 

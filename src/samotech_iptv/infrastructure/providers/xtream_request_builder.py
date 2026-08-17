@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
-from urllib.parse import urlencode, urlsplit, urlunsplit
+from urllib.parse import quote, urlencode, urlsplit, urlunsplit
 
 from samotech_iptv.domain.value_objects.url import URL
 
@@ -38,7 +38,8 @@ class XtreamRequestBuilder:
         """Build a canonical Xtream HTTP(S) playback URL for a supplied stream descriptor."""
         parsed = urlsplit(self.base_url.value)
         path = (
-            f"/{kind}/{self.credential.username}/{self.credential.password}/"
-            f"{stream_id}.{extension}"
+            f"/{quote(kind, safe='')}/{quote(self.credential.username, safe='')}/"
+            f"{quote(self.credential.password, safe='')}/{quote(stream_id, safe='')}."
+            f"{quote(extension, safe='')}"
         )
         return URL(urlunsplit((parsed.scheme, parsed.netloc, path, "", "")))

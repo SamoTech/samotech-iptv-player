@@ -5,19 +5,30 @@ from __future__ import annotations
 import hashlib
 import re
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
-from xml.etree.ElementTree import Element, ParseError
+from typing import TYPE_CHECKING, Protocol, cast
 
 from defusedxml.common import DefusedXmlException
-from defusedxml.ElementTree import fromstring
+from defusedxml.ElementTree import ParseError, fromstring
 
 from samotech_iptv.core.exceptions import ValidationError
 from samotech_iptv.domain.entities.epg_entry import EPGEntry
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Iterable, Iterator, Mapping
 
     from samotech_iptv.domain.value_objects.channel_id import ChannelId
+
+    class _ElementLike(Protocol):
+        tag: str
+
+        def get(self, key: str, default: str | None = None) -> str | None: ...
+
+        def iter(self, tag: str | None = None) -> Iterable[_ElementLike]: ...
+
+        def itertext(self) -> Iterator[str]: ...
+
+        def __iter__(self) -> Iterator[_ElementLike]: ...
+
 
 __all__ = ["XMLTVParser", "XMLTVParserError"]
 
@@ -65,7 +76,7 @@ class XMLTVParser:
         for programme in root.iter():
             if self._local_name(programme.tag) != "programme":
                 continue
-            source_channel_id = programme.get("channel", "").strip()
+            source_channel_id = (programme.get("channel", "") or "").strip()
             channel_id = channel_mapping.get(source_channel_id)
             if channel_id is None:
                 continue
@@ -75,14 +86,14 @@ class XMLTVParser:
         return tuple(entries)
 
     @staticmethod
-    def _root(text: str) -> Element:
+    def _root(text: str) -> _ElementLike:
         try:
-            return fromstring(text)
+            return cast("_ElementLike", fromstring(text))
         except (DefusedXmlException, ParseError) as exc:
             raise XMLTVParserError("XMLTV document is not well-formed or is unsafe") from exc
 
     @staticmethod
-    def _entry(programme: Element, channel_id: ChannelId, source_channel_id: str) -> EPGEntry:
+    def _entry(programme: _ElementLike, channel_id: ChannelId, source_channel_id: str) -> EPGEntry:
         start = XMLTVParser._timestamp(programme.get("start"), field="start")
         end = XMLTVParser._timestamp(programme.get("stop"), field="stop")
         title = XMLTVParser._required_child_text(programme, "title")
@@ -119,14 +130,14 @@ class XMLTVParser:
             ) from exc
 
     @staticmethod
-    def _required_child_text(programme: Element, name: str) -> str:
+    def _required_child_text(programme: _ElementLike, name: str) -> str:
         value = XMLTVParser._optional_child_text(programme, name)
         if value is None:
             raise XMLTVParserError(f"Mapped XMLTV programme is missing {name}")
         return value
 
     @staticmethod
-    def _optional_child_text(programme: Element, name: str) -> str | None:
+    def _optional_child_text(programme: _ElementLike, name: str) -> str | None:
         for child in programme:
             if XMLTVParser._local_name(child.tag) != name:
                 continue

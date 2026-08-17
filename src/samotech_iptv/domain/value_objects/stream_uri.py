@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from urllib.parse import urlsplit
 
 from samotech_iptv.core.exceptions import ValidationError
+from samotech_iptv.core.safe_logging import safe_label
 
 from .stream_protocol import StreamTransport
 
@@ -25,15 +26,17 @@ class StreamURI:
     def __post_init__(self) -> None:
         try:
             parsed = urlsplit(self.value)
-        except ValueError as exc:
-            raise ValidationError("value", f"Invalid stream URI: {self.value!r}") from exc
+        except ValueError:
+            raise ValidationError(
+                "value", f"Invalid stream URI: {safe_label(self.value)}"
+            ) from None
 
         if (
             parsed.scheme.casefold() not in _SUPPORTED_SCHEMES
             or not parsed.netloc
             or any(character.isspace() for character in self.value)
         ):
-            raise ValidationError("value", f"Invalid stream URI: {self.value!r}")
+            raise ValidationError("value", f"Invalid stream URI: {safe_label(self.value)}")
 
     def __str__(self) -> str:
         return self.value

@@ -43,7 +43,7 @@ _SENSITIVE_QUERY_KEYS = {
     "token",
     "username",
 }
-_URL_RE = re.compile(r'(?i)\b(?:https?|rtmp|rtmps|rtsp|udp|srt)://[^\s<>" ]+')
+_URL_RE = re.compile(r'(?i)\b[a-z][a-z0-9+.-]*://[^\s<>" ]+')
 _ASSIGNMENT_RE = re.compile(
     r"(?i)(?P<key>authorization|cookie|mac(?:_address)?|password|passwd|pwd|secret|token|username)"
     r"(?P<separator>\s*[:=]\s*)(?P<value>[^\s,;}&]+)"

@@ -319,7 +319,7 @@ class MagProviderAdapter(
             raise
         except Exception as exc:
             translated = translate_mag_error(exc)
-            raise translated from exc
+            raise translated from None
 
     async def _ensure_authenticated(self) -> None:
         if self._is_authenticated and self._session_token:
@@ -378,7 +378,7 @@ class MagProviderAdapter(
                 translated = translate_mag_error(exc)
                 if isinstance(translated, AuthenticationError):
                     await self._notify_runtime_failure("authentication_failure")
-                raise translated from exc
+                raise translated from None
 
     async def _notify_runtime_failure(self, reason: str) -> None:
         callback = self._runtime_failure_callback

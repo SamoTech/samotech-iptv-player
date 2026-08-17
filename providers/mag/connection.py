@@ -30,6 +30,7 @@ from .constants import (
 log = logging.getLogger(__name__)
 
 _BODY_READ_CHUNK_SIZE = 64 * 1024
+_MAX_RESPONSE_BYTES = 16 * 1024 * 1024
 
 
 @dataclass(frozen=True, repr=False)
@@ -66,6 +67,16 @@ def _sanitise_url(base: str, path: str) -> str:
         directory_path = base_path if base_path.endswith("/") else f"{base_path}/"
         directory_base = urlunsplit((parsed.scheme, parsed.netloc, directory_path, "", ""))
     return urljoin(directory_base, endpoint)
+
+
+async def _read_bounded_body(response: aiohttp.ClientResponse) -> bytes:
+    """Read one response through a hard byte bound without retaining oversize data."""
+    body = bytearray()
+    async for chunk in response.content.iter_chunked(_BODY_READ_CHUNK_SIZE):
+        if len(body) + len(chunk) > _MAX_RESPONSE_BYTES:
+            raise NetworkError("MAG response exceeded the configured size limit")
+        body.extend(chunk)
+    return bytes(body)
 
 
 class MAGConnection:
@@ -180,7 +191,7 @@ class MAGConnection:
                 headers=headers,
                 allow_redirects=True,
             ) as response:
-                body = await response.read()
+                body = await _read_bounded_body(response)
                 content_type = response.headers.get("Content-Type", "").split(";", 1)[0]
                 payload: JSON | None = None
                 malformed_json = False
@@ -201,8 +212,8 @@ class MAGConnection:
                     allow=response.headers.get("Allow", ""),
                     www_authenticate="WWW-Authenticate" in response.headers,
                 )
-        except (TimeoutError, aiohttp.ClientError) as exc:
-            raise NetworkError("MAG protocol probe did not complete") from exc
+        except (TimeoutError, aiohttp.ClientError):
+            raise NetworkError("MAG protocol probe did not complete") from None
 
     async def probe_get(
         self,
@@ -231,7 +242,7 @@ class MAGConnection:
                 headers=headers,
                 allow_redirects=True,
             ) as response:
-                body = await response.read()
+                body = await _read_bounded_body(response)
                 content_type = response.headers.get("Content-Type", "").split(";", 1)[0]
                 payload: JSON | None = None
                 malformed_json = False
@@ -252,8 +263,8 @@ class MAGConnection:
                     allow=response.headers.get("Allow", ""),
                     www_authenticate="WWW-Authenticate" in response.headers,
                 )
-        except (TimeoutError, aiohttp.ClientError) as exc:
-            raise NetworkError("MAG handshake probe did not complete") from exc
+        except (TimeoutError, aiohttp.ClientError):
+            raise NetworkError("MAG handshake probe did not complete") from None
 
     async def _request_with_retry(
         self,
@@ -270,15 +281,17 @@ class MAGConnection:
             raise RuntimeError("Call open() before making requests")
 
         delay = RETRY_BASE_DELAY
-        last_exc: Exception | None = None
+        safe_path = urlparse(url).path or "/"
+        attempts_made = 0
         for attempt in range(1, self._max_retries + 1):
+            attempts_made = attempt
             request_started = time.perf_counter()
             body_failure_logged = False
             try:
                 log.debug(
                     "%s %s (attempt %d/%d)",
                     method,
-                    urlparse(url).path or "/",
+                    safe_path,
                     attempt,
                     self._max_retries,
                 )
@@ -291,7 +304,6 @@ class MAGConnection:
                     allow_redirects=True,
                 ) as response:
                     content_type = response.headers.get("Content-Type", "").split(";", 1)[0]
-                    safe_path = urlparse(url).path or "/"
                     content_length = getattr(response, "content_length", None)
                     transfer_encoding = (
                         "chunked"
@@ -327,6 +339,10 @@ class MAGConnection:
                             if first_chunk_elapsed is None:
                                 first_chunk_elapsed = chunk_elapsed
                             last_chunk_elapsed = chunk_elapsed
+                            if len(body) + len(chunk) > _MAX_RESPONSE_BYTES:
+                                raise NetworkError(
+                                    "MAG response exceeded the configured size limit"
+                                )
                             body.extend(chunk)
                             chunk_count += 1
                     except (TimeoutError, aiohttp.ClientError) as exc:
@@ -435,7 +451,7 @@ class MAGConnection:
                     response.raise_for_status()
                     try:
                         data = json.loads(body)
-                    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+                    except (json.JSONDecodeError, UnicodeDecodeError):
                         log.warning(
                             "[IPTV] PROVIDER=MAG OPERATION=HTTP_REQUEST STAGE=AUTHENTICATION "
                             "METHOD=%s PATH=%s HTTP_STATUS=%d CONTENT_TYPE=%s RESPONSE_BYTES=%d "
@@ -446,16 +462,13 @@ class MAGConnection:
                             content_type or "<missing>",
                             response_size,
                         )
-                        raise NetworkError("MAG response was not valid JSON") from exc
+                        raise NetworkError("MAG response was not valid JSON") from None
                     log.debug("Response %d from %s", response.status, safe_path)
                     return cast("JSON", data)
             except aiohttp.ClientResponseError as exc:
                 if 400 <= exc.status < 500:
-                    raise NetworkError(
-                        f"HTTP {exc.status} from {urlparse(url).path or '/'}: {exc.message}"
-                    ) from exc
-                log.warning("HTTP %d on attempt %d — %s", exc.status, attempt, exc.message)
-                last_exc = exc
+                    raise NetworkError(f"HTTP {exc.status} from {safe_path}") from None
+                log.warning("HTTP %d on attempt %d path=%s", exc.status, attempt, safe_path)
             except (TimeoutError, aiohttp.ClientError) as exc:
                 error_kind = (
                     "TIMEOUT"
@@ -482,9 +495,15 @@ class MAGConnection:
                         time.perf_counter() - request_started,
                         error_kind,
                     )
-                log.warning("Network error on attempt %d: %s", attempt, exc)
-                last_exc = exc
+                log.warning(
+                    "Network error on attempt %d path=%s error_type=%s",
+                    attempt,
+                    safe_path,
+                    type(exc).__name__,
+                )
 
+            if method.upper() == "POST":
+                break
             if attempt < self._max_retries:
                 jitter = delay * 0.1
                 sleep_for = min(delay + jitter, RETRY_MAX_DELAY)
@@ -493,5 +512,5 @@ class MAGConnection:
                 delay = min(delay * 2, RETRY_MAX_DELAY)
 
         raise NetworkError(
-            f"Request to {url} failed after {self._max_retries} attempts"
-        ) from last_exc
+            f"Request {method} {safe_path} failed after {attempts_made} attempts"
+        ) from None

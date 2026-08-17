@@ -8,6 +8,7 @@ aiohttp sessions.
 from __future__ import annotations
 
 import asyncio
+import json as json_module
 from typing import TYPE_CHECKING, cast
 
 from samotech_iptv.core.diagnostics import redact_url
@@ -98,6 +99,7 @@ class AsyncHttpClient:
         *,
         params: dict[str, str] | None = None,
         headers: dict[str, str] | None = None,
+        max_bytes: int = 16 * 1024 * 1024,
     ) -> JSON:
         """Perform a GET request and return parsed JSON.
 
@@ -117,7 +119,9 @@ class AsyncHttpClient:
         """
         return cast(
             "JSON",
-            await self._request_with_retry("GET", url, params=params, headers=headers),
+            await self._request_with_retry(
+                "GET", url, params=params, headers=headers, max_bytes=max_bytes
+            ),
         )
 
     async def post_json(
@@ -141,6 +145,7 @@ class AsyncHttpClient:
         params: dict[str, str] | None = None,
         headers: dict[str, str] | None = None,
         timeout: TimeoutConfig | None = None,
+        max_bytes: int = 16 * 1024 * 1024,
     ) -> str:
         """Perform a GET request and return the raw response body as text."""
         return cast(
@@ -152,6 +157,7 @@ class AsyncHttpClient:
                 headers=headers,
                 as_text=True,
                 timeout=timeout,
+                max_bytes=max_bytes,
             ),
         )
 
@@ -192,6 +198,8 @@ class AsyncHttpClient:
         timeout: TimeoutConfig | None = None,
         max_bytes: int = 4 * 1024 * 1024,
     ) -> JSON | str | bytes:
+        if max_bytes <= 0:
+            raise ValueError("max_bytes must be positive")
         last_exc: Exception = RuntimeError("No attempts made")
 
         for attempt in range(self._retry.max_attempts):
@@ -224,7 +232,7 @@ class AsyncHttpClient:
                     attempt + 1,
                     self._retry.max_attempts,
                 )
-                if not self._retry.should_retry(attempt, None):
+                if method.upper() == "POST" or not self._retry.should_retry(attempt, None):
                     raise
 
             except HttpConnectionError as exc:
@@ -237,7 +245,7 @@ class AsyncHttpClient:
                     self._retry.max_attempts,
                     exc,
                 )
-                if not self._retry.should_retry(attempt, None):
+                if method.upper() == "POST" or not self._retry.should_retry(attempt, None):
                     raise
 
             except HttpServerError as exc:
@@ -250,7 +258,9 @@ class AsyncHttpClient:
                     attempt + 1,
                     self._retry.max_attempts,
                 )
-                if not self._retry.should_retry(attempt, exc.status_code):
+                if method.upper() == "POST" or not self._retry.should_retry(
+                    attempt, exc.status_code
+                ):
                     raise
 
             except HttpClientError:
@@ -293,30 +303,37 @@ class AsyncHttpClient:
                 timeout=timeout.to_aiohttp() if timeout is not None else None,
             ) as resp:
                 if resp.status >= 500:
-                    body = await resp.text()
                     raise HttpServerError(
-                        f"{method} {url} -> {resp.status}: {body[:200]}",
+                        f"{method} {redact_url(url)} -> {resp.status}",
                         status_code=resp.status,
                     )
                 if resp.status >= 400:
-                    body = await resp.text()
                     raise HttpClientError(
-                        f"{method} {url} -> {resp.status}: {body[:200]}",
+                        f"{method} {redact_url(url)} -> {resp.status}",
                         status_code=resp.status,
                     )
                 _log.debug("%s %s -> %d", method, redact_url(url), resp.status)
+                body = bytearray()
+                while True:
+                    chunk = await resp.content.read(min(64 * 1024, max_bytes + 1 - len(body)))
+                    if not chunk:
+                        break
+                    body.extend(chunk)
+                    if len(body) > max_bytes:
+                        raise HttpClientError("HTTP response exceeded the configured size limit")
+                raw_body = bytes(body)
                 if as_text:
-                    return await resp.text()
+                    return raw_body.decode(resp.charset or "utf-8", errors="replace")
                 if as_bytes:
-                    binary_body = await resp.read()
-                    if len(binary_body) > max_bytes:
-                        raise HttpClientError("Binary response exceeded the configured size limit")
-                    return binary_body
-                return cast("JSON", await resp.json(content_type=None))
+                    return raw_body
+                try:
+                    return cast("JSON", json_module.loads(raw_body.decode(resp.charset or "utf-8")))
+                except (UnicodeError, json_module.JSONDecodeError, LookupError):
+                    raise HttpClientError("HTTP response was not valid JSON") from None
 
-        except TimeoutError as exc:
-            raise HttpTimeoutError(f"{method} {redact_url(url)} timed out") from exc
-        except aiohttp.ClientConnectorError as exc:
-            raise HttpConnectionError(f"Cannot connect to {redact_url(url)}") from exc
-        except aiohttp.ClientError as exc:
-            raise HttpConnectionError(f"{method} {redact_url(url)} client error") from exc
+        except TimeoutError:
+            raise HttpTimeoutError(f"{method} {redact_url(url)} timed out") from None
+        except aiohttp.ClientConnectorError:
+            raise HttpConnectionError(f"Cannot connect to {redact_url(url)}") from None
+        except aiohttp.ClientError:
+            raise HttpConnectionError(f"{method} {redact_url(url)} client error") from None

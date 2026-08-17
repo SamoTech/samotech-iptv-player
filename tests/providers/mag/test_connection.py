@@ -51,8 +51,11 @@ class _Response:
         *,
         content_type: str = "text/javascript",
         transfer_encoding: str = "",
+        status: int = 200,
+        error_message: str = "synthetic provider error",
     ) -> None:
-        self.status = 200
+        self.status = status
+        self._error_message = error_message
         self.headers = {"Content-Type": content_type, "Transfer-Encoding": transfer_encoding}
         self.content_length = len(body)
         self._body = body
@@ -68,7 +71,13 @@ class _Response:
         return self._body
 
     def raise_for_status(self) -> None:
-        return None
+        if self.status >= 400:
+            raise aiohttp.ClientResponseError(
+                request_info=MagicMock(),
+                history=(),
+                status=self.status,
+                message=self._error_message,
+            )
 
 
 class _TimedOutResponse(_Response):
@@ -106,6 +115,36 @@ class _NetworkErrorSession:
 
     def request(self, *_: object, **__: object) -> _Response:
         raise aiohttp.ClientConnectionError("synthetic network error")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("status", [401, 503])
+async def test_http_status_exception_excludes_body_url_query_and_cause(
+    status: int,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    body_canary = "SAMOSAFE_MAG_HTTP_RESPONSE_BODY"
+    query_canary = "SAMOSAFE_MAG_QUERY_TOKEN"
+    conn = MAGConnection("https://portal.example.test/c/", max_retries=1)
+    conn._session = _Session(
+        _Response(
+            body_canary.encode(),
+            status=status,
+            error_message=f"body={body_canary} token={query_canary}",
+        )
+    )
+
+    with pytest.raises(NetworkError) as caught:
+        await conn.get(f"/server/load.php?token={query_canary}")
+
+    error = caught.value
+    assert body_canary not in str(error)
+    assert query_canary not in str(error)
+    assert error.__cause__ is None
+    messages = " ".join(record.getMessage() for record in caplog.records)
+    assert body_canary not in messages
+    assert query_canary not in messages
+    assert "portal.example.test" not in messages
 
 
 @pytest.mark.asyncio
@@ -251,6 +290,20 @@ async def test_catalogue_pre_response_network_error_logs_safe_aggregate_placehol
     assert "HTTP_STATUS=<none>" in messages
     assert "RECEIVED_BYTES=0" in messages
     assert "portal.example.test" not in messages
+
+
+@pytest.mark.asyncio
+async def test_post_timeout_is_not_retried() -> None:
+    conn = MAGConnection("https://portal.example.test/c/", max_retries=3)
+    session = _Session(_TimedOutResponse())
+    conn._session = session
+
+    with patch("providers.mag.connection.asyncio.sleep", new=AsyncMock()) as sleep:
+        with pytest.raises(NetworkError, match="failed after 1 attempts"):
+            await conn.post("/portal.php", data={"action": "do_auth"})
+
+    assert session.request_count == 1
+    sleep.assert_not_awaited()
 
 
 @pytest.mark.asyncio

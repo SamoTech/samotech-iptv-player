@@ -135,6 +135,25 @@ def test_parse_rejects_invalid_playlist_entries(
         parser.parse(playlist, provider_id)
 
 
+def test_parse_rejects_document_larger_than_configured_character_limit(
+    provider_id: ProviderId,
+) -> None:
+    parser = M3UParser(max_document_characters=32)
+    with pytest.raises(M3UParserError, match="size limit"):
+        parser.parse("#EXTM3U\n#EXTINF:-1,Too large\nhttps://stream.example.test/x\n", provider_id)
+
+
+def test_parse_rejects_more_entries_than_configured_limit(provider_id: ProviderId) -> None:
+    parser = M3UParser(max_entries=1)
+    playlist = (
+        "#EXTM3U\n"
+        "#EXTINF:-1,First\nhttps://stream.example.test/first\n"
+        "#EXTINF:-1,Second\nhttps://stream.example.test/second\n"
+    )
+    with pytest.raises(M3UParserError, match="entry limit"):
+        parser.parse(playlist, provider_id)
+
+
 def test_parse_unicode_arabic_and_catchup_metadata_without_claiming_archive_support(
     parser: M3UParser, provider_id: ProviderId
 ) -> None:

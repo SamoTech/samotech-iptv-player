@@ -49,6 +49,19 @@ def _session(
 
 
 @pytest.mark.asyncio
+async def test_refresh_loop_reschedules_without_cancelling_current_task() -> None:
+    session, _, _ = _session()
+    session.refresh = AsyncMock()
+
+    await session._refresh_loop(0)
+
+    assert session.refresh.await_count == 1
+    assert session._refresh_task is not None
+    assert session._refresh_task.cancelled() is False
+    await session.close()
+
+
+@pytest.mark.asyncio
 async def test_handshake_only_reaches_session_validated() -> None:
     session, connection, credentials = _session()
 

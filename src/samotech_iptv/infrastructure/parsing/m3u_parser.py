@@ -24,6 +24,8 @@ __all__ = ["M3UParser", "M3UParserError", "ParsedM3UPlaylist"]
 _ATTRIBUTE_RE = re.compile(r"([\w-]+)=(?:\"([^\"]*)\"|'([^']*)'|([^\s,]+))")
 _SAFE_IDENTIFIER_RE = re.compile(r"[^a-z0-9]+")
 _LOG = get_logger(__name__)
+_DEFAULT_MAX_DOCUMENT_CHARACTERS = 50_000_000
+_DEFAULT_MAX_ENTRIES = 500_000
 
 
 class M3UParserError(ValueError):
@@ -66,6 +68,19 @@ class _PendingEntry:
 class M3UParser:
     """Translate an extended M3U playlist into canonical channel and stream entities."""
 
+    def __init__(
+        self,
+        *,
+        max_document_characters: int = _DEFAULT_MAX_DOCUMENT_CHARACTERS,
+        max_entries: int = _DEFAULT_MAX_ENTRIES,
+    ) -> None:
+        if max_document_characters <= 0:
+            raise ValueError("max_document_characters must be positive")
+        if max_entries <= 0:
+            raise ValueError("max_entries must be positive")
+        self._max_document_characters = max_document_characters
+        self._max_entries = max_entries
+
     def parse(self, text: str, provider_id: ProviderId) -> ParsedM3UPlaylist:
         """Parse a playlist string using the supplied canonical provider ID.
 
@@ -75,6 +90,8 @@ class M3UParser:
         transports are preserved in the domain ``StreamURI`` value object for
         later protocol classification and player-capability negotiation.
         """
+        if len(text) > self._max_document_characters:
+            raise M3UParserError("M3U document exceeds the configured size limit")
         lines = text.lstrip("\ufeff").splitlines()
         if not lines or not lines[0].strip().upper().startswith("#EXTM3U"):
             raise M3UParserError("An extended M3U playlist must start with #EXTM3U")
@@ -103,6 +120,8 @@ class M3UParser:
             channel, stream = self._to_domain(pending, line, provider_id, occurrences)
             channels.append(channel)
             streams.append(stream)
+            if len(channels) > self._max_entries:
+                raise M3UParserError("M3U document exceeds the configured entry limit")
             pending = None
 
         if pending is not None:

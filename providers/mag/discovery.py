@@ -47,7 +47,7 @@ class MAGDiscoveryClassification(StrEnum):
     HTTP_OTHER = "HTTP_OTHER"
     EMPTY_RESPONSE = "EMPTY_RESPONSE"
     MALFORMED_JSON = "MALFORMED_JSON"
-    JSON_WITHOUT_TOKEN = "JSON_WITHOUT_TOKEN"  # noqa: S105
+    JSON_WITHOUT_TOKEN = "JSON_WITHOUT_TOKEN"  # noqa: S105  # nosec B105 - classification marker
     VALID_STALKER_HANDSHAKE = "VALID_STALKER_HANDSHAKE"
     UNKNOWN_PROTOCOL = "UNKNOWN_PROTOCOL"
     PROFILE_REQUIRED = "PROFILE_REQUIRED"
@@ -345,7 +345,7 @@ class MAGProtocolDiscovery:
                 serial_number=self._credentials.serial_number,
                 device_id=self._credentials.device_id,
                 device_id2=self._credentials.device_id2,
-                token="",
+                token="",  # nosec B106 - unauthenticated discovery request
                 mag_model=self._credentials.mag_model,
             ),
         }

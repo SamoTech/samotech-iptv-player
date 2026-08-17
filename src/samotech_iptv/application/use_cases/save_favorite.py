@@ -7,6 +7,8 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from samotech_iptv.application.dtos import SaveFavoriteRequest, SaveFavoriteResponse
+from samotech_iptv.core.diagnostics import log_exception
+from samotech_iptv.core.error_taxonomy import safe_user_message
 from samotech_iptv.core.logging import get_logger
 from samotech_iptv.domain.entities import Favorite
 
@@ -34,6 +36,9 @@ class SaveFavorite:
         try:
             await self._repo.save(favorite)
         except Exception as exc:  # noqa: BLE001
-            _log.error("SaveFavorite error: %s", exc)
-            return SaveFavoriteResponse(success=False, error=str(exc))
+            log_exception(_log, "SaveFavorite error", exc, item_id=request.item_id)
+            return SaveFavoriteResponse(
+                success=False,
+                error=safe_user_message(exc, fallback="Unable to save favorite"),
+            )
         return SaveFavoriteResponse(success=True)

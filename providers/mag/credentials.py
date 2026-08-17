@@ -12,6 +12,8 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any
 
+from samotech_iptv.core.safe_logging import sanitize_url
+
 log = logging.getLogger(__name__)
 
 _keyring: Any | None
@@ -59,7 +61,7 @@ class MAGCredentials:
         mac = _keyring.get_password(SERVICE_NAME, f"{portal_url}:mac")
         if not mac:
             raise ValueError(
-                f"No credentials found in keyring for portal {portal_url!r}. "
+                "No MAG credentials found in the OS keyring. "
                 "Store them first with MAGCredentials.save_to_keyring()."
             )
         serial = _keyring.get_password(SERVICE_NAME, f"{portal_url}:serial") or ""
@@ -84,7 +86,10 @@ class MAGCredentials:
             _keyring.delete_password(SERVICE_NAME, f"{self.portal_url}:mac")
             _keyring.delete_password(SERVICE_NAME, f"{self.portal_url}:serial")
         except Exception as exc:  # noqa: BLE001
-            log.warning("Unable to delete MAG credentials from keyring: %s", exc)
+            log.warning(
+                "Unable to delete MAG credentials from keyring error_type=%s",
+                type(exc).__name__,
+            )
 
     @property
     def token(self) -> str:
@@ -96,6 +101,6 @@ class MAGCredentials:
 
     def __repr__(self) -> str:
         return (
-            f"MAGCredentials(portal_url={self.portal_url!r}, "
+            f"MAGCredentials(portal_url={sanitize_url(self.portal_url)!r}, "
             f"mac_address=<redacted>, token=<{'set' if self._token else 'unset'}>)"
         )

@@ -52,26 +52,26 @@ def translate_error(exc: Exception) -> SamotechError:
 
     if isinstance(exc, HttpTimeoutError):
         _log.debug("Translating HttpTimeoutError -> NetworkError")
-        return NetworkError(f"Request timed out: {exc}")
+        return NetworkError("Request timed out")
 
     if isinstance(exc, HttpConnectionError):
         _log.debug("Translating HttpConnectionError -> NetworkError")
-        return NetworkError(f"Connection failed: {exc}")
+        return NetworkError("Connection failed")
 
     if isinstance(exc, HttpClientError):
         status = exc.status_code
         if status in (401, 403):
             _log.debug("Translating HttpClientError %d -> AuthenticationError", status)
-            return AuthenticationError(f"Authentication failed (HTTP {status}): {exc}")
+            return AuthenticationError(f"Authentication failed (HTTP {status})")
         _log.debug("Translating HttpClientError %d -> ProviderError", status)
-        return ProviderError(f"Provider client error (HTTP {status}): {exc}")
+        return ProviderError(f"Provider client error (HTTP {status})")
 
     if isinstance(exc, HttpServerError):
         _log.debug("Translating HttpServerError %d -> ProviderError", exc.status_code)
-        return ProviderError(f"Provider server error (HTTP {exc.status_code}): {exc}")
+        return ProviderError(f"Provider server error (HTTP {exc.status_code})")
 
     _log.warning("Translating unexpected %s -> ProviderError", type(exc).__name__)
-    return ProviderError(f"Unexpected provider error: {exc}")
+    return ProviderError("Unexpected provider error")
 
 
 def translate_and_raise(exc: Exception) -> None:
@@ -79,4 +79,4 @@ def translate_and_raise(exc: Exception) -> None:
 
     Convenience wrapper for the common ``raise translate_error(exc)`` pattern.
     """
-    raise translate_error(exc) from exc
+    raise translate_error(exc) from None

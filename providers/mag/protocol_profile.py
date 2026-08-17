@@ -48,7 +48,7 @@ class MAGAuthState(StrEnum):
 
     DISCOVERY = "discovery"
     HANDSHAKE = "handshake"
-    TOKEN_RECEIVED = "token_received"  # noqa: S105
+    TOKEN_RECEIVED = "token_received"  # noqa: S105  # nosec B105 - state marker
     PROFILE_REQUIRED = "profile_required"
     GET_PROFILE = "get_profile"
     DO_AUTH = "do_auth"
@@ -384,7 +384,7 @@ class StalkerPortalPhpLegacyProfile(MAGProtocolProfile):
         default_factory=lambda: {
             "action": "handshake",
             "type": "stb",
-            "token": "",
+            "token": "",  # nosec B105 - empty pre-authentication field
             "JsHttpRequest": "1-xml",
         }
     )
@@ -418,7 +418,7 @@ class StalkerQueryProtocolProfile(MAGProtocolProfile):
         default_factory=lambda: {
             "type": "stb",
             "action": "handshake",
-            "token": "",
+            "token": "",  # nosec B105 - empty pre-authentication field
             "JsHttpRequest": "1-xml",
         }
     )
@@ -471,7 +471,7 @@ class StalkerHelperCompatibilityProfile(MAGProtocolProfile):
         default_factory=lambda: {
             "type": "stb",
             "action": "handshake",
-            "token": "",
+            "token": "",  # nosec B105 - empty pre-authentication field
             "JsHttpRequest": "1-xml",
         }
     )

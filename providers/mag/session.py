@@ -282,7 +282,12 @@ class MAGSession:
 
     def _schedule_refresh(self) -> None:
         ttl = max(self._token_expires_at - time.monotonic() - 60, 30)
-        if self._refresh_task and not self._refresh_task.done():
+        current_task = asyncio.current_task()
+        if (
+            self._refresh_task
+            and self._refresh_task is not current_task
+            and not self._refresh_task.done()
+        ):
             self._refresh_task.cancel()
         self._refresh_task = asyncio.get_event_loop().create_task(self._refresh_loop(ttl))
 
@@ -316,7 +321,7 @@ class MAGSession:
 
     def _invalidate_session(self) -> None:
         """Clear token state after a required authentication stage fails."""
-        self._creds.token = ""
+        self._creds.token = ""  # nosec B105 - clear in-memory session state
         self._token_expires_at = 0.0
 
     def _store_token(self, payload: object) -> None:

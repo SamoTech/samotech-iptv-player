@@ -23,6 +23,7 @@ __all__ = ["M3USourceError", "M3USourceLoader", "M3USourceLoaderPort"]
 
 _LOG = get_logger(__name__)
 _M3U_REMOTE_TIMEOUT = TimeoutConfig(connect=20.0, read=180.0, total=240.0)
+_MAX_M3U_SOURCE_BYTES = 64 * 1024 * 1024
 
 
 class M3USourceError(ValueError):
@@ -62,6 +63,7 @@ class M3USourceLoader:
             text = await self._http_client.get_text(
                 str(remote_url),
                 timeout=_M3U_REMOTE_TIMEOUT,
+                max_bytes=_MAX_M3U_SOURCE_BYTES,
             )
             _LOG.debug(
                 "M3U source stage=content_retrieval source=%s bytes=%d", safe_source, len(text)
@@ -79,14 +81,23 @@ class M3USourceLoader:
     @staticmethod
     async def _load_local(path: Path) -> str:
         try:
-            text = await asyncio.to_thread(path.read_text, encoding="utf-8")
+            text = await asyncio.to_thread(M3USourceLoader._read_local_bounded, path)
             _LOG.debug(
                 "M3U source stage=content_retrieval source_kind=local_file bytes=%d", len(text)
             )
             return text
-        except (OSError, UnicodeDecodeError) as exc:
+        except (OSError, UnicodeDecodeError, ValueError) as exc:
             log_exception(_LOG, "M3U source stage=local_read", exc, source_kind="local_file")
             raise M3USourceError("Unable to read local M3U source") from exc
+
+    @staticmethod
+    def _read_local_bounded(path: Path) -> str:
+        """Read UTF-8 playlist content without retaining an oversized local file."""
+        with path.open("rb") as handle:
+            data = handle.read(_MAX_M3U_SOURCE_BYTES + 1)
+        if len(data) > _MAX_M3U_SOURCE_BYTES:
+            raise ValueError("M3U source exceeds the configured size limit")
+        return data.decode("utf-8")
 
     @staticmethod
     def _local_path(source: str, scheme: str) -> Path:
