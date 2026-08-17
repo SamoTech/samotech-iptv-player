@@ -7,8 +7,9 @@ import sys
 import time
 from enum import StrEnum
 from itertools import count
+from pathlib import Path
 from threading import Lock, current_thread
-from typing import TYPE_CHECKING, Literal, Protocol
+from typing import Literal, Protocol
 
 import vlc  # type: ignore[import-untyped]
 
@@ -23,10 +24,6 @@ from samotech_iptv.application.player_state_machine import PlaybackStateMachine
 from samotech_iptv.application.ports.player_port import PlayerPort
 from samotech_iptv.core.logging import get_logger
 from samotech_iptv.domain.value_objects.url import URL
-
-if TYPE_CHECKING:
-    from pathlib import Path
-
 
 __all__ = ["VlcPlayerAdapter"]
 
@@ -63,6 +60,8 @@ class _PlaybackState(StrEnum):
 
 class _VlcMedia(Protocol):
     def add_option(self, option: str) -> None: ...
+
+    def slaves_clear(self) -> object: ...
 
 
 class _VlcInstance(Protocol):
@@ -111,6 +110,12 @@ class _VlcPlayer(Protocol):
     def video_get_spu(self) -> int: ...
 
     def video_set_spu(self, track_id: int) -> object: ...
+
+    def video_get_spu_delay(self) -> int: ...
+
+    def video_set_spu_delay(self, delay_us: int) -> int: ...
+
+    def add_slave(self, i_type: object, psz_uri: str, b_select: bool) -> int: ...
 
     def video_get_aspect_ratio(self) -> object: ...
 
@@ -163,6 +168,7 @@ class VlcPlayerAdapter(PlayerPort):
         self._instance = instance or vlc.Instance()
         self._player = player or self._instance.media_player_new()
         self._current_playback: ResolvedPlayback | None = None
+        self._current_media: _VlcMedia | None = None
         self._recording_destination: Path | None = None
         self._playback_mode = playback_mode
         self._network_caching_ms = network_caching_ms
@@ -284,9 +290,16 @@ class VlcPlayerAdapter(PlayerPort):
             mute=True,
             audio_tracks=True,
             subtitle_tracks=True,
+            local_subtitles=True,
+            subtitle_delay=True,
             explicit_state=True,
             diagnostics=True,
         )
+
+    @property
+    def media_generation(self) -> int:
+        """Return the current opaque media generation for session-safe UI operations."""
+        return self._media_generation
 
     @property
     def is_playing(self) -> bool:
@@ -338,6 +351,7 @@ class VlcPlayerAdapter(PlayerPort):
                     if attempt < self._play_retry_count:
                         _LOG.info("[IPTV] PLAYBACK RETRY retry=%d mode=software", attempt + 1)
             self._current_playback = None
+            self._current_media = None
             self._publish_state(_PlaybackState.FAILED, reason="playback_failed")
             if last_error is None:
                 raise RuntimeError("Unable to start playback")
@@ -361,6 +375,7 @@ class VlcPlayerAdapter(PlayerPort):
             await self._invalidate_recovery(_PlaybackState.STOPPING, intentional=True)
             await self._invoke("stop", "explicit_stop")
             self._current_playback = None
+            self._current_media = None
             self._recording_destination = None
             self._publish_state(_PlaybackState.STOPPED, reason="explicit_stop")
             _LOG.info("[IPTV] PLAYBACK STOPPED")
@@ -373,6 +388,7 @@ class VlcPlayerAdapter(PlayerPort):
             self._closed = True
             await self._invalidate_recovery(_PlaybackState.STOPPING, intentional=True)
             self._current_playback = None
+            self._current_media = None
             self._recording_destination = None
             try:
                 await self._invoke("stop", "shutdown")
@@ -533,6 +549,68 @@ class VlcPlayerAdapter(PlayerPort):
             if isinstance(result, int) and result < 0:
                 raise RuntimeError("libVLC subtitle track selection failed")
 
+    async def clear_local_subtitles(self) -> None:
+        """Remove locally attached subtitle slaves from the current media."""
+        async with self._play_lock:
+            if self._closed or self._current_media is None:
+                raise RuntimeError("No active media for local subtitle removal")
+            await asyncio.to_thread(self._current_media.slaves_clear)
+
+    async def get_subtitle_delay_ms(self) -> int | None:
+        """Read native subtitle delay in milliseconds when libVLC reports it."""
+        value = await asyncio.to_thread(self._player.video_get_spu_delay)
+        return None if not isinstance(value, int) else int(value / 1_000)
+
+    async def set_subtitle_delay_ms(self, delay_ms: int) -> None:
+        """Set native subtitle delay in the bounded commercial control range."""
+        if isinstance(delay_ms, bool) or not -5_000 <= delay_ms <= 5_000:
+            raise ValueError("subtitle delay must be between -5000 and 5000 milliseconds")
+        async with self._play_lock:
+            result = await asyncio.to_thread(
+                self._player.video_set_spu_delay,
+                delay_ms * 1_000,
+            )
+            if isinstance(result, int) and result < 0:
+                raise RuntimeError("libVLC subtitle delay change failed")
+
+    async def attach_local_subtitle(
+        self,
+        path: Path,
+        *,
+        expected_generation: int | None = None,
+    ) -> None:
+        """Attach a local subtitle to current media without restarting or crossing generations."""
+        allowed_suffixes = {".srt", ".ass", ".ssa", ".vtt"}
+        candidate = Path(path).expanduser()
+        if candidate.suffix.casefold() not in allowed_suffixes:
+            raise ValueError("Unsupported local subtitle format")
+        try:
+            resolved = candidate.resolve(strict=True)
+            stat = resolved.stat()
+        except OSError as exc:
+            raise ValueError("Local subtitle file is unavailable") from exc
+        if not resolved.is_file() or stat.st_size <= 0:
+            raise ValueError("Local subtitle file is unavailable")
+        if stat.st_size > 16 * 1024 * 1024:
+            raise ValueError("Local subtitle file is too large")
+        async with self._play_lock:
+            if self._closed or self._current_playback is None:
+                raise RuntimeError("No active media for local subtitle")
+            if expected_generation is not None and expected_generation != self._media_generation:
+                raise RuntimeError("Playback session changed before subtitle attachment")
+            media_slave_type = getattr(vlc, "MediaSlaveType", None)
+            subtitle_type = getattr(media_slave_type, "subtitle", None)
+            if subtitle_type is None:
+                raise RuntimeError("libVLC local subtitle support is unavailable")
+            result = await asyncio.to_thread(
+                self._player.add_slave,
+                subtitle_type,
+                resolved.as_uri(),
+                True,
+            )
+            if isinstance(result, int) and result < 0:
+                raise RuntimeError("libVLC local subtitle attachment failed")
+
     async def get_aspect_ratio(self) -> str | None:
         """Read the native aspect-ratio override, decoding bytes without leaking raw data."""
         raw = await asyncio.to_thread(self._player.video_get_aspect_ratio)
@@ -643,6 +721,7 @@ class VlcPlayerAdapter(PlayerPort):
             software_fallback and self._playback_mode == "auto"
         ):
             media.add_option(":avcodec-hw=none")
+        self._current_media = media
         self._player.set_media(media)
         await self._invoke("play", cause)
 

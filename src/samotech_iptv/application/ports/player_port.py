@@ -88,6 +88,34 @@ class PlayerPort(ABC):
         """Select a native subtitle track, or None to disable subtitles."""
         ...
 
+    @property
+    def media_generation(self) -> int | None:
+        """Return the current media generation when the backend exposes one."""
+        return None
+
+    async def attach_local_subtitle(
+        self,
+        path: Path,
+        *,
+        expected_generation: int | None = None,
+    ) -> None:
+        """Attach one local subtitle to the current media when the backend supports it."""
+        del path, expected_generation
+        raise NotImplementedError("Local subtitle attachment is unavailable")
+
+    async def clear_local_subtitles(self) -> None:
+        """Remove locally attached subtitle slaves when the backend supports it."""
+        raise NotImplementedError("Local subtitle removal is unavailable")
+
+    async def get_subtitle_delay_ms(self) -> int | None:
+        """Return native subtitle delay in milliseconds when available."""
+        return None
+
+    async def set_subtitle_delay_ms(self, delay_ms: int) -> None:
+        """Set native subtitle delay in milliseconds when available."""
+        del delay_ms
+        raise NotImplementedError("Subtitle delay is unavailable")
+
     @abstractmethod
     async def get_aspect_ratio(self) -> str | None:
         """Return the native aspect-ratio override when available."""

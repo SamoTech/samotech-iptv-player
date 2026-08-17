@@ -95,6 +95,8 @@ class PlayerCapabilities:
     mute: bool = False
     audio_tracks: bool = False
     subtitle_tracks: bool = False
+    local_subtitles: bool = False
+    subtitle_delay: bool = False
     fullscreen: bool = True
     aspect_ratio: bool = False
     video_output_attachment: bool = True
