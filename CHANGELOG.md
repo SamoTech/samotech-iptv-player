@@ -1,5 +1,18 @@
 # Changelog
 
+## Zero-touch Windows release pipeline — 2026-08-17
+
+### Added
+
+- Added a metadata-driven release-body template and generator that derive the version, tag, commit, workflow URL, artifact filename, SHA256, size, build timestamp, toolchain versions, validation summary, and current project-status limitations during the tagged Windows workflow.
+- Added blocking tag-to-application-version validation and packaged-runtime version resolution from the authoritative `pyproject.toml` metadata.
+- Changed tagged release publication to consume the generated `dist/release/release-notes.md` through `softprops/action-gh-release@v3`, eliminating the previous manual post-publication notes augmentation path.
+
+### Verification and limitations
+
+- Deterministic tests cover dynamic substitution, version/tag consistency, artifact and checksum fields, limitation extraction, missing metadata failure, and rejection of stale hard-coded release data.
+- The next release acceptance will validate the complete zero-touch path with the semantic patch version `v0.1.1`; Windows presentation-test collection remains an environment limitation and is not silently re-enabled.
+
 ## Windows portable EXE pipeline — 2026-08-17
 
 ### Added
