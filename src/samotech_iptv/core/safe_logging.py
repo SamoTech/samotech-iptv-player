@@ -130,6 +130,8 @@ def sanitize_traceback(exc: BaseException, limit: int = 4000) -> str:
 
 def safe_label(value: object, limit: int = 120) -> str:
     """Convert diagnostic values to bounded, recursively sanitized text."""
+    if isinstance(value, str):
+        return _sanitize_text(value, limit=limit)
     sanitized = sanitize_value(value)
     if isinstance(sanitized, (dict, list, tuple)):
         rendered = json.dumps(sanitized, ensure_ascii=True, sort_keys=True, default=str)
