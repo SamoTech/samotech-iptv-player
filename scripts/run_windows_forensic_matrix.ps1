@@ -79,12 +79,13 @@ function Invoke-ForensicCaseProcess {
     if (-not $process.WaitForExit(90 * 1000)) {
         $process.Kill()
         $process.WaitForExit()
-        throw "Timed out waiting for $Argument in $WorkingDirectory"
+        return [pscustomobject]@{ ExitCode = -2; TimedOut = $true }
     }
     $process.Refresh()
-    return [int]$process.ExitCode
+    return [pscustomobject]@{ ExitCode = [int]$process.ExitCode; TimedOut = $false }
 }
 
+$hadFailure = $false
 foreach ($case in $caseRoots) {
     $caseRoot = $case.Root
     if (Test-Path $caseRoot) {
@@ -142,33 +143,42 @@ foreach ($case in $caseRoots) {
     }
 
     $vlcDiag = Join-Path $OutputRoot "$($case.Name)-packaged-vlc.json"
-    $caseEvidence.packaged_vlc.exit_code = Invoke-ForensicCaseProcess `
+    $vlcResult = Invoke-ForensicCaseProcess `
         -FilePath $caseExe `
         -WorkingDirectory $caseEvidence.cwd `
         -Argument "--packaged-vlc-test" `
         -DiagnosticPath $vlcDiag
+    $caseEvidence.packaged_vlc.exit_code = $vlcResult.ExitCode
+    $caseEvidence.packaged_vlc.timed_out = $vlcResult.TimedOut
+    $hadFailure = $hadFailure -or $vlcResult.TimedOut
     $caseEvidence.packaged_vlc.diagnostic_exists = Test-Path $vlcDiag
     if (Test-Path $vlcDiag) {
         $caseEvidence.packaged_vlc.diagnostic = Get-Content $vlcDiag -Raw | ConvertFrom-Json
     }
 
     $qtDiag = Join-Path $OutputRoot "$($case.Name)-qt-only.json"
-    $caseEvidence.qt_only.exit_code = Invoke-ForensicCaseProcess `
+    $qtResult = Invoke-ForensicCaseProcess `
         -FilePath $caseExe `
         -WorkingDirectory $caseEvidence.cwd `
         -Argument "--qt-only-test" `
         -DiagnosticPath $qtDiag
+    $caseEvidence.qt_only.exit_code = $qtResult.ExitCode
+    $caseEvidence.qt_only.timed_out = $qtResult.TimedOut
+    $hadFailure = $hadFailure -or $qtResult.TimedOut
     $caseEvidence.qt_only.diagnostic_exists = Test-Path $qtDiag
     if (Test-Path $qtDiag) {
         $caseEvidence.qt_only.diagnostic = Get-Content $qtDiag -Raw | ConvertFrom-Json
     }
 
     $smokeDiag = Join-Path $OutputRoot "$($case.Name)-smoke.json"
-    $caseEvidence.smoke.exit_code = Invoke-ForensicCaseProcess `
+    $smokeResult = Invoke-ForensicCaseProcess `
         -FilePath $caseExe `
         -WorkingDirectory $caseEvidence.cwd `
         -Argument "--smoke-test" `
         -DiagnosticPath $smokeDiag
+    $caseEvidence.smoke.exit_code = $smokeResult.ExitCode
+    $caseEvidence.smoke.timed_out = $smokeResult.TimedOut
+    $hadFailure = $hadFailure -or $smokeResult.TimedOut
     $caseEvidence.smoke.diagnostic_exists = Test-Path $smokeDiag
     if (Test-Path $smokeDiag) {
         $caseEvidence.smoke.diagnostic = Get-Content $smokeDiag -Raw | ConvertFrom-Json
@@ -180,3 +190,6 @@ foreach ($case in $caseRoots) {
 $evidence.mode = if ($resolvedExe -match "forensic-([^-\\]+(?:-[^-\\]+)*)") { $Matches[1] } else { "unknown" }
 $evidence | ConvertTo-Json -Depth 12 | Set-Content -Encoding utf8 (Join-Path $OutputRoot "forensic-execution-evidence.json")
 $evidence | ConvertTo-Json -Depth 12
+if ($hadFailure) {
+    exit 2
+}

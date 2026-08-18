@@ -67,6 +67,7 @@ jobs:
             -RuntimeLabel "default"
 
       - name: Upload execution evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: windows-forensic-execution-${{ matrix.mode }}-${{ steps.identity.outputs.sha }}
