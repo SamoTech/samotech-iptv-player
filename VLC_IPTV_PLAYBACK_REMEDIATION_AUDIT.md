@@ -216,21 +216,29 @@ The waiver relies only on the documented implementation evidence: typed libVLC `
 
 ### Phase 23 release fields
 
-| Field | Status before publication |
+| Field | Final evidence |
 |---|---|
-| Release version | `0.1.5` after version increment |
-| Release commit | To be recorded after the version/release commit |
-| Release tag | `v0.1.5`, to be created only after local release checks |
-| Exact artifact SHA256 | To be recorded from the newly generated `0.1.5` artifact |
-| Published asset name | To be recorded from the zero-touch GitHub Release |
-| Release timestamp | To be recorded from the published GitHub Release |
-| Source commit | To be recorded from the annotated tag target |
-| Repository state | Must be clean and synchronized after publication |
+| Release version | `0.1.5` |
+| Release commit | `fb83b67e3402ec3678fb3a0a570348744a0f9ff7` (`release: prepare v0.1.5 zero-touch waiver`) |
+| Release tag | Annotated `v0.1.5`, pointing to `fb83b67e3402ec3678fb3a0a570348744a0f9ff7` |
+| Exact artifact SHA256 | `ac3e04b9458bc8126180738164cba239a42c862e0f223575853f4827964b93c3` |
+| Published asset name | `SamoTech-IPTV-Player-Windows-x64-v0.1.5.exe` |
+| Published asset size | `135,514,685` bytes |
+| Release timestamp | `2026-08-18T18:12:04Z` |
+| Source commit | `fb83b67e3402ec3678fb3a0a570348744a0f9ff7` |
+| GitHub Release | [v0.1.5](https://github.com/SamoTech/samotech-iptv-player/releases/tag/v0.1.5) |
+| Release workflow | [Windows Portable EXE run 32169264368](https://github.com/SamoTech/samotech-iptv-player/actions/runs/32169264368) — build and publication passed |
+| Exact published-artifact acceptance | [Run 32169789581](https://github.com/SamoTech/samotech-iptv-player/actions/runs/32169789581) — checksum, PE metadata, artifact identity, path/environment matrix, and summary passed |
+| Repository state | Clean; `HEAD` and `origin/main` both equal `fb83b67e3402ec3678fb3a0a570348744a0f9ff7` |
+| README badge block | Byte-for-byte preserved; SHA256 `b5fae9edbbe346864c76547744aef294040f865243d349d46c56f850fa5bcd25` |
+| Historical `v0.1.4` | Preserved at `39e545e68ec4517f6a36e90730bdf29675c43fdf`; existing assets untouched |
 | Human playback test | Not available and not required under this explicit waiver |
 
 ### Known limitations
 
 The waiver does not resolve the HTTP 403 provider blocker, real-provider playback absence, MAG watchdog/provider-media evidence gap, Xtream temporary URL refresh uncertainty, separate cache-profile uncertainty, or pre-existing pip-audit findings. These remain classified as **BLOCKED / NOT TESTED / REQUIRES AUTHORIZED PROVIDER VALIDATION** where applicable.
+
+The release workflow and exact published-artifact acceptance passed without converting those limitations into playback compatibility claims. **REAL PROVIDER PLAYBACK: NOT TESTED / BLOCKED. COMMERCIAL IPTV COMPATIBILITY: NOT CERTIFIED.**
 
 ## References
 
