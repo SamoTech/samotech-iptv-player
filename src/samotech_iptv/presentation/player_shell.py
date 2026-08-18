@@ -388,6 +388,7 @@ class PlayerShell(QWidget):
         self._content_back_buttons: dict[ContentType, QPushButton] = {}
         self._content_activate_buttons: dict[ContentType, QPushButton] = {}
         self._content_favorite_buttons: dict[ContentType, QPushButton] = {}
+        self._content_load_buttons: dict[ContentType, QPushButton] = {}
         self._global_search_results: list[tuple[str, object]] = []
         self._home_action_buttons: dict[str, QPushButton] = {}
         self._home_status_label: QLabel | None = None
@@ -566,11 +567,22 @@ class PlayerShell(QWidget):
         entries.extend([("Providers", 8), ("Settings", 9)])
         current_page = self.pages.currentIndex() if hasattr(self, "pages") else 0
         self._navigation_entries = entries
-        compact_labels = ["⌂", "TV", "M", "S", "★", "↺", "EPG", "P", "⚙"]
+        compact_by_page = {
+            0: "⌂",
+            1: "TV",
+            2: "M",
+            3: "S",
+            4: "★",
+            5: "↺",
+            6: "⌕",
+            7: "EPG",
+            8: "P",
+            9: "⚙",
+        }
         labels = (
             [label for label, _ in entries]
             if self._sidebar_expanded
-            else compact_labels[: len(entries)]
+            else [compact_by_page[page] for _, page in entries]
         )
         self.navigation_model.setStringList(labels)
         self._navigation_pages = [page for _, page in entries]
@@ -1335,6 +1347,7 @@ class PlayerShell(QWidget):
         self._content_artwork_labels[content_type] = artwork
         self._content_activate_buttons[content_type] = activate_button
         self._content_favorite_buttons[content_type] = favorite_button
+        self._content_load_buttons[content_type] = load_button
         content_list.installEventFilter(self)
         return page
 
@@ -1409,6 +1422,8 @@ class PlayerShell(QWidget):
         if isinstance(event, QKeyEvent):
             self._show_player_overlay()
             key = event.key()
+            if watched is self.fullscreen_button and key == Qt.Key.Key_Space:
+                return super().eventFilter(watched, event)
             if key == Qt.Key.Key_Space:
                 self._toggle_play_pause()
                 event.accept()
@@ -2750,7 +2765,12 @@ class PlayerShell(QWidget):
 
     def _set_loading(self, loading: bool) -> None:
         self._loading = loading
-        for button in (self.load_button, self.search_button, self.favorite_button):
+        for button in (
+            self.load_button,
+            self.search_button,
+            self.favorite_button,
+            *self._content_load_buttons.values(),
+        ):
             button.setEnabled(not loading)
         if loading:
             self.channel_status.setText("Loading…")

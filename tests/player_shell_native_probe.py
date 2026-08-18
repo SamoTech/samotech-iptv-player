@@ -636,7 +636,32 @@ async def main() -> None:
     content_shell._content_sort_selectors[ContentType.MOVIE].setCurrentIndex(0)
     assert movie_list.gridSize().width() == 172
     assert content_shell.sidebar_toggle.text() == "Menu"
+    content_shell._set_sidebar_expanded(False, persist=False)
+    assert content_shell.navigation_model.stringList() == [
+        "⌂",
+        "TV",
+        "M",
+        "S",
+        "★",
+        "↺",
+        "⌕",
+        "P",
+        "⚙",
+    ]
+    content_shell._set_sidebar_expanded(True, persist=False)
+    content_shell._set_loading(True)
+    assert not content_shell._content_load_buttons[ContentType.MOVIE].isEnabled()
+    assert not content_shell._content_load_buttons[ContentType.SERIES].isEnabled()
+    content_shell._set_loading(False)
+    assert content_shell._content_load_buttons[ContentType.MOVIE].isEnabled()
+    assert content_shell._content_load_buttons[ContentType.SERIES].isEnabled()
     assert content_shell._player_overlay is not None
+    fullscreen_space = QKeyEvent(
+        QEvent.Type.KeyPress,
+        Qt.Key.Key_Space,
+        Qt.KeyboardModifier.NoModifier,
+    )
+    assert not content_shell.eventFilter(content_shell.fullscreen_button, fullscreen_space)
     content_shell._set_status_text("● Playing")
     assert content_shell.overlay_status.text() == "● Playing"
     content_shell._toggle_sidebar()
