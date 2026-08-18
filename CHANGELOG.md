@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.1.4 — 2026-08-18
+
+### Fixed
+
+- Added the missing frozen `desktop_entrypoint.py` main guard so PyInstaller executes the application instead of importing the script and returning success without startup.
+- Preserved full startup-journal path identity and retained sanitized traceback, runtime, VLC, and phase details for failures before Qt initialization.
+
+### Added
+
+- Added a VLC-independent Qt diagnostic mode and a forensic OneDir/OneFile/debug build and execution matrix.
+- Added blocking exact-candidate acceptance across C-drive, spaces, Unicode, Downloads-like, TEMP, arbitrary-CWD, normal-PATH, sanitized-PATH, first-launch, and second-launch cases.
+
+### Release validation
+
+- The new production candidate was built and accepted on a Windows Server 2025 runner through all 48 exact-artifact executions, with `VLC_READY`, `MAIN_WINDOW_SHOWN`, `APPLICATION_READY`, exit code 0, checksum, PE metadata, and artifact identity verified.
+
 ## v0.1.3 — 2026-08-17
 
 ### Fixed
