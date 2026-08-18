@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import json
 import re
+import traceback
 from collections.abc import Mapping, Sequence
 from urllib.parse import urlsplit, urlunsplit
 
 __all__ = [
     "sanitize_exception",
+    "sanitize_traceback",
     "sanitize_headers",
     "sanitize_mapping",
     "sanitize_url",
@@ -119,6 +121,11 @@ def sanitize_headers(headers: Mapping[object, object]) -> dict[str, object]:
 def sanitize_exception(exc: BaseException, limit: int = 1000) -> str:
     """Return a safe exception type/message summary without raw sensitive text."""
     return f"{type(exc).__name__}: {_sanitize_text(str(exc), limit=limit)}"
+
+
+def sanitize_traceback(exc: BaseException, limit: int = 4000) -> str:
+    """Return a bounded, redacted traceback suitable for durable diagnostics."""
+    return _sanitize_text("".join(traceback.format_exception(exc)), limit=limit)
 
 
 def safe_label(value: object, limit: int = 120) -> str:

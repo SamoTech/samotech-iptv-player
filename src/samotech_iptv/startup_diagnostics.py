@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from samotech_iptv import __version__
-from samotech_iptv.core.safe_logging import safe_label, sanitize_exception
+from samotech_iptv.core.safe_logging import safe_label, sanitize_exception, sanitize_traceback
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -82,6 +82,8 @@ def _environment_snapshot() -> dict[str, object]:
         "appdata": _safe_path(os.environ.get("APPDATA", "")),
         "localappdata": _safe_path(os.environ.get("LOCALAPPDATA", "")),
         "meipass": _safe_path(frozen_root or ""),
+        "runtime_directory": _safe_path(frozen_root or ""),
+        "vlc_runtime_directory": _safe_path(os.environ.get("VLC_RUNTIME_DIR", "")),
         "platform": _safe_path(platform.platform()),
         "platform_version": _safe_path(platform.version()),
         "architecture": _safe_path(platform.machine()),
@@ -159,6 +161,7 @@ class StartupDiagnostics:
                 "exit_code": exit_code,
                 "failure_type": type(exc).__name__,
                 "failure_message": sanitize_exception(exc),
+                "failure_traceback": sanitize_traceback(exc),
                 "elapsed_seconds": round(time.monotonic() - self._started, 3),
                 "finished_utc": _utc_now(),
             }
@@ -211,6 +214,7 @@ class StartupDiagnostics:
             temporary: Path | None = None
             try:
                 candidate.parent.mkdir(parents=True, exist_ok=True)
+                self._state["diagnostic_path"] = _safe_path(str(candidate))
                 temporary = candidate.with_name(f".{candidate.name}.tmp")
                 with temporary.open("w", encoding="utf-8", newline="\n") as handle:
                     json.dump(self._state, handle, ensure_ascii=True, indent=2, sort_keys=True)

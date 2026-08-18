@@ -79,6 +79,7 @@ foreach ($case in $caseRoots) {
         cwd = if ($case.Name -eq "arbitrary-cwd") { $env:SystemRoot } else { $caseRoot }
         process_probe = [ordered]@{}
         packaged_vlc = [ordered]@{}
+        qt_only = [ordered]@{}
         smoke = [ordered]@{}
     }
 
@@ -122,6 +123,18 @@ foreach ($case in $caseRoots) {
     $caseEvidence.packaged_vlc.diagnostic_exists = Test-Path $vlcDiag
     if (Test-Path $vlcDiag) {
         $caseEvidence.packaged_vlc.diagnostic = Get-Content $vlcDiag -Raw | ConvertFrom-Json
+    }
+
+    $qtDiag = Join-Path $OutputRoot "$($case.Name)-qt-only.json"
+    $qtOutput = Join-Path $OutputRoot "$($case.Name)-qt-only.output.txt"
+    $env:SAMOTECH_STARTUP_DIAGNOSTIC_PATH = $qtDiag
+    Remove-Item $qtDiag -Force -ErrorAction SilentlyContinue
+    $global:LASTEXITCODE = 0
+    & $caseExe --qt-only-test --diagnostic *> $qtOutput
+    $caseEvidence.qt_only.exit_code = $LASTEXITCODE
+    $caseEvidence.qt_only.diagnostic_exists = Test-Path $qtDiag
+    if (Test-Path $qtDiag) {
+        $caseEvidence.qt_only.diagnostic = Get-Content $qtDiag -Raw | ConvertFrom-Json
     }
 
     $smokeDiag = Join-Path $OutputRoot "$($case.Name)-smoke.json"

@@ -5,6 +5,13 @@ from pathlib import Path
 _ROOT = Path(__file__).resolve().parents[1]
 
 
+def test_desktop_entrypoint_is_executable_as_a_pyinstaller_script() -> None:
+    entrypoint = (_ROOT / "src/samotech_iptv/desktop_entrypoint.py").read_text(encoding="utf-8")
+    assert 'if __name__ == "__main__":' in entrypoint
+    assert "raise SystemExit(run())" in entrypoint
+    assert "--qt-only-test" in entrypoint
+
+
 def test_pyinstaller_spec_has_explicit_bundled_vlc_and_runtime_hook() -> None:
     spec = (_ROOT / "samotech-iptv-player.spec").read_text(encoding="utf-8")
     assert "VLC_RUNTIME_DIR" in spec

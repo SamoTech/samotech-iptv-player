@@ -35,6 +35,11 @@ def test_failure_journal_records_last_stage_and_redacts_sensitive_text(tmp_path:
     assert "SAMOSTART_TOKEN" not in path.read_text(encoding="utf-8")
     assert "user:password" not in path.read_text(encoding="utf-8")
     assert "https://example.invalid/libvlc.dll" in state["failure_message"]
+    assert "failure_traceback" in state
+    assert "RuntimeError" in state["failure_traceback"]
+    assert state["diagnostic_path"] == str(path)
+    assert "runtime_directory" in state["environment"]
+    assert "vlc_runtime_directory" in state["environment"]
 
 
 def test_non_diagnostic_ready_state_is_removed(tmp_path: Path) -> None:

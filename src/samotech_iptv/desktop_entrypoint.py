@@ -22,6 +22,7 @@ _STARTUP_FAILURE_MESSAGE = "Unable to start SamoTech IPTV Player"
 _SMOKE_TEST_ARGUMENT = "--smoke-test"
 _PACKAGED_VLC_TEST_ARGUMENT = "--packaged-vlc-test"
 _DIAGNOSTIC_ARGUMENT = "--diagnostic"
+_QT_ONLY_TEST_ARGUMENT = "--qt-only-test"
 
 
 async def build_production_desktop_application(
@@ -67,6 +68,30 @@ async def _run_packaged_vlc_test() -> int:
         media.release()
         instance.release()
     print("packaged_vlc_smoke=PASS")
+    return 0
+
+
+async def _run_qt_only_test(
+    arguments: Sequence[str],
+    diagnostics: StartupDiagnostics,
+) -> int:
+    """Initialize Qt and create a minimal window without constructing libVLC."""
+    from PySide6.QtWidgets import QApplication, QMainWindow
+
+    application = QApplication.instance() or QApplication(list(arguments))
+    diagnostics.checkpoint(StartupCheckpoint.QT_INITIALIZED)
+    diagnostics.checkpoint(StartupCheckpoint.QT_PLATFORM_READY)
+    window = QMainWindow()
+    window.setWindowTitle("SamoTech IPTV Player Qt diagnostic")
+    window.resize(640, 360)
+    diagnostics.checkpoint(StartupCheckpoint.MAIN_WINDOW_CREATED)
+    window.show()
+    diagnostics.checkpoint(StartupCheckpoint.MAIN_WINDOW_SHOWN)
+    process_events = getattr(application, "processEvents", None)
+    if callable(process_events):
+        process_events()
+    window.close()
+    diagnostics.checkpoint(StartupCheckpoint.APPLICATION_READY)
     return 0
 
 
@@ -118,6 +143,10 @@ def run(argv: Sequence[str] | None = None) -> int:
             details={"bundled_vlc_root": str(runtime_root) if runtime_root else "not_found"},
         )
         diagnostics.checkpoint(StartupCheckpoint.LOGGING_INITIALIZED)
+        if _QT_ONLY_TEST_ARGUMENT in arguments:
+            result = asyncio.run(_run_qt_only_test(arguments, diagnostics))
+            diagnostics.ready(details={"mode": "qt_only_test"})
+            return result
         if _PACKAGED_VLC_TEST_ARGUMENT in arguments:
             diagnostics.checkpoint(StartupCheckpoint.VLC_DISCOVERY_STARTED)
             result = asyncio.run(_run_packaged_vlc_test())
@@ -147,10 +176,21 @@ def run(argv: Sequence[str] | None = None) -> int:
             exit_code=exit_code,
             details={"mode": "diagnostic" if _DIAGNOSTIC_ARGUMENT in arguments else "normal"},
         )
-        print(_STARTUP_FAILURE_MESSAGE, file=sys.stderr)
+        failure_message = str(diagnostics.state.get("failure_message", "unknown startup failure"))
+        print(
+            f"{_STARTUP_FAILURE_MESSAGE}.\n"
+            f"Startup phase: {diagnostics.last_successful_stage.value}\n"
+            f"Details: {failure_message}\n"
+            f"Diagnostic log: {diagnostics.path}",
+            file=sys.stderr,
+        )
         return exit_code
 
 
 def main() -> None:
     """Run the supported ``samotech-iptv`` console entry point."""
     raise SystemExit(run())
+
+
+if __name__ == "__main__":
+    main()
