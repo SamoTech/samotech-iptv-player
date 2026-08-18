@@ -7,6 +7,7 @@ from typing import Any, cast
 
 import pytest
 
+from samotech_iptv.application.dtos.playback import TransportMetadata
 from samotech_iptv.core.exceptions import AuthenticationError, ValidationError
 from samotech_iptv.domain.value_objects.channel_id import ChannelId
 from samotech_iptv.domain.value_objects.credential import Credential
@@ -269,6 +270,7 @@ class TestEpgAndPlayback:
         await adapter.authenticate(credential)
         url = await adapter.resolve_stream(ChannelId("1"))
         assert str(url) == "https://stream.example.test/live/1.m3u8"
+        assert url.transport == TransportMetadata()
         assert legacy.stream_calls == [(1, "live")]
 
     @pytest.mark.asyncio

@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, cast
 
 import pytest
 
+from samotech_iptv.application.dtos.playback import TransportMetadata
 from samotech_iptv.domain.value_objects.channel_id import ChannelId
 from samotech_iptv.domain.value_objects.credential import Credential
 from samotech_iptv.domain.value_objects.provider_capability import ProviderCapability
@@ -146,21 +147,23 @@ async def test_adapter_authenticates_stores_credentials_and_translates_live_chan
     assert [entry.title for entry in await adapter.load_epg(ChannelId("xtream-demo:1"))] == [
         "Example Programme"
     ]
-    assert (
-        await adapter.resolve_stream(ChannelId("xtream-demo:1"))
-    ).value == "https://portal.example.test/live/user/secret/1.m3u8"
+    live_playback = await adapter.resolve_stream(ChannelId("xtream-demo:1"))
+    assert live_playback.value == "https://portal.example.test/live/user/secret/1.m3u8"
+    assert live_playback.transport == TransportMetadata()
     movie = await adapter.load_movie_details("xtream-demo:42")
     assert movie.plot == "Detail metadata"
-    assert (
-        await adapter.resolve_movie_stream("xtream-demo:42", movie.stream_id.value)
-    ).value.endswith("/movie/user/secret/42.mp4")
+    movie_playback = await adapter.resolve_movie_stream("xtream-demo:42", movie.stream_id.value)
+    assert movie_playback.value.endswith("/movie/user/secret/42.mp4")
+    assert movie_playback.transport == TransportMetadata()
     seasons = await adapter.load_seasons("xtream-demo:84")
     assert [season.number for season in seasons] == [1]
     episodes = await adapter.load_episodes("xtream-demo:84", 1)
     assert [episode.title for episode in episodes] == ["Pilot"]
-    assert (
-        await adapter.resolve_episode_stream(episodes[0].id, episodes[0].stream_id.value)
-    ).value.endswith("/series/user/secret/501.mp4")
+    episode_playback = await adapter.resolve_episode_stream(
+        episodes[0].id, episodes[0].stream_id.value
+    )
+    assert episode_playback.value.endswith("/series/user/secret/501.mp4")
+    assert episode_playback.transport == TransportMetadata()
 
 
 def test_adapter_advertises_only_implemented_capabilities_and_registers_with_factory() -> None:

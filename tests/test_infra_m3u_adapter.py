@@ -154,6 +154,36 @@ async def test_secure_registered_m3u_source_is_retrieved_before_loading() -> Non
 
 
 @pytest.mark.asyncio
+async def test_m3u_adapter_propagates_supported_transport_metadata_safely(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    metadata = InfraProviderMetadata(
+        provider_id="m3u-demo",
+        provider_type="m3u",
+        base_url="https://playlist.example.test/list.m3u",
+    )
+    playlist = (
+        "#EXTM3U\n"
+        '#EXTINF:-1 http-user-agent="SamoTech-Agent" '
+        'http-referrer="https://portal.example.test/" '
+        'cookie="password=secret" http-header="X-Test: ignored",One\n'
+        "https://stream.example.test/live/one.m3u8\n"
+    )
+    adapter = M3UProviderAdapter(
+        metadata,
+        ProviderContext.build(overrides={"max_retries": 1}),
+        source_loader=FakeSourceLoader(playlist),
+    )
+
+    channels = await adapter.load_channels()
+    playback = await adapter.resolve_stream(channels[0].id)
+
+    assert playback.transport.user_agent == "SamoTech-Agent"
+    assert playback.transport.referrer == "https://portal.example.test/"
+    assert playback.transport.headers == ()
+    assert "secret" not in caplog.text
+
+
 async def test_m3u_adapter_translates_loaded_source_and_declares_capabilities() -> None:
     """The adapter composes M3U source loading with canonical parser translation."""
     metadata = InfraProviderMetadata(

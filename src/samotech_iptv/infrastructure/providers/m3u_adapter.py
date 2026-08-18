@@ -83,7 +83,10 @@ class M3UProviderAdapter(CatalogProvider, PlaybackProvider, SearchProvider, Capa
                 continue
             stream = playlist.stream_for(channel)
             try:
-                return ResolvedPlayback.from_url(URL(stream.url.value))
+                return ResolvedPlayback(
+                    URL(stream.url.value),
+                    playlist.transport_for(stream),
+                )
             except ValidationError as exc:
                 raise ProviderError("M3U channel has no supported playback URL") from exc
         raise ProviderError("M3U channel was not found")

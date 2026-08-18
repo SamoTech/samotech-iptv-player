@@ -48,6 +48,25 @@ def test_parse_extended_m3u_maps_metadata_and_streams(
     assert parsed.streams[1].container == "ts"
 
 
+def test_parse_maps_supported_transport_metadata_only(
+    parser: M3UParser, provider_id: ProviderId
+) -> None:
+    parsed = parser.parse(
+        "#EXTM3U\n"
+        '#EXTINF:-1 http-user-agent="SamoTech-Agent" '
+        'http-referrer="https://portal.example.test/" '
+        'cookie="password=secret" http-header="X-Test: ignored",Metadata Stream\n'
+        "https://stream.example.test/live/metadata.m3u8\n",
+        provider_id,
+    )
+
+    metadata = parsed.transport_for(parsed.streams[0])
+
+    assert metadata.user_agent == "SamoTech-Agent"
+    assert metadata.referrer == "https://portal.example.test/"
+    assert metadata.headers == ()
+
+
 def test_parse_ignores_invalid_optional_logo_url(
     parser: M3UParser, provider_id: ProviderId
 ) -> None:

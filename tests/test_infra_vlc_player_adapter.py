@@ -575,6 +575,94 @@ async def test_unexpected_eof_rebuilds_live_media_once(monkeypatch: pytest.Monke
 
 
 @pytest.mark.asyncio
+async def test_encountered_error_rebuilds_current_live_media_once(
+    caplog: pytest.LogCaptureFixture,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    caplog.set_level(logging.INFO)
+    player = EventPlayer()
+    adapter, event_types = _event_adapter(monkeypatch, player, live_recovery_initial_delay_s=0)
+
+    await adapter.play(URL("https://example.test/live.m3u8"))
+    player.events.emit(event_types.MediaPlayerEncounteredError)
+    await _flush_asyncio()
+
+    assert player.calls == ["play", "stop", "play"]
+    assert adapter.state is PlaybackState.LOADING
+    diagnostic_messages = "\n".join(
+        record.getMessage()
+        for record in caplog.records
+        if "PLAYBACK_DIAGNOSTIC" in record.getMessage()
+    )
+    recovery_messages = "\n".join(
+        record.getMessage()
+        for record in caplog.records
+        if "PLAYBACK_RECOVERY" in record.getMessage()
+    )
+    assert "to_state=RECOVERING" in diagnostic_messages
+    assert "reason=ENCOUNTERED_ERROR" in diagnostic_messages
+    assert "attempt=1" in recovery_messages
+    assert "https://" not in diagnostic_messages
+    assert "https://" not in recovery_messages
+    await adapter.close()
+
+
+@pytest.mark.asyncio
+async def test_stale_encountered_error_from_previous_generation_is_ignored(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    player = EventPlayer()
+    adapter, _ = _event_adapter(monkeypatch, player, live_recovery_initial_delay_s=0)
+
+    await adapter.play(URL("https://example.test/first.m3u8"))
+    prior_generation = adapter._media_generation
+    prior_session = adapter._session_token
+    await adapter.play(URL("https://example.test/second.m3u8"))
+    await adapter._handle_native_event("ERROR", prior_generation, prior_session)
+    await _flush_asyncio()
+
+    assert player.calls == ["play", "stop", "play"]
+    await adapter.close()
+
+
+@pytest.mark.asyncio
+async def test_repeated_encountered_errors_schedule_one_recovery_sequence(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    player = EventPlayer()
+    adapter, event_types = _event_adapter(monkeypatch, player, live_recovery_initial_delay_s=0)
+
+    await adapter.play(URL("https://example.test/live.m3u8"))
+    player.events.emit(event_types.MediaPlayerEncounteredError)
+    player.events.emit(event_types.MediaPlayerEncounteredError)
+    await _flush_asyncio()
+
+    assert player.calls == ["play", "stop", "play"]
+    await adapter.close()
+
+
+@pytest.mark.asyncio
+async def test_encountered_error_recovery_honors_attempt_limit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    player = RecoveryFailingPlayer()
+    adapter, event_types = _event_adapter(
+        monkeypatch,
+        player,
+        live_recovery_max_attempts=1,
+        live_recovery_initial_delay_s=0,
+    )
+
+    await adapter.play(URL("https://example.test/live.m3u8"))
+    player.events.emit(event_types.MediaPlayerEncounteredError)
+    await _flush_asyncio(20)
+
+    assert player.calls == ["play", "stop", "play"]
+    assert adapter.state is PlaybackState.ERROR
+    await adapter.close()
+
+
+@pytest.mark.asyncio
 async def test_unexpected_stopped_rebuilds_live_media_once(monkeypatch: pytest.MonkeyPatch) -> None:
     player = EventPlayer()
     adapter, event_types = _event_adapter(monkeypatch, player, live_recovery_initial_delay_s=0)
@@ -815,6 +903,45 @@ async def test_immediate_initial_play_failure_behavior_is_preserved() -> None:
 
     assert player.calls == ["play", "stop", "play"]
     assert adapter._media_generation == 2
+    await adapter.close()
+
+
+@pytest.mark.asyncio
+async def test_vlc_media_options_preserve_multiple_headers_and_special_values(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    from samotech_iptv.application.dtos.playback import (
+        ResolvedPlayback,
+        TransportHeader,
+        TransportMetadata,
+    )
+    from samotech_iptv.infrastructure.player.vlc_player_adapter import VlcPlayerAdapter
+
+    player = FakePlayer()
+    adapter = VlcPlayerAdapter(FakeInstance(player), player)
+    playback = ResolvedPlayback(
+        URL("https://stream.example.test/live.m3u8?token=secret"),
+        TransportMetadata(
+            headers=(
+                TransportHeader("Cookie", "session=secret; path=/"),
+                TransportHeader("X-Provider-Route", "edge:a; b"),
+            ),
+            user_agent="SamoTech; Agent",
+            referrer="https://portal.example.test/ref?token=secret",
+        ),
+    )
+
+    await adapter.play(playback)
+
+    assert player.media is not None
+    assert player.media.options == [
+        ":http-header=Cookie: session=secret; path=/",
+        ":http-header=X-Provider-Route: edge:a; b",
+        ":http-user-agent=SamoTech; Agent",
+        ":http-referrer=https://portal.example.test/ref?token=secret",
+        ":network-caching=1000",
+    ]
+    assert "secret" not in caplog.text
     await adapter.close()
 
 

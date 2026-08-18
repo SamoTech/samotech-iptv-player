@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING
 
+from samotech_iptv.application.dtos.playback import TransportMetadata
 from samotech_iptv.core.exceptions import ValidationError
 from samotech_iptv.core.logging import get_logger
 from samotech_iptv.domain.entities.channel import Channel
@@ -43,6 +44,7 @@ class ParsedM3UPlaylist:
 
     channels: tuple[Channel, ...]
     streams: tuple[Stream, ...]
+    transport_metadata: tuple[tuple[str, TransportMetadata], ...] = ()
 
     def stream_for(self, channel: Channel) -> Stream:
         """Return the stream associated with a parsed channel.
@@ -54,6 +56,13 @@ class ParsedM3UPlaylist:
             if stream.id == channel.stream_id:
                 return stream
         raise KeyError(f"No stream was parsed for channel {channel.id.value!r}")
+
+    def transport_for(self, stream: Stream) -> TransportMetadata:
+        """Return the optional ephemeral transport metadata for one parsed stream."""
+        for stream_id, metadata in self.transport_metadata:
+            if stream_id == stream.id.value:
+                return metadata
+        return TransportMetadata()
 
 
 @dataclass(frozen=True)
@@ -98,6 +107,7 @@ class M3UParser:
 
         channels: list[Channel] = []
         streams: list[Stream] = []
+        transport_metadata: list[tuple[str, TransportMetadata]] = []
         pending: _PendingEntry | None = None
         occurrences: dict[str, int] = {}
 
@@ -120,13 +130,33 @@ class M3UParser:
             channel, stream = self._to_domain(pending, line, provider_id, occurrences)
             channels.append(channel)
             streams.append(stream)
+            metadata = self._transport_metadata(pending)
+            if metadata != TransportMetadata():
+                transport_metadata.append((stream.id.value, metadata))
             if len(channels) > self._max_entries:
                 raise M3UParserError("M3U document exceeds the configured entry limit")
             pending = None
 
         if pending is not None:
             raise M3UParserError(f"Line {pending.line_number} has no following stream URL")
-        return ParsedM3UPlaylist(channels=tuple(channels), streams=tuple(streams))
+        return ParsedM3UPlaylist(
+            channels=tuple(channels),
+            streams=tuple(streams),
+            transport_metadata=tuple(transport_metadata),
+        )
+
+    @staticmethod
+    def _transport_metadata(entry: _PendingEntry) -> TransportMetadata:
+        """Map only documented M3U header aliases into ephemeral player metadata."""
+        attributes = entry.attributes
+        user_agent = (
+            attributes.get("http-user-agent") or attributes.get("user-agent") or ""
+        ).strip()
+        referrer = (attributes.get("http-referrer") or attributes.get("referrer") or "").strip()
+        return TransportMetadata(
+            user_agent=user_agent or None,
+            referrer=referrer or None,
+        )
 
     @staticmethod
     def _parse_extinf(line: str, line_number: int) -> _PendingEntry:

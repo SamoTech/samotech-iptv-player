@@ -41,7 +41,13 @@ _CommandCause = Literal[
     "explicit_resume",
     "live_recovery",
 ]
-_RecoveryReason = Literal["EOF", "STOPPED", "BUFFERING_TIMEOUT", "START_TIMEOUT"]
+_RecoveryReason = Literal[
+    "EOF",
+    "STOPPED",
+    "BUFFERING_TIMEOUT",
+    "START_TIMEOUT",
+    "ENCOUNTERED_ERROR",
+]
 _PLAYER_IDS = count(1)
 
 
@@ -810,6 +816,8 @@ class VlcPlayerAdapter(PlayerPort):
                 await self._request_recovery("EOF", media_generation, session_token)
             elif event_name == "STOPPED":
                 await self._request_recovery("STOPPED", media_generation, session_token)
+            elif event_name == "ERROR":
+                await self._request_recovery("ENCOUNTERED_ERROR", media_generation, session_token)
 
     def _schedule_watchdog(
         self,
@@ -1076,6 +1084,7 @@ class VlcPlayerAdapter(PlayerPort):
         reset_context: bool = False,
     ) -> None:
         """Synchronize private recovery state with the public typed state machine."""
+        previous_state = self._state
         self._state = state
         public_state = {
             _PlaybackState.IDLE: PlaybackState.IDLE,
@@ -1101,6 +1110,16 @@ class VlcPlayerAdapter(PlayerPort):
                 session_token=self._session_token,
                 reason=reason,
             )
+        _LOG.info(
+            "[IPTV] PLAYBACK_DIAGNOSTIC STATE player_id=%d media_generation=%d "
+            "from_state=%s to_state=%s reason=%s error_classification=%s",
+            self._player_id,
+            self._media_generation,
+            previous_state,
+            state,
+            reason or "<none>",
+            reason if state is _PlaybackState.FAILED else "<none>",
+        )
 
     def _log_command(
         self,
