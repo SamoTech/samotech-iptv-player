@@ -1,0 +1,69 @@
+name: Windows Forensic PyInstaller Builds
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  forensic-build:
+    name: Build forensic ${{ matrix.mode }} candidate
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        mode:
+          - onedir
+          - onefile
+          - debug-bootloader
+          - debug-all
+    env:
+      PYTHON_VERSION: "3.13"
+      VLC_VERSION: "3.0.23"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: |
+            pyproject.toml
+            packaging/windows-build-requirements.txt
+
+      - name: Install pinned packaging dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+          python -m pip install -r packaging/windows-build-requirements.txt
+
+      - name: Acquire pinned official VLC runtime
+        shell: pwsh
+        run: .\scripts\prepare_windows_vlc.ps1 -VlcVersion $env:VLC_VERSION
+
+      - name: Configure bundled VLC environment
+        shell: pwsh
+        run: |
+          $vlcRoot = (Get-Content build/windows/vlc-root.txt -Raw).Trim()
+          "VLC_RUNTIME_DIR=$vlcRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "PYTHON_VLC_LIB_PATH=$vlcRoot\libvlc.dll" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "PYTHON_VLC_MODULE_PATH=$vlcRoot\plugins" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "VLC_PLUGIN_PATH=$vlcRoot\plugins" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Build forensic candidate
+        shell: pwsh
+        run: .\scripts\build_windows_forensic.ps1 -Mode "${{ matrix.mode }}" -VlcRoot $env:VLC_RUNTIME_DIR
+
+      - name: Upload forensic candidate and build evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-forensic-${{ matrix.mode }}-${{ github.sha }}
+          path: |
+            dist/forensic/${{ matrix.mode }}/**
+            build/pyinstaller-forensic/${{ matrix.mode }}/**
+            build/windows/vlc-root.txt
+          if-no-files-found: error

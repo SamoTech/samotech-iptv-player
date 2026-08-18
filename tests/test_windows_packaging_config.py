@@ -84,6 +84,25 @@ def test_pinned_windows_packaging_requirements_are_present() -> None:
         assert requirement in requirements
 
 
+def test_forensic_workflow_covers_required_pyinstaller_variants() -> None:
+    workflow = (_ROOT / ".github/workflows/windows-forensic-build.yml").read_text(encoding="utf-8")
+    assert "permissions:\n  contents: read" in workflow
+    assert "fail-fast: false" in workflow
+    for mode in ("onedir", "onefile", "debug-bootloader", "debug-all"):
+        assert f"- {mode}" in workflow
+    assert "build_windows_forensic.ps1" in workflow
+    assert "actions/upload-artifact@v4" in workflow
+    assert "if-no-files-found: error" in workflow
+
+
+def test_forensic_build_driver_keeps_production_script_separate() -> None:
+    script = (_ROOT / "scripts/build_windows_forensic.ps1").read_text(encoding="utf-8")
+    assert "SAMOTECH_FORENSIC_BUILD_MODE" in script
+    assert "SAMOTECH_FORENSIC_RUNTIME_TMPDIR" in script
+    assert "packaging\\samotech_forensic.spec" in script
+    assert "--workpath $workRoot" in script
+
+
 def test_exact_release_acceptance_workflow_is_blocking_and_artifact_focused() -> None:
     workflow = (_ROOT / ".github/workflows/windows-release-artifact-acceptance.yml").read_text(
         encoding="utf-8"
