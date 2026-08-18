@@ -72,5 +72,4 @@ jobs:
           name: windows-forensic-execution-${{ matrix.mode }}-${{ steps.identity.outputs.sha }}
           path: |
             build/forensic-execution/${{ matrix.mode }}/**
-            forensic-input/**
           if-no-files-found: error
