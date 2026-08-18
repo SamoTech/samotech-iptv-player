@@ -94,12 +94,8 @@ foreach ($case in $caseRoots) {
     New-Item -ItemType Directory -Force -Path $caseRoot | Out-Null
     $caseExe = Join-Path $caseRoot $exeName
     Copy-Item $resolvedExe $caseExe -Force
-    if ((Split-Path $sourceBundle -Leaf) -eq "onedir") {
-        $sourceInternal = Join-Path $sourceBundle "_internal"
-        if (Test-Path $sourceInternal) {
-            Copy-Item $sourceInternal (Join-Path $caseRoot "_internal") -Recurse -Force
-        }
-        Get-ChildItem -Path $sourceBundle -File | Where-Object { $_.Name -ne $exeName } | Copy-Item -Destination $caseRoot -Force
+    if ((Split-Path $sourceBundle -Leaf) -eq "samotech_forensic") {
+        Get-ChildItem -Path $sourceBundle -Force | Copy-Item -Destination $caseRoot -Recurse -Force
     }
 
     $caseEvidence = [ordered]@{

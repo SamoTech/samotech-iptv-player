@@ -122,7 +122,17 @@ def test_forensic_execution_workflow_preserves_runtime_evidence() -> None:
         assert f"- {mode}" in workflow
     assert "actions/download-artifact@v4" in workflow
     assert "actions/upload-artifact@v4" in workflow
-    for required in ("_MEI", "Get-ModuleSnapshot", "packaged-vlc-test", "smoke-test", "exit_code"):
+    for required in (
+        "_MEI",
+        "Get-ModuleSnapshot",
+        "packaged-vlc-test",
+        "qt-only-test",
+        "smoke-test",
+        "timed_out",
+        "Get-ChildItem -Path $sourceBundle -Force | "
+        "Copy-Item -Destination $caseRoot -Recurse -Force",
+        "exit_code",
+    ):
         assert required in harness
 
 
