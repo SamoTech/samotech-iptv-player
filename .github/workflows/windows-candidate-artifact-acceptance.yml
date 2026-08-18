@@ -87,7 +87,9 @@ jobs:
             @{ Name = "sanitized-path"; Value = "$env:SystemRoot\System32;$env:SystemRoot" }
           )
           $records = @()
-          foreach ($case in $cases) {
+          $failureRecords = @()
+          try {
+            foreach ($case in $cases) {
             if (Test-Path $case.Root) { Remove-Item -Recurse -Force $case.Root }
             New-Item -ItemType Directory -Force -Path $case.Root | Out-Null
             $caseExe = Join-Path $case.Root "SamoTech-IPTV-Player-Windows-x64.exe"
@@ -105,6 +107,9 @@ jobs:
                     Remove-Item $diagnosticPath -Force -ErrorAction SilentlyContinue
                     $process = Start-Process -FilePath $caseExe -ArgumentList @($argument, "--diagnostic") -WorkingDirectory $cwd -PassThru
                     if (-not $process.WaitForExit(15 * 1000)) {
+                      $process.Refresh()
+                      $diagnosticState = if (Test-Path $diagnosticPath) { Get-Content $diagnosticPath -Raw } else { "<missing>" }
+                      $failureRecords += "$prefix timeout pid=$($process.Id) diagnostic=$diagnosticState"
                       Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
                       throw "$prefix timed out after 15 seconds"
                     }
@@ -128,6 +133,12 @@ jobs:
               }
             }
           }
+            }
+          } catch {
+            $failureRecords | Set-Content -Encoding utf8 candidate-acceptance-failures.txt
+            $records | Set-Content -Encoding utf8 candidate-acceptance-summary.txt
+            throw
+          }
           $records | Set-Content -Encoding utf8 candidate-acceptance-summary.txt
           $records | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
           Write-Host "candidate_matrix_cases=$($records.Count)"
@@ -139,5 +150,6 @@ jobs:
           name: windows-candidate-acceptance-${{ steps.identity.outputs.sha }}
           path: |
             candidate-acceptance-summary.txt
+            candidate-acceptance-failures.txt
             candidate-input/build/startup-diagnostics/*.json
           if-no-files-found: warn
