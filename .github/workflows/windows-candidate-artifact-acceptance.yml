@@ -133,7 +133,6 @@ jobs:
               }
             }
           }
-            }
           } catch {
             $failureRecords | Set-Content -Encoding utf8 candidate-acceptance-failures.txt
             $records | Set-Content -Encoding utf8 candidate-acceptance-summary.txt
