@@ -103,6 +103,22 @@ def test_forensic_build_driver_keeps_production_script_separate() -> None:
     assert "--workpath $workRoot" in script
 
 
+def test_forensic_execution_workflow_preserves_runtime_evidence() -> None:
+    workflow = (_ROOT / ".github/workflows/windows-forensic-execution.yml").read_text(
+        encoding="utf-8"
+    )
+    harness = (_ROOT / "scripts/run_windows_forensic_matrix.ps1").read_text(encoding="utf-8")
+    assert "actions: read" in workflow
+    assert "contents: read" in workflow
+    assert "forensic_run_id" in workflow
+    for mode in ("onedir", "onefile", "debug-bootloader", "debug-all"):
+        assert f"- {mode}" in workflow
+    assert "actions/download-artifact@v4" in workflow
+    assert "actions/upload-artifact@v4" in workflow
+    for required in ("_MEI", "Get-ModuleSnapshot", "packaged-vlc-test", "smoke-test", "exit_code"):
+        assert required in harness
+
+
 def test_exact_release_acceptance_workflow_is_blocking_and_artifact_focused() -> None:
     workflow = (_ROOT / ".github/workflows/windows-release-artifact-acceptance.yml").read_text(
         encoding="utf-8"

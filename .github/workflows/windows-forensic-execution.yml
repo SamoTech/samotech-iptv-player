@@ -1,0 +1,76 @@
+name: Windows Forensic Candidate Execution
+
+on:
+  workflow_dispatch:
+    inputs:
+      forensic_run_id:
+        description: "Successful Windows Forensic PyInstaller Builds run ID"
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  execute-forensic-candidate:
+    name: Execute forensic ${{ matrix.mode }} candidate
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        mode:
+          - onedir
+          - onefile
+          - debug-bootloader
+          - debug-all
+    steps:
+      - name: Checkout harness
+        uses: actions/checkout@v4
+
+      - name: Resolve forensic build identity
+        id: identity
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $run = gh run view "${{ inputs.forensic_run_id }}" --repo $env:GITHUB_REPOSITORY --json headSha | ConvertFrom-Json
+          if ([string]::IsNullOrWhiteSpace($run.headSha)) { throw "Forensic build run has no head SHA" }
+          "sha=$($run.headSha)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          Write-Host "Forensic build SHA: $($run.headSha)"
+
+      - name: Download exact forensic candidate
+        uses: actions/download-artifact@v4
+        with:
+          run-id: ${{ inputs.forensic_run_id }}
+          github-token: ${{ github.token }}
+          name: windows-forensic-${{ matrix.mode }}-${{ steps.identity.outputs.sha }}
+          path: forensic-input
+
+      - name: Locate candidate executable
+        id: candidate
+        shell: pwsh
+        run: |
+          $expected = "SamoTech-IPTV-Player-Windows-x64-forensic-${{ matrix.mode }}.exe"
+          $candidate = Get-ChildItem -Path forensic-input -Filter $expected -File -Recurse | Select-Object -First 1
+          if ($null -eq $candidate) { throw "Could not locate $expected in downloaded artifact" }
+          "path=$($candidate.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          Write-Host "Candidate: $($candidate.FullName)"
+
+      - name: Execute candidate path and extraction matrix
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path build\forensic-execution\${{ matrix.mode }} | Out-Null
+          .\scripts\run_windows_forensic_matrix.ps1 `
+            -Executable "${{ steps.candidate.outputs.path }}" `
+            -OutputRoot "build\forensic-execution\${{ matrix.mode }}" `
+            -RuntimeLabel "default"
+
+      - name: Upload execution evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-forensic-execution-${{ matrix.mode }}-${{ steps.identity.outputs.sha }}
+          path: |
+            build/forensic-execution/${{ matrix.mode }}/**
+            forensic-input/**
+          if-no-files-found: error
