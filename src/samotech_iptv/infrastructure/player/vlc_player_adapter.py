@@ -14,6 +14,7 @@ from urllib.parse import urlsplit
 
 import vlc  # type: ignore[import-untyped]
 
+from samotech_iptv.application.dtos.content import ContentType
 from samotech_iptv.application.dtos.playback import ResolvedPlayback
 from samotech_iptv.application.dtos.player import (
     AudioTrack,
@@ -49,6 +50,7 @@ _RecoveryReason = Literal[
     "BUFFERING_TIMEOUT",
     "START_TIMEOUT",
     "ENCOUNTERED_ERROR",
+    "STALLED",
 ]
 _PLAYER_IDS = count(1)
 
@@ -64,6 +66,7 @@ class _PlaybackState(StrEnum):
     STOPPING = "STOPPING"
     STOPPED = "STOPPED"
     FAILED = "FAILED"
+    ENDED = "ENDED"
 
 
 class _VlcMedia(Protocol):
@@ -153,6 +156,7 @@ class VlcPlayerAdapter(PlayerPort):
         live_recovery_max_delay_s: float = 8.0,
         live_buffering_timeout_s: float = 10.0,
         live_recovery_stability_s: float = 5.0,
+        live_stall_timeout_s: float = 15.0,
     ) -> None:
         if playback_mode not in {"auto", "hardware", "software"}:
             raise ValueError("playback_mode must be auto, hardware, or software")
@@ -169,6 +173,7 @@ class VlcPlayerAdapter(PlayerPort):
                 live_recovery_max_delay_s,
                 live_buffering_timeout_s,
                 live_recovery_stability_s,
+                live_stall_timeout_s,
             )
             < 0
         ):
@@ -187,6 +192,8 @@ class VlcPlayerAdapter(PlayerPort):
         self._live_recovery_max_delay_s = live_recovery_max_delay_s
         self._live_buffering_timeout_s = live_buffering_timeout_s
         self._live_recovery_stability_s = live_recovery_stability_s
+        self._live_stall_timeout_s = live_stall_timeout_s
+        self._live_liveness_poll_s = max(0.05, min(2.0, live_stall_timeout_s / 3))
         self._play_lock = asyncio.Lock()
         self._closed = False
         self._player_id = next(_PLAYER_IDS)
@@ -207,6 +214,9 @@ class VlcPlayerAdapter(PlayerPort):
         self._recovery_task: asyncio.Task[None] | None = None
         self._watchdog_task: asyncio.Task[None] | None = None
         self._stability_task: asyncio.Task[None] | None = None
+        self._liveness_task: asyncio.Task[None] | None = None
+        self._last_media_position_ms = -1
+        self._last_position_advance_at: float | None = None
         self._recovery_attempts = 0
         self._recovery_started_at: float | None = None
         self._subscribe_events()
@@ -773,7 +783,12 @@ class VlcPlayerAdapter(PlayerPort):
         """Cancel timers without awaiting the task that invoked this helper."""
         current_task = asyncio.current_task()
         tasks: list[asyncio.Task[None]] = []
-        for attribute in ("_recovery_task", "_watchdog_task", "_stability_task"):
+        for attribute in (
+            "_recovery_task",
+            "_watchdog_task",
+            "_stability_task",
+            "_liveness_task",
+        ):
             task = getattr(self, attribute)
             if task is not None and task is not current_task:
                 task.cancel()
@@ -822,11 +837,25 @@ class VlcPlayerAdapter(PlayerPort):
                 self._schedule_watchdog(media_generation, session_token, "BUFFERING_TIMEOUT")
                 return
             if event_name == "END":
-                await self._request_recovery("EOF", media_generation, session_token)
+                if self._is_live_recovery_target():
+                    await self._request_recovery("EOF", media_generation, session_token)
+                else:
+                    self._cancel_task("_watchdog_task")
+                    self._publish_state(_PlaybackState.ENDED, reason="NATURAL_END")
             elif event_name == "STOPPED":
-                await self._request_recovery("STOPPED", media_generation, session_token)
+                if self._is_live_recovery_target():
+                    await self._request_recovery("STOPPED", media_generation, session_token)
+                else:
+                    self._cancel_task("_watchdog_task")
+                    self._publish_state(_PlaybackState.STOPPED, reason="STOPPED")
             elif event_name == "ERROR":
-                await self._request_recovery("ENCOUNTERED_ERROR", media_generation, session_token)
+                if self._is_live_recovery_target():
+                    await self._request_recovery(
+                        "ENCOUNTERED_ERROR", media_generation, session_token
+                    )
+                else:
+                    self._cancel_task("_watchdog_task")
+                    self._publish_state(_PlaybackState.FAILED, reason="ENCOUNTERED_ERROR")
 
     def _schedule_watchdog(
         self,
@@ -1000,9 +1029,81 @@ class VlcPlayerAdapter(PlayerPort):
 
     def _cancel_task(self, attribute: str) -> None:
         task = getattr(self, attribute)
-        if task is not None and not task.done():
+        current_task = asyncio.current_task()
+        if task is not None and task is not current_task and not task.done():
             task.cancel()
         setattr(self, attribute, None)
+
+    def _is_live_resource(self, playback: ResolvedPlayback | None = None) -> bool:
+        active_playback = playback or self._current_playback
+        resource = active_playback.resource if active_playback is not None else None
+        return resource is not None and resource.content_type is ContentType.LIVE
+
+    def _is_live_recovery_target(self) -> bool:
+        """Preserve legacy URL-only live recovery while respecting typed VOD identity."""
+        playback = self._current_playback
+        if playback is None or playback.resource is None:
+            return True
+        return playback.resource.content_type is ContentType.LIVE
+
+    def _start_liveness_task(self, media_generation: int, session_token: int) -> None:
+        self._cancel_task("_liveness_task")
+        self._last_media_position_ms = -1
+        self._last_position_advance_at = time.perf_counter()
+        self._liveness_task = asyncio.create_task(
+            self._monitor_live_liveness(media_generation, session_token),
+            name=f"iptv-vlc-liveness-{self._player_id}-{media_generation}",
+        )
+
+    async def _monitor_live_liveness(self, media_generation: int, session_token: int) -> None:
+        """Detect a current live stream that remains PLAYING without media progress."""
+        try:
+            while True:
+                await asyncio.sleep(self._live_liveness_poll_s)
+                async with self._play_lock:
+                    if not self._is_current_live_session(media_generation, session_token):
+                        return
+                    if self._state is not _PlaybackState.PLAYING:
+                        return
+                    try:
+                        position_ms = await asyncio.to_thread(self._player.get_time)
+                    except Exception as exc:  # noqa: BLE001
+                        _LOG.debug(
+                            "[IPTV] PLAYBACK liveness sample unavailable error_type=%s",
+                            type(exc).__name__,
+                        )
+                        continue
+                    if not isinstance(position_ms, int) or position_ms < 0:
+                        continue
+                    now = time.perf_counter()
+                    if position_ms > self._last_media_position_ms:
+                        self._last_media_position_ms = position_ms
+                        self._last_position_advance_at = now
+                        provider_id, media_type, content_id, transport_type = (
+                            self._playback_context()
+                        )
+                        _LOG.info(
+                            "[IPTV] PLAYBACK_DIAGNOSTIC MEDIA_PROGRESS "
+                            "player_id=%d media_generation=%d position_ms=%d "
+                            "provider_id=%s media_type=%s content_id=%s transport_type=%s",
+                            self._player_id,
+                            media_generation,
+                            position_ms,
+                            provider_id,
+                            media_type,
+                            content_id,
+                            transport_type,
+                        )
+                        continue
+                    last_advance = self._last_position_advance_at
+                    if (
+                        last_advance is not None
+                        and now - last_advance >= self._live_stall_timeout_s
+                    ):
+                        await self._request_recovery("STALLED", media_generation, session_token)
+                        return
+        except asyncio.CancelledError:
+            return
 
     def _recovery_delay_s(self, attempt: int) -> float:
         multiplier = float(2 ** max(0, attempt - 1))
@@ -1122,6 +1223,7 @@ class VlcPlayerAdapter(PlayerPort):
             _PlaybackState.STOPPING: PlaybackState.STOPPING,
             _PlaybackState.STOPPED: PlaybackState.STOPPED,
             _PlaybackState.FAILED: PlaybackState.ERROR,
+            _PlaybackState.ENDED: PlaybackState.ENDED,
         }[state]
         if reset_context:
             self._state_machine.reset_context(
@@ -1140,9 +1242,15 @@ class VlcPlayerAdapter(PlayerPort):
         provider_id, media_type, content_id, transport_type = self._playback_context()
         error_classification = (
             reason
-            if reason in {"EOF", "STOPPED", "BUFFERING_TIMEOUT", "ENCOUNTERED_ERROR"}
+            if reason in {"EOF", "STOPPED", "BUFFERING_TIMEOUT", "ENCOUNTERED_ERROR", "STALLED"}
             else "<none>"
         )
+        if state is _PlaybackState.PLAYING and self._is_live_resource():
+            self._start_liveness_task(self._media_generation, self._session_token)
+        elif state is not _PlaybackState.PLAYING:
+            self._cancel_task("_liveness_task")
+            self._last_media_position_ms = -1
+            self._last_position_advance_at = None
         _LOG.info(
             "[IPTV] PLAYBACK_DIAGNOSTIC STATE player_id=%d media_generation=%d "
             "from_state=%s to_state=%s reason=%s error_classification=%s "

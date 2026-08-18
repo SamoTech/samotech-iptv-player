@@ -10,7 +10,12 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from samotech_iptv.application.dtos.playback import PlaybackOutcome, PlaybackTarget
+from samotech_iptv.application.dtos.playback import (
+    PlaybackOutcome,
+    PlaybackResource,
+    PlaybackTarget,
+    ResolvedPlayback,
+)
 from samotech_iptv.application.dtos.player import PlaybackState
 from samotech_iptv.application.use_cases.play_playback_target import PlayPlaybackTarget
 from samotech_iptv.domain.value_objects.url import URL
@@ -41,6 +46,7 @@ class FakePlayer:
     def __init__(self) -> None:
         self.media: FakeMedia | None = None
         self.playing = False
+        self.media_time_ms = 0
         self.calls: list[str] = []
         self.audio_descriptions: object = [(1, "English"), (2, b"Commentary")]
         self.audio_active = 1
@@ -70,6 +76,9 @@ class FakePlayer:
     def pause(self) -> None:
         self.calls.append("pause")
         self.playing = False
+
+    def get_time(self) -> int:
+        return self.media_time_ms
 
     def audio_get_track_description(self) -> object:
         return self.audio_descriptions
@@ -552,6 +561,180 @@ async def test_native_events_update_public_state_for_current_generation(
     await _flush_asyncio()
     assert adapter.state is PlaybackState.BUFFERING
 
+    await adapter.close()
+
+
+@pytest.mark.asyncio
+async def test_live_stall_triggers_liveness_recovery(monkeypatch: pytest.MonkeyPatch) -> None:
+    player = EventPlayer()
+    adapter, event_types = _event_adapter(
+        monkeypatch,
+        player,
+        live_stall_timeout_s=0.05,
+        live_recovery_initial_delay_s=0,
+        live_recovery_stability_s=60,
+    )
+    playback = ResolvedPlayback(
+        URL("https://example.test/live.m3u8"),
+        resource=PlaybackResource.live("provider", "channel"),
+    )
+
+    await adapter.play(playback)
+    player.events.emit(event_types.MediaPlayerPlaying)
+    await _flush_asyncio()
+    await asyncio.sleep(0.12)
+    await _flush_asyncio()
+
+    assert player.calls == ["play", "stop", "play"]
+    assert adapter._media_generation == 2
+    await adapter.close()
+
+
+@pytest.mark.asyncio
+async def test_live_position_advancement_prevents_stall_recovery(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    player = EventPlayer()
+    adapter, event_types = _event_adapter(
+        monkeypatch,
+        player,
+        live_stall_timeout_s=0.15,
+        live_recovery_initial_delay_s=0,
+        live_recovery_stability_s=60,
+    )
+    playback = ResolvedPlayback(
+        URL("https://example.test/live.m3u8"),
+        resource=PlaybackResource.live("provider", "channel"),
+    )
+
+    await adapter.play(playback)
+    player.events.emit(event_types.MediaPlayerPlaying)
+    await _flush_asyncio()
+    await asyncio.sleep(0.08)
+    player.media_time_ms = 1_000
+    await asyncio.sleep(0.08)
+    await _flush_asyncio()
+
+    assert player.calls == ["play"]
+    await adapter.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "resource",
+    [
+        PlaybackResource.movie("provider", "movie", "resource"),
+        PlaybackResource.episode(
+            "provider",
+            "episode",
+            "resource",
+            "series",
+            1,
+            1,
+        ),
+    ],
+)
+async def test_non_live_end_reaches_normal_completion_without_recovery(
+    monkeypatch: pytest.MonkeyPatch,
+    resource: PlaybackResource,
+) -> None:
+    player = EventPlayer()
+    adapter, _ = _event_adapter(monkeypatch, player, live_recovery_initial_delay_s=0)
+    playback = ResolvedPlayback(URL("https://example.test/vod.mp4"), resource=resource)
+
+    await adapter.play(playback)
+    await adapter._handle_native_event("PLAYING", adapter._media_generation, adapter._session_token)
+    await adapter._handle_native_event("END", adapter._media_generation, adapter._session_token)
+    await _flush_asyncio()
+
+    assert player.calls == ["play"]
+    assert adapter.state is PlaybackState.ENDED
+    await adapter.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("event_name", "expected_state"),
+    [("STOPPED", PlaybackState.STOPPED), ("ERROR", PlaybackState.ERROR)],
+)
+async def test_non_live_failure_events_do_not_trigger_recovery(
+    monkeypatch: pytest.MonkeyPatch,
+    event_name: str,
+    expected_state: PlaybackState,
+) -> None:
+    player = EventPlayer()
+    adapter, _ = _event_adapter(monkeypatch, player, live_recovery_initial_delay_s=0)
+    playback = ResolvedPlayback(
+        URL("https://example.test/vod.mp4"),
+        resource=PlaybackResource.movie("provider", "movie", "resource"),
+    )
+
+    await adapter.play(playback)
+    await adapter._handle_native_event("PLAYING", adapter._media_generation, adapter._session_token)
+    await adapter._handle_native_event(
+        event_name, adapter._media_generation, adapter._session_token
+    )
+    await _flush_asyncio()
+
+    assert player.calls == ["play"]
+    assert adapter.state is expected_state
+    await adapter.close()
+
+
+@pytest.mark.asyncio
+async def test_liveness_task_cancelled_on_stop(monkeypatch: pytest.MonkeyPatch) -> None:
+    player = EventPlayer()
+    adapter, event_types = _event_adapter(
+        monkeypatch,
+        player,
+        live_stall_timeout_s=60,
+        live_recovery_stability_s=60,
+    )
+    playback = ResolvedPlayback(
+        URL("https://example.test/live.m3u8"),
+        resource=PlaybackResource.live("provider", "channel"),
+    )
+
+    await adapter.play(playback)
+    player.events.emit(event_types.MediaPlayerPlaying)
+    await _flush_asyncio()
+    assert adapter._liveness_task is not None
+
+    await adapter.stop()
+
+    assert adapter._liveness_task is None
+    assert player.calls == ["play", "stop"]
+    await adapter.close()
+
+
+@pytest.mark.asyncio
+async def test_liveness_task_cancelled_on_channel_switch(monkeypatch: pytest.MonkeyPatch) -> None:
+    player = EventPlayer()
+    adapter, event_types = _event_adapter(
+        monkeypatch,
+        player,
+        live_stall_timeout_s=60,
+        live_recovery_stability_s=60,
+    )
+    first = ResolvedPlayback(
+        URL("https://example.test/first.m3u8"),
+        resource=PlaybackResource.live("provider", "first"),
+    )
+    second = ResolvedPlayback(
+        URL("https://example.test/second.m3u8"),
+        resource=PlaybackResource.live("provider", "second"),
+    )
+
+    await adapter.play(first)
+    player.events.emit(event_types.MediaPlayerPlaying)
+    await _flush_asyncio()
+    assert adapter._liveness_task is not None
+
+    await adapter.play(second)
+
+    assert adapter._liveness_task is None
+    assert player.media is not None
+    assert player.media.url == second.url.value
     await adapter.close()
 
 
