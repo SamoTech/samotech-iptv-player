@@ -115,6 +115,7 @@ foreach ($case in $caseRoots) {
     $vlcOutput = Join-Path $OutputRoot "$($case.Name)-packaged-vlc.output.txt"
     $env:SAMOTECH_STARTUP_DIAGNOSTIC_PATH = $vlcDiag
     Remove-Item $vlcDiag -Force -ErrorAction SilentlyContinue
+    $global:LASTEXITCODE = 0
     & $caseExe --packaged-vlc-test --diagnostic *> $vlcOutput
     $caseEvidence.packaged_vlc.exit_code = $LASTEXITCODE
     $caseEvidence.packaged_vlc.diagnostic_exists = Test-Path $vlcDiag
@@ -126,6 +127,7 @@ foreach ($case in $caseRoots) {
     $smokeOutput = Join-Path $OutputRoot "$($case.Name)-smoke.output.txt"
     $env:SAMOTECH_STARTUP_DIAGNOSTIC_PATH = $smokeDiag
     Remove-Item $smokeDiag -Force -ErrorAction SilentlyContinue
+    $global:LASTEXITCODE = 0
     & $caseExe --smoke-test --diagnostic *> $smokeOutput
     $caseEvidence.smoke.exit_code = $LASTEXITCODE
     $caseEvidence.smoke.diagnostic_exists = Test-Path $smokeDiag
