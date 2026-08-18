@@ -1,0 +1,143 @@
+name: Windows Candidate Artifact Acceptance
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_run_id:
+        description: "Successful production Windows build workflow run ID"
+        required: true
+        type: string
+      expected_version:
+        description: "Expected application version embedded in the candidate"
+        required: true
+        default: "0.1.3"
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  candidate-acceptance:
+    name: Validate exact candidate artifact on Windows
+    runs-on: windows-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      EXPECTED_VERSION: ${{ inputs.expected_version }}
+    steps:
+      - name: Checkout acceptance harness
+        uses: actions/checkout@v4
+
+      - name: Resolve exact build artifact identity
+        id: identity
+        shell: pwsh
+        run: |
+          $run = gh run view "${{ inputs.build_run_id }}" --repo $env:GITHUB_REPOSITORY --json headSha,conclusion | ConvertFrom-Json
+          if ($run.conclusion -ne "success") { throw "Build run conclusion was not success: $($run.conclusion)" }
+          if ([string]::IsNullOrWhiteSpace($run.headSha)) { throw "Build run has no head SHA" }
+          "sha=$($run.headSha)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          Write-Host "Candidate build SHA: $($run.headSha)"
+
+      - name: Download exact candidate artifact
+        uses: actions/download-artifact@v4
+        with:
+          run-id: ${{ inputs.build_run_id }}
+          github-token: ${{ github.token }}
+          name: windows-portable-${{ steps.identity.outputs.sha }}
+          path: candidate-input
+
+      - name: Verify exact candidate checksum, PE metadata, and inventory
+        shell: pwsh
+        run: |
+          $releaseRoot = Resolve-Path "candidate-input\dist\release"
+          $exe = Get-ChildItem $releaseRoot -Filter "*.exe" -File | Select-Object -First 1
+          if ($null -eq $exe) { throw "Candidate EXE missing from downloaded artifact" }
+          $manifest = Join-Path $releaseRoot "SHA256SUMS.txt"
+          if (-not (Test-Path $manifest)) { throw "Candidate SHA256SUMS.txt missing" }
+          $expectedHash = (Get-Content $manifest | Select-Object -First 1).Split()[0].ToLowerInvariant()
+          $actualHash = (Get-FileHash -Algorithm SHA256 $exe.FullName).Hash.ToLowerInvariant()
+          if ($expectedHash -ne $actualHash) { throw "Candidate checksum mismatch" }
+          $version = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($exe.FullName)
+          if ($version.FileVersion -ne $env:EXPECTED_VERSION) { throw "FileVersion mismatch: $($version.FileVersion)" }
+          if ($version.ProductVersion -ne $env:EXPECTED_VERSION) { throw "ProductVersion mismatch: $($version.ProductVersion)" }
+          "RELEASE_EXE=$($exe.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "ARTIFACT_SHA256=$actualHash" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          Write-Host "artifact=$($exe.Name)"
+          Write-Host "size_bytes=$($exe.Length)"
+          Write-Host "sha256=$actualHash"
+          Write-Host "file_version=$($version.FileVersion)"
+          Write-Host "product_version=$($version.ProductVersion)"
+
+      - name: Execute exact candidate across path and environment matrix
+        shell: pwsh
+        env:
+          QT_QPA_PLATFORM: windows
+        run: |
+          $sourceExe = Resolve-Path $env:RELEASE_EXE
+          $cases = @(
+            @{ Name = "c-drive"; Root = (Join-Path $env:SystemDrive "SamoTech Portable Acceptance"); Cwd = $null },
+            @{ Name = "spaces"; Root = (Join-Path $env:RUNNER_TEMP "SamoTech Portable Acceptance"); Cwd = $null },
+            @{ Name = "unicode"; Root = (Join-Path $env:RUNNER_TEMP "SamoTech Portable Acceptance 测试"); Cwd = $null },
+            @{ Name = "downloads-like"; Root = (Join-Path $env:USERPROFILE "Downloads\SamoTech Portable Acceptance"); Cwd = $null },
+            @{ Name = "temporary"; Root = (Join-Path $env:TEMP "SamoTech Portable Acceptance"); Cwd = $null },
+            @{ Name = "arbitrary-cwd"; Root = (Join-Path $env:RUNNER_TEMP "SamoTech Portable Acceptance CWD"); Cwd = $env:SystemRoot }
+          )
+          $pathModes = @(
+            @{ Name = "normal-path"; Value = $env:Path },
+            @{ Name = "sanitized-path"; Value = "$env:SystemRoot\System32;$env:SystemRoot" }
+          )
+          $records = @()
+          foreach ($case in $cases) {
+            if (Test-Path $case.Root) { Remove-Item -Recurse -Force $case.Root }
+            New-Item -ItemType Directory -Force -Path $case.Root | Out-Null
+            $caseExe = Join-Path $case.Root "SamoTech-IPTV-Player-Windows-x64.exe"
+            Copy-Item $sourceExe $caseExe -Force
+            $cwd = if ($null -eq $case.Cwd) { $case.Root } else { $case.Cwd }
+            foreach ($pathMode in $pathModes) {
+              foreach ($launchNumber in @(1, 2)) {
+                foreach ($argument in @("--packaged-vlc-test", "--smoke-test")) {
+                  $prefix = "$($case.Name)-$($pathMode.Name)-launch$launchNumber-$($argument.TrimStart('-'))"
+                  $diagnosticPath = Join-Path $case.Root "$prefix.startup-diagnostic.json"
+                  $oldPath = $env:Path
+                  try {
+                    $env:Path = $pathMode.Value
+                    $env:SAMOTECH_STARTUP_DIAGNOSTIC_PATH = $diagnosticPath
+                    Remove-Item $diagnosticPath -Force -ErrorAction SilentlyContinue
+                    $process = Start-Process -FilePath $caseExe -ArgumentList @($argument, "--diagnostic") -WorkingDirectory $cwd -PassThru
+                    if (-not $process.WaitForExit(15 * 1000)) {
+                      Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+                      throw "$prefix timed out after 15 seconds"
+                    }
+                    $process.Refresh()
+                    if ($process.ExitCode -ne 0) { throw "$prefix exited with $($process.ExitCode)" }
+                    if (-not (Test-Path $diagnosticPath)) { throw "$prefix did not produce a startup diagnostic" }
+                    $diagnostic = Get-Content $diagnosticPath -Raw | ConvertFrom-Json
+                    if ($diagnostic.status -ne "ready") { throw "$prefix diagnostic status was not ready" }
+                    if ($argument -eq "--packaged-vlc-test" -and $diagnostic.last_successful_stage -ne "VLC_READY") { throw "$prefix did not reach VLC_READY" }
+                    if ($argument -eq "--smoke-test") {
+                      if ($diagnostic.last_successful_stage -ne "APPLICATION_READY") { throw "$prefix did not reach APPLICATION_READY" }
+                      if ($diagnostic.completed_stages -notcontains "VLC_READY") { throw "$prefix did not record VLC_READY" }
+                      if ($diagnostic.completed_stages -notcontains "MAIN_WINDOW_SHOWN") { throw "$prefix did not record MAIN_WINDOW_SHOWN" }
+                    }
+                    $records += "$prefix exit_code=$($process.ExitCode) startup_stage=$($diagnostic.last_successful_stage)"
+                  } finally {
+                    $env:Path = $oldPath
+                    Remove-Item Env:SAMOTECH_STARTUP_DIAGNOSTIC_PATH -ErrorAction SilentlyContinue
+                  }
+                }
+              }
+            }
+          }
+          $records | Set-Content -Encoding utf8 candidate-acceptance-summary.txt
+          $records | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+          Write-Host "candidate_matrix_cases=$($records.Count)"
+
+      - name: Upload exact-candidate acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-candidate-acceptance-${{ steps.identity.outputs.sha }}
+          path: |
+            candidate-acceptance-summary.txt
+            candidate-input/build/startup-diagnostics/*.json
+          if-no-files-found: warn

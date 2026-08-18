@@ -137,6 +137,25 @@ def test_forensic_execution_workflow_preserves_runtime_evidence() -> None:
         assert required in harness
 
 
+def test_exact_candidate_acceptance_workflow_is_blocking_and_artifact_focused() -> None:
+    workflow = (_ROOT / ".github/workflows/windows-candidate-artifact-acceptance.yml").read_text(
+        encoding="utf-8"
+    )
+    assert "actions: read" in workflow
+    assert "contents: read" in workflow
+    assert "build_run_id" in workflow
+    assert "actions/download-artifact@v4" in workflow
+    assert "actions/upload-artifact@v4" in workflow
+    assert "foreach ($case in $cases)" in workflow
+    assert "foreach ($pathMode in $pathModes)" in workflow
+    assert "foreach ($launchNumber in @(1, 2))" in workflow
+    assert "--packaged-vlc-test" in workflow
+    assert "--smoke-test" in workflow
+    assert "MAIN_WINDOW_SHOWN" in workflow
+    assert "WaitForExit(15 * 1000)" in workflow
+    assert "Stop-Process -Id $process.Id -Force" in workflow
+
+
 def test_exact_release_acceptance_workflow_is_blocking_and_artifact_focused() -> None:
     workflow = (_ROOT / ".github/workflows/windows-release-artifact-acceptance.yml").read_text(
         encoding="utf-8"
