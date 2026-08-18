@@ -22,14 +22,14 @@ SamoTech IPTV Player connects authorized IPTV sources through isolated provider 
 
 | Area | Current evidence |
 |---|---|
-| Latest published release | [`v0.1.1`](https://github.com/SamoTech/samotech-iptv-player/releases/tag/v0.1.1), Windows x64 portable EXE and SHA256 manifest |
-| Exact release acceptance | The published `v0.1.1` EXE passed **48/48** executions across six locations, normal and sanitized PATH, first/second launch, packaged-VLC smoke, and Qt smoke in [run 32028755849][4] |
+| Latest published release | [`v0.1.4`](https://github.com/SamoTech/samotech-iptv-player/releases/tag/v0.1.4), Windows x64 portable EXE and SHA256 manifest |
+| Exact release acceptance | The published `v0.1.4` EXE passed **48/48** executions across six locations, normal and sanitized PATH, first/second launch, packaged-VLC smoke, and Qt smoke in [run 32143064567][4] |
 | Security logging | Central pre-logger redaction, canary regression tests, blocking CI gate, and CodeQL closure evidence for the High-severity logging findings in [the security audit][5] |
-| Windows incident status | **D — ROOT CAUSE NOT YET PROVEN.** The exact published artifact passes independent hosted-Windows validation, but the beta machine’s failure details were not supplied; see [the forensic audit][6] |
+| Windows incident status | **v0.1.3 root cause PROVEN; v0.1.4 hosted-Windows acceptance PASS.** The original real Windows 11 client was not re-tested; see [the protocol/playback architecture](docs/PROTOCOL_PLAYBACK_ARCHITECTURE.md) and [the forensic audit][6] |
 | Architecture | Clean Architecture boundaries across domain, application, infrastructure, presentation, provider adapters, and `PlayerPort`/libVLC |
 | License | MIT |
 
-> **Important:** Passing CI or hosted-Windows acceptance does not prove universal consumer-Windows compatibility, SmartScreen reputation, populated real-provider compatibility, or resolution of an undocumented beta-machine incident.
+> **Important:** Passing CI or hosted-Windows acceptance does not prove universal consumer-Windows compatibility, SmartScreen reputation, populated real-provider compatibility, or acceptance on the original Windows 11 client. Read the [protocol/playback architecture](docs/PROTOCOL_PLAYBACK_ARCHITECTURE.md) for the current evidence boundaries.
 
 ## What the application provides
 
@@ -132,9 +132,9 @@ The entry point composes safe local state, restores registered provider metadata
 
 ## Windows portable release
 
-The [Windows Portable EXE workflow](.github/workflows/windows-portable-build.yml) builds a single-file Windows x64 executable with Python, PySide6, `python-vlc`, Qt runtime components, libVLC, libVLCcore, and the VLC plugin tree bundled into the artifact. End users do not need a separate Python, PySide6, `python-vlc`, or VLC installation for the packaged runtime contract.
+The [Windows Portable EXE workflow](.github/workflows/windows-portable-build.yml) builds a single-file Windows x64 executable with Python, PySide6, `python-vlc`, Qt runtime components, libVLC, libVLCcore, and the VLC plugin tree bundled into the artifact. End users do not need a separate Python, PySide6, `python-vlc`, or VLC installation for the packaged runtime contract. The exact published v0.1.4 artifact passed the release acceptance matrix, while the current provider/media-plane boundaries and real-provider limitations are documented in [PROTOCOL_PLAYBACK_ARCHITECTURE.md](docs/PROTOCOL_PLAYBACK_ARCHITECTURE.md).
 
-The current release is [`v0.1.1`](https://github.com/SamoTech/samotech-iptv-player/releases/tag/v0.1.1). Download the executable and its checksum manifest from the [GitHub Release page](https://github.com/SamoTech/samotech-iptv-player/releases/tag/v0.1.1). The release asset is independently verified by [Windows Release Artifact Acceptance run 32028755849][4], which executes the exact published asset rather than only a freshly built workspace copy.
+The current release is [`v0.1.4`](https://github.com/SamoTech/samotech-iptv-player/releases/tag/v0.1.4). Download the executable and its checksum manifest from the [GitHub Release page](https://github.com/SamoTech/samotech-iptv-player/releases/tag/v0.1.4). The release asset is independently verified by [Windows Release Artifact Acceptance run 32143064567][4], which executes the exact published asset rather than only a freshly built workspace copy.
 
 The permanent acceptance workflow checks:
 
@@ -145,7 +145,7 @@ The permanent acceptance workflow checks:
 - normal and sanitized PATH; and
 - first and second launches with explicit exit-code and timeout checks.
 
-The exact `v0.1.1` artifact passed all **48/48** executions in the expanded hosted-Windows matrix. This does not establish SmartScreen reputation, Authenticode signing, ARM64 support, consumer antivirus behavior, or full manual GUI/provider acceptance. See [WINDOWS_PORTABLE_EXE_BETA_FAILURE_FORENSIC_AUDIT.md](WINDOWS_PORTABLE_EXE_BETA_FAILURE_FORENSIC_AUDIT.md) and [ZERO_TOUCH_WINDOWS_RELEASE_AUDIT.md](ZERO_TOUCH_WINDOWS_RELEASE_AUDIT.md).
+The exact `v0.1.4` artifact passed all **48/48** executions in the expanded hosted-Windows matrix. This does not establish SmartScreen reputation, Authenticode signing, ARM64 support, consumer antivirus behavior, populated real-provider compatibility, or full manual GUI/provider acceptance. See [WINDOWS_SILENT_EXIT_FORENSIC_AUDIT.md](WINDOWS_SILENT_EXIT_FORENSIC_AUDIT.md), [PROTOCOL_PLAYBACK_ARCHITECTURE.md](docs/PROTOCOL_PLAYBACK_ARCHITECTURE.md), and [ZERO_TOUCH_WINDOWS_RELEASE_AUDIT.md](ZERO_TOUCH_WINDOWS_RELEASE_AUDIT.md).
 
 ## Security model
 
@@ -198,9 +198,10 @@ plugins/             Reference trusted local provider plugin
 | [PROJECT_STATUS.md](PROJECT_STATUS.md) | Current implementation matrix and known limitations |
 | [ROADMAP.md](ROADMAP.md) | Delivery sequence and next milestones |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Clean Architecture and runtime composition |
+| [docs/PROTOCOL_PLAYBACK_ARCHITECTURE.md](docs/PROTOCOL_PLAYBACK_ARCHITECTURE.md) | Current M3U, Xtream, MAG/Stalker, control/media plane, libVLC, buffering, recovery, and KiddaC comparison |
 | [SECURITY.md](SECURITY.md) | Security policy and safe-diagnostics rules |
 | [SECURITY_CODEQL_LOGGING_REMEDIATION_AUDIT.md](SECURITY_CODEQL_LOGGING_REMEDIATION_AUDIT.md) | Sensitive-logging remediation and CodeQL evidence |
-| [WINDOWS_PORTABLE_EXE_BETA_FAILURE_FORENSIC_AUDIT.md](WINDOWS_PORTABLE_EXE_BETA_FAILURE_FORENSIC_AUDIT.md) | Exact-release Windows incident investigation |
+| [WINDOWS_SILENT_EXIT_FORENSIC_AUDIT.md](WINDOWS_SILENT_EXIT_FORENSIC_AUDIT.md) | Authoritative v0.1.3/v0.1.4 Windows silent-exit investigation |
 | [ZERO_TOUCH_WINDOWS_RELEASE_AUDIT.md](ZERO_TOUCH_WINDOWS_RELEASE_AUDIT.md) | Windows build/release pipeline evidence |
 | [REAL_WORLD_IPTV_COMMERCIAL_VALIDATION_AUDIT.md](REAL_WORLD_IPTV_COMMERCIAL_VALIDATION_AUDIT.md) | Commercial reliability validation and limitations |
 | [COMMERCIAL_SUBTITLE_FINAL_AUDIT.md](COMMERCIAL_SUBTITLE_FINAL_AUDIT.md) | Provider health, search, subtitle, and playback hardening evidence |
@@ -211,7 +212,7 @@ plugins/             Reference trusted local provider plugin
 
 The project is intentionally evidence-driven. The remaining high-value work includes populated authorized-provider acceptance, broader MAG/Ministra portal compatibility, full manual Windows GUI acceptance, SmartScreen/code-signing strategy, ARM64 packaging, installer/update distribution, richer XMLTV scheduling and catch-up, and provider-neutral archive playback.
 
-The current Windows beta incident remains classified **D — ROOT CAUSE NOT YET PROVEN** because the tester’s exact symptom and machine environment were not available. Do not infer a fix from hosted-runner success, and do not claim real-provider compatibility from synthetic or local protocol tests.
+The published v0.1.3 Windows silent-exit mechanism is **PROVEN** to be the missing frozen-script `__main__` guard; the corrected v0.1.4 release passed exact published-artifact acceptance on the available hosted Windows environment. The original Windows 11 client and Windows 10 remain **NOT TESTED**, and hosted-runner success does not establish populated real-provider compatibility or consumer endpoint-security behavior. See [WINDOWS_SILENT_EXIT_FORENSIC_AUDIT.md](WINDOWS_SILENT_EXIT_FORENSIC_AUDIT.md) and [docs/PROTOCOL_PLAYBACK_ARCHITECTURE.md](docs/PROTOCOL_PLAYBACK_ARCHITECTURE.md).
 
 Development follows the repository’s direct-to-`main` quality sequence:
 
@@ -227,7 +228,7 @@ If SamoTech IPTV Player is useful to you, you can support continued development 
 
 SamoTech IPTV Player thanks **KiddaC** for the engineering work behind [EStalker](https://github.com/kiddac/EStalker) and [XStreamity](https://github.com/kiddac/XStreamity). These public repositories were studied as technical references for practical IPTV patterns, including Xtream/Stalker workflows, catalogue handling, Series/Season/Episode navigation, provider behavior, playback resolution, and related engineering concerns.
 
-SamoTech IPTV Player is an independent project and is **not a clone of EStalker or XStreamity**. Their Enigma2-specific architecture, UI, global-state model, service/decoder APIs, and legacy persistence model were not adopted as SamoTech architecture. No external source code was copied into this implementation, and no partnership, endorsement, ownership, or code-reuse claim is made. Readers should respect the original projects and any license or attribution terms they publish.
+SamoTech IPTV Player is an independent project and is **not a clone of EStalker or XStreamity**. Their Enigma2-specific architecture, UI, global-state model, service/decoder APIs, and legacy persistence model were not adopted as SamoTech architecture. In particular, Enigma2 service/player values such as `1`, `4097`, `5001`, `5002`, and `8193` are **not generic IPTV or VLC protocols**; they select Enigma2 playback backends and must not be copied into the Windows/libVLC player. No external source code was copied into this implementation, and no partnership, endorsement, ownership, or code-reuse claim is made. Readers should respect the original projects and any license or attribution terms they publish.
 
 ## License
 
@@ -236,6 +237,6 @@ MIT — see [LICENSE](LICENSE).
 [1]: https://github.com/SamoTech/samotech-iptv-player "SamoTech IPTV Player repository"
 [2]: https://github.com/SamoTech/samotech-iptv-player/releases/tag/v0.1.1 "SamoTech IPTV Player v0.1.1 release"
 [3]: https://github.com/SamoTech/samotech-iptv-player/actions/workflows/windows-release-artifact-acceptance.yml "Exact-release Windows acceptance workflow"
-[4]: https://github.com/SamoTech/samotech-iptv-player/actions/runs/32028755849 "Expanded exact-release Windows acceptance run"
+[4]: https://github.com/SamoTech/samotech-iptv-player/actions/runs/32143064567 "Exact published v0.1.4 Windows acceptance run"
 [5]: https://github.com/SamoTech/samotech-iptv-player/blob/main/SECURITY_CODEQL_LOGGING_REMEDIATION_AUDIT.md "Security and CodeQL remediation audit"
-[6]: https://github.com/SamoTech/samotech-iptv-player/blob/main/WINDOWS_PORTABLE_EXE_BETA_FAILURE_FORENSIC_AUDIT.md "Windows portable EXE beta failure forensic audit"
+[6]: https://github.com/SamoTech/samotech-iptv-player/blob/main/WINDOWS_SILENT_EXIT_FORENSIC_AUDIT.md "Authoritative Windows silent-exit forensic audit"

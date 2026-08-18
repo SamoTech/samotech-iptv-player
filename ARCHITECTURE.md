@@ -67,7 +67,11 @@ Current provider adapters are capability-oriented. A provider implements only th
 
 The application’s `PlayChannel` use case resolves an authorized canonical URL through `PlaybackProvider` and passes it to `PlayerPort`. `PlayRegisteredChannel` first resolves the selected provider from the provider resolver, then delegates the same provider-to-player boundary. Xtream’s `MoviePlaybackProvider`, `EpisodePlaybackProvider`, and `SeriesDetailProvider` use the same provider-neutral seam: the adapter resolves provider-specific resources, the application coordinates generation-safe playback, and `PlayerPort` consumes only `ResolvedPlayback`. The Qt presentation layer does not construct Xtream URLs or access credentials. Non-live UI handlers also carry a provider/content/action generation and reject stale, switched-provider, navigated-away, or disposed-owner completions before state or playback mutation.
 
-**libVLC through `python-vlc` is the sole supported player and recording backend.** The current adapter supports play, pause, resume, stop, active-state checks, native output attachment, and duplicate-output local `.ts` recording. The architecture does not currently support MPV, WinRT, FFmpeg, or another desktop media backend.
+**libVLC through `python-vlc` is the sole supported player and recording backend.** The current adapter supports play, pause, resume, stop, active-state checks, native output attachment, and duplicate-output local `.ts` recording. The architecture does not currently support MPV, WinRT, FFmpeg, or another desktop media backend. The detailed current-state source/protocol/media-plane mapping is maintained in [docs/PROTOCOL_PLAYBACK_ARCHITECTURE.md](docs/PROTOCOL_PLAYBACK_ARCHITECTURE.md).
+
+## Current protocol and media-plane boundary
+
+M3U, Xtream Codes, and MAG/Stalker are provider/source control-plane integrations, not VLC protocols. They resolve catalogue records and, where the current contract permits, produce an HTTP(S) `ResolvedPlayback` target. libVLC then owns network input, buffering, demuxing, decoding, and rendering. The domain can classify additional URI schemes, but the current executable `URL` boundary accepts only HTTP(S); classification is not a playback-support promise. Enigma2 service/player values such as `1`, `4097`, `5001`, `5002`, and `8193` belong to KiddaC’s Enigma2 backend selection and must not be copied into SamoTech’s libVLC layer. See [docs/PROTOCOL_PLAYBACK_ARCHITECTURE.md](docs/PROTOCOL_PLAYBACK_ARCHITECTURE.md).
 
 ## Desktop composition status
 
