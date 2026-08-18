@@ -11,6 +11,7 @@ $ErrorActionPreference = "Stop"
 
 $resolvedExe = (Resolve-Path $Executable).Path
 New-Item -ItemType Directory -Force -Path $OutputRoot | Out-Null
+$OutputRoot = (Resolve-Path $OutputRoot).Path
 $evidence = [ordered]@{
     mode = ""
     runtime_label = $RuntimeLabel
