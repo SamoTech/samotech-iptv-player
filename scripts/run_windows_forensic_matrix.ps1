@@ -76,7 +76,7 @@ function Invoke-ForensicCaseProcess {
         -ArgumentList @($Argument, "--diagnostic") `
         -WorkingDirectory $WorkingDirectory `
         -PassThru
-    if (-not $process.WaitForExit(90 * 1000)) {
+    if (-not $process.WaitForExit(15 * 1000)) {
         $process.Kill()
         $process.WaitForExit()
         return [pscustomobject]@{ ExitCode = -2; TimedOut = $true }
