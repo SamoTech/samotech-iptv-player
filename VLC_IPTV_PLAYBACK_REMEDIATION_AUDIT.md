@@ -198,6 +198,40 @@ This is stronger than a GUI, process, DLL, or startup pass: the adapter now has 
 
 The release was intentionally not created. Creating a new semantic version, annotated tag, GitHub Release, SHA256SUMS, and published EXE before the blocking real-playback gate passed would violate the Phase 22 specification and could misrepresent synthetic or startup validation as real IPTV acceptance.
 
+## PHASE 23 — ZERO-TOUCH RELEASE WAIVER
+
+### Release-management authorization
+
+**RELEASE AUTHORIZATION: EXPLICIT ZERO-TOUCH RELEASE-MANAGEMENT WAIVER**.
+
+The historical Phase 22 decision remains preserved exactly as **C — NOT ACCEPTED** for its original requirement set. Phase 23 supersedes that decision only as a release-management authorization, not as a technical or provider-compatibility finding. It authorizes release `0.1.5` without waiting for a human playback test or human approval because the provider-neutral remediation evidence is complete and the authorized provider endpoint rejected the control-plane probe before media validation.
+
+> Release authorized without populated real-provider playback acceptance because the authorized provider endpoint rejected the control-plane probe with HTTP 403 before media validation. This is an explicit release-management waiver and must not be interpreted as evidence of commercial-provider compatibility.
+
+### Mandatory classifications retained
+
+**REAL PROVIDER PLAYBACK: NOT TESTED / BLOCKED.** The authorized Xtream probe returned HTTP 403 HTML before catalogue or media retrieval. No real Xtream, MAG, M3U, or commercial-provider playback is claimed as passed. **COMMERCIAL IPTV COMPATIBILITY: NOT CERTIFIED.**
+
+The waiver relies only on the documented implementation evidence: typed libVLC `get_time()` liveness detection, bounded `STALLED` recovery through the existing recovery architecture, typed LIVE versus MOVIE/EPISODE END behavior, 48 focused VLC adapter tests, 66 provider/application/security tests, 885 non-presentation tests, passing Ruff/Black/MyPy/Bandit/diff checks, secret/security validation, CodeQL, and hosted Windows Portable EXE validation. The README badge block, existing `v0.1.4` tag/release/assets, provider architecture, and recovery architecture remain protected.
+
+### Phase 23 release fields
+
+| Field | Status before publication |
+|---|---|
+| Release version | `0.1.5` after version increment |
+| Release commit | To be recorded after the version/release commit |
+| Release tag | `v0.1.5`, to be created only after local release checks |
+| Exact artifact SHA256 | To be recorded from the newly generated `0.1.5` artifact |
+| Published asset name | To be recorded from the zero-touch GitHub Release |
+| Release timestamp | To be recorded from the published GitHub Release |
+| Source commit | To be recorded from the annotated tag target |
+| Repository state | Must be clean and synchronized after publication |
+| Human playback test | Not available and not required under this explicit waiver |
+
+### Known limitations
+
+The waiver does not resolve the HTTP 403 provider blocker, real-provider playback absence, MAG watchdog/provider-media evidence gap, Xtream temporary URL refresh uncertainty, separate cache-profile uncertainty, or pre-existing pip-audit findings. These remain classified as **BLOCKED / NOT TESTED / REQUIRES AUTHORIZED PROVIDER VALIDATION** where applicable.
+
 ## References
 
 [1]: https://github.com/4gray/iptvnator "IPTVnator repository"

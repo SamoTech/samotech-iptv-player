@@ -3,7 +3,7 @@
 > **Authority:** This document is the sole source of truth for what the repository currently implements, partially implements, and plans. [README.md](README.md) summarizes this state for users and contributors. [ROADMAP.md](ROADMAP.md) explains historical delivery and future direction. Historical reports and assessments are records of their stated date and commit, not current-state authority.
 
 **Product:** SamoTech IPTV Player
-**Package version:** `0.1.4`
+**Package version:** `0.1.5`
 **Current baseline:** The `main` revision containing the proven frozen-entrypoint main guard, deterministic bundled-VLC selection for source and frozen execution, durable startup checkpoints, and the prior bounded Live EOF recovery and Windows validation increments; use `git rev-parse HEAD` for its immutable revision identifier.
 **Current product milestone:** zero-touch Windows x64 portable release pipeline — **implemented and verified through blocking GitHub Actions packaging, generated-EXE smoke gates, startup-diagnostic checkpoints, dynamic release-body generation, and versioned release publication**, while populated authorized Xtream evidence and authorized Windows Live EOF runtime acceptance remain not executed. The preserved Player 3 commercial-hardening behavior, provider architecture, shared libVLC, qasync, and bounded Live EOF recovery remain unchanged.
 **Baseline verified:** 2026-08-18 UTC+03:00
@@ -20,6 +20,10 @@ The release process is **IMPLEMENTED and VERIFIED for v0.1.0 and v0.1.1**: non-t
 - Windows presentation test modules remain excluded from the Windows release test corpus because their collection causes a fatal Qt access violation; the generated executable’s Qt smoke test remains blocking.
 - The distribution target is Windows x64 portable EXE only. Installers, ARM64, auto-update, Microsoft Store distribution, and universal provider acceptance are not included.
 - Authorized-provider acceptance, real-provider subtitle interoperability, and broad codec/enterprise-environment certification are separate runtime validations and are not claimed by the release pipeline.
+- Release authorized without populated real-provider playback acceptance because the authorized provider endpoint rejected the control-plane probe with HTTP 403 before media validation. This is an explicit release-management waiver and must not be interpreted as evidence of commercial-provider compatibility.
+- REAL PROVIDER PLAYBACK: NOT TESTED / BLOCKED. Commercial IPTV compatibility: NOT CERTIFIED. No real Xtream, MAG, M3U, or commercial-provider playback is claimed as passed.
+- Provider-neutral validation evidence: 48 focused VLC adapter tests, 66 provider/application/security tests, 885 non-presentation tests, Ruff, Black, MyPy, Bandit, git diff --check, secret/security validation, CodeQL, and Windows Portable EXE validation including bundled VLC, native VLC lifecycle, PyInstaller, packaged EXE smoke, Qt/application startup, PATH/CWD validation, artifact audit, SHA256, and artifact upload.
+- Known pip-audit environmental findings remain documented and are not converted into warnings or hidden.
 <!-- ZERO_TOUCH_RELEASE_LIMITATIONS_END -->
 
 ## Product purpose
