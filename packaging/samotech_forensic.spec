@@ -56,7 +56,37 @@ version_parts = (version_parts + (0, 0, 0, 0))[:4]
 version_info_path = project_root / "build" / f"forensic_version_info_{mode}.txt"
 version_info_path.parent.mkdir(parents=True, exist_ok=True)
 version_info_path.write_text(
-    f'''VSVersionInfo(\n\n    ffi=FixedFileInfo(\n        filevers={version_parts},\n        prodvers={version_parts},\n        mask=0x3f,\n        flags=0x0,\n        OS=0x40004,\n        fileType=0x1,\n        subtype=0x0,\n        date=(0, 0),\n    ),\n    kids=[\n        StringFileInfo([\n            StringTable(\n                u\\'040904B0\\',\n                [\n                    StringStruct(u\\'CompanyName\\', u\\'SamoTech\\'),\n                    StringStruct(u\\'FileDescription\\', u\\'SamoTech IPTV Player forensic {mode}\\'),\n                    StringStruct(u\\'FileVersion\\', u\\'{__version__}\\'),\n                    StringStruct(u\\'InternalName\\', u\\'SamoTech-IPTV-Player-Windows-x64-forensic-{mode}\\'),\n                    StringStruct(u\\'OriginalFilename\\', u\\'SamoTech-IPTV-Player-Windows-x64-forensic-{mode}.exe\\'),\n                    StringStruct(u\\'ProductName\\', u\\'SamoTech IPTV Player\\'),\n                    StringStruct(u\\'ProductVersion\\', u\\'{__version__}\\'),\n                ],\n            )\n        ]),\n        VarFileInfo([VarStruct(u\\'Translation\\', [1033, 1200])]),\n    ],\n)\n''',
+    f"""VSVersionInfo(
+
+    ffi=FixedFileInfo(
+        filevers={version_parts},
+        prodvers={version_parts},
+        mask=0x3f,
+        flags=0x0,
+        OS=0x40004,
+        fileType=0x1,
+        subtype=0x0,
+        date=(0, 0),
+    ),
+    kids=[
+        StringFileInfo([
+            StringTable(
+                u'040904B0',
+                [
+                    StringStruct(u'CompanyName', u'SamoTech'),
+                    StringStruct(u'FileDescription', u'SamoTech IPTV Player forensic {mode}'),
+                    StringStruct(u'FileVersion', u'{__version__}'),
+                    StringStruct(u'InternalName', u'SamoTech-IPTV-Player-Windows-x64-forensic-{mode}'),
+                    StringStruct(u'OriginalFilename', u'SamoTech-IPTV-Player-Windows-x64-forensic-{mode}.exe'),
+                    StringStruct(u'ProductName', u'SamoTech IPTV Player'),
+                    StringStruct(u'ProductVersion', u'{__version__}'),
+                ],
+            )
+        ]),
+        VarFileInfo([VarStruct(u'Translation', [1033, 1200])]),
+    ],
+)
+""",
     encoding="utf-8",
 )
 
