@@ -12,6 +12,7 @@ from samotech_iptv.application.dtos.playback import (
     ResolvedPlayback,
 )
 from samotech_iptv.core.exceptions import ProviderError
+from samotech_iptv.domain.value_objects.url import URL
 
 if TYPE_CHECKING:
     from samotech_iptv.application.ports.player_port import PlayerPort
@@ -136,27 +137,37 @@ class PlayPlaybackTarget:
             from samotech_iptv.domain.value_objects.channel_id import ChannelId
 
             provider = self._provider_resolver.resolve_playback_provider(target.provider_id)
-            return await provider.resolve_stream(ChannelId(target.canonical_content_id)), "channel"
+            playback = await provider.resolve_stream(ChannelId(target.canonical_content_id))
+            return self._attach_resource(playback, target), "channel"
         if target.content_type is ContentType.MOVIE:
             resolver = self._non_live_provider_resolver
             if resolver is None:
                 raise ProviderError("Movie playback is unavailable")
             movie_provider = resolver.resolve_movie_playback_provider(target.provider_id)
-            return (
-                await movie_provider.resolve_movie_stream(
-                    target.canonical_content_id, target.resource_id or ""
-                ),
-                "movie",
+            playback = await movie_provider.resolve_movie_stream(
+                target.canonical_content_id, target.resource_id or ""
             )
+            return self._attach_resource(playback, target), "movie"
         if target.content_type is ContentType.EPISODE:
             resolver = self._non_live_provider_resolver
             if resolver is None:
                 raise ProviderError("Episode playback is unavailable")
             episode_provider = resolver.resolve_episode_playback_provider(target.provider_id)
-            return (
-                await episode_provider.resolve_episode_stream(
-                    target.canonical_content_id, target.resource_id or ""
-                ),
-                "episode",
+            playback = await episode_provider.resolve_episode_stream(
+                target.canonical_content_id, target.resource_id or ""
             )
+            return self._attach_resource(playback, target), "episode"
         raise ProviderError("Playback target is unsupported")
+
+    @staticmethod
+    def _attach_resource(
+        playback: ResolvedPlayback | URL, target: PlaybackTarget
+    ) -> ResolvedPlayback:
+        """Carry safe logical identity without copying URL or credential state."""
+        if isinstance(playback, URL):
+            return ResolvedPlayback.from_url(playback, resource=target)
+        return ResolvedPlayback(
+            url=playback.url,
+            transport=playback.transport,
+            resource=target,
+        )

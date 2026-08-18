@@ -142,6 +142,7 @@ class ResolvedPlayback:
 
     url: URL
     transport: TransportMetadata = TransportMetadata()
+    resource: PlaybackResource | None = None
 
     def __post_init__(self) -> None:
         if not self.url.value.strip():
@@ -149,7 +150,11 @@ class ResolvedPlayback:
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, ResolvedPlayback):
-            return self.url == other.url and self.transport == other.transport
+            return (
+                self.url == other.url
+                and self.transport == other.transport
+                and self.resource == other.resource
+            )
         if isinstance(other, URL):
             return self.url == other
         return NotImplemented
@@ -163,8 +168,18 @@ class ResolvedPlayback:
         return self.url.value
 
     @classmethod
-    def from_url(cls, url: URL) -> ResolvedPlayback:
-        return cls(url=url)
+    def from_url(
+        cls,
+        url: URL,
+        *,
+        transport: TransportMetadata | None = None,
+        resource: PlaybackResource | None = None,
+    ) -> ResolvedPlayback:
+        return cls(
+            url=url,
+            transport=transport if transport is not None else TransportMetadata(),
+            resource=resource,
+        )
 
 
 @dataclass(frozen=True)

@@ -910,7 +910,9 @@ async def test_immediate_initial_play_failure_behavior_is_preserved() -> None:
 async def test_vlc_media_options_preserve_multiple_headers_and_special_values(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
+    caplog.set_level(logging.INFO)
     from samotech_iptv.application.dtos.playback import (
+        PlaybackResource,
         ResolvedPlayback,
         TransportHeader,
         TransportMetadata,
@@ -929,6 +931,7 @@ async def test_vlc_media_options_preserve_multiple_headers_and_special_values(
             user_agent="SamoTech; Agent",
             referrer="https://portal.example.test/ref?token=secret",
         ),
+        resource=PlaybackResource.live("provider-safe", "channel-safe"),
     )
 
     await adapter.play(playback)
@@ -941,6 +944,9 @@ async def test_vlc_media_options_preserve_multiple_headers_and_special_values(
         ":http-referrer=https://portal.example.test/ref?token=secret",
         ":network-caching=1000",
     ]
+    assert "provider_id=provider-safe" in caplog.text
+    assert "media_type=live" in caplog.text
+    assert "content_id=channel-safe" in caplog.text
     assert "secret" not in caplog.text
     await adapter.close()
 

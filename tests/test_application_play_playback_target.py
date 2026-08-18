@@ -10,6 +10,7 @@ from samotech_iptv.application.dtos import ContentType
 from samotech_iptv.application.dtos.playback import (
     PlaybackOutcome,
     PlaybackTarget,
+    ResolvedPlayback,
 )
 from samotech_iptv.application.ports.player_port import PlayerPort
 from samotech_iptv.application.ports.provider_capabilities import (
@@ -54,13 +55,15 @@ class RecordingPlayer(PlayerPort):
 
     def __init__(self, error: Exception | None = None) -> None:
         self.urls: list[URL] = []
+        self.playbacks: list[ResolvedPlayback] = []
         self.seek_calls: list[int] = []
         self._error = error
 
-    async def play(self, url: URL) -> None:
+    async def play(self, playback: ResolvedPlayback) -> None:
         if self._error is not None:
             raise self._error
-        self.urls.append(url)
+        self.playbacks.append(playback)
+        self.urls.append(playback.url)
 
     async def stop(self) -> None:
         return None
@@ -357,6 +360,7 @@ async def test_a_then_b_b_resolves_before_a_only_plays_b() -> None:
     assert b_result.outcome is PlaybackOutcome.PLAYED
     assert a_result.outcome is PlaybackOutcome.STALE
     assert player.urls == [b_url]
+    assert player.playbacks[0].resource == live("b")
 
 
 @pytest.mark.asyncio
@@ -412,6 +416,7 @@ async def test_single_live_target_resolves_plays_and_records_history() -> None:
 
     assert result.outcome is PlaybackOutcome.PLAYED
     assert player.urls == [a_url]
+    assert player.playbacks[0].resource == live("a")
     assert history.requests == [("a", "channel")]
 
 
@@ -508,6 +513,10 @@ async def test_movie_and_episode_targets_use_the_single_player_path_and_history(
     assert [url.value for url in player.urls] == [
         "https://example.invalid/movie",
         "https://example.invalid/episode",
+    ]
+    assert [playback.resource for playback in player.playbacks] == [
+        PlaybackTarget.movie("provider-a", "movie-a", "42|mp4"),
+        PlaybackTarget.episode("provider-a", "episode-a", "501|mp4", "series-a", 1, 1),
     ]
     assert history.requests == [("movie-a", "movie"), ("episode-a", "episode")]
 
