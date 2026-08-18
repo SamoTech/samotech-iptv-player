@@ -57,6 +57,34 @@ function Get-MeiSnapshot {
     )
 }
 
+function Invoke-ForensicCaseProcess {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$FilePath,
+        [Parameter(Mandatory = $true)]
+        [string]$WorkingDirectory,
+        [Parameter(Mandatory = $true)]
+        [string]$Argument,
+        [Parameter(Mandatory = $true)]
+        [string]$DiagnosticPath
+    )
+
+    $env:SAMOTECH_STARTUP_DIAGNOSTIC_PATH = $DiagnosticPath
+    Remove-Item $DiagnosticPath -Force -ErrorAction SilentlyContinue
+    $process = Start-Process `
+        -FilePath $FilePath `
+        -ArgumentList @($Argument, "--diagnostic") `
+        -WorkingDirectory $WorkingDirectory `
+        -PassThru
+    if (-not $process.WaitForExit(90 * 1000)) {
+        $process.Kill()
+        $process.WaitForExit()
+        throw "Timed out waiting for $Argument in $WorkingDirectory"
+    }
+    $process.Refresh()
+    return [int]$process.ExitCode
+}
+
 foreach ($case in $caseRoots) {
     $caseRoot = $case.Root
     if (Test-Path $caseRoot) {
@@ -114,36 +142,33 @@ foreach ($case in $caseRoots) {
     }
 
     $vlcDiag = Join-Path $OutputRoot "$($case.Name)-packaged-vlc.json"
-    $vlcOutput = Join-Path $OutputRoot "$($case.Name)-packaged-vlc.output.txt"
-    $env:SAMOTECH_STARTUP_DIAGNOSTIC_PATH = $vlcDiag
-    Remove-Item $vlcDiag -Force -ErrorAction SilentlyContinue
-    $global:LASTEXITCODE = 0
-    & $caseExe --packaged-vlc-test --diagnostic *> $vlcOutput
-    $caseEvidence.packaged_vlc.exit_code = $LASTEXITCODE
+    $caseEvidence.packaged_vlc.exit_code = Invoke-ForensicCaseProcess `
+        -FilePath $caseExe `
+        -WorkingDirectory $caseEvidence.cwd `
+        -Argument "--packaged-vlc-test" `
+        -DiagnosticPath $vlcDiag
     $caseEvidence.packaged_vlc.diagnostic_exists = Test-Path $vlcDiag
     if (Test-Path $vlcDiag) {
         $caseEvidence.packaged_vlc.diagnostic = Get-Content $vlcDiag -Raw | ConvertFrom-Json
     }
 
     $qtDiag = Join-Path $OutputRoot "$($case.Name)-qt-only.json"
-    $qtOutput = Join-Path $OutputRoot "$($case.Name)-qt-only.output.txt"
-    $env:SAMOTECH_STARTUP_DIAGNOSTIC_PATH = $qtDiag
-    Remove-Item $qtDiag -Force -ErrorAction SilentlyContinue
-    $global:LASTEXITCODE = 0
-    & $caseExe --qt-only-test --diagnostic *> $qtOutput
-    $caseEvidence.qt_only.exit_code = $LASTEXITCODE
+    $caseEvidence.qt_only.exit_code = Invoke-ForensicCaseProcess `
+        -FilePath $caseExe `
+        -WorkingDirectory $caseEvidence.cwd `
+        -Argument "--qt-only-test" `
+        -DiagnosticPath $qtDiag
     $caseEvidence.qt_only.diagnostic_exists = Test-Path $qtDiag
     if (Test-Path $qtDiag) {
         $caseEvidence.qt_only.diagnostic = Get-Content $qtDiag -Raw | ConvertFrom-Json
     }
 
     $smokeDiag = Join-Path $OutputRoot "$($case.Name)-smoke.json"
-    $smokeOutput = Join-Path $OutputRoot "$($case.Name)-smoke.output.txt"
-    $env:SAMOTECH_STARTUP_DIAGNOSTIC_PATH = $smokeDiag
-    Remove-Item $smokeDiag -Force -ErrorAction SilentlyContinue
-    $global:LASTEXITCODE = 0
-    & $caseExe --smoke-test --diagnostic *> $smokeOutput
-    $caseEvidence.smoke.exit_code = $LASTEXITCODE
+    $caseEvidence.smoke.exit_code = Invoke-ForensicCaseProcess `
+        -FilePath $caseExe `
+        -WorkingDirectory $caseEvidence.cwd `
+        -Argument "--smoke-test" `
+        -DiagnosticPath $smokeDiag
     $caseEvidence.smoke.diagnostic_exists = Test-Path $smokeDiag
     if (Test-Path $smokeDiag) {
         $caseEvidence.smoke.diagnostic = Get-Content $smokeDiag -Raw | ConvertFrom-Json
