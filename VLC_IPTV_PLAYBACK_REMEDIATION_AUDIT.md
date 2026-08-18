@@ -117,9 +117,9 @@ The official workflow proves application startup, GUI/VLC runtime loading, packa
 
 ## 16. Real-provider validation
 
-No populated Xtream or MAG media session was executed as part of this remediation commit. The repository contains no committed credentials, and the hosted Windows workflow does not receive real-provider secrets. Real-provider validation must be performed separately with authorized, sanitized fixtures and redacted telemetry.
+An authorized Xtream control-plane probe was attempted using user-supplied credentials only in process memory. The provider returned **HTTP 403** with `text/html` rather than the expected JSON control response, producing a `JSONDecodeError`; therefore no live catalogue or media request was run. The exact redacted evidence is recorded in `build/PHASE10_REAL_PROVIDER_VALIDATION.md`. No credentials, credential-bearing URL, or response body was committed.
 
-The real-provider classification is **REQUIRES AUTHORIZED PROVIDER VALIDATION** for Xtream temporary URL expiry/refresh behavior, provider-specific media headers/cookies, MAG portal media lifetime, and any MAG watchdog/event endpoint. This is an explicit limitation, not evidence that those features are required or absent for every provider.
+The real-provider classification is **REQUIRES AUTHORIZED PROVIDER VALIDATION / BLOCKED BY PROVIDER HTTP 403** for Xtream control-plane access, and **NOT TESTED** for Xtream media continuity, temporary URL expiry/refresh, provider-specific media headers/cookies, MAG portal media lifetime, and any MAG watchdog/event endpoint. This is an exact external blocker, not evidence that those features are required or absent for every provider.
 
 ## 17. Security validation
 
@@ -138,6 +138,7 @@ The README badge block was not touched. No release version metadata, provider ar
 | Issue | Classification | Required next evidence |
 |---|---|---|
 | Populated real IPTV stream remains continuously playable after recovery | **NOT TESTED** | Authorized Windows provider session with redacted lifecycle telemetry |
+| Authorized Xtream control-plane access | **REQUIRES AUTHORIZED PROVIDER VALIDATION / BLOCKED** | Supplied endpoint returned HTTP 403 HTML before catalogue/media probing |
 | Xtream temporary URL expiry and refresh race | **REQUIRES AUTHORIZED PROVIDER VALIDATION** | Provider contract or sanitized expiry/refresh trace |
 | Xtream provider-specific media headers/cookies | **REQUIRES AUTHORIZED PROVIDER VALIDATION** | Authorized media request evidence |
 | MAG media watchdog/event endpoint | **REQUIRES AUTHORIZED PROVIDER VALIDATION** | Authorized portal profile trace proving endpoint and lifecycle |
