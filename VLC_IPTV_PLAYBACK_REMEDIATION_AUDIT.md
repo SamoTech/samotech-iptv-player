@@ -152,7 +152,9 @@ The README badge block was not touched. No release version metadata, provider ar
 
 ## 20. Final readiness classification
 
-The final classification is **PARTIAL — MEDIA-STALL REMEDIATION FIXED AT THE TESTED TYPED LIBVLC BOUNDARY; CONTROLLED AUTHORIZED PROVIDER VALIDATION REQUIRED**.
+The implementation classification is **PARTIAL — MEDIA-STALL REMEDIATION FIXED AT THE TESTED TYPED LIBVLC BOUNDARY; CONTROLLED AUTHORIZED PROVIDER VALIDATION REQUIRED**. This is not a release acceptance.
+
+Under Phase 22, the release decision is **C — NOT ACCEPTED**. The mandatory exact-EXE real-playback gate is not passed: the hosted Windows workflow does not run a populated IPTV stream, and the authorized Xtream control plane returned HTTP 403 before a media URL could be obtained. No new version, tag, release, or remediation artifact was created.
 
 The required lifecycle is now represented in the preserved architecture as:
 
@@ -167,6 +169,34 @@ RESOLVE
 ```
 
 This is stronger than a GUI, process, DLL, or startup pass: the adapter now has deterministic evidence for media progress and a bounded action when live progress stops. It is not a claim that every provider’s session, headers, URL lifetime, codec, or stream format is compatible. The remediation is ready for an authorized Windows real-provider continuity run, but should not be classified as universally or commercially validated until that run demonstrates sustained media playback and recovery against the affected provider.
+
+## 21. Phase 22 release-candidate and final release report
+
+| Required release-report item | Result | Evidence or exact limitation |
+|---|---|---|
+| Executive summary | **PARTIAL** | Media-stall remediation is fixed at the typed libVLC boundary; release is blocked |
+| Root-cause findings | **PROVEN** | Missing media-level progress heartbeat; event-driven buffering watchdog did not cover silent PLAYING stalls |
+| Implemented fixes | **PASS** | LIVE `get_time()` heartbeat, `STALLED` bounded recovery, typed LIVE/VOD/EPISODE END classification |
+| M3U results | **PARTIAL / SYNTHETIC PASS** | Metadata, LF normalization, URL and option boundaries pass; real stream continuity not tested |
+| Xtream results | **PARTIAL / REQUIRES AUTHORIZED PROVIDER** | URL/resource identity tests pass; authorized control endpoint returned HTTP 403 |
+| MAG results | **REQUIRES AUTHORIZED PROVIDER** | Control-plane/create_link boundaries pass; no authorized media session or watchdog validation |
+| VLC results | **PASS at tested boundary** | Native lifecycle, media options, heartbeat, recovery and stale protection pass |
+| Buffering results | **PASS at tested boundary** | Existing watchdog plus heartbeat complement pass deterministic tests |
+| Recovery results | **PASS at tested boundary** | Bounded attempts/window/backoff, ENCOUNTERED_ERROR, EOF, STALLED, intentional-stop and stale-generation cases pass |
+| Windows runtime results | **PASS** | Windows Portable EXE run `32163895162` passed packaged VLC, PyInstaller, Qt, paths, CWD and smoke gates |
+| Real-provider results | **BLOCKED / NOT TESTED** | Xtream HTTP 403 HTML response prevented catalogue/media probe; MAG requires authorized evidence |
+| Security results | **PASS / PARTIAL** | CodeQL and secret tests pass; pip-audit retains pre-existing dependency findings |
+| Performance results | **NOT TESTED** | No authorized multi-minute exact-EXE stream run was available; synthetic heartbeat timing only proves decision behavior |
+| Artifact results | **PASS for candidate build; NOT TESTED for new release** | Windows workflow built/uploaded an artifact, but no new release was admissible or published |
+| Exact published artifact SHA256 | **NOT APPLICABLE for remediation** | Preserved v0.1.4 historical checksum: `59caed3236bdbba62487b39b081ffe965137eb9002b313c2afb7d4efb7571882` for `SamoTech-IPTV-Player-Windows-x64-v0.1.4.exe`; it is not a remediation artifact |
+| Tag | **PRESERVED / NO NEW TAG** | Existing `v0.1.4` remains at commit `39e545e68ec4517f6a36e90730bdf29675c43fdf`; no tag was moved or overwritten |
+| Release URL | **NO NEW RELEASE** | Existing release preserved at [v0.1.4](https://github.com/SamoTech/samotech-iptv-player/releases/tag/v0.1.4) |
+| Commit | **PASS for implementation; no release commit** | Implementation `04a9d1b`; final report state `6464fa3`; `origin/main` is synchronized |
+| Test counts | **PASS at tested scope** | 48 focused VLC tests, 66 provider/application/security tests, 885 local non-presentation tests |
+| Documented limitations | **PASS** | Provider 403, real playback absence, MAG watchdog, Xtream refresh, pip-audit findings, and exact-release non-applicability are documented |
+| Final release decision | **C — NOT ACCEPTED** | Phase 22 prohibits release until mandatory real playback and exact published-artifact acceptance pass |
+
+The release was intentionally not created. Creating a new semantic version, annotated tag, GitHub Release, SHA256SUMS, and published EXE before the blocking real-playback gate passed would violate the Phase 22 specification and could misrepresent synthetic or startup validation as real IPTV acceptance.
 
 ## References
 
