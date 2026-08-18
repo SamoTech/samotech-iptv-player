@@ -109,11 +109,13 @@ The matrix distinguishes synthetic boundary proof from populated provider behavi
 
 ## 15. Windows validation
 
-The exact pushed commit `04a9d1b` passed the official [Windows Portable EXE workflow run 32159903781](https://github.com/SamoTech/samotech-iptv-player/actions/runs/32159903781) on the hosted Windows runner. The following gates passed: dependency installation, pinned VLC acquisition and runtime validation, Ruff, Black, MyPy, the Windows non-Qt test corpus, native VLC lifecycle validation, one-file PyInstaller EXE creation, packaged-VLC smoke, Qt/application smoke with startup diagnostics, normal and sanitized PATH validation outside the repository, artifact-content audit, SHA256 generation, build metadata, and portable artifact upload.
+The final pushed commit `ed26e60` passed the official [Windows Portable EXE workflow run 32161211145](https://github.com/SamoTech/samotech-iptv-player/actions/runs/32161211145) on the hosted Windows runner. The following gates passed: dependency installation, pinned VLC acquisition and runtime validation, Ruff, Black, MyPy, the Windows non-Qt test corpus, native VLC lifecycle validation, one-file PyInstaller EXE creation, packaged-VLC smoke, Qt/application smoke with startup diagnostics, normal and sanitized PATH validation outside the repository, artifact-content audit, SHA256 generation, build metadata, and portable artifact upload.
 
-The workflow’s tagged-release publishing job was skipped because this push was to `main` and did not create or modify a release tag. This is **NOT REACHED**, not a failure. The separate CI run `32159904001` and CodeQL run `32159903767` also completed successfully for the same commit.
+The workflow’s tagged-release publishing job was skipped because this push was to `main` and did not create or modify a release tag. This is **NOT REACHED**, not a failure. The final CodeQL run `32161211186` completed successfully for the same commit. The final CI run `32161211157` is the environmental blocker described above; its application gates were not reached.
 
 The official workflow proves application startup, GUI/VLC runtime loading, packaging, path handling, and deterministic native lifecycle behavior. It does **not** itself open a commercial IPTV URL and measure multi-minute media continuity, because no provider credentials or real stream fixture are injected into the workflow. Therefore Windows media continuity and recovery against a populated provider remain **NOT TESTED**.
+
+The final CI run for the same report commit, `32161211157`, did not complete. It remained in `Install Qt offscreen runtime dependency`, executing `sudo apt-get update` for more than 23 minutes. The attached log shows repeated `Ign` responses from `azure.archive.ubuntu.com`; no application test, lint, typecheck, or security step was reached. This is classified as **NOT COMPLETED / BLOCKED IN ENVIRONMENTAL SETUP**, not as an application failure. The exact evidence is recorded in `build/PHASE12_CI_BLOCKER.md`.
 
 ## 16. Real-provider validation
 
@@ -146,6 +148,7 @@ The README badge block was not touched. No release version metadata, provider ar
 | Separate live/VOD cache profile | **NOT TESTED / NOT JUSTIFIED** | Controlled measurements showing 1000 ms cache is causal |
 | RTSP/RTMP/UDP/RTP/SRT executable provider-to-player support | **PARTIAL** | Explicit supported transport contract and Windows/libVLC acceptance |
 | Pre-existing pip-audit findings | **PARTIAL / ENVIRONMENTAL BLOCKER** | Dependency-maintenance decision outside this remediation |
+| Hosted CI Qt setup | **NOT COMPLETED / ENVIRONMENTAL BLOCKER** | `sudo apt-get update` stalled on an Ubuntu mirror before application gates |
 
 ## 20. Final readiness classification
 
