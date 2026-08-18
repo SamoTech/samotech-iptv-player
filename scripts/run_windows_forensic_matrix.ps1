@@ -22,6 +22,7 @@ $evidence = [ordered]@{
     os_version = [Environment]::OSVersion.Version.ToString()
     architecture = [Environment]::Is64BitOperatingSystem
     temp = [System.IO.Path]::GetTempPath()
+    source_bundle_control = [ordered]@{}
     path_cases = @()
 }
 
@@ -37,7 +38,7 @@ if (Test-Path "D:\") {
 } else {
     $evidence.d_drive_available = $false
 }
-$evidence.d_drive_available = [bool](Test-Path "D:\")
+$evidence.d_drive_available = [bool](Test-Path "D:\\")
 
 function Get-ModuleSnapshot([System.Diagnostics.Process]$Process) {
     $modules = @()
@@ -85,7 +86,20 @@ function Invoke-ForensicCaseProcess {
     return [pscustomobject]@{ ExitCode = [int]$process.ExitCode; TimedOut = $false }
 }
 
-$hadFailure = $false
+$sourceControlDiag = Join-Path $OutputRoot "source-bundle-control.json"
+$sourceControlResult = Invoke-ForensicCaseProcess `
+    -FilePath $resolvedExe `
+    -WorkingDirectory $sourceBundle `
+    -Argument "--smoke-test" `
+    -DiagnosticPath $sourceControlDiag
+$evidence.source_bundle_control.exit_code = $sourceControlResult.ExitCode
+$evidence.source_bundle_control.timed_out = $sourceControlResult.TimedOut
+$evidence.source_bundle_control.diagnostic_exists = Test-Path $sourceControlDiag
+if (Test-Path $sourceControlDiag) {
+    $evidence.source_bundle_control.diagnostic = Get-Content $sourceControlDiag -Raw | ConvertFrom-Json
+}
+
+$hadFailure = $sourceControlResult.TimedOut
 foreach ($case in $caseRoots) {
     $caseRoot = $case.Root
     if (Test-Path $caseRoot) {

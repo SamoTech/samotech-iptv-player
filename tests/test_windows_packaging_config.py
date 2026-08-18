@@ -129,6 +129,7 @@ def test_forensic_execution_workflow_preserves_runtime_evidence() -> None:
         "qt-only-test",
         "smoke-test",
         "timed_out",
+        "source_bundle_control",
         "Get-ChildItem -Path $sourceBundle -Force | "
         "Copy-Item -Destination $caseRoot -Recurse -Force",
         "exit_code",
