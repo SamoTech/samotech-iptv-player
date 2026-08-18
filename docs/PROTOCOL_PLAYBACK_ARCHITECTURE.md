@@ -43,13 +43,15 @@ The **control plane** performs authentication, catalogue retrieval, category and
 | Media plane | Create libVLC media, apply caching and transport options, start/stop/pause/recover, query tracks/state, attach native output | `infrastructure/player/vlc_player_adapter.py` |
 | Presentation | Own Qt navigation, capability-gated screens, native surface, and user controls | `presentation/player_shell.py`, `presentation/widgets/vlc_video_surface.py` |
 
-The current transport metadata model can carry ephemeral HTTP headers, a user-agent, a referrer, a protocol hint, and a container hint. However, current M3U, Xtream, and MAG resolvers return `ResolvedPlayback.from_url()` without populating provider-specific headers or cookies. The model is therefore a safe extension point, not evidence that every provider’s media-plane authentication is already implemented.[1]
+The current transport metadata model can carry ephemeral HTTP headers, a user-agent, a referrer, a protocol hint, and a container hint. Phase 2 maps supported M3U `http-user-agent`/`user-agent` and `http-referrer`/`referrer` attributes into this boundary. Xtream and MAG remain URL-only because repository evidence does not prove that their control-plane headers or cookies are required by the media server. The model is therefore a safe extension point, not evidence that every provider’s media-plane authentication is implemented.[1]
+
+`ResolvedPlayback` now optionally carries the existing immutable `PlaybackResource` identity from the unified playback use case to the player boundary. This preserves provider ID, live/movie/episode media type, canonical content ID, and opaque resource ID without copying credentials or URL-bearing transport state into the identity. The VLC adapter emits only bounded provider/content labels and URL-derived or typed transport scheme labels in diagnostics.
 
 ## 3. Current provider matrix
 
 | Source | Control plane | Media plane | Authentication/session | URL resolution | Headers/cookies | Current status |
 |---|---|---|---|---|---|---|
-| M3U/M3U8 source | Load local path, `file:` URI, or remote HTTP(S); parse bounded extended-M3U metadata | libVLC receives the resolved HTTP(S) URL; HLS/MPEG-TS/AAC decoding is delegated to libVLC | No provider session; secure tokenized sources may be retrieved from the OS credential boundary | Parsed channel URI is wrapped as `ResolvedPlayback` only when it is a valid HTTP(S) URL | No M3U-specific header/cookie injection in the current adapter | **Partially implemented** |
+| M3U/M3U8 source | Load local path, `file:` URI, or remote HTTP(S); parse bounded extended-M3U metadata | libVLC receives the resolved HTTP(S) URL; HLS/MPEG-TS/AAC decoding is delegated to libVLC | No provider session; secure tokenized sources may be retrieved from the OS credential boundary | Parsed channel URI is wrapped as `ResolvedPlayback` only when it is a valid HTTP(S) URL | Supported M3U User-Agent and Referer aliases reach ephemeral `TransportMetadata`; cookie/arbitrary header propagation is not implemented without evidence | **Partially implemented / metadata implemented at tested boundary** |
 | Xtream Codes API | `player_api.php` authentication, account/server info, categories, live/VOD/series, details, short EPG | libVLC receives URL-shaped `/live`, `/movie`, or `/series` path | Username/password are used for API calls and URL construction; no retained Xtream playback session object | Live, Movie, and Episode URLs are built from provider IDs and validated extensions | No provider-specific media headers/cookies are currently populated | **Partially implemented** |
 | MAG/Stalker | Bounded profile discovery, handshake, optional profile/account-info/do-auth, live categories/channels/EPG, and `create_link` | Legacy stream layer validates portal-returned HTTP(S)/RTSP/RTMP commands; application handoff narrows to HTTP(S) | Volatile MAC/session token, cookies, Authorization, refresh loop, bounded GET retries | Portal `js.url`/`js.cmd` or direct channel command becomes a validated URL | Control-plane profile headers/cookies are implemented; they are not currently attached as media-plane `ResolvedPlayback` metadata | **Partially implemented and provider-specific** |
 | Additional source | No additional production adapter is currently advertised beyond M3U, Xtream, MAG/Stalker, and trusted local plugins | URI classification recognizes more schemes, but the executable `URL`/player boundary remains HTTP(S) | Provider-specific | No general-purpose fallback resolver | No generic header/cookie inference | **Unknown / requires validation** |
@@ -201,7 +203,7 @@ The packaged Windows runtime configures bundled `libvlc.dll`, `libvlccore.dll`, 
 
 The adapter subscribes to Opening, Buffering, Playing, EncounteredError, EndReached, and Stopped when the binding exposes them. The public typed state machine distinguishes loading, playing, buffering, recovering, stopping, stopped, paused, and error states. `BUFFERING` does not immediately restart media. It starts a watchdog; only prolonged buffering or a later END/STOPPED condition can request a rebuild. Recovery is bounded by attempt count and time window, uses exponential delay, invalidates stale media generations, and resets its budget only after sustained Playing. Immediate start failure can retry once with software fallback in automatic mode.
 
-The current event handler subscribes to `EncounteredError`, but a dedicated error-event recovery branch is not implemented. This is a concrete finding for future work rather than a reason to claim that all network failures are automatically recovered. Likewise, a healthy stream is not restarted merely because a transient Buffering callback occurs.
+`EncounteredError` now enters the same bounded live recovery policy as unexpected END/STOPPED events, subject to current media generation, session token, intentional-action exclusion, finite attempt count, recovery window, and exponential delay. The event and state records classify `ENCOUNTERED_ERROR` without retaining provider URLs or error payloads. This is not a claim that every network failure is recoverable: VLC’s event surface does not identify provider-specific expiry, HTTP status, or codec cause. A healthy stream is still not restarted merely because a transient Buffering callback occurs.
 
 ### 7.4 Subtitles, tracks, seek, and recording
 
@@ -265,7 +267,7 @@ The current implementation therefore distinguishes `BUFFERING`, `PLAYING`, `STOP
 | RTSP/RTMP from MAG legacy layer | Legacy layer can validate returned schemes, but current `ResolvedPlayback` URL boundary narrows application playback to HTTP(S) |
 | UDP/RTP/SRT/RTMPS | Classified by domain URI model but not an executable current provider-to-player promise |
 | Separate live/VOD caching policy | Not implemented; one adapter setting applies |
-| Dedicated libVLC error-event recovery | Not implemented; subscription exists, recovery branch does not |
+| Dedicated libVLC error-event recovery | Implemented as bounded current-live recovery for `EncounteredError`; provider-specific failure cause remains unknown |
 | Windows hardware-decoding policy | Automatic libVLC default with explicit software fallback; no D3D11-specific forced mode |
 | Real-provider compatibility | Requires authorized sanitized fixtures and Windows validation |
 
@@ -282,10 +284,20 @@ These are recommendations only. This documentation-only task does not implement 
 1. Define an explicit provider-neutral media transport contract before widening `URL`/`ResolvedPlayback` beyond HTTP(S). The contract should specify which transports the Windows/libVLC build is expected to accept and how media options are validated.
 2. Add authorized, sanitized fixtures that prove when M3U, Xtream, or MAG media requires a user-agent, referrer, cookie, Authorization header, or other stream-level option. Populate `TransportMetadata` only from that evidence and keep it ephemeral.
 3. Decide whether MAG session lifetime requires a media-playback watchdog. If it does, model the lifecycle between provider session and player generation instead of copying a legacy Enigma2 timer into Qt.
-4. Add a deliberate libVLC `EncounteredError` policy with tests if native error events are shown to be the missing recovery trigger. Do not restart healthy streams on ordinary Buffering callbacks.
+4. Extend the implemented libVLC `EncounteredError` recovery policy only with provider-specific evidence when available. Do not restart healthy streams on ordinary Buffering callbacks.
 5. Establish a provider-neutral catch-up/event contract before implementing any `timeshift` URL behavior. KiddaC’s provider-specific archive URLs are references, not a current SamoTech capability.
 6. Add separate, evidence-backed live and VOD caching profiles only after controlled measurements show that a fixed cache is the relevant bottleneck.
 7. Run populated authorized Xtream and MAG acceptance on Windows with redacted request/event telemetry, and keep real-provider validation separate from synthetic protocol tests.
+
+## 13. Phase 3 implementation update
+
+Phase 3 applied the IPTVnator-informed principles that fit the preserved Python/PySide6/libVLC architecture. The unified playback use case now carries the already-validated `PlaybackResource` through the provider-to-player boundary as optional `ResolvedPlayback.resource`, preserving safe provider/content identity while leaving URLs and transport metadata ephemeral. Existing URL-only compatibility remains available for legacy callers and test doubles.
+
+VLC diagnostics now record bounded `provider_id`, `media_type`, `content_id`, `transport_type`, `media_generation`, event sequence, elapsed media delta, state reason, error classification, and recovery attempt/delay fields. The adapter derives transport type from the typed protocol hint when present, otherwise from the URL scheme without logging the URL. Provider IDs and canonical IDs are passed through the repository’s safe-label redaction boundary. No Xtream username/password, MAG MAC/token/cookie/Authorization, or credential-bearing URL is emitted.
+
+The reliability policy remains deliberately narrow. Ordinary `BUFFERING` waits for the existing watchdog threshold; `END`, unexpected `STOPPED`, and `ENCOUNTERED_ERROR` may request one bounded live-media rebuild when the generation/session is current. Intentional stop, shutdown, stale callbacks, duplicate pending recovery, attempt exhaustion, and recovery-window exhaustion do not restart media. Live/VOD cache defaults remain unchanged at the configured 1000 ms because the player boundary still lacks evidence-backed separate cache profiles.
+
+The implementation is **PROVEN** by deterministic synthetic provider/playback tests and the successful Windows hosted run `32156943241`. It is **PARTIAL** for provider-specific media headers and portal lifetime behavior. M3U User-Agent/Referer propagation is **IMPLEMENTED**; Xtream and MAG media-plane metadata remain **REQUIRES AUTHORIZED PROVIDER VALIDATION**; MAG watchdog behavior remains **REQUIRES AUTHORIZED PROVIDER VALIDATION**; populated real-provider acceptance is **NOT TESTED** in this Phase 3 run.
 
 ## References
 

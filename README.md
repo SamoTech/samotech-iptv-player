@@ -42,7 +42,7 @@ SamoTech is designed around canonical records for channels, categories, streams,
 | Movies and VOD | Xtream Movie catalogue/detail loading, local category/search/sort controls, metadata display, favorites, and shared `ResolvedPlayback` → `PlayerPort` → libVLC handoff. |
 | Series and episodes | Xtream Series → Season → Episode discovery, local filtering and search, provider-scoped identity protection, and Episode playback through the shared player path. |
 | EPG | MAG/Stalker and Xtream adapter EPG plus bounded XMLTV parsing for explicit local/file mappings and manual refresh. Scheduled remote XMLTV, caching, catch-up linkage, and archive playback remain deferred. |
-| Player | libVLC play, pause, resume, stop, native video output, local MPEG-TS recording, bounded live EOF recovery, and guarded local subtitle attachment for SRT, ASS, SSA, and VTT. |
+| Player | libVLC play, pause, resume, stop, native video output, local MPEG-TS recording, bounded live EOF/STOPPED/EncounteredError recovery, safe provider/content/transport telemetry, and guarded local subtitle attachment for SRT, ASS, SSA, and VTT. |
 | Libraries | SQLite-backed Favorites and bounded History with provider-scoped identities, recency, duration, playback-position display, refresh, and protected clear-all. |
 | Desktop shell | PySide6 dialogs and views, qasync runtime integration, theme settings, provider health summaries, global search filters, Smart Import, and one shared libVLC player. |
 | Extensibility | Explicitly trusted local Python provider-plugin SDK with API-version, identity, and namespace validation. |
@@ -53,7 +53,7 @@ SamoTech is designed around canonical records for channels, categories, streams,
 
 | Provider/source | Status | Current evidence | Explicit limitation |
 |---|---|---|---|
-| Extended M3U | **Partially implemented** | Local/file/HTTP(S) loading, extended-M3U parsing, escaped-attribute handling, canonical live channels, and supported HTTP(S) stream resolution. | VOD/series UI and non-HTTP(S) playback remain outside the current contract. |
+| Extended M3U | **Partially implemented** | Local/file/HTTP(S) loading, extended-M3U parsing, escaped-attribute handling, canonical live channels, supported HTTP(S) stream resolution, and evidence-backed User-Agent/Referer transport metadata. | Cookie/arbitrary-header propagation, VOD/series UI, and non-HTTP(S) playback remain outside the current contract. |
 | Xtream Codes API | **Partially implemented** | Credential validation, account metadata, live categories/channels, VOD and Series structures, Movie details, Episode discovery, short EPG, local search, filters, sorting, artwork, and shared playback resolution. | Populated authorized real VOD/Series acceptance and broader provider quirks remain unverified; no credentials are stored in this repository. |
 | MAG/Stalker | **Partially implemented / provider-specific** | MAC identity handling, bounded handshake candidates, explicit session lifecycle, legacy/Stalker-query/GUI/helper request profiles, live channels, EPG, local search, and local source-derived protocol laboratory. | No authorized production portal produced a verified token-bearing handshake in the documented validation; VOD/Series/catch-up are not claimed. |
 | Ministra | **Compatibility investigation** | Public protocol research, source inspection, and deterministic local middleware laboratory. | The authorized portal family, version, routing, and authorization policy remain unidentified; no dedicated production adapter is claimed. |
@@ -199,6 +199,7 @@ plugins/             Reference trusted local provider plugin
 | [ROADMAP.md](ROADMAP.md) | Delivery sequence and next milestones |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Clean Architecture and runtime composition |
 | [docs/PROTOCOL_PLAYBACK_ARCHITECTURE.md](docs/PROTOCOL_PLAYBACK_ARCHITECTURE.md) | Current M3U, Xtream, MAG/Stalker, control/media plane, libVLC, buffering, recovery, and KiddaC comparison |
+| [IPTVNATOR_INFORMED_PLAYBACK_RELIABILITY_IMPLEMENTATION_AUDIT.md](IPTVNATOR_INFORMED_PLAYBACK_RELIABILITY_IMPLEMENTATION_AUDIT.md) | Authoritative Phase 3 IPTVnator-informed implementation and validation audit |
 | [SECURITY.md](SECURITY.md) | Security policy and safe-diagnostics rules |
 | [SECURITY_CODEQL_LOGGING_REMEDIATION_AUDIT.md](SECURITY_CODEQL_LOGGING_REMEDIATION_AUDIT.md) | Sensitive-logging remediation and CodeQL evidence |
 | [WINDOWS_SILENT_EXIT_FORENSIC_AUDIT.md](WINDOWS_SILENT_EXIT_FORENSIC_AUDIT.md) | Authoritative v0.1.3/v0.1.4 Windows silent-exit investigation |
@@ -212,7 +213,7 @@ plugins/             Reference trusted local provider plugin
 
 The project is intentionally evidence-driven. The remaining high-value work includes populated authorized-provider acceptance, broader MAG/Ministra portal compatibility, full manual Windows GUI acceptance, SmartScreen/code-signing strategy, ARM64 packaging, installer/update distribution, richer XMLTV scheduling and catch-up, and provider-neutral archive playback.
 
-The published v0.1.3 Windows silent-exit mechanism is **PROVEN** to be the missing frozen-script `__main__` guard; the corrected v0.1.4 release passed exact published-artifact acceptance on the available hosted Windows environment. The original Windows 11 client and Windows 10 remain **NOT TESTED**, and hosted-runner success does not establish populated real-provider compatibility or consumer endpoint-security behavior. See [WINDOWS_SILENT_EXIT_FORENSIC_AUDIT.md](WINDOWS_SILENT_EXIT_FORENSIC_AUDIT.md) and [docs/PROTOCOL_PLAYBACK_ARCHITECTURE.md](docs/PROTOCOL_PLAYBACK_ARCHITECTURE.md).
+The published v0.1.3 Windows silent-exit mechanism is **PROVEN** to be the missing frozen-script `__main__` guard; the corrected v0.1.4 release passed exact published-artifact acceptance on the available hosted Windows environment. Phase 3 adds provider/content playback context and structured VLC transport/error telemetry, while populated real-provider compatibility, MAG watchdog behavior, and consumer-endpoint playback remain **NOT TESTED** or **REQUIRES AUTHORIZED PROVIDER VALIDATION**. See [WINDOWS_SILENT_EXIT_FORENSIC_AUDIT.md](WINDOWS_SILENT_EXIT_FORENSIC_AUDIT.md), [docs/PROTOCOL_PLAYBACK_ARCHITECTURE.md](docs/PROTOCOL_PLAYBACK_ARCHITECTURE.md), and the [Phase 3 implementation audit](IPTVNATOR_INFORMED_PLAYBACK_RELIABILITY_IMPLEMENTATION_AUDIT.md).
 
 Development follows the repository’s direct-to-`main` quality sequence:
 
