@@ -109,7 +109,7 @@ if is_onedir:
     exe = EXE(
         pyz,
         analysis.scripts,
-        *python_options,
+        python_options,
         exclude_binaries=True,
         name=name,
         debug=debug_bootloader,
@@ -134,7 +134,7 @@ else:
         analysis.scripts,
         analysis.binaries,
         analysis.datas,
-        *python_options,
+        python_options,
         [],
         name=name,
         debug=debug_bootloader,

@@ -41,8 +41,12 @@ python -m PyInstaller --clean --noconfirm --workpath $workRoot --distpath $modeR
 $expectedExe = Join-Path $modeRoot "SamoTech-IPTV-Player-Windows-x64-forensic-$Mode.exe"
 if ($Mode -eq "onedir") {
     $expectedExe = Join-Path $modeRoot "SamoTech-IPTV-Player-Windows-x64-forensic-onedir.exe"
+    if (-not (Test-Path $expectedExe)) {
+        $expectedExe = Get-ChildItem -Path $modeRoot -Filter "SamoTech-IPTV-Player-Windows-x64-forensic-onedir.exe" -File -Recurse |
+            Select-Object -First 1 -ExpandProperty FullName
+    }
 }
-if (-not (Test-Path $expectedExe)) {
+if ([string]::IsNullOrWhiteSpace($expectedExe) -or -not (Test-Path $expectedExe)) {
     throw "Forensic build did not produce expected executable: $expectedExe"
 }
 
