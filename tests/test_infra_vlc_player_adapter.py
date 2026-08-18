@@ -601,7 +601,10 @@ async def test_encountered_error_rebuilds_current_live_media_once(
     )
     assert "to_state=RECOVERING" in diagnostic_messages
     assert "reason=ENCOUNTERED_ERROR" in diagnostic_messages
+    assert "error_classification=ENCOUNTERED_ERROR" in diagnostic_messages
+    assert "transport_type=https" in diagnostic_messages
     assert "attempt=1" in recovery_messages
+    assert "transport_type=https" in recovery_messages
     assert "https://" not in diagnostic_messages
     assert "https://" not in recovery_messages
     await adapter.close()
@@ -947,6 +950,7 @@ async def test_vlc_media_options_preserve_multiple_headers_and_special_values(
     assert "provider_id=provider-safe" in caplog.text
     assert "media_type=live" in caplog.text
     assert "content_id=channel-safe" in caplog.text
+    assert "transport_type=https" in caplog.text
     assert "secret" not in caplog.text
     await adapter.close()
 

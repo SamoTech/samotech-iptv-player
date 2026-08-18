@@ -10,6 +10,7 @@ from itertools import count
 from pathlib import Path
 from threading import Lock, current_thread
 from typing import Literal, Protocol
+from urllib.parse import urlsplit
 
 import vlc  # type: ignore[import-untyped]
 
@@ -346,15 +347,17 @@ class VlcPlayerAdapter(PlayerPort):
                     )
                     self._recording_destination = None
                     self._intentional_action = False
-                    provider_id, media_type, content_id = self._playback_context()
+                    provider_id, media_type, content_id, transport_type = self._playback_context()
                     _LOG.info(
                         "[IPTV] PLAYBACK PLAYING elapsed=%.3fs retry=%d "
-                        "provider_id=%s media_type=%s content_id=%s",
+                        "provider_id=%s media_type=%s content_id=%s "
+                        "transport_type=%s",
                         time.perf_counter() - started,
                         attempt,
                         provider_id,
                         media_type,
                         content_id,
+                        transport_type,
                     )
                     return
                 except Exception as exc:  # noqa: BLE001
@@ -875,11 +878,11 @@ class VlcPlayerAdapter(PlayerPort):
             or elapsed_s >= self._live_recovery_window_s
         ):
             self._publish_state(_PlaybackState.FAILED, reason=reason)
-            provider_id, media_type, content_id = self._playback_context()
+            provider_id, media_type, content_id, transport_type = self._playback_context()
             _LOG.warning(
                 "[IPTV] PLAYBACK_RECOVERY_ABANDONED player_id=%d media_generation=%d "
                 "reason=%s attempts=%d elapsed_ms=%.3f provider_id=%s "
-                "media_type=%s content_id=%s",
+                "media_type=%s content_id=%s transport_type=%s",
                 self._player_id,
                 media_generation,
                 reason,
@@ -888,6 +891,7 @@ class VlcPlayerAdapter(PlayerPort):
                 provider_id,
                 media_type,
                 content_id,
+                transport_type,
             )
             return
         self._publish_state(_PlaybackState.RECOVERING, reason=reason)
@@ -895,10 +899,11 @@ class VlcPlayerAdapter(PlayerPort):
         self._recovery_attempts += 1
         attempt = self._recovery_attempts
         delay_s = self._recovery_delay_s(attempt)
-        provider_id, media_type, content_id = self._playback_context()
+        provider_id, media_type, content_id, transport_type = self._playback_context()
         _LOG.info(
             "[IPTV] PLAYBACK_RECOVERY player_id=%d media_generation=%d reason=%s "
-            "attempt=%d delay_ms=%.3f provider_id=%s media_type=%s content_id=%s",
+            "attempt=%d delay_ms=%.3f provider_id=%s media_type=%s content_id=%s "
+            "transport_type=%s",
             self._player_id,
             media_generation,
             reason,
@@ -907,6 +912,7 @@ class VlcPlayerAdapter(PlayerPort):
             provider_id,
             media_type,
             content_id,
+            transport_type,
         )
         self._recovery_task = asyncio.create_task(
             self._recover_after_delay(reason, media_generation, session_token, attempt, delay_s),
@@ -1080,11 +1086,11 @@ class VlcPlayerAdapter(PlayerPort):
             or (software_fallback and self._playback_mode == "auto")
             else "enabled"
         )
-        provider_id, media_type, content_id = self._playback_context(playback)
+        provider_id, media_type, content_id, transport_type = self._playback_context(playback)
         _LOG.info(
             "[IPTV] PLAYBACK_DIAGNOSTIC MEDIA player_id=%d media_generation=%d "
             "playback_mode=%s network_cache_ms=%d hardware_option=%s "
-            "provider_id=%s media_type=%s content_id=%s",
+            "provider_id=%s media_type=%s content_id=%s transport_type=%s",
             self._player_id,
             media_generation,
             self._playback_mode,
@@ -1093,6 +1099,7 @@ class VlcPlayerAdapter(PlayerPort):
             provider_id,
             media_type,
             content_id,
+            transport_type,
         )
         return media
 
@@ -1130,20 +1137,26 @@ class VlcPlayerAdapter(PlayerPort):
                 session_token=self._session_token,
                 reason=reason,
             )
-        provider_id, media_type, content_id = self._playback_context()
+        provider_id, media_type, content_id, transport_type = self._playback_context()
+        error_classification = (
+            reason
+            if reason in {"EOF", "STOPPED", "BUFFERING_TIMEOUT", "ENCOUNTERED_ERROR"}
+            else "<none>"
+        )
         _LOG.info(
             "[IPTV] PLAYBACK_DIAGNOSTIC STATE player_id=%d media_generation=%d "
             "from_state=%s to_state=%s reason=%s error_classification=%s "
-            "provider_id=%s media_type=%s content_id=%s",
+            "provider_id=%s media_type=%s content_id=%s transport_type=%s",
             self._player_id,
             self._media_generation,
             previous_state,
             state,
             reason or "<none>",
-            reason if state is _PlaybackState.FAILED else "<none>",
+            error_classification,
             provider_id,
             media_type,
             content_id,
+            transport_type,
         )
 
     def _log_command(
@@ -1180,12 +1193,12 @@ class VlcPlayerAdapter(PlayerPort):
             else f"{(time.perf_counter() - media_created_at) * 1_000:.3f}"
         )
         callback_thread = current_thread()
-        provider_id, media_type, content_id = self._playback_context()
+        provider_id, media_type, content_id, transport_type = self._playback_context()
         _LOG.info(
             "[IPTV] PLAYBACK_DIAGNOSTIC EVENT player_id=%d media_generation=%d "
             "event_sequence=%d event=%s media_delta_ms=%s thread_id=%d thread_name=%s "
             "closed=%s last_command_cause=%s provider_id=%s media_type=%s "
-            "content_id=%s",
+            "content_id=%s transport_type=%s",
             self._player_id,
             media_generation,
             event_sequence,
@@ -1198,21 +1211,32 @@ class VlcPlayerAdapter(PlayerPort):
             provider_id,
             media_type,
             content_id,
+            transport_type,
         )
         _LOG.info("[IPTV] PLAYBACK %s", event_name)
         return media_generation, session_token
 
-    def _playback_context(self, playback: ResolvedPlayback | None = None) -> tuple[str, str, str]:
+    def _playback_context(
+        self, playback: ResolvedPlayback | None = None
+    ) -> tuple[str, str, str, str]:
         """Return bounded non-secret context labels for playback telemetry."""
         active_playback = playback or self._current_playback
         resource = active_playback.resource if active_playback is not None else None
         if resource is None:
-            return "<unknown>", "<unknown>", "<unknown>"
-        return (
-            safe_label(resource.provider_id, limit=64),
-            safe_label(resource.content_type.value, limit=32),
-            safe_label(resource.canonical_content_id, limit=64),
-        )
+            provider_id = media_type = content_id = "<unknown>"
+        else:
+            provider_id = safe_label(resource.provider_id, limit=64)
+            media_type = safe_label(resource.content_type.value, limit=32)
+            content_id = safe_label(resource.canonical_content_id, limit=64)
+        if active_playback is None:
+            return provider_id, media_type, content_id, "<unknown>"
+        transport = active_playback.transport.protocol_hint
+        if transport is not None:
+            transport_type = safe_label(transport.value, limit=32)
+        else:
+            scheme = urlsplit(active_playback.url.value).scheme.casefold()
+            transport_type = safe_label(scheme or "<unknown>", limit=32)
+        return provider_id, media_type, content_id, transport_type
 
     def _diagnostic_cause(self) -> str:
         with self._diagnostic_lock:
