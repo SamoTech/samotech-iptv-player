@@ -229,7 +229,7 @@ The waiver relies only on the documented implementation evidence: typed libVLC `
 | GitHub Release | [v0.1.5](https://github.com/SamoTech/samotech-iptv-player/releases/tag/v0.1.5) |
 | Release workflow | [Windows Portable EXE run 32169264368](https://github.com/SamoTech/samotech-iptv-player/actions/runs/32169264368) — build and publication passed |
 | Exact published-artifact acceptance | [Run 32169789581](https://github.com/SamoTech/samotech-iptv-player/actions/runs/32169789581) — checksum, PE metadata, artifact identity, path/environment matrix, and summary passed |
-| Repository state | Clean; final audit `HEAD`/`origin/main` equal `5071f3608b48b41b16e55a7453f0cc1971975e12`; release tag/source remain `fb83b67e3402ec3678fb3a0a570348744a0f9ff7` |
+| Repository state | Clean and synchronized at final verification; the immutable release tag/source remain `fb83b67e3402ec3678fb3a0a570348744a0f9ff7` |
 | README badge block | Byte-for-byte preserved; SHA256 `b5fae9edbbe346864c76547744aef294040f865243d349d46c56f850fa5bcd25` |
 | Historical `v0.1.4` | Preserved at `39e545e68ec4517f6a36e90730bdf29675c43fdf`; existing assets untouched |
 | Human playback test | Not available and not required under this explicit waiver |
