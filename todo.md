@@ -83,3 +83,19 @@
 - [x] Phase F — Run Ruff, Black, MyPy, Bandit, credential/secret scans, relevant unit/integration/provider/playback/presentation/large-data tests, full non-presentation corpus, isolated Qt presentation corpus, protected-boundary checks, and Windows Portable validation when implementation changes exist. Windows validation was not re-run because no production implementation changed.
 - [x] Phase G — Complete the final independent audit and Chief Architect decision; capture all accepted, rejected, deferred, unsupported, external, and environmental outcomes.
 - [x] Phase H — Create `AI_TEAM_STATUS.md` with all 20 required sections and deliver it as the first initialization result; commit/push only after all applicable tests pass.
+
+## Newly Attached Authoritative Specification
+
+- [x] Read the complete autonomous current-state assessment specification and map its requirements to the repository state at commit `0e21c9172ba4bf76830f61bbd87ffd2444313c70`.
+- [x] Convert confirmed requirements into the following dependency-ordered assessment, selection, implementation, validation, and push checklist.
+
+## Autonomous Current-State Assessment & Execution Cycle
+
+- [x] Phase 1 — Reconcile current AI team status, charter, Phase 28 audit, Git state, v0.1.6 release/tag/assets, workflows, README digest, architecture, providers, playback/VLC, UI, diagnostics, tests, feedback, launcher, and performance probes.
+- [x] Phase 2 — Produce the current prioritized feedback table with evidence, frequency, severity, reproducibility, affected subsystem, specialist owner, and recommended action.
+- [x] Phase 3 — Complete focused role-separated protocol, playback, UX, Windows, performance, diagnostics, security, QA, compatibility, CI, and documentation investigations using current repository evidence.
+- [x] Phase 4 — Cross-review all candidates, select the highest-value actionable issue using value × evidence × user impact × risk × feasibility, and complete an independent pre-implementation challenge.
+- [ ] Phase 5 — Implement the approved production improvement at the correct architectural layer, including focused positive and negative regression coverage.
+- [ ] Phase 6 — Run focused tests, full non-presentation corpus, isolated presentation corpus, Ruff, Black, MyPy, Bandit, credential/redaction scans, relevant performance tests, protected-boundary checks, and Windows Portable validation.
+- [ ] Phase 7 — Complete independent final audit, update only current-cycle documentation, commit/push verified non-empty changes, wait for all required workflows, and inspect results.
+- [ ] Phase 8 — Deliver the final decision with issue, evidence, implementation, tests, security, performance, Windows, independent-audit, blockers, release impact, commit SHA, remote parity, and next action.

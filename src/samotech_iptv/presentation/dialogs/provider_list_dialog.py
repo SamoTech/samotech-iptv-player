@@ -7,10 +7,10 @@ from dataclasses import replace
 from typing import TYPE_CHECKING
 
 from PySide6.QtWidgets import (
+    QComboBox,
     QDialog,
     QFormLayout,
     QLabel,
-    QLineEdit,
     QPushButton,
 )
 
@@ -53,7 +53,11 @@ class ProviderListDialog(QDialog):
         self._providers: dict[str, ProviderMetadata] = {}
         self._active_provider_edit_dialog: ProviderEditDialog | None = None
         self.provider_summary_label = QLabel()
-        self.provider_id_input = QLineEdit()
+        self.provider_selector = QComboBox()
+        self.provider_selector.setAccessibleName("Registered provider")
+        self.provider_selector.setToolTip(
+            "Choose a registered provider before editing, removing, or checking it"
+        )
         self.edit_button = QPushButton("Edit Selected Provider")
         self.edit_button.clicked.connect(self.open_edit_dialog)
         self.remove_button = QPushButton("Remove Selected Provider")
@@ -63,7 +67,7 @@ class ProviderListDialog(QDialog):
         self.status_label = QLabel()
         layout = QFormLayout(self)
         layout.addRow(self.provider_summary_label)
-        layout.addRow("Provider ID", self.provider_id_input)
+        layout.addRow("Provider", self.provider_selector)
         layout.addRow(self.edit_button)
         layout.addRow(self.remove_button)
         layout.addRow(self.health_button)
@@ -72,8 +76,18 @@ class ProviderListDialog(QDialog):
 
     async def refresh(self) -> None:
         """Refresh only safe provider identifiers, types, and active states."""
+        selected_provider_id = self._selected_provider_id()
         providers = await self._list_providers.execute()
         self._providers = {provider.id: provider for provider in providers}
+        self.provider_selector.blockSignals(True)
+        self.provider_selector.clear()
+        self.provider_selector.addItem("Select a registered provider", "")
+        for provider in providers:
+            self.provider_selector.addItem(self._selection_label(provider), provider.id)
+        selected_index = self.provider_selector.findData(selected_provider_id)
+        if selected_index > 0:
+            self.provider_selector.setCurrentIndex(selected_index)
+        self.provider_selector.blockSignals(False)
         self.provider_summary_label.setText(
             "\n".join(self._format_provider(provider) for provider in providers)
             or "No providers registered"
@@ -81,6 +95,14 @@ class ProviderListDialog(QDialog):
         set_enabled = getattr(self.health_button, "setEnabled", None)
         if callable(set_enabled):
             set_enabled(self._check_provider_health is not None)
+
+    @staticmethod
+    def _selection_label(provider: ProviderMetadata) -> str:
+        """Render a readable safe choice without requiring users to type an internal ID."""
+        return (
+            f"{provider.name} · {provider.type} · "
+            f"{'Active' if provider.is_active else 'Inactive'}"
+        )
 
     @staticmethod
     def _format_provider(provider: ProviderMetadata) -> str:
@@ -170,10 +192,14 @@ class ProviderListDialog(QDialog):
         if response.provider_id is None:
             self.status_label.setText(response.error or "Unable to remove provider")
             return
-        self.provider_id_input.clear()
         self.status_label.setText("Provider removed")
         await self.refresh()
 
     def _selected_provider(self) -> ProviderMetadata | None:
-        """Find one provider using its safe identifier without exposing secrets."""
-        return self._providers.get(self.provider_id_input.text().strip())
+        """Find the selected provider without asking users to type an opaque identifier."""
+        return self._providers.get(self._selected_provider_id())
+
+    def _selected_provider_id(self) -> str:
+        """Read only the safe opaque selection value stored by the presentation control."""
+        value = self.provider_selector.currentData()
+        return value if isinstance(value, str) else ""

@@ -80,6 +80,46 @@ class FakeLineEdit:
         return self.value
 
 
+class FakeComboBox:
+    """Minimal QComboBox double with safe item-data selection semantics."""
+
+    def __init__(self) -> None:
+        self.items: list[tuple[str, object]] = []
+        self.current_index = -1
+        self.accessible_name = ""
+        self.tooltip = ""
+        self.signals_blocked = False
+
+    def addItem(self, label: str, value: object) -> None:  # noqa: N802
+        self.items.append((label, value))
+        if self.current_index < 0:
+            self.current_index = 0
+
+    def blockSignals(self, blocked: bool) -> None:  # noqa: N802
+        self.signals_blocked = blocked
+
+    def clear(self) -> None:
+        self.items.clear()
+        self.current_index = -1
+
+    def currentData(self) -> object:  # noqa: N802
+        if not 0 <= self.current_index < len(self.items):
+            return None
+        return self.items[self.current_index][1]
+
+    def findData(self, value: object) -> int:  # noqa: N802
+        return next((index for index, item in enumerate(self.items) if item[1] == value), -1)
+
+    def setAccessibleName(self, value: str) -> None:  # noqa: N802
+        self.accessible_name = value
+
+    def setCurrentIndex(self, index: int) -> None:  # noqa: N802
+        self.current_index = index
+
+    def setToolTip(self, value: str) -> None:  # noqa: N802
+        self.tooltip = value
+
+
 class FakeButton:
     """Minimal QPushButton double."""
 
@@ -91,6 +131,7 @@ class FakeButton:
 def _install_fake_pyside6() -> None:
     qtwidgets = ModuleType("PySide6.QtWidgets")
     qtwidgets.QDialog = FakeDialog
+    qtwidgets.QComboBox = FakeComboBox
     qtwidgets.QFormLayout = FakeFormLayout
     qtwidgets.QLabel = FakeLabel
     qtwidgets.QLineEdit = FakeLineEdit
@@ -218,7 +259,16 @@ async def test_provider_list_refreshes_safely_opens_edit_and_removes_selected_pr
     )
 
     await dialog.refresh()
-    dialog.provider_id_input.setText("profile")
+    assert dialog.provider_selector.items == [
+        ("Select a registered provider", ""),
+        ("profile · xtream · Active", "profile"),
+    ]
+    assert dialog.provider_selector.accessible_name == "Registered provider"
+    assert dialog._selected_provider() is None
+    assert dialog.open_edit_dialog() is None
+    assert dialog.status_label.value == "Select a registered provider"
+
+    dialog.provider_selector.setCurrentIndex(1)
     edit_dialog = dialog.open_edit_dialog()
 
     assert edit_dialog is not None
@@ -232,6 +282,7 @@ async def test_provider_list_refreshes_safely_opens_edit_and_removes_selected_pr
     assert remove_provider.provider_id == "profile"
     assert dialog.status_label.value == "Provider removed"
     assert dialog.provider_summary_label.value == "No providers registered"
+    assert dialog.provider_selector.items == [("Select a registered provider", "")]
     assert "profile" not in dialog.status_label.value
 
 
