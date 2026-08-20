@@ -88,6 +88,32 @@ class FakeLineEdit:
         return self.value
 
 
+class FakeComboBox:
+    """Minimal finite-choice selector double for the theme dialog fallback."""
+
+    def __init__(self) -> None:
+        self.items: list[tuple[str, object]] = []
+        self.index = 0
+
+    def addItem(self, label: str, value: object) -> None:  # noqa: N802
+        self.items.append((label, value))
+
+    def findData(self, value: object) -> int:  # noqa: N802
+        return next((index for index, item in enumerate(self.items) if item[1] == value), -1)
+
+    def setCurrentIndex(self, index: int) -> None:  # noqa: N802
+        self.index = index
+
+    def currentData(self) -> object:  # noqa: N802
+        return self.items[self.index][1]
+
+    def setAccessibleName(self, _: str) -> None:  # noqa: N802
+        return None
+
+    def setToolTip(self, _: str) -> None:  # noqa: N802
+        return None
+
+
 class FakeButton:
     """Minimal QPushButton double retaining its signal contract."""
 
@@ -256,6 +282,7 @@ def _install_fake_pyside6() -> None:
     qtwidgets.QFormLayout = FakeFormLayout
     qtwidgets.QLabel = FakeLabel
     qtwidgets.QLineEdit = FakeLineEdit
+    qtwidgets.QComboBox = FakeComboBox
     qtwidgets.QPushButton = FakeButton
     sys.modules["PySide6"] = ModuleType("PySide6")
     sys.modules["PySide6.QtCore"] = qtcore
@@ -461,7 +488,7 @@ def test_main_window_exposes_xtream_provider_menu_action() -> None:
     assert window.menu_bar.menus[3].title == "Settings"
     assert window.menu_bar.menus[3].actions == [window.settings_action]
     assert window.settings_action.text == "Settings…"
-    assert window.settings_action.triggered.callbacks == [window.open_settings_dialog]
+    assert window.settings_action.triggered.callbacks == [window.open_settings_page]
 
 
 @pytest.mark.asyncio
@@ -502,4 +529,4 @@ async def test_main_window_opens_and_loads_theme_settings_dialog() -> None:
 
     assert window._active_settings_dialog is dialog
     assert load_theme_preference.calls == 1
-    assert dialog.preference_input.text() == ThemePreference.DARK.value
+    assert dialog.preference_selector.currentData() == ThemePreference.DARK.value

@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import re
+from pathlib import Path
 from typing import TYPE_CHECKING
+from urllib.parse import urlsplit
 
 from PySide6.QtWidgets import (
     QDialog,
+    QFileDialog,
     QFormLayout,
     QLabel,
     QLineEdit,
@@ -37,43 +41,93 @@ class M3UProviderDialog(QDialog):
         self._on_provider_added = on_provider_added
         self.closed_successfully = False
         self.cancelled = False
+        self._loading = False
         self.provider_id_input = QLineEdit()
         self.source_input = QLineEdit()
-        self.save_button = QPushButton("Save")
-        self.save_button.clicked.connect(self._schedule_submit)
+        self.source_input.setPlaceholderText(
+            "https://example.org/playlist.m3u or a local M3U/M3U8 file"
+        )
+        self.source_input.setAccessibleName("M3U or M3U8 playlist source")
+        self.source_input.setToolTip("Paste a playlist URL or choose an M3U/M3U8 file")
+        self.browse_button = QPushButton("Browse Local File…")
+        self.browse_button.setAccessibleName("Browse local M3U playlist")
+        self.browse_button.clicked.connect(self._browse_local_file)
+        self.load_button = QPushButton("Load Playlist")
+        self.load_button.setAccessibleName("Load M3U playlist")
+        self.load_button.clicked.connect(self._schedule_submit)
+        self.save_button = self.load_button
         self.cancel_button = QPushButton("Cancel")
         self.cancel_button.clicked.connect(self._cancel)
         self.status_label = QLabel()
         layout = QFormLayout(self)
-        layout.addRow("Provider ID", self.provider_id_input)
-        layout.addRow("Playlist source", self.source_input)
-        layout.addRow(self.save_button)
+        layout.addRow(QLabel("M3U / M3U8"))
+        layout.addRow("Playlist URL", self.source_input)
+        layout.addRow("or", self.browse_button)
+        layout.addRow(self.load_button)
         layout.addRow(self.cancel_button)
         layout.addRow(self.status_label)
         self.setWindowTitle("Add M3U Provider")
 
     def _schedule_submit(self) -> None:
         """Queue registration on the supported Qt-aware event loop."""
+        if self._loading:
+            return
         create_owned_task(self, self.submit())
+
+    def _browse_local_file(self) -> None:
+        """Select a local playlist without mixing it with provider-specific fields."""
+        selected, _ = QFileDialog.getOpenFileName(
+            self,
+            "Choose an M3U or M3U8 playlist",
+            "",
+            "IPTV playlists (*.m3u *.m3u8);;All files (*)",
+        )
+        if not selected:
+            self.status_label.setText("No local playlist selected")
+            return
+        self.source_input.setText(Path(selected).resolve().as_uri())
+        self.status_label.setText("Local playlist selected")
+
+    @staticmethod
+    def _generated_provider_id(source: str) -> str:
+        """Derive a deterministic, non-secret identifier so M3U setup needs no extra field."""
+        parsed = urlsplit(source)
+        raw = parsed.hostname or Path(parsed.path or source).stem or "playlist"
+        safe = re.sub(r"[^a-z0-9]+", "-", raw.casefold()).strip("-") or "playlist"
+        return f"m3u-{safe}"[:64]
+
+    def _set_loading(self, loading: bool) -> None:
+        self._loading = loading
+        self.load_button.setEnabled(not loading)
+        self.browse_button.setEnabled(not loading)
+        self.cancel_button.setEnabled(not loading)
 
     async def submit(self) -> RegisterXtreamProviderResponse:
         """Validate and submit transient input, closing only after successful registration."""
-        provider_id = self.provider_id_input.text().strip()
         source = self.source_input.text().strip()
-        if not provider_id or not source:
-            self.status_label.setText("Provider ID and playlist source are required")
+        if not source:
+            self.status_label.setText("Enter a playlist URL or choose a local M3U/M3U8 file")
             return RegisterXtreamProviderResponse(error="Required fields are missing")
+        provider_id = self.provider_id_input.text().strip() or self._generated_provider_id(source)
         request = RegisterM3UProviderRequest(provider_id=provider_id, source=source)
+        self._set_loading(True)
+        self.status_label.setText("Loading playlist…")
         try:
             response = await self._register_provider.execute(request)
         except Exception:  # noqa: BLE001
-            self.source_input.clear()
             self.status_label.setText("Unable to register M3U provider")
             return RegisterXtreamProviderResponse(error="Unable to register provider")
-        self.source_input.clear()
+        finally:
+            self._set_loading(False)
         if response.provider_id is None:
-            self.status_label.setText(response.error or "Unable to register M3U provider")
+            error = response.error or "Unable to register M3U provider"
+            self.status_label.setText(
+                "This playlist has already been added"
+                if "already registered" in error.casefold()
+                else error
+            )
             return response
+        self.source_input.clear()
         self.status_label.setText("M3U provider added")
         if self._on_provider_added is not None:
             await self._on_provider_added(response.provider_id)

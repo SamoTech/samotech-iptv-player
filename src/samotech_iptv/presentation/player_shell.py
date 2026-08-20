@@ -75,8 +75,10 @@ if TYPE_CHECKING:
     from samotech_iptv.application.use_cases.load_provider_capabilities import (
         LoadProviderCapabilities,
     )
+    from samotech_iptv.application.use_cases.load_theme_preference import LoadThemePreference
     from samotech_iptv.application.use_cases.record_history import RecordHistory
     from samotech_iptv.application.use_cases.save_favorite import SaveFavorite
+    from samotech_iptv.application.use_cases.save_theme_preference import SaveThemePreference
     from samotech_iptv.application.use_cases.search_registered_channels import (
         SearchRegisteredChannels,
     )
@@ -343,6 +345,8 @@ class PlayerShell(QWidget):
         invalidate_pending_playback: Callable[[], None] | None = None,
         player_port: PlayerPort | None = None,
         progress_recorder: RecordHistory | None = None,
+        load_theme_preference: LoadThemePreference | None = None,
+        save_theme_preference: SaveThemePreference | None = None,
     ) -> None:
         super().__init__()
         self.setObjectName("playerShell")
@@ -358,6 +362,8 @@ class PlayerShell(QWidget):
         self._invalidate_pending_playback = invalidate_pending_playback
         self._player_port = player_port
         self._progress_recorder = progress_recorder
+        self._load_theme_preference = load_theme_preference
+        self._save_theme_preference = save_theme_preference
         self._play_selected_channel = play_selected_channel
         self._search_channels = search_channels
         self._save_favorite = save_favorite
@@ -392,6 +398,8 @@ class PlayerShell(QWidget):
         self._global_search_results: list[tuple[str, object]] = []
         self._home_action_buttons: dict[str, QPushButton] = {}
         self._home_status_label: QLabel | None = None
+        self._settings_theme_selector: QComboBox | None = None
+        self._settings_status_label: QLabel | None = None
         self._series_view_mode = "catalogue"
         self._series_context_id: str | None = None
         self._series_seasons: tuple[ContentItemDTO, ...] = ()
@@ -493,11 +501,7 @@ class PlayerShell(QWidget):
                 self._open_provider_list_dialog,
             )
         )
-        self.pages.addWidget(
-            self._build_library_page(
-                "Settings", "Tune the player experience and appearance.", self._open_settings_dialog
-            )
-        )
+        self.pages.addWidget(self._build_settings_page())
         self._refresh_navigation()
         self.navigation.setCurrentIndex(self.navigation_model.index(0, 0))
         self._build_layout(video_surface)
@@ -746,7 +750,7 @@ class PlayerShell(QWidget):
         settings_button = QPushButton("Settings")
         settings_button.setAccessibleName("Open settings")
         settings_button.setToolTip("Open player settings")
-        settings_button.clicked.connect(self._open_settings_dialog)
+        settings_button.clicked.connect(self.open_settings_page)
         top_bar.addWidget(settings_button, 0)
 
         player_card = QFrame()
@@ -1386,6 +1390,90 @@ class PlayerShell(QWidget):
         layout.addStretch(1)
         return page
 
+    def _build_settings_page(self) -> QWidget:
+        """Build a direct in-shell settings page for the finite theme preference."""
+        from samotech_iptv.domain.value_objects.theme_preference import ThemePreference
+
+        page = QFrame()
+        page.setObjectName("contentCard")
+        layout = QVBoxLayout(page)
+        layout.setContentsMargins(SPACING.xl, SPACING.xl, SPACING.xl, SPACING.xl)
+        layout.setSpacing(SPACING.md)
+        kicker = QLabel("SETTINGS")
+        kicker.setObjectName("sectionKicker")
+        layout.addWidget(kicker)
+        title = QLabel("Appearance")
+        title.setObjectName("pageTitle")
+        layout.addWidget(title)
+        subtitle = QLabel("Choose how SamoTech IPTV Player should follow your desktop appearance.")
+        subtitle.setObjectName("pageSubtitle")
+        subtitle.setWordWrap(True)
+        layout.addWidget(subtitle)
+        selector = QComboBox()
+        selector.addItem("System", ThemePreference.SYSTEM.value)
+        selector.addItem("Light", ThemePreference.LIGHT.value)
+        selector.addItem("Dark", ThemePreference.DARK.value)
+        selector.setAccessibleName("Theme preference")
+        selector.setToolTip("Choose system, light, or dark appearance")
+        layout.addWidget(selector)
+        save = QPushButton("Save Theme")
+        save.setObjectName("primary")
+        save.setAccessibleName("Save theme preference")
+        save.clicked.connect(self._schedule_save_settings_theme)
+        layout.addWidget(save, 0, Qt.AlignmentFlag.AlignLeft)
+        status = QLabel("Theme settings load when this page opens")
+        status.setObjectName("pageSubtitle")
+        layout.addWidget(status)
+        layout.addStretch(1)
+        self._settings_theme_selector = selector
+        self._settings_status_label = status
+        return page
+
+    def open_settings_page(self) -> None:
+        """Navigate directly to Settings rather than opening a routine top-level dialog."""
+        self._navigate_to_page(9)
+
+    def _schedule_save_settings_theme(self) -> None:
+        if self._save_theme_preference is not None:
+            create_owned_task(self, self._save_settings_theme())
+
+    async def _load_settings_theme(self) -> None:
+        selector = self._settings_theme_selector
+        status = self._settings_status_label
+        if selector is None or status is None:
+            return
+        if self._load_theme_preference is None:
+            status.setText("Theme settings are unavailable in this session")
+            return
+        try:
+            preference = await self._load_theme_preference.execute()
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            status.setText("Unable to load theme preference")
+            return
+        index = selector.findData(preference.value)
+        if index >= 0:
+            selector.setCurrentIndex(index)
+        status.setText("Choose System, Light, or Dark and save")
+
+    async def _save_settings_theme(self) -> None:
+        from samotech_iptv.domain.value_objects.theme_preference import ThemePreference
+
+        selector = self._settings_theme_selector
+        status = self._settings_status_label
+        if selector is None or status is None or self._save_theme_preference is None:
+            return
+        try:
+            preference = ThemePreference(str(selector.currentData()))
+            await self._save_theme_preference.execute(preference)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            status.setText("Unable to save theme")
+            return
+        status.setText("Theme preference saved")
+
     def keyPressEvent(self, event: QKeyEvent) -> None:  # noqa: N802
         """Handle player shortcuts without intercepting text-editor input."""
         focused = self.focusWidget()
@@ -1521,6 +1609,13 @@ class PlayerShell(QWidget):
             self.search_input.setPlaceholderText("Search loaded Live, Movies, and Series")
             self.search_input.setAccessibleName("Global content search")
             self._render_global_search()
+        elif page_index == 9:
+            self.search_input.setPlaceholderText("Search loaded content")
+            self.search_input.setAccessibleName("Content search")
+            try:
+                create_owned_task(self, self._load_settings_theme())
+            except RuntimeError:
+                pass
         else:
             self.search_input.setPlaceholderText("Search loaded content")
             self.search_input.setAccessibleName("Content search")

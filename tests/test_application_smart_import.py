@@ -30,6 +30,16 @@ def test_xtream_authority_credentials_are_normalized_without_credentials_in_serv
     assert result.password == "pw123"  # noqa: S105
 
 
+def test_xtream_service_subpath_is_preserved_without_credentials_or_query() -> None:
+    result = detect_provider_input(
+        "https://user1:pw123@stream.example:8443/iptv/player_api.php?output=m3u8"
+    )
+    assert result.protocol is ImportProtocol.XTREAM
+    assert result.server_url == "https://stream.example:8443/iptv"
+    assert result.username == "user1"
+    assert result.password == "pw123"  # noqa: S105
+
+
 def test_xtream_server_username_password_labels() -> None:
     result = detect_provider_input(
         "Server: http://stream.example:8080/\nUsername = user1\nPassword: pw123"

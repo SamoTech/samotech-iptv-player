@@ -6,7 +6,7 @@ import re
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import TYPE_CHECKING, TypedDict
-from urllib.parse import parse_qs, urlsplit
+from urllib.parse import parse_qs, urlsplit, urlunsplit
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -198,9 +198,11 @@ def _xtream_fields(text: str, labels: dict[str, str], urls: list[str]) -> _Xtrea
     if not candidate:
         candidate = next((url for url in urls if _is_xtream_url(url)), "")
     server = (
-        _server_from_url(candidate)
+        _xtream_base_from_url(candidate)
         if candidate
-        else _server_from_url(_clean_url(labels.get("server") or labels.get("server url") or ""))
+        else _xtream_base_from_url(
+            _clean_url(labels.get("server") or labels.get("server url") or "")
+        )
     )
     username = _clean_value(labels.get("username") or labels.get("user"))
     password = _clean_value(labels.get("password") or labels.get("pass"))
@@ -380,6 +382,23 @@ def _server_from_url(url: str | None) -> str | None:
     if parsed.port is not None:
         hostname = f"{hostname}:{parsed.port}"
     return f"{parsed.scheme}://{hostname}".rstrip("/")
+
+
+def _xtream_base_from_url(url: str | None) -> str | None:
+    """Retain an Xtream service subpath while removing a known API endpoint and secrets."""
+    if not url:
+        return None
+    parsed = urlsplit(url)
+    if not parsed.scheme or not parsed.netloc:
+        return None
+    hostname = parsed.hostname
+    if hostname is None:
+        return None
+    netloc = f"{hostname}:{parsed.port}" if parsed.port is not None else hostname
+    path = parsed.path.rstrip("/")
+    if path.casefold().endswith(("/get.php", "/player_api.php")):
+        path = path.rsplit("/", 1)[0]
+    return urlunsplit((parsed.scheme, netloc, path, "", "")).rstrip("/")
 
 
 def _query_params(url: str) -> dict[str, str]:

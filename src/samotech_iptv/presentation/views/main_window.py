@@ -219,7 +219,7 @@ class MainWindow(QMainWindow):
         self.show_history_action = QAction("History…", self)
         self.show_history_action.triggered.connect(self.open_history_library_dialog)
         self.settings_action = QAction("Settings…", self)
-        self.settings_action.triggered.connect(self.open_settings_dialog)
+        self.settings_action.triggered.connect(self.open_settings_page)
         self.pause_playback_action = QAction("Pause", self)
         self.pause_playback_action.triggered.connect(self._schedule_pause_playback)
         self.resume_playback_action = QAction("Resume", self)
@@ -477,6 +477,13 @@ class MainWindow(QMainWindow):
         create_owned_task(dialog, dialog.load())
         self._active_settings_dialog = dialog
         return dialog
+
+    def open_settings_page(self) -> None:
+        """Open the direct in-shell settings page with dialog fallback for reduced test shells."""
+        if self.player_shell is not None:
+            self.player_shell.open_settings_page()
+            return
+        self.open_settings_dialog()
 
     def _schedule_pause_playback(self) -> None:
         """Queue playback pause on the supported Qt-aware event loop."""

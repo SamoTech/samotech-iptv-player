@@ -16,7 +16,7 @@ def test_player_api_builds_encoded_action_request() -> None:
     request_url = builder.player_api("get_live_streams", category_id="7")
 
     assert str(request_url) == (
-        "https://portal.example.test:8443/player_api.php?username=user%40example.test"
+        "https://portal.example.test:8443/base/player_api.php?username=user%40example.test"
         "&password=secret+value&action=get_live_streams&category_id=7"
     )
     assert "secret value" not in repr(builder.credential)
@@ -42,4 +42,18 @@ def test_stream_url_builds_live_vod_and_series_compatible_paths() -> None:
 
     assert str(builder.stream_url("live", "101", "m3u8")) == (
         "https://portal.example.test/live/alice/not-for-logs/101.m3u8"
+    )
+
+
+def test_request_builder_preserves_a_configured_xtream_service_subpath() -> None:
+    builder = XtreamRequestBuilder(
+        URL("https://portal.example.test:8443/iptv/"), Credential("alice", "not-for-logs")
+    )
+
+    assert str(builder.player_api()) == (
+        "https://portal.example.test:8443/iptv/player_api.php?username=alice"
+        "&password=not-for-logs"
+    )
+    assert str(builder.stream_url("series", "202", "mp4")) == (
+        "https://portal.example.test:8443/iptv/series/alice/not-for-logs/202.mp4"
     )

@@ -43,17 +43,43 @@ class FakeLabel:
         self.value = value
 
 
+class FakeComboBox:
+    """Minimal QComboBox double retaining finite theme choices."""
+
+    def __init__(self) -> None:
+        self.items: list[tuple[str, object]] = []
+        self.index = 0
+
+    def addItem(self, label: str, value: object) -> None:  # noqa: N802
+        self.items.append((label, value))
+
+    def findData(self, value: object) -> int:  # noqa: N802
+        return next((index for index, item in enumerate(self.items) if item[1] == value), -1)
+
+    def setCurrentIndex(self, index: int) -> None:  # noqa: N802
+        self.index = index
+
+    def currentData(self) -> object:  # noqa: N802
+        return self.items[self.index][1]
+
+    def setAccessibleName(self, _: str) -> None:  # noqa: N802
+        return None
+
+    def setToolTip(self, _: str) -> None:  # noqa: N802
+        return None
+
+
 class FakeLineEdit:
-    """Minimal QLineEdit double retaining theme input text."""
+    """Compatibility double for sibling dialog imports from the package namespace."""
+
+    class EchoMode:
+        Password = object()
 
     def __init__(self) -> None:
         self.value = ""
 
-    def setText(self, value: str) -> None:  # noqa: N802
-        self.value = value
-
-    def text(self) -> str:
-        return self.value
+    def setEchoMode(self, _: object) -> None:  # noqa: N802
+        return None
 
 
 class FakeSignal:
@@ -104,6 +130,7 @@ def _install_fake_pyside6() -> None:
     qtwidgets.QDialog = FakeDialog
     qtwidgets.QFormLayout = FakeFormLayout
     qtwidgets.QLabel = FakeLabel
+    qtwidgets.QComboBox = FakeComboBox
     qtwidgets.QLineEdit = FakeLineEdit
     qtwidgets.QPushButton = FakePushButton
     sys.modules.setdefault("PySide6", ModuleType("PySide6"))
@@ -135,13 +162,15 @@ async def test_theme_settings_dialog_loads_the_persisted_preference() -> None:
 
     assert preference is ThemePreference.DARK
     assert load_theme_preference.calls == 1
-    assert dialog.preference_input.value == ThemePreference.DARK.value
+    assert dialog.preference_selector.currentData() == ThemePreference.DARK.value
 
 
 @pytest.mark.asyncio
 async def test_theme_settings_dialog_validates_and_saves_a_supported_preference() -> None:
     dialog, _, save_theme_preference = _dialog()
-    dialog.preference_input.value = " light "
+    dialog.preference_selector.setCurrentIndex(
+        dialog.preference_selector.findData(ThemePreference.LIGHT.value)
+    )
 
     preference = await dialog.save()
 
@@ -153,7 +182,9 @@ async def test_theme_settings_dialog_validates_and_saves_a_supported_preference(
 @pytest.mark.asyncio
 async def test_theme_settings_dialog_hides_save_failure_details() -> None:
     dialog, _, save_theme_preference = _dialog(should_fail=True)
-    dialog.preference_input.value = ThemePreference.DARK.value
+    dialog.preference_selector.setCurrentIndex(
+        dialog.preference_selector.findData(ThemePreference.DARK.value)
+    )
 
     preference = await dialog.save()
 

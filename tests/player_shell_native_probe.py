@@ -23,6 +23,7 @@ from samotech_iptv.application.dtos import (
     SearchChannelsResponse,
 )
 from samotech_iptv.application.dtos.playback import PlaybackOutcome
+from samotech_iptv.domain.value_objects.theme_preference import ThemePreference
 from samotech_iptv.presentation.dialogs.channel_browser_dialog import ChannelBrowserDialog
 from samotech_iptv.presentation.player_shell import PlayerShell
 
@@ -83,6 +84,19 @@ class FakeFavorite:
     async def execute(self, request: object) -> SimpleNamespace:
         self.ids.append(request.item_id)
         return SimpleNamespace(success=True)
+
+
+class FakeThemeLoad:
+    async def execute(self) -> ThemePreference:
+        return ThemePreference.DARK
+
+
+class FakeThemeSave:
+    def __init__(self) -> None:
+        self.preferences: list[ThemePreference] = []
+
+    async def execute(self, preference: ThemePreference) -> None:
+        self.preferences.append(preference)
 
 
 class FakeArtwork:
@@ -298,6 +312,8 @@ def make_shell(
     artwork_loader: FakeArtwork | None = None,
     invalidate_pending_playback: object | None = None,
     player_port: object | None = None,
+    theme_load: FakeThemeLoad | None = None,
+    theme_save: FakeThemeSave | None = None,
 ) -> PlayerShell:
     return PlayerShell(
         QLabel(),
@@ -324,6 +340,8 @@ def make_shell(
         artwork_loader=artwork_loader,  # type: ignore[arg-type]
         invalidate_pending_playback=invalidate_pending_playback,  # type: ignore[arg-type]
         player_port=player_port,  # type: ignore[arg-type]
+        load_theme_preference=theme_load,  # type: ignore[arg-type]
+        save_theme_preference=theme_save,  # type: ignore[arg-type]
     )
 
 
@@ -595,6 +613,8 @@ async def main() -> None:
     content = FakeContent({ContentType.MOVIE: (movie,), ContentType.SERIES: (series,)})
     content_favorite = FakeFavorite()
     artwork = FakeArtwork()
+    theme_load = FakeThemeLoad()
+    theme_save = FakeThemeSave()
     capabilities = FakeCapabilities(
         ProviderCapabilities(live_tv=True, vod_movies=True, vod_series=True, epg=False)
     )
@@ -610,6 +630,8 @@ async def main() -> None:
         series_seasons=FakeSeriesSeasons(),
         season_episodes=FakeSeasonEpisodes(),
         artwork_loader=artwork,
+        theme_load=theme_load,
+        theme_save=theme_save,
     )
     content_shell.provider_selector.setEditText("provider-a")
     await content_shell.refresh_provider_capabilities("provider-a")
@@ -624,6 +646,16 @@ async def main() -> None:
         "Providers",
         "Settings",
     ]
+    content_shell.open_settings_page()
+    await asyncio.sleep(0)
+    assert content_shell.pages.currentIndex() == 9
+    assert content_shell._settings_theme_selector is not None
+    assert content_shell._settings_theme_selector.currentData() == ThemePreference.DARK.value
+    content_shell._settings_theme_selector.setCurrentIndex(
+        content_shell._settings_theme_selector.findData(ThemePreference.LIGHT.value)
+    )
+    await content_shell._save_settings_theme()
+    assert theme_save.preferences == [ThemePreference.LIGHT]
     content_shell._active_content_type = ContentType.MOVIE
     await content_shell.load_content(ContentType.MOVIE)
     assert content_shell.content_model.rowCount() == 1

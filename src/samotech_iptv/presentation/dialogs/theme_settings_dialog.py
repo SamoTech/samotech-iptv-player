@@ -5,10 +5,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from PySide6.QtWidgets import (
+    QComboBox,
     QDialog,
     QFormLayout,
     QLabel,
-    QLineEdit,
     QPushButton,
 )
 
@@ -31,12 +31,19 @@ class ThemeSettingsDialog(QDialog):
         super().__init__()
         self._load_theme_preference = load_theme_preference
         self._save_theme_preference = save_theme_preference
-        self.preference_input = QLineEdit()
+        self.preference_selector = QComboBox()
+        self.preference_selector.addItem("System", ThemePreference.SYSTEM.value)
+        self.preference_selector.addItem("Light", ThemePreference.LIGHT.value)
+        self.preference_selector.addItem("Dark", ThemePreference.DARK.value)
+        self.preference_selector.setAccessibleName("Theme preference")
+        self.preference_selector.setToolTip("Choose system, light, or dark appearance")
+        # Compatibility alias for callers that historically accessed the preference widget.
+        self.preference_input = self.preference_selector
         self.save_button = QPushButton("Save Theme")
         self.save_button.clicked.connect(self._schedule_save)
         self.status_label = QLabel()
         layout = QFormLayout(self)
-        layout.addRow("Theme (system, light, or dark)", self.preference_input)
+        layout.addRow("Theme", self.preference_selector)
         layout.addRow(self.save_button)
         layout.addRow(self.status_label)
         self.setWindowTitle("Settings")
@@ -48,13 +55,15 @@ class ThemeSettingsDialog(QDialog):
     async def load(self) -> ThemePreference:
         """Load and show the persisted preference."""
         preference = await self._load_theme_preference.execute()
-        self.preference_input.setText(preference.value)
+        index = self.preference_selector.findData(preference.value)
+        if index >= 0:
+            self.preference_selector.setCurrentIndex(index)
         return preference
 
     async def save(self) -> ThemePreference | None:
         """Validate and save the user’s preference without exposing unrelated data."""
         try:
-            preference = ThemePreference(self.preference_input.text().strip().lower())
+            preference = ThemePreference(str(self.preference_selector.currentData()))
             await self._save_theme_preference.execute(preference)
         except Exception:  # noqa: BLE001
             self.status_label.setText("Unable to save theme")
