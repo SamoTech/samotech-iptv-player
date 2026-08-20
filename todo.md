@@ -65,3 +65,21 @@
 - [x] Phase 8 — Add/update focused deterministic coverage and run presentation/provider/VLC/diagnostics/security/large-data regressions, official non-presentation corpus, Ruff, Black, MyPy, Bandit, secret/credential/redaction scans, and diff checks.
 - [x] Phase 9 — Run the Windows Portable workflow only if implementation changes exist; document every pass, failure, or Windows-only validation gap without creating a release.
 - [x] Phase 10 — Create `PHASE28_PRE_FEEDBACK_HARDENING_AUDIT.md`, state the evidence-based final decision, commit/push only verified repository changes, and deliver that file as the one final report.
+
+## Newly Attached Authoritative Specification
+
+- [x] Read the complete authoritative multi-agent engineering specification and map its requirements to the Phase 28 repository baseline.
+- [x] Convert confirmed requirements into the following dependency-ordered initialization, audit, implementation, validation, and push checklist.
+
+## AI Engineering Team — First Engineering Cycle
+
+- [x] Phase A1 — Create a version-controlled AI engineering team charter defining all 14 roles, responsibilities, evidence standards, decision boundaries, handoffs, and no-automation scope.
+- [x] Phase A2 — Record the team initialization baseline: HEAD/origin parity, v0.1.6 release/tag/assets, Phase 28 audit, protected README digest, architecture, provider, playback, UI, diagnostics, tests, CI/CD, and known feedback.
+- [x] Phase B1 — Complete independent Chief Architect, provider protocol, media, VLC/playback, UI/UX, Windows, performance, security, QA, feedback, research/compatibility, release/CI, and documentation evidence reports.
+- [x] Phase B2 — Complete the independent-auditor challenge report without using its findings to edit production code directly.
+- [x] Phase C — Produce a cross-agent review that deduplicates findings, rejects unsupported claims, resolves architecture conflicts, and prioritizes only P0/P1/P2 work.
+- [x] Phase D — Approve no change, patch, defer, research, or release-candidate decisions for every confirmed finding; prohibit a v0.1.7 release unless new evidence justifies it.
+- [x] Phase E — Implement only approved low-risk evidence-backed changes at the correct layer, with focused deterministic regression coverage. No production change was approved; additive governance documentation is the sole accepted patch.
+- [x] Phase F — Run Ruff, Black, MyPy, Bandit, credential/secret scans, relevant unit/integration/provider/playback/presentation/large-data tests, full non-presentation corpus, isolated Qt presentation corpus, protected-boundary checks, and Windows Portable validation when implementation changes exist. Windows validation was not re-run because no production implementation changed.
+- [x] Phase G — Complete the final independent audit and Chief Architect decision; capture all accepted, rejected, deferred, unsupported, external, and environmental outcomes.
+- [x] Phase H — Create `AI_TEAM_STATUS.md` with all 20 required sections and deliver it as the first initialization result; commit/push only after all applicable tests pass.
