@@ -4,7 +4,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from samotech_iptv.application.dtos.provider import ProviderCapabilities
+from samotech_iptv.application.dtos.provider import (
+    ProviderCapabilities,
+    ProviderCapabilityState,
+    ProviderCapabilityTruth,
+)
 from samotech_iptv.core.exceptions import ProviderError
 from samotech_iptv.domain.value_objects.provider_capability import ProviderCapability
 
@@ -29,12 +33,58 @@ class LoadProviderCapabilities:
                 provider_id
             ).supported_capabilities()
         except ProviderError:
-            return ProviderCapabilities()
+            return ProviderCapabilities(
+                truth=ProviderCapabilityTruth(
+                    live_tv=ProviderCapabilityState.NOT_AVAILABLE,
+                    vod_movies=ProviderCapabilityState.NOT_AVAILABLE,
+                    vod_series=ProviderCapabilityState.NOT_AVAILABLE,
+                    epg=ProviderCapabilityState.NOT_AVAILABLE,
+                    timeshift=ProviderCapabilityState.NOT_AVAILABLE,
+                    catchup=ProviderCapabilityState.NOT_AVAILABLE,
+                )
+            )
+        live = ProviderCapability.LIVE in capabilities
+        vod = ProviderCapability.VOD in capabilities
+        series = ProviderCapability.SERIES in capabilities
+        epg = ProviderCapability.EPG in capabilities
+        catchup = ProviderCapability.CATCHUP in capabilities
         return ProviderCapabilities(
-            live_tv=ProviderCapability.LIVE in capabilities,
-            vod_movies=ProviderCapability.VOD in capabilities,
-            vod_series=ProviderCapability.SERIES in capabilities,
-            epg=ProviderCapability.EPG in capabilities,
-            timeshift=ProviderCapability.CATCHUP in capabilities,
-            catchup=ProviderCapability.CATCHUP in capabilities,
+            live_tv=live,
+            vod_movies=vod,
+            vod_series=series,
+            epg=epg,
+            timeshift=catchup,
+            catchup=catchup,
+            truth=ProviderCapabilityTruth(
+                live_tv=(
+                    ProviderCapabilityState.SUPPORTED
+                    if live
+                    else ProviderCapabilityState.NOT_SUPPORTED
+                ),
+                vod_movies=(
+                    ProviderCapabilityState.SUPPORTED
+                    if vod
+                    else ProviderCapabilityState.NOT_SUPPORTED
+                ),
+                vod_series=(
+                    ProviderCapabilityState.SUPPORTED
+                    if series
+                    else ProviderCapabilityState.NOT_SUPPORTED
+                ),
+                epg=(
+                    ProviderCapabilityState.SUPPORTED
+                    if epg
+                    else ProviderCapabilityState.NOT_SUPPORTED
+                ),
+                timeshift=(
+                    ProviderCapabilityState.SUPPORTED
+                    if catchup
+                    else ProviderCapabilityState.NOT_SUPPORTED
+                ),
+                catchup=(
+                    ProviderCapabilityState.SUPPORTED
+                    if catchup
+                    else ProviderCapabilityState.NOT_SUPPORTED
+                ),
+            ),
         )

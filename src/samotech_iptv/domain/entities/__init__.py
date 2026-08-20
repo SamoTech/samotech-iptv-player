@@ -9,7 +9,12 @@ Or directly from the sub-module::
     from samotech_iptv.domain.entities.channel import Channel
 """
 
-from samotech_iptv.domain.entities.account_info import AccountInfo
+from samotech_iptv.domain.entities.account_info import (
+    AccountExpiration,
+    AccountInfo,
+    AccountStatus,
+    SubscriptionStatus,
+)
 from samotech_iptv.domain.entities.catchup_event import CatchupEvent
 from samotech_iptv.domain.entities.category import Category
 from samotech_iptv.domain.entities.channel import Channel
@@ -29,6 +34,9 @@ from samotech_iptv.domain.entities.xmltv_binding import XMLTVBinding, XMLTVChann
 
 __all__ = [
     "AccountInfo",
+    "AccountExpiration",
+    "AccountStatus",
+    "SubscriptionStatus",
     "CatchupEvent",
     "Channel",
     "Category",

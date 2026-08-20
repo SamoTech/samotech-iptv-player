@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Literal
 
 from samotech_iptv.core.exceptions import ValidationError
 from samotech_iptv.core.logging import get_logger
-from samotech_iptv.domain.entities.account_info import AccountInfo
+from samotech_iptv.domain.entities.account_info import AccountInfo, SubscriptionStatus
 from samotech_iptv.domain.entities.category import Category
 from samotech_iptv.domain.entities.channel import Channel
 from samotech_iptv.domain.entities.epg_entry import EPGEntry
@@ -60,6 +60,12 @@ class XtreamDomainTranslator:
                 raw.get("max_connections")
             ),
             message=str(raw.get("message") or "").strip() or None,
+            is_trial=XtreamDomainTranslator._optional_bool(raw.get("is_trial")),
+            subscription_status=(
+                SubscriptionStatus.TRIAL
+                if XtreamDomainTranslator._optional_bool(raw.get("is_trial")) is True
+                else SubscriptionStatus.NOT_AVAILABLE
+            ),
         )
 
     @staticmethod
@@ -461,6 +467,20 @@ class XtreamDomainTranslator:
             return int(str(value))
         except ValueError as exc:
             raise ValidationError("num", "Xtream channel number must be an integer") from exc
+
+    @staticmethod
+    def _optional_bool(value: object) -> bool | None:
+        """Normalize common provider boolean encodings without treating unknown text as true."""
+        if value in (None, ""):
+            return None
+        if isinstance(value, bool):
+            return value
+        normalized = str(value).strip().casefold()
+        if normalized in {"1", "true", "yes"}:
+            return True
+        if normalized in {"0", "false", "no"}:
+            return False
+        return None
 
     @staticmethod
     def _optional_float(value: object) -> float | None:

@@ -233,3 +233,33 @@ async def test_provider_list_refreshes_safely_opens_edit_and_removes_selected_pr
     assert dialog.status_label.value == "Provider removed"
     assert dialog.provider_summary_label.value == "No providers registered"
     assert "profile" not in dialog.status_label.value
+
+
+def test_provider_list_keeps_unavailable_capabilities_distinct_from_unsupported() -> None:
+    from samotech_iptv.application.dtos.provider import (
+        ProviderCapabilities,
+        ProviderCapabilityState,
+        ProviderCapabilityTruth,
+        ProviderMetadata,
+    )
+
+    provider = ProviderMetadata(
+        id="profile",
+        name="profile",
+        type="xtream",
+        base_url="https://safe.example.test",
+        is_active=True,
+        capabilities=ProviderCapabilities(
+            truth=ProviderCapabilityTruth(
+                live_tv=ProviderCapabilityState.SUPPORTED,
+                vod_movies=ProviderCapabilityState.NOT_SUPPORTED,
+                vod_series=ProviderCapabilityState.NOT_AVAILABLE,
+            )
+        ),
+    )
+
+    summary = ProviderListDialog._format_provider(provider)
+
+    assert "Live: supported" in summary
+    assert "VOD: not supported" in summary
+    assert "Series: not available" in summary

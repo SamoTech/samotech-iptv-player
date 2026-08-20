@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, cast
 
+from samotech_iptv.application.dtos.provider import ProviderCapabilityState
 from samotech_iptv.application.use_cases.load_provider_capabilities import (
     LoadProviderCapabilities,
 )
@@ -58,6 +59,8 @@ def test_load_provider_capabilities_maps_runtime_declarations_without_metadata_g
     assert result.vod_series is True
     assert result.epg is True
     assert result.catchup is False
+    assert result.truth.live_tv is ProviderCapabilityState.SUPPORTED
+    assert result.truth.catchup is ProviderCapabilityState.NOT_SUPPORTED
     assert resolver.provider_ids == ["xtream-demo"]
     assert provider.calls == 1
 
@@ -77,3 +80,5 @@ def test_load_provider_capabilities_reports_no_unavailable_domains() -> None:
     assert result.live_tv is False
     assert result.vod_movies is False
     assert result.vod_series is False
+    assert result.truth.live_tv is ProviderCapabilityState.NOT_AVAILABLE
+    assert result.truth.catchup is ProviderCapabilityState.NOT_AVAILABLE

@@ -20,7 +20,10 @@ from samotech_iptv.application.use_cases.check_provider_health import (
 from samotech_iptv.presentation.task_owner import create_owned_task
 
 if TYPE_CHECKING:
-    from samotech_iptv.application.dtos.provider import ProviderMetadata
+    from samotech_iptv.application.dtos.provider import (
+        ProviderCapabilities,
+        ProviderMetadata,
+    )
     from samotech_iptv.application.use_cases.check_provider_health import CheckProviderHealth
     from samotech_iptv.application.use_cases.list_providers import ListProviders
     from samotech_iptv.application.use_cases.provider_lifecycle import (
@@ -83,17 +86,7 @@ class ProviderListDialog(QDialog):
     def _format_provider(provider: ProviderMetadata) -> str:
         """Render protocol, safe capability declarations, and optional health state."""
         capabilities = provider.capabilities
-        enabled = [
-            label
-            for label, value in (
-                ("Live", capabilities.live_tv),
-                ("VOD", capabilities.vod_movies),
-                ("Series", capabilities.vod_series),
-                ("EPG", capabilities.epg),
-                ("Catch-up", capabilities.catchup),
-            )
-            if value
-        ]
+        enabled = ProviderListDialog._capability_labels(capabilities)
         base = (
             f"{provider.id} · {provider.type} · "
             f"{'Active' if provider.is_active else 'Inactive'}"
@@ -104,6 +97,21 @@ class ProviderListDialog(QDialog):
         health_text = health.status.value if health is not None else "health unknown"
         capability_text = ", ".join(enabled) or "capabilities unknown"
         return f"{base} · {health_text} · {capability_text}"
+
+    @staticmethod
+    def _capability_labels(capabilities: ProviderCapabilities) -> list[str]:
+        """Keep feature absence distinct from a runtime capability probe being unavailable."""
+        return [
+            f"{label}: {state.value.replace('_', ' ')}"
+            for label, state in (
+                ("Live", capabilities.truth.live_tv),
+                ("VOD", capabilities.truth.vod_movies),
+                ("Series", capabilities.truth.vod_series),
+                ("EPG", capabilities.truth.epg),
+                ("Catch-up", capabilities.truth.catchup),
+            )
+            if state.value != "not_verified"
+        ]
 
     def _schedule_check_selected_health(self) -> None:
         """Queue a non-blocking health snapshot for the selected provider."""

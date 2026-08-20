@@ -7,10 +7,33 @@ from enum import StrEnum
 
 __all__ = [
     "ProviderCapabilities",
+    "ProviderCapabilityState",
+    "ProviderCapabilityTruth",
     "ProviderHealth",
     "ProviderHealthStatus",
     "ProviderMetadata",
 ]
+
+
+class ProviderCapabilityState(StrEnum):
+    """Truth state for one capability; distinct from a bare feature boolean."""
+
+    SUPPORTED = "supported"
+    NOT_SUPPORTED = "not_supported"
+    NOT_VERIFIED = "not_verified"
+    NOT_AVAILABLE = "not_available"
+
+
+@dataclass(frozen=True)
+class ProviderCapabilityTruth:
+    """Runtime support evidence for the presentation-gated capability families."""
+
+    live_tv: ProviderCapabilityState = ProviderCapabilityState.NOT_VERIFIED
+    vod_movies: ProviderCapabilityState = ProviderCapabilityState.NOT_VERIFIED
+    vod_series: ProviderCapabilityState = ProviderCapabilityState.NOT_VERIFIED
+    epg: ProviderCapabilityState = ProviderCapabilityState.NOT_VERIFIED
+    timeshift: ProviderCapabilityState = ProviderCapabilityState.NOT_VERIFIED
+    catchup: ProviderCapabilityState = ProviderCapabilityState.NOT_VERIFIED
 
 
 @dataclass(frozen=True)
@@ -23,6 +46,7 @@ class ProviderCapabilities:
     epg: bool = False
     timeshift: bool = False
     catchup: bool = False
+    truth: ProviderCapabilityTruth = field(default_factory=ProviderCapabilityTruth)
 
 
 @dataclass(frozen=True)

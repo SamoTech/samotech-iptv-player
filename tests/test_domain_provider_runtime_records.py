@@ -5,7 +5,13 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from samotech_iptv.core.exceptions import ValidationError
-from samotech_iptv.domain.entities import AccountInfo, CatchupEvent, ProviderSession, ServerInfo
+from samotech_iptv.domain.entities import (
+    AccountInfo,
+    CatchupEvent,
+    ProviderSession,
+    ServerInfo,
+    SubscriptionStatus,
+)
 from samotech_iptv.domain.value_objects.channel_id import ChannelId
 from samotech_iptv.domain.value_objects.provider_id import ProviderId
 
@@ -48,6 +54,24 @@ def test_account_info_tolerates_optional_provider_metadata() -> None:
 
     with pytest.raises(ValidationError):
         AccountInfo(provider_id=PROVIDER, status="active", active_connections=-1)
+
+
+def test_account_info_exposes_typed_expiration_without_inferring_provider_values() -> None:
+    account = AccountInfo(
+        provider_id=PROVIDER,
+        status="active",
+        expires_at=START + timedelta(days=1, hours=3),
+        expiration_timezone="UTC",
+        is_trial=True,
+    )
+
+    assert account.subscription_status is SubscriptionStatus.TRIAL
+    assert account.expiration.is_expired_at(START) is False
+    assert account.expiration.days_remaining_at(START) == 1
+    assert account.expiration.hours_remaining_at(START) == 27
+    assert (
+        AccountInfo(provider_id=PROVIDER, status="active").expiration.is_expired_at(START) is None
+    )
 
 
 def test_server_info_excludes_private_url_and_accepts_sparse_metadata() -> None:

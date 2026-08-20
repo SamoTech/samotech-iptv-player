@@ -124,6 +124,17 @@ def test_account_info_normalizes_optional_xtream_status_fields() -> None:
     assert expired.active_connections is None
 
 
+def test_account_info_preserves_explicit_trial_without_fabricating_expiration() -> None:
+    account = XtreamDomainTranslator.account_info(
+        {"auth": "1", "status": "Active", "is_trial": "1"},
+        ProviderId("xtream-demo"),
+    )
+
+    assert account.is_trial is True
+    assert account.subscription_status == "trial"
+    assert account.expires_at is None
+
+
 def test_server_info_ignores_credential_bearing_url_fields() -> None:
     server = XtreamDomainTranslator.server_info(
         {
