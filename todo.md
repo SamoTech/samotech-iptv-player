@@ -51,3 +51,17 @@
 - [x] Phase L — After every required validation gate passes, update only legitimate version sources to 0.1.6, create release notes that explicitly classify the release as public testing, commit, push, tag, publish, and wait for all required workflows.
 - [x] Phase M — Download and independently verify the exact published artifact: SHA256, PE metadata, bundled VLC, launch, displayed version, release asset/tag, repository cleanliness, and byte-exact README badge block.
 - [x] Phase N — Create `PHASE27_PUBLIC_TEST_RELEASE_AUDIT.md` with baseline, findings, fixes, diagnostics, launcher, performance, security, test/Windows evidence, release identity, limitations, provider status, classification, and next milestone; deliver it as the one final report.
+
+## Wave 5 — Pre-Feedback Hardening, UX Polish & Real-World Test Readiness
+
+- [x] Read the complete authoritative Wave 5 specification and preserve the v0.1.6 public-testing classification.
+- [x] Phase 1 — Create `docs/evidence/WAVE5_BASELINE.md` from HEAD/origin parity, v0.1.6 release identity, Wave 4 audit, diagnostics, launcher, player/provider surfaces, workflow gates, and byte-exact README badge evidence.
+- [x] Phase 2 — Run and classify the complete first-run user-journey audit; implement only confirmed P0/P1 and clearly justified low-risk P2 findings.
+- [x] Phase 3 — Audit M3U, Xtream, MAG/Stalker, and Smart Import setup labels, masking, validation, source-specific fields, loading/error/retry/cancel behavior, and duplicate-source handling.
+- [x] Phase 4 — Audit actionable empty states and user-facing error classifications without exposing technical secrets or fabricating provider capabilities.
+- [x] Phase 5 — Audit context-sensitive live/VOD/series playback controls, fullscreen, focus, keyboard/remote-like controls, search, and large-playlist UI-thread risks without changing libVLC lifecycle ownership.
+- [x] Phase 6 — Audit EPG, favorites/history/resume, settings, safe diagnostics, debug launcher, logs, provider/media boundaries, and capability-truth surfaces.
+- [ ] Phase 7 — Improve documentation only where required, create the developer-facing Reddit feedback intake checklist, and preserve the README badge block byte-for-byte.
+- [ ] Phase 8 — Add/update focused deterministic coverage and run presentation/provider/VLC/diagnostics/security/large-data regressions, official non-presentation corpus, Ruff, Black, MyPy, Bandit, secret/credential/redaction scans, and diff checks.
+- [ ] Phase 9 — Run the Windows Portable workflow only if implementation changes exist; document every pass, failure, or Windows-only validation gap without creating a release.
+- [ ] Phase 10 — Create `PHASE28_PRE_FEEDBACK_HARDENING_AUDIT.md`, state the evidence-based final decision, commit/push only verified repository changes, and deliver that file as the one final report.

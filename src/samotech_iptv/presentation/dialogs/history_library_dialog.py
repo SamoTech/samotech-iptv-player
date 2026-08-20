@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 from PySide6.QtWidgets import (
@@ -69,13 +70,32 @@ class HistoryLibraryDialog(QDialog):
 
     @staticmethod
     def _format_history_item(item: HistoryItemDTO) -> str:
-        """Render canonical identity, watched time, and the existing stored progress values."""
-        progress = (
-            f"{item.position_seconds}s / {item.duration_seconds}s"
-            if item.duration_seconds > 0
-            else f"{item.position_seconds}s"
-        )
-        return f"{item.id} · {item.item_type} · {item.item_id} · {progress} · {item.watched_at}"
+        """Render safe, user-oriented progress without internal item identifiers."""
+        item_type = item.item_type.replace("_", " ").title()
+        if item.completed:
+            progress = "Completed"
+        elif item.duration_seconds > 0:
+            progress = (
+                f"Continue at {HistoryLibraryDialog._format_duration(item.position_seconds)} "
+                f"of {HistoryLibraryDialog._format_duration(item.duration_seconds)}"
+            )
+        else:
+            progress = "Watched live"
+        watched_at = HistoryLibraryDialog._format_watched_at(item.watched_at)
+        return f"{item_type} · {progress} · Last watched {watched_at}"
+
+    @staticmethod
+    def _format_duration(seconds: int) -> str:
+        minutes, remainder = divmod(max(0, seconds), 60)
+        hours, minutes = divmod(minutes, 60)
+        return f"{hours}:{minutes:02d}:{remainder:02d}" if hours else f"{minutes}:{remainder:02d}"
+
+    @staticmethod
+    def _format_watched_at(value: str) -> str:
+        try:
+            return datetime.fromisoformat(value.replace("Z", "+00:00")).strftime("%Y-%m-%d %H:%M")
+        except ValueError:
+            return "recently"
 
     def _schedule_refresh(self) -> None:
         """Queue history refresh on the supported Qt-aware event loop."""

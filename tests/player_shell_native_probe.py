@@ -437,6 +437,28 @@ async def main() -> None:
     assert not control_shell.seek_slider.isEnabled()
     assert control_shell.elapsed_label.text() == "LIVE"
 
+    retry_attempts = 0
+
+    async def failed_play(_: object) -> SimpleNamespace:
+        nonlocal retry_attempts
+        retry_attempts += 1
+        if retry_attempts == 1:
+            return SimpleNamespace(
+                outcome=PlaybackOutcome.FAILED,
+                error="HTTP 403 https://user:password@example.invalid/live?token=secret",
+            )
+        return SimpleNamespace(outcome=PlaybackOutcome.PLAYED, error=None)
+
+    retry_shell = make_shell(FakeBrowse(), FakeSearch(), FakeFavorite(), failed_play)
+    retry_shell.provider_selector.setEditText("provider-a")
+    await retry_shell.play_channel(a)
+    assert retry_shell.retry_button.isEnabled()
+    assert "example.invalid" not in retry_shell.channel_status.text()
+    retry_shell._schedule_retry_playback()
+    await asyncio.sleep(0)
+    assert retry_attempts == 2
+    assert not retry_shell.retry_button.isEnabled()
+
     episode_one = ContentItemDTO(
         id="episode-1",
         provider_id="provider-a",

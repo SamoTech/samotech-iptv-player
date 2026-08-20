@@ -249,10 +249,27 @@ async def test_epg_grid_renders_only_title_and_schedule_data() -> None:
 
 @pytest.mark.asyncio
 async def test_epg_grid_replaces_error_details_with_safe_status() -> None:
-    dialog = EPGGridDialog(FakeLoadRegisteredEPG(LoadEPGResponse(error="request failed")))  # type: ignore[arg-type]
+    dialog = EPGGridDialog(  # type: ignore[arg-type]
+        FakeLoadRegisteredEPG(LoadEPGResponse(error="request failed")),
+        "provider-one",
+        "channel-one",
+    )
 
     response = await dialog.load_epg()
 
     assert response.error == "request failed"
     assert dialog.epg_list.items == []
-    assert dialog.status_label.value == "Unable to load EPG"
+    assert "Programme guide is unavailable" in dialog.status_label.value
+    assert "request failed" not in dialog.status_label.value
+
+
+@pytest.mark.asyncio
+async def test_epg_grid_uses_safe_selected_context_without_rendering_internal_inputs() -> None:
+    loader = FakeLoadRegisteredEPG(LoadEPGResponse())
+    dialog = EPGGridDialog(loader, "provider-one", "channel-one")  # type: ignore[arg-type]
+
+    await dialog.load_epg()
+
+    assert loader.requests[0].provider_id == "provider-one"  # type: ignore[union-attr]
+    assert loader.requests[0].channel_id == "channel-one"  # type: ignore[union-attr]
+    assert "Provider ID" not in " ".join(str(row) for row in dialog.__dict__.values())

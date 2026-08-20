@@ -55,29 +55,47 @@ class FakeLabel:
         self.value = value
 
 
+class FakeListWidget:
+    """Minimal selectable list double for safe favorite summaries."""
+
+    def __init__(self) -> None:
+        self.items: list[str] = []
+        self.selected_row = -1
+
+    def addItem(self, item: str) -> None:  # noqa: N802
+        self.items.append(item)
+
+    def clear(self) -> None:
+        self.items.clear()
+        self.selected_row = -1
+
+    def currentRow(self) -> int:  # noqa: N802
+        return self.selected_row
+
+    def setCurrentRow(self, row: int) -> None:  # noqa: N802
+        self.selected_row = row
+
+
 class FakeLineEdit:
-    """Minimal QLineEdit double compatible with shared dialog imports."""
+    """Minimal import-compatible line-edit stub for sibling dialog modules."""
 
     class EchoMode:
-        """Minimal echo-mode namespace."""
-
         Password = object()
 
     def __init__(self) -> None:
         self.value = ""
-        self.echo_mode: object | None = None
 
-    def clear(self) -> None:
-        self.value = ""
-
-    def setEchoMode(self, echo_mode: object) -> None:  # noqa: N802
-        self.echo_mode = echo_mode
+    def text(self) -> str:
+        return self.value
 
     def setText(self, value: str) -> None:  # noqa: N802
         self.value = value
 
-    def text(self) -> str:
-        return self.value
+    def clear(self) -> None:
+        self.value = ""
+
+    def setEchoMode(self, _: object) -> None:  # noqa: N802
+        return None
 
 
 class FakeButton:
@@ -92,6 +110,7 @@ def _install_fake_pyside6() -> None:
     qtwidgets.QDialog = FakeDialog
     qtwidgets.QFormLayout = FakeFormLayout
     qtwidgets.QLabel = FakeLabel
+    qtwidgets.QListWidget = FakeListWidget
     qtwidgets.QLineEdit = FakeLineEdit
     qtwidgets.QPushButton = FakeButton
     sys.modules["PySide6"] = ModuleType("PySide6")
@@ -139,7 +158,7 @@ def _dialog(
 
 
 @pytest.mark.asyncio
-async def test_favorites_refresh_renders_safe_canonical_summary() -> None:
+async def test_favorites_refresh_renders_safe_user_summary_without_internal_identifiers() -> None:
     dialog, list_favorites, _ = _dialog(
         [
             ListFavoritesResponse(
@@ -158,9 +177,10 @@ async def test_favorites_refresh_renders_safe_canonical_summary() -> None:
     await dialog.refresh()
 
     assert list_favorites.calls == 1
-    assert (
-        dialog.favorite_summary_label.value == "favorite-1 · legacy provider · channel · channel-1"
-    )
+    assert dialog.favorite_summary_label.value == "1 saved favorite"
+    assert dialog.favorite_list.items == ["Favorite 1 · Channel"]
+    assert "favorite-1" not in dialog.favorite_list.items[0]
+    assert "channel-1" not in dialog.favorite_list.items[0]
     assert dialog.status_label.value == ""
 
 
@@ -171,7 +191,9 @@ async def test_favorites_refresh_displays_empty_state() -> None:
     await dialog.refresh()
 
     assert dialog.favorite_summary_label.value == "No favorites saved"
-    assert dialog.status_label.value == "No favorites saved"
+    assert dialog.status_label.value == (
+        "No favorites saved. Add a channel, movie, or series to see it here."
+    )
 
 
 @pytest.mark.asyncio
@@ -197,15 +219,14 @@ async def test_selected_favorite_removal_uses_canonical_record_id_and_refreshes(
         [ListFavoritesResponse(favorites=(favorite,)), ListFavoritesResponse()]
     )
     await dialog.refresh()
-    dialog.favorite_id_input.setText("favorite-1")
+    dialog.favorite_list.setCurrentRow(0)
 
     await dialog.remove_selected()
 
     assert remove_favorite.ids == ["favorite-1"]
     assert list_favorites.calls == 2
-    assert dialog.favorite_id_input.text() == ""
     assert dialog.favorite_summary_label.value == "No favorites saved"
-    assert dialog.status_label.value == "No favorites saved"
+    assert "No favorites saved" in dialog.status_label.value
 
 
 @pytest.mark.asyncio
@@ -221,7 +242,7 @@ async def test_favorite_removal_hides_failure_detail() -> None:
         RemoveFavoriteResponse(removed=False, error="private storage detail"),
     )
     await dialog.refresh()
-    dialog.favorite_id_input.setText("favorite-1")
+    dialog.favorite_list.setCurrentRow(0)
 
     await dialog.remove_selected()
 

@@ -139,7 +139,7 @@ def _dialog(
 
 
 @pytest.mark.asyncio
-async def test_history_refresh_renders_existing_canonical_progress() -> None:
+async def test_history_refresh_renders_safe_user_progress_without_internal_identifiers() -> None:
     dialog, load_history, _ = _dialog(
         [
             LoadHistoryResponse(
@@ -161,8 +161,10 @@ async def test_history_refresh_renders_existing_canonical_progress() -> None:
 
     assert len(load_history.requests) == 1
     assert dialog.history_summary_label.value == (
-        "history-1 · channel · channel-1 · 30s / 120s · 2026-08-13T01:00:00+00:00"
+        "Channel · Continue at 0:30 of 2:00 · Last watched 2026-08-13 01:00"
     )
+    assert "history-1" not in dialog.history_summary_label.value
+    assert "channel-1" not in dialog.history_summary_label.value
     assert dialog.status_label.value == ""
 
 

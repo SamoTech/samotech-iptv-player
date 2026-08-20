@@ -413,11 +413,13 @@ class MainWindow(QMainWindow):
         self._active_channel_browser_dialog = dialog
         return dialog
 
-    def open_epg_grid_dialog(self) -> EPGGridDialog:
-        """Create and show the credential-safe provider EPG grid."""
+    def open_epg_grid_dialog(
+        self, provider_id: str | None = None, channel_id: str | None = None
+    ) -> EPGGridDialog:
+        """Create a selected-channel EPG grid without exposing IDs in the normal shell flow."""
         from samotech_iptv.presentation.dialogs.epg_grid_dialog import EPGGridDialog
 
-        dialog = EPGGridDialog(self._load_registered_epg)
+        dialog = EPGGridDialog(self._load_registered_epg, provider_id, channel_id)
         dialog.show()
         self._active_epg_grid_dialog = dialog
         return dialog

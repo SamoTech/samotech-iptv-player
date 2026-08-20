@@ -65,6 +65,7 @@ from samotech_iptv.presentation.playback_diagnostics import (
 )
 from samotech_iptv.presentation.task_owner import cancel_owned_tasks, create_owned_task
 from samotech_iptv.presentation.theme.tokens import COLORS, RADII, SPACING
+from samotech_iptv.presentation.user_messages import playback_failure_message
 from samotech_iptv.presentation.viewmodels.channel_list_model import ChannelListModel
 from samotech_iptv.presentation.viewmodels.content_list_model import ContentListModel
 
@@ -338,7 +339,7 @@ class PlayerShell(QWidget):
         open_favorites_dialog: Callable[[], object],
         open_history_dialog: Callable[[], object],
         open_category_dialog: Callable[[], object],
-        open_epg_dialog: Callable[[], object],
+        open_epg_dialog: Callable[[str | None, str | None], object],
         open_provider_list_dialog: Callable[[], object],
         open_settings_dialog: Callable[[], object],
         load_categories: LoadCategories | None = None,
@@ -498,7 +499,9 @@ class PlayerShell(QWidget):
         self.pages.addWidget(self._build_search_page())
         self.pages.addWidget(
             self._build_library_page(
-                "EPG", "Browse the electronic programme guide.", self._open_epg_dialog
+                "EPG",
+                "Browse the electronic programme guide.",
+                self._open_selected_channel_epg,
             )
         )
         self.pages.addWidget(
@@ -845,6 +848,11 @@ class PlayerShell(QWidget):
         self.restart_button.setToolTip("Restart the current movie or episode")
         self.restart_button.clicked.connect(self._schedule_restart)
         overlay_center.addWidget(self.restart_button)
+        self.retry_button = QPushButton("Retry")
+        self.retry_button.setAccessibleName("Retry failed playback")
+        self.retry_button.setToolTip("Retry the channel that last failed to start")
+        self.retry_button.clicked.connect(self._schedule_retry_playback)
+        overlay_center.addWidget(self.retry_button)
         self.previous_episode_button = QPushButton("Previous episode")
         self.previous_episode_button.setAccessibleName("Play previous episode")
         self.previous_episode_button.setToolTip("Play the previous episode when available")
@@ -1034,6 +1042,16 @@ class PlayerShell(QWidget):
             return
         self.navigation.setCurrentIndex(self.navigation_model.index(row, 0))
         self._change_page(row)
+
+    def _open_selected_channel_epg(self) -> None:
+        """Open EPG with selected Live-TV context rather than requesting opaque IDs."""
+        channel = self.selected_channel
+        if channel is None:
+            self._set_status_text(
+                "● Select a loaded live channel before opening its programme guide"
+            )
+            return
+        self._open_epg_dialog(channel.provider_id, channel.id)
 
     def _refresh_home_actions(self) -> None:
         """Show only provider-backed content destinations on Home."""
@@ -2366,6 +2384,7 @@ class PlayerShell(QWidget):
             and episode_index is not None
             and episode_index + 1 < len(self._series_episodes)
         )
+        self.retry_button.setEnabled(self.playback_error_channel is not None)
         self.audio_button.setEnabled(has_player)
         self.subtitle_button.setEnabled(has_player)
         self.aspect_button.setEnabled(has_player)
@@ -2601,6 +2620,12 @@ class PlayerShell(QWidget):
     def _schedule_restart(self) -> None:
         if self._player_port is not None and self._is_seekable_mode:
             create_owned_task(self, self._restart_playback())
+
+    def _schedule_retry_playback(self) -> None:
+        """Retry only the last failed typed Live-TV target through the existing path."""
+        channel = self.playback_error_channel
+        if channel is not None:
+            create_owned_task(self, self.play_channel(channel))
 
     async def _restart_playback(self) -> None:
         if self._player_port is None or not self._is_seekable_mode:
@@ -3118,8 +3143,11 @@ class PlayerShell(QWidget):
             self.loading_channel = None
             self.playback_error_channel = channel
             self._update_channel_context()
-            self.channel_status.setText("Unable to play selected channel")
+            self.channel_status.setText(
+                playback_failure_message(PlaybackOutcome.FAILED, "playback exception")
+            )
             self._set_status_text("● Playback error")
+            self._set_control_availability()
             return
         if getattr(result, "outcome", None) is PlaybackOutcome.STALE:
             return
@@ -3131,9 +3159,13 @@ class PlayerShell(QWidget):
             self.playback_error_channel = channel
             self._update_channel_context()
             self.channel_status.setText(
-                getattr(result, "error", None) or "Unable to play selected channel"
+                playback_failure_message(
+                    getattr(result, "outcome", PlaybackOutcome.FAILED),
+                    getattr(result, "error", None),
+                )
             )
             self._set_status_text("● Playback error")
+            self._set_control_availability()
             return
         if request_generation != self._request_generation or provider_id != self._provider_id():
             return

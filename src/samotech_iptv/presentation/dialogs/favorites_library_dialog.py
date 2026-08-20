@@ -8,7 +8,7 @@ from PySide6.QtWidgets import (
     QDialog,
     QFormLayout,
     QLabel,
-    QLineEdit,
+    QListWidget,
     QPushButton,
 )
 
@@ -36,9 +36,9 @@ class FavoritesLibraryDialog(QDialog):
         super().__init__()
         self._list_favorites = list_favorites
         self._remove_favorite = remove_favorite
-        self._favorites: dict[str, FavoriteDTO] = {}
+        self._favorites: list[FavoriteDTO] = []
         self.favorite_summary_label = QLabel()
-        self.favorite_id_input = QLineEdit()
+        self.favorite_list = QListWidget()
         self.refresh_button = QPushButton("Refresh Favorites")
         self.refresh_button.clicked.connect(self._schedule_refresh)
         self.remove_button = QPushButton("Remove Selected Favorite")
@@ -46,7 +46,7 @@ class FavoritesLibraryDialog(QDialog):
         self.status_label = QLabel()
         layout = QFormLayout(self)
         layout.addRow(self.favorite_summary_label)
-        layout.addRow("Favorite ID", self.favorite_id_input)
+        layout.addRow("Saved favorites", self.favorite_list)
         layout.addRow(self.refresh_button)
         layout.addRow(self.remove_button)
         layout.addRow(self.status_label)
@@ -56,27 +56,35 @@ class FavoritesLibraryDialog(QDialog):
         """Refresh only presentation-safe favorite summaries."""
         response = await self._list_favorites.execute()
         if response.error is not None:
-            self._favorites = {}
+            self._favorites = []
+            self.favorite_list.clear()
             self.favorite_summary_label.setText("No favorites available")
             self.status_label.setText(_LOAD_ERROR)
             return
-        self._favorites = {favorite.id: favorite for favorite in response.favorites}
+        self._favorites = list(response.favorites)
+        self.favorite_list.clear()
+        for index, favorite in enumerate(self._favorites, start=1):
+            item_type = favorite.item_type.replace("_", " ").title()
+            self.favorite_list.addItem(f"Favorite {index} · {item_type}")
+        count = len(self._favorites)
         self.favorite_summary_label.setText(
-            "\n".join(
-                f"{favorite.id} · {favorite.provider_id or 'legacy provider'} · "
-                f"{favorite.item_type} · {favorite.item_id}"
-                for favorite in response.favorites
-            )
-            or "No favorites saved"
+            "No favorites saved"
+            if count == 0
+            else f"{count} saved favorite" if count == 1 else f"{count} saved favorites"
         )
-        self.status_label.setText("" if response.favorites else "No favorites saved")
+        self.status_label.setText(
+            ""
+            if self._favorites
+            else "No favorites saved. Add a channel, movie, or series to see it here."
+        )
 
     async def remove_selected(self) -> None:
         """Remove the selected favorite with generic feedback and a refreshed list."""
-        favorite = self._favorites.get(self.favorite_id_input.text().strip())
-        if favorite is None:
+        selected_row = self.favorite_list.currentRow()
+        if not 0 <= selected_row < len(self._favorites):
             self.status_label.setText("Select a saved favorite")
             return
+        favorite = self._favorites[selected_row]
         response = await self._remove_favorite.execute(favorite.id)
         if response.error is not None:
             self.status_label.setText(_REMOVE_ERROR)
@@ -85,7 +93,6 @@ class FavoritesLibraryDialog(QDialog):
             self.status_label.setText("Favorite no longer exists")
             await self.refresh()
             return
-        self.favorite_id_input.clear()
         self.status_label.setText("Favorite removed")
         await self.refresh()
 
