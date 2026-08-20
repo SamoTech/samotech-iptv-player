@@ -9,4 +9,5 @@
 - [x] Implement only confirmed, architecture-compatible UI, provider-flow, error-message, and performance fixes.
 - [x] Add focused regression and large-data coverage, then run the required focused and full validation suites.
 - [x] Audit README and release presentation for accurate existing screenshots only; preserve the protected badge block and create no release.
+- [x] Restore Windows compatibility for the deterministic Phase 27 large-data probe without weakening its Linux memory measurement.
 - [ ] Write one evidence-based Phase 27 audit report with completed tasks, verification, changes, blockers, remaining actions, classifications, and final status.

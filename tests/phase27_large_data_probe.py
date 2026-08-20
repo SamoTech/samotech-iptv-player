@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import json
 import os
-import resource
 import threading
 from pathlib import Path
 from time import perf_counter, process_time
@@ -13,6 +12,11 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
+try:
+    import resource
+except ModuleNotFoundError:  # Windows has no POSIX resource module.
+    resource = None  # type: ignore[assignment]
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
@@ -178,6 +182,13 @@ def process_threads() -> int | None:
     return None
 
 
+def peak_rss_kib() -> int | None:
+    """Return POSIX peak RSS in KiB, or an explicit unsupported marker on Windows."""
+    if resource is None:
+        return None
+    return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+
+
 def metric(action: Callable[[], object]) -> tuple[float, float]:
     cpu_start = process_time()
     elapsed_start = perf_counter()
@@ -190,7 +201,7 @@ def metric(action: Callable[[], object]) -> tuple[float, float]:
 
 async def main() -> None:
     application = QApplication.instance() or QApplication([])
-    before_rss_kib = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+    before_rss_kib = peak_rss_kib()
     before_threads = process_threads()
     startup_start = perf_counter()
     shell = make_shell()
@@ -291,7 +302,7 @@ async def main() -> None:
         "cpu_ms": responsiveness_cpu_ms,
         "rows": 1,
     }
-    after_rss_kib = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+    after_rss_kib = peak_rss_kib()
     result = {
         "startup_ms": startup_ms,
         "dataset_sizes": {
@@ -305,7 +316,11 @@ async def main() -> None:
         "rss_kib": {
             "before": before_rss_kib,
             "after": after_rss_kib,
-            "delta": after_rss_kib - before_rss_kib,
+            "delta": (
+                after_rss_kib - before_rss_kib
+                if after_rss_kib is not None and before_rss_kib is not None
+                else None
+            ),
         },
         "process_threads": {"before": before_threads, "after": process_threads()},
         "python_threads": threading.active_count(),
