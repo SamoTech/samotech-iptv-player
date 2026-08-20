@@ -4,6 +4,10 @@
 
 The current implementation already serializes play, stop, restart, pause, resume, recording restarts, and recovery through one `VlcPlayerAdapter` lock and one media-generation/session-token model. A Wave 3 `PlaybackSession` replacement is therefore not introduced: the existing adapter plus `PlaybackStateMachine` is the only lifecycle owner. This prevents UI controls, provider refreshes, and native callbacks from creating concurrent media sessions.
 
+## 1.1 Resolved-Playback Credential Boundary
+
+`PlaybackResource` rejects URL-bearing resource identifiers, while `ResolvedPlayback` holds the final URL and optional explicit transport metadata only at the provider-to-player handoff. Existing playback regressions prove stale resolution is discarded, history records the logical content identity rather than the resolved URL, and player failure messages do not disclose the resolved stream. This satisfies the Wave 3 requirement to avoid persisting or exposing credential-bearing playback URLs without introducing a new `ResolvedStream` type that would duplicate the current contract.
+
 ## 2. Buffering, Liveness, and Recovery
 
 | Requirement | Current evidence | Wave 3 disposition |
@@ -41,3 +45,4 @@ The product/diagnostic conclusion is consequently: **do not expose codec, audio,
 [2]: `src/samotech_iptv/application/player_state_machine.py` — typed playback-state contract.  
 [3]: `src/samotech_iptv/presentation/player_shell.py` — capability-gated player controls.  
 [4]: `docs/evidence/WAVE3_CAPABILITY_MATRIX.md` and `docs/evidence/WAVE3_RUNTIME_PROBE_LOG.md` — runtime evidence boundaries.
+[5]: `tests/test_application_play_playback_target.py` — stale-resolution, logical-history, and safe-error boundaries.

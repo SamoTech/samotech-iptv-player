@@ -11,21 +11,21 @@
 - [x] Audit README and release presentation for accurate existing screenshots only; preserve the protected badge block and create no release.
 - [x] Restore Windows compatibility for the deterministic Phase 27 large-data probe without weakening its Linux memory measurement.
 - [x] Write one evidence-based Phase 27 audit report with completed tasks, verification, changes, blockers, remaining actions, classifications, and final status.
-- [ ] Read the newly attached authoritative specification completely and map it to the current repository state.
+- [x] Read the newly attached authoritative specification completely and map it to the current repository state.
 - [x] Produce the Wave 3 repository forensic audit without implementation changes.
-- [ ] Derive and execute a dependency-ordered checklist, preserving protected boundaries and completed Phase 27 work.
-- [ ] Verify all confirmed requirements and document any exact blockers without weakening validation gates.
-- [ ] Deliver one final audit report against the newly attached authoritative specification.
+- [x] Derive and execute a dependency-ordered checklist, preserving protected boundaries and completed Phase 27 work.
+- [x] Verify all confirmed requirements and document any exact blockers without weakening validation gates.
+- [x] Deliver one final audit report against the newly attached authoritative specification.
 
 ## Wave 3 dependency order
 
 - [x] Phase 1: Create a truthful provider/media/backend/platform capability matrix with evidence levels.
 - [x] Phases 2–4: Audit and extend provider server/account/expiration/capability models only where repository evidence confirms a gap.
-- [ ] Phase 5: Audit resolved-stream metadata and ensure no credential-bearing playback URL is persisted or exposed.
+- [x] Phase 5: Audit resolved-stream metadata and ensure no credential-bearing playback URL is persisted or exposed.
 - [x] Phases 6–8: Write the media-backend decision and contract evidence; preserve the sole libVLC path unless a proven defect requires a change.
 - [x] Phases 9–14: Classify HLS, MPEG-TS, MP4/fMP4, codec, audio, subtitle, and multi-track evidence without overstating runtime support.
 - [x] Phases 15–17: Audit existing buffering, liveness, recovery, switching, VOD, and series behavior against the same playback lifecycle.
 - [x] Phases 18–22: Audit EPG, catch-up, player UI, server/account dashboard, and diagnostics; implement only capability-backed items.
 - [x] Phases 23–24: Reuse and extend large-data and UX evidence without replacing verified Phase 27 work.
-- [ ] Phases 25–30: Run security, platform, authorized-runtime, negative-runtime, performance, and test-pyramid validation; record external blockers honestly.
-- [ ] Phases 31–33: Reconcile only evidence-backed documentation, validate hosted workflows, preserve release protections, and write the final Wave 3 report.
+- [x] Phases 25–30: Run security, platform, authorized-runtime, negative-runtime, performance, and test-pyramid validation; record external blockers honestly.
+- [x] Phases 31–33: Reconcile only evidence-backed documentation, validate hosted workflows, preserve release protections, and write the final Wave 3 report.
