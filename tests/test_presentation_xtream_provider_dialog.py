@@ -56,12 +56,20 @@ class FakeLineEdit:
     def __init__(self) -> None:
         self.value = ""
         self.echo_mode: object | None = None
+        self.placeholder = ""
+        self.accessible_name = ""
 
     def clear(self) -> None:
         self.value = ""
 
     def setEchoMode(self, echo_mode: object) -> None:  # noqa: N802
         self.echo_mode = echo_mode
+
+    def setPlaceholderText(self, placeholder: str) -> None:  # noqa: N802
+        self.placeholder = placeholder
+
+    def setAccessibleName(self, accessible_name: str) -> None:  # noqa: N802
+        self.accessible_name = accessible_name
 
     def text(self) -> str:
         return self.value
@@ -114,7 +122,6 @@ else:
 
 def _dialog(response: RegisterXtreamProviderResponse) -> XtreamProviderDialog:
     dialog = XtreamProviderDialog(FakeRegistration(response))  # type: ignore[arg-type]
-    dialog.provider_id_input.value = "home"
     dialog.base_url_input.value = "https://iptv.example.test"
     dialog.username_input.value = "subscriber"
     dialog.password_input.value = "credential"  # noqa: S105

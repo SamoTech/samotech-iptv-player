@@ -29,3 +29,25 @@
 - [x] Phases 23–24: Reuse and extend large-data and UX evidence without replacing verified Phase 27 work.
 - [x] Phases 25–30: Run security, platform, authorized-runtime, negative-runtime, performance, and test-pyramid validation; record external blockers honestly.
 - [x] Phases 31–33: Reconcile only evidence-backed documentation, validate hosted workflows, preserve release protections, and write the final Wave 3 report.
+
+## Newly Attached Authoritative Specification
+
+- [x] Read the newly attached Wave 4 specification completely and map every requirement to the current repository state.
+- [x] Convert confirmed requirements into a dependency-ordered implementation and validation checklist.
+
+## Wave 4 — Public Real-World Playback Validation + User Test Release
+
+- [x] Phase A — Establish and document the forensic baseline: HEAD/origin parity, v0.1.5 history/assets, Wave 3 audit, playback/provider/account/capability architecture, diagnostics, Windows workflow, tests, and byte-exact README badge block.
+- [x] Phase B — Investigate the listed user feedback and classify each item as confirmed/fixed, not reproduced, out of scope, or requiring Windows validation; do not redesign without evidence.
+- [x] Phase C — Audit and simplify the selected-protocol source configuration path for M3U/M3U8, Xtream, and only existing MAG/Stalker behavior; retain local credential boundaries.
+- [x] Phase D — Implement only confirmed safe diagnostics, explicit local playback telemetry, a sanitized one-click diagnostic report, and focused tests proving redaction.
+- [x] Phase E — Add an optional Windows debug launcher that emits only meaningful, sanitized local lifecycle events; test its packaging behavior without changing normal launch behavior.
+- [x] Phase F — Add a clear user feedback path and GitHub issue template that requests safe diagnostics and explicitly prohibits credentials, tokens, MAC addresses, cookies, and private URLs.
+- [x] Phase G — Measure/reuse existing 1,000, 5,000, and practical 10,000+ playlist validation; fix only measurable responsiveness, memory, CPU, catalogue, search, category, and selection defects.
+- [x] Phase H — Audit and make only confirmed targeted improvements to settings navigation, top-level window behavior, fullscreen/focus control, and content-aware player controls.
+- [x] Phase I — Document safe public-testing installation, source setup, playback, fullscreen, diagnostics, and reporting guidance without changing the protected README badge block.
+- [x] Phase J — Run focused diagnostics/provider/VLC/presentation/security/playlist/large-playlist regressions, the complete applicable corpus, Ruff, Black, MyPy, Bandit, a secret scan, and a protected-boundary diff check.
+- [ ] Phase K — Build and hosted-validate the Windows portable EXE: clean startup, bundled VLC/Qt, PATH/CWD, provider dialogs, source import, player controls, fullscreen, diagnostics, debug launcher, shutdown, artifact contents, checksum, and metadata.
+- [ ] Phase L — After every required validation gate passes, update only legitimate version sources to 0.1.6, create release notes that explicitly classify the release as public testing, commit, push, tag, publish, and wait for all required workflows.
+- [ ] Phase M — Download and independently verify the exact published artifact: SHA256, PE metadata, bundled VLC, launch, displayed version, release asset/tag, repository cleanliness, and byte-exact README badge block.
+- [ ] Phase N — Create `PHASE27_PUBLIC_TEST_RELEASE_AUDIT.md` with baseline, findings, fixes, diagnostics, launcher, performance, security, test/Windows evidence, release identity, limitations, provider status, classification, and next milestone; deliver it as the one final report.

@@ -14,10 +14,13 @@ from samotech_iptv.application.dtos.provider_registration import (
     RegisterXtreamProviderRequest,
     RegisterXtreamProviderResponse,
 )
+from samotech_iptv.presentation.dialogs.provider_id import generated_provider_id
 from samotech_iptv.presentation.task_owner import create_owned_task
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
+
+    from PySide6.QtWidgets import QWidget
 
     from samotech_iptv.application.use_cases.register_xtream_provider import (
         RegisterXtreamProvider,
@@ -33,25 +36,30 @@ class XtreamProviderDialog(QDialog):
         self,
         register_provider: RegisterXtreamProvider,
         on_provider_added: Callable[[str], Awaitable[None]] | None = None,
+        parent: QWidget | None = None,
     ) -> None:
-
-        super().__init__()
+        if parent is None:
+            super().__init__()
+        else:
+            super().__init__(parent)
         self._register_provider = register_provider
         self._on_provider_added = on_provider_added
         self.closed_successfully = False
         self.cancelled = False
-        self.provider_id_input = QLineEdit()
         self.base_url_input = QLineEdit()
+        self.base_url_input.setPlaceholderText("https://provider.example:port")
+        self.base_url_input.setAccessibleName("Xtream server URL")
         self.username_input = QLineEdit()
+        self.username_input.setAccessibleName("Xtream username")
         self.password_input = QLineEdit()
         self.password_input.setEchoMode(QLineEdit.EchoMode.Password)
+        self.password_input.setAccessibleName("Xtream password")
         self.save_button = QPushButton("Save")
         self.save_button.clicked.connect(self._schedule_submit)
         self.cancel_button = QPushButton("Cancel")
         self.cancel_button.clicked.connect(self._cancel)
         self.status_label = QLabel()
         layout = QFormLayout(self)
-        layout.addRow("Provider ID", self.provider_id_input)
         layout.addRow("Server URL", self.base_url_input)
         layout.addRow("Username", self.username_input)
         layout.addRow("Password", self.password_input)
@@ -66,13 +74,13 @@ class XtreamProviderDialog(QDialog):
 
     async def submit(self) -> RegisterXtreamProviderResponse:
         """Validate and submit ephemeral fields, clearing the password without exposing it."""
-        provider_id = self.provider_id_input.text().strip()
         base_url = self.base_url_input.text().strip()
         username = self.username_input.text().strip()
         password = self.password_input.text()
-        if not provider_id or not base_url or not username or not password:
-            self.status_label.setText("All Xtream fields are required")
+        if not base_url or not username or not password:
+            self.status_label.setText("Server URL, username, and password are required")
             return RegisterXtreamProviderResponse(error="Required fields are missing")
+        provider_id = generated_provider_id("xtream", base_url)
         request = RegisterXtreamProviderRequest(
             provider_id=provider_id,
             base_url=base_url,

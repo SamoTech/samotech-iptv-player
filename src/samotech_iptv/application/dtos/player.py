@@ -69,10 +69,21 @@ class PlaybackContext:
 class PlayerDiagnostics:
     """Aggregate diagnostics that never contain URLs, credentials, or raw payloads."""
 
+    playback_state: PlaybackState = PlaybackState.IDLE
+    media_protocol: str | None = None
+    container: str | None = None
+    video_codec: str | None = None
+    audio_codec: str | None = None
+    resolution: str | None = None
+    fps: float | None = None
+    first_frame_received: bool | None = None
+    position_ms: int | None = None
+    duration_ms: int | None = None
     startup_latency_ms: float | None = None
     buffering_duration_ms: float | None = None
     recovery_attempts: int = 0
     terminal_failure_reason: str | None = None
+    vlc_version: str | None = None
 
 
 @dataclass(frozen=True)

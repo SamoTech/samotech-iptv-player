@@ -313,6 +313,7 @@ class MainWindow(QMainWindow):
             self.open_xtream_provider_dialog,
             self.open_m3u_provider_dialog,
             self.open_mag_provider_dialog,
+            self,
         )
         dialog.show()
         self._active_add_provider_dialog = dialog
@@ -327,6 +328,7 @@ class MainWindow(QMainWindow):
             self._register_m3u_provider,
             self._register_mag_provider,
             self._provider_added,
+            self,
         )
         dialog.show()
         self._active_smart_import_dialog = dialog
@@ -361,7 +363,7 @@ class MainWindow(QMainWindow):
         """Create and show the secure manual Xtream-entry dialog."""
         from samotech_iptv.presentation.dialogs.xtream_provider_dialog import XtreamProviderDialog
 
-        dialog = XtreamProviderDialog(self._register_xtream_provider, self._provider_added)
+        dialog = XtreamProviderDialog(self._register_xtream_provider, self._provider_added, self)
         dialog.show()
         self._active_xtream_provider_dialog = dialog
         return dialog
@@ -370,7 +372,7 @@ class MainWindow(QMainWindow):
         """Create and show the secure manual M3U-entry dialog."""
         from samotech_iptv.presentation.dialogs.m3u_provider_dialog import M3UProviderDialog
 
-        dialog = M3UProviderDialog(self._register_m3u_provider, self._provider_added)
+        dialog = M3UProviderDialog(self._register_m3u_provider, self._provider_added, self)
         dialog.show()
         self._active_m3u_provider_dialog = dialog
         return dialog
@@ -379,7 +381,7 @@ class MainWindow(QMainWindow):
         """Create and show the authorized manual MAG/Stalker-entry dialog."""
         from samotech_iptv.presentation.dialogs.mag_provider_dialog import MAGProviderDialog
 
-        dialog = MAGProviderDialog(self._register_mag_provider, self._provider_added)
+        dialog = MAGProviderDialog(self._register_mag_provider, self._provider_added, self)
         dialog.show()
         self._active_mag_provider_dialog = dialog
         return dialog

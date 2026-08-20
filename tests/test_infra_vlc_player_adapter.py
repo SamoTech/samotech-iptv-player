@@ -277,6 +277,23 @@ async def test_vlc_adapter_controls_libvlc_playback() -> None:
 
 
 @pytest.mark.asyncio
+async def test_vlc_adapter_returns_safe_typed_diagnostics_without_stream_material() -> None:
+    player = FakePlayer()
+    adapter = _adapter(player)
+
+    await adapter.play(URL("https://user:secret@example.test/live.m3u8?token=private-value"))
+    diagnostics = await adapter.get_diagnostics()
+
+    assert diagnostics.playback_state is PlaybackState.LOADING
+    assert diagnostics.media_protocol == "https"
+    assert diagnostics.first_frame_received is None
+    assert diagnostics.position_ms == 0
+    assert diagnostics.terminal_failure_reason is None
+    assert "secret" not in str(diagnostics).casefold()
+    assert "private-value" not in str(diagnostics).casefold()
+
+
+@pytest.mark.asyncio
 async def test_vlc_adapter_enumerates_and_selects_native_tracks_safely() -> None:
     player = FakePlayer()
     adapter = _adapter(player)

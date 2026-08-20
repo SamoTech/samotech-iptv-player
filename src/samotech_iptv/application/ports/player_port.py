@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from samotech_iptv.application.dtos.playback import ResolvedPlayback
-    from samotech_iptv.application.dtos.player import AudioTrack, SubtitleTrack
+    from samotech_iptv.application.dtos.player import AudioTrack, PlayerDiagnostics, SubtitleTrack
 
 __all__ = ["PlayerPort"]
 
@@ -92,6 +92,12 @@ class PlayerPort(ABC):
     def media_generation(self) -> int | None:
         """Return the current media generation when the backend exposes one."""
         return None
+
+    async def get_diagnostics(self) -> PlayerDiagnostics:
+        """Return a credential-free playback snapshot when the backend exposes diagnostics."""
+        from samotech_iptv.application.dtos.player import PlayerDiagnostics
+
+        return PlayerDiagnostics()
 
     async def attach_local_subtitle(
         self,

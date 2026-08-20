@@ -161,6 +161,30 @@ jobs:
           Copy-Item $diagnosticPath build\startup-diagnostics\generated-qt-startup-diagnostic.json -Force
           Write-Host "startup_diagnostic=PASS last_stage=$($diagnostic.last_successful_stage)"
 
+      - name: Run optional sanitized debug launcher smoke test
+        shell: pwsh
+        run: |
+          $debugRoot = Join-Path $env:RUNNER_TEMP "SamoTech Debug Launcher Validation"
+          New-Item -ItemType Directory -Force -Path $debugRoot | Out-Null
+          Copy-Item "dist\SamoTech-IPTV-Player-Windows-x64.exe" (Join-Path $debugRoot "SamoTech-IPTV-Player-Windows-x64.exe") -Force
+          Copy-Item "packaging\SamoTech-Debug.bat" (Join-Path $debugRoot "SamoTech-Debug.bat") -Force
+          $diagnosticPath = Join-Path $debugRoot "debug-launcher-startup-diagnostic.json"
+          $env:SAMOTECH_STARTUP_DIAGNOSTIC_PATH = $diagnosticPath
+          $env:SAMOTECH_DEBUG_NO_PAUSE = "1"
+          Push-Location $debugRoot
+          try {
+            cmd.exe /d /c ".\SamoTech-Debug.bat --smoke-test"
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          } finally {
+            Pop-Location
+            Remove-Item Env:SAMOTECH_DEBUG_NO_PAUSE -ErrorAction SilentlyContinue
+          }
+          if (-not (Test-Path $diagnosticPath)) { throw "Debug launcher did not create a startup diagnostic" }
+          $diagnostic = Get-Content $diagnosticPath -Raw | ConvertFrom-Json
+          if ($diagnostic.status -ne "ready") { throw "Debug launcher diagnostic status was not ready" }
+          if ($diagnostic.last_successful_stage -ne "APPLICATION_READY") { throw "Debug launcher did not reach APPLICATION_READY" }
+          Write-Host "debug_launcher=PASS last_stage=$($diagnostic.last_successful_stage)"
+
       - name: Validate outside repository with sanitized PATH
         shell: pwsh
         run: |
@@ -208,8 +232,14 @@ jobs:
           New-Item -ItemType Directory -Force -Path $releaseRoot | Out-Null
           $artifactPath = Join-Path $releaseRoot $artifactName
           Copy-Item "dist\SamoTech-IPTV-Player-Windows-x64.exe" $artifactPath -Force
+          Copy-Item "packaging\SamoTech-Debug.bat" (Join-Path $releaseRoot "SamoTech-Debug.bat") -Force
           $hash = (Get-FileHash -Algorithm SHA256 $artifactPath).Hash.ToLowerInvariant()
-          "$hash  $artifactName" | Set-Content -Encoding ascii (Join-Path $releaseRoot "SHA256SUMS.txt")
+          $debugLauncher = Join-Path $releaseRoot "SamoTech-Debug.bat"
+          $debugHash = (Get-FileHash -Algorithm SHA256 $debugLauncher).Hash.ToLowerInvariant()
+          @(
+            "$hash  $artifactName",
+            "$debugHash  SamoTech-Debug.bat"
+          ) | Set-Content -Encoding ascii (Join-Path $releaseRoot "SHA256SUMS.txt")
           "ARTIFACT_NAME=$artifactName" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "ARTIFACT_PATH=$artifactPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "ARTIFACT_SHA256=$hash" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
@@ -273,6 +303,7 @@ jobs:
           name: windows-portable-${{ github.sha }}
           path: |
             dist/release/*.exe
+            dist/release/*.bat
             dist/release/SHA256SUMS.txt
             dist/release/release-notes.md
             build-metadata.txt
@@ -300,6 +331,7 @@ jobs:
           tag_name: ${{ inputs.release_ref || github.ref_name }}
           files: |
             dist/release/*.exe
+            dist/release/*.bat
             dist/release/SHA256SUMS.txt
           body_path: dist/release/release-notes.md
         env:

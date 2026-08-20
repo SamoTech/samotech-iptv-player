@@ -20,6 +20,7 @@ from samotech_iptv.application.dtos.player import (
     AudioTrack,
     PlaybackState,
     PlayerCapabilities,
+    PlayerDiagnostics,
     SubtitleTrack,
 )
 from samotech_iptv.application.player_state_machine import PlaybackStateMachine
@@ -219,6 +220,10 @@ class VlcPlayerAdapter(PlayerPort):
         self._last_position_advance_at: float | None = None
         self._recovery_attempts = 0
         self._recovery_started_at: float | None = None
+        self._first_playing_at: float | None = None
+        self._buffering_started_at: float | None = None
+        self._buffering_duration_ms = 0.0
+        self._terminal_failure_reason: str | None = None
         self._subscribe_events()
         _LOG.info(
             "[IPTV] PLAYBACK_DIAGNOSTIC CONSTRUCT player_id=%d instance_args=none "
@@ -447,6 +452,44 @@ class VlcPlayerAdapter(PlayerPort):
         """Read current libVLC media duration without conflating no-media with zero."""
         value = await asyncio.to_thread(self._player.get_length)
         return None if value < 0 else int(value)
+
+    async def get_diagnostics(self) -> PlayerDiagnostics:
+        """Return a local typed snapshot without exposing stream URLs or transport secrets."""
+        position_result, duration_result = await asyncio.gather(
+            self.get_position_ms(),
+            self.get_duration_ms(),
+            return_exceptions=True,
+        )
+        position_ms = None if isinstance(position_result, BaseException) else position_result
+        duration_ms = None if isinstance(duration_result, BaseException) else duration_result
+        with self._diagnostic_lock:
+            created_at = self._media_created_at
+            first_playing_at = self._first_playing_at
+            buffering_ms = self._buffering_duration_ms
+            buffering_started_at = self._buffering_started_at
+            recovery_attempts = self._recovery_attempts
+            terminal_failure_reason = self._terminal_failure_reason
+        if buffering_started_at is not None:
+            buffering_ms += (time.perf_counter() - buffering_started_at) * 1_000
+        startup_latency_ms = (
+            None
+            if created_at is None or first_playing_at is None
+            else (first_playing_at - created_at) * 1_000
+        )
+        _provider_id, _media_type, _content_id, transport_type = self._playback_context()
+        protocol = None if transport_type == "<unknown>" else transport_type
+        vlc_version = self._safe_vlc_version()
+        return PlayerDiagnostics(
+            playback_state=self.state,
+            media_protocol=protocol,
+            position_ms=position_ms,
+            duration_ms=duration_ms,
+            startup_latency_ms=startup_latency_ms,
+            buffering_duration_ms=round(buffering_ms, 3) if buffering_ms else None,
+            recovery_attempts=recovery_attempts,
+            terminal_failure_reason=terminal_failure_reason,
+            vlc_version=vlc_version,
+        )
 
     async def seek_ms(self, position_ms: int) -> None:
         """Seek to an absolute millisecond position when the active input supports it."""
@@ -1173,6 +1216,10 @@ class VlcPlayerAdapter(PlayerPort):
         with self._diagnostic_lock:
             self._media_generation += 1
             self._media_created_at = time.perf_counter()
+            self._first_playing_at = None
+            self._buffering_started_at = None
+            self._buffering_duration_ms = 0.0
+            self._terminal_failure_reason = None
             media_generation = self._media_generation
         self._publish_state(_PlaybackState.STARTING, reason="media_created", reset_context=True)
         for header in playback.transport.headers:
@@ -1213,6 +1260,20 @@ class VlcPlayerAdapter(PlayerPort):
     ) -> None:
         """Synchronize private recovery state with the public typed state machine."""
         previous_state = self._state
+        now = time.perf_counter()
+        with self._diagnostic_lock:
+            if state is _PlaybackState.BUFFERING and previous_state is not _PlaybackState.BUFFERING:
+                self._buffering_started_at = now
+            elif (
+                previous_state is _PlaybackState.BUFFERING
+                and self._buffering_started_at is not None
+            ):
+                self._buffering_duration_ms += (now - self._buffering_started_at) * 1_000
+                self._buffering_started_at = None
+            if state is _PlaybackState.PLAYING and self._first_playing_at is None:
+                self._first_playing_at = now
+            if state is _PlaybackState.FAILED and reason is not None:
+                self._terminal_failure_reason = safe_label(reason, limit=64)
         self._state = state
         public_state = {
             _PlaybackState.IDLE: PlaybackState.IDLE,
@@ -1352,3 +1413,17 @@ class VlcPlayerAdapter(PlayerPort):
 
     def _diagnostic_cause_locked(self) -> str:
         return self._last_command_cause or "<none>"
+
+    @staticmethod
+    def _safe_vlc_version() -> str | None:
+        """Return a bounded native version label only when the binding exposes it."""
+        getter = getattr(vlc, "libvlc_get_version", None)
+        if not callable(getter):
+            return None
+        try:
+            value = getter()
+        except Exception:  # noqa: BLE001
+            return None
+        if isinstance(value, bytes):
+            value = value.decode("ascii", errors="replace")
+        return safe_label(value, limit=64) if isinstance(value, str) else None

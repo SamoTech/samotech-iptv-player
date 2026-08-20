@@ -14,10 +14,13 @@ from samotech_iptv.application.dtos.provider_registration import (
     RegisterMAGProviderRequest,
     RegisterXtreamProviderResponse,
 )
+from samotech_iptv.presentation.dialogs.provider_id import generated_provider_id
 from samotech_iptv.presentation.task_owner import create_owned_task
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
+
+    from PySide6.QtWidgets import QWidget
 
     from samotech_iptv.application.use_cases.register_mag_provider import RegisterMAGProvider
 
@@ -31,23 +34,28 @@ class MAGProviderDialog(QDialog):
         self,
         register_provider: RegisterMAGProvider,
         on_provider_added: Callable[[str], Awaitable[None]] | None = None,
+        parent: QWidget | None = None,
     ) -> None:
-        super().__init__()
+        if parent is None:
+            super().__init__()
+        else:
+            super().__init__(parent)
         self._register_provider = register_provider
         self._on_provider_added = on_provider_added
         self.closed_successfully = False
         self.cancelled = False
-        self.provider_id_input = QLineEdit()
         self.portal_url_input = QLineEdit()
+        self.portal_url_input.setPlaceholderText("https://portal.example")
+        self.portal_url_input.setAccessibleName("MAG or Stalker portal URL")
         self.mac_address_input = QLineEdit()
         self.mac_address_input.setEchoMode(QLineEdit.EchoMode.Password)
+        self.mac_address_input.setAccessibleName("MAG or Stalker device identity")
         self.save_button = QPushButton("Save")
         self.save_button.clicked.connect(self._schedule_submit)
         self.cancel_button = QPushButton("Cancel")
         self.cancel_button.clicked.connect(self._cancel)
         self.status_label = QLabel()
         layout = QFormLayout(self)
-        layout.addRow("Provider ID", self.provider_id_input)
         layout.addRow("Portal URL", self.portal_url_input)
         layout.addRow("Device identity", self.mac_address_input)
         layout.addRow(self.save_button)
@@ -61,12 +69,12 @@ class MAGProviderDialog(QDialog):
 
     async def submit(self) -> RegisterXtreamProviderResponse:
         """Validate and submit transient identity input without exposing the identity."""
-        provider_id = self.provider_id_input.text().strip()
         portal_url = self.portal_url_input.text().strip()
         mac_address = self.mac_address_input.text().strip()
-        if not provider_id or not portal_url or not mac_address:
-            self.status_label.setText("Provider ID, portal URL, and device identity are required")
+        if not portal_url or not mac_address:
+            self.status_label.setText("Portal URL and device identity are required")
             return RegisterXtreamProviderResponse(error="Required fields are missing")
+        provider_id = generated_provider_id("mag", portal_url)
         request = RegisterMAGProviderRequest(
             provider_id=provider_id,
             portal_url=portal_url,

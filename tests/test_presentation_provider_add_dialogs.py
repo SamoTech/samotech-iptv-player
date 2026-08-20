@@ -148,7 +148,6 @@ class FakeRegistration:
         (
             XtreamProviderDialog,
             {
-                "provider_id_input": "xtream",
                 "base_url_input": "https://server.example",
                 "username_input": "user",
                 "password_input": "secret",
@@ -157,7 +156,6 @@ class FakeRegistration:
         (
             MAGProviderDialog,
             {
-                "provider_id_input": "mag",
                 "portal_url_input": "https://portal.example",
                 "mac_address_input": "00:11:22:33:44:55",
             },
@@ -185,6 +183,10 @@ async def test_provider_add_dialogs_have_save_cancel_and_successful_save_closes(
     assert len(registration.requests) == 1
     if dialog_type is M3UProviderDialog:
         assert registration.requests[0].provider_id == "m3u-playlist"
+    elif dialog_type is XtreamProviderDialog:
+        assert registration.requests[0].provider_id == "xtream-server-example"
+    else:
+        assert registration.requests[0].provider_id == "mag-portal-example"
     assert dialog.closed_successfully is True
     assert "secret" not in dialog.status_label.value.casefold()
     assert "00:11:22:33:44:55" not in dialog.status_label.value
@@ -204,7 +206,7 @@ async def test_provider_add_dialog_validation_does_not_persist_or_close(
 
     assert registration.requests == []
     assert dialog.closed_successfully is False
-    expected = "playlist" if dialog_type is M3UProviderDialog else "required"
+    expected = "playlist" if dialog_type is M3UProviderDialog else "url"
     assert expected in dialog.status_label.value.casefold()
 
 
@@ -212,7 +214,6 @@ async def test_provider_add_dialog_validation_does_not_persist_or_close(
 async def test_provider_add_dialog_failure_stays_open_and_clears_secret() -> None:
     registration = FakeRegistration(RegisterXtreamProviderResponse(error="Unable to register"))
     dialog = XtreamProviderDialog(registration)  # type: ignore[arg-type]
-    dialog.provider_id_input.setText("xtream")
     dialog.base_url_input.setText("https://server.example")
     dialog.username_input.setText("user")
     dialog.password_input.setText("secret")

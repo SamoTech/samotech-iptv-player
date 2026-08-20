@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import platform
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import (
@@ -57,6 +58,11 @@ from samotech_iptv.application.local_subtitles import (
     inspect_local_subtitle,
 )
 from samotech_iptv.application.ports.artwork_port import ArtworkRequest, ArtworkRole
+from samotech_iptv.core.constants import APP_VERSION
+from samotech_iptv.presentation.playback_diagnostics import (
+    PlaybackDiagnosticContext,
+    format_playback_diagnostic_report,
+)
 from samotech_iptv.presentation.task_owner import cancel_owned_tasks, create_owned_task
 from samotech_iptv.presentation.theme.tokens import COLORS, RADII, SPACING
 from samotech_iptv.presentation.viewmodels.channel_list_model import ChannelListModel
@@ -405,6 +411,7 @@ class PlayerShell(QWidget):
         self._series_seasons: tuple[ContentItemDTO, ...] = ()
         self._series_episodes: tuple[ContentItemDTO, ...] = ()
         self._provider_ids: list[str] = []
+        self._provider_types: dict[str, str] = {}
         self._active_category_id: str | None = None
         self._request_generation = 0
         self._non_live_generation = 0
@@ -536,6 +543,7 @@ class PlayerShell(QWidget):
             provider_items = list(providers)
             current_id = self._provider_id()
             self._provider_ids = [provider.id for provider in provider_items]
+            self._provider_types = {provider.id: provider.type for provider in provider_items}
             self.provider_selector.blockSignals(True)
             self.provider_selector.clear()
             self.provider_selector.addItem("Select provider", "")
@@ -1391,7 +1399,7 @@ class PlayerShell(QWidget):
         return page
 
     def _build_settings_page(self) -> QWidget:
-        """Build a direct in-shell settings page for the finite theme preference."""
+        """Build direct settings sections without inventing unsupported configuration controls."""
         from samotech_iptv.domain.value_objects.theme_preference import ThemePreference
 
         page = QFrame()
@@ -1402,28 +1410,76 @@ class PlayerShell(QWidget):
         kicker = QLabel("SETTINGS")
         kicker.setObjectName("sectionKicker")
         layout.addWidget(kicker)
-        title = QLabel("Appearance")
+        title = QLabel("Settings")
         title.setObjectName("pageTitle")
         layout.addWidget(title)
-        subtitle = QLabel("Choose how SamoTech IPTV Player should follow your desktop appearance.")
+        subtitle = QLabel(
+            "Review local settings and the available playback, diagnostics, and privacy controls."
+        )
         subtitle.setObjectName("pageSubtitle")
         subtitle.setWordWrap(True)
         layout.addWidget(subtitle)
+
+        def add_section(title_text: str, description: str) -> QVBoxLayout:
+            section = QFrame()
+            section.setObjectName("emptyPanel")
+            section_layout = QVBoxLayout(section)
+            section_layout.setContentsMargins(SPACING.md, SPACING.md, SPACING.md, SPACING.md)
+            section_layout.setSpacing(SPACING.xs)
+            section_title = QLabel(title_text)
+            section_title.setObjectName("sectionKicker")
+            section_layout.addWidget(section_title)
+            section_description = QLabel(description)
+            section_description.setObjectName("pageSubtitle")
+            section_description.setWordWrap(True)
+            section_layout.addWidget(section_description)
+            layout.addWidget(section)
+            return section_layout
+
+        add_section(
+            "General",
+            "Provider sources, catalogues, and saved preferences remain local to this "
+            "installation.",
+        )
+        add_section(
+            "Playback",
+            "Use player controls for playback, volume, audio, subtitles, aspect ratio, "
+            "and fullscreen when supported by active media.",
+        )
+        appearance_layout = add_section(
+            "Appearance",
+            "Choose how SamoTech IPTV Player should follow your desktop appearance.",
+        )
         selector = QComboBox()
         selector.addItem("System", ThemePreference.SYSTEM.value)
         selector.addItem("Light", ThemePreference.LIGHT.value)
         selector.addItem("Dark", ThemePreference.DARK.value)
         selector.setAccessibleName("Theme preference")
         selector.setToolTip("Choose system, light, or dark appearance")
-        layout.addWidget(selector)
+        appearance_layout.addWidget(selector)
         save = QPushButton("Save Theme")
         save.setObjectName("primary")
         save.setAccessibleName("Save theme preference")
         save.clicked.connect(self._schedule_save_settings_theme)
-        layout.addWidget(save, 0, Qt.AlignmentFlag.AlignLeft)
+        appearance_layout.addWidget(save, 0, Qt.AlignmentFlag.AlignLeft)
         status = QLabel("Theme settings load when this page opens")
         status.setObjectName("pageSubtitle")
-        layout.addWidget(status)
+        appearance_layout.addWidget(status)
+        add_section(
+            "Network",
+            "Provider adapters connect directly from this device. SamoTech does not "
+            "provide a stream proxy, credential relay, or CORS relay.",
+        )
+        add_section(
+            "Diagnostics",
+            "Select Info in player controls to open a safe copyable playback diagnostic "
+            "report. Values that cannot be measured are shown as NOT_AVAILABLE.",
+        )
+        add_section(
+            "Privacy",
+            "Passwords, private playlist URLs, tokens, cookies, authorization headers, "
+            "and MAG device identities are not shown in diagnostics or copied reports.",
+        )
         layout.addStretch(1)
         self._settings_theme_selector = selector
         self._settings_status_label = status
@@ -2790,30 +2846,44 @@ class PlayerShell(QWidget):
             self._set_status_text(label)
 
     def _show_playback_info(self) -> None:
+        """Open a user-copyable safe diagnostic panel through the existing owned-task lifecycle."""
         if self._player_port is None:
             return
-        state = getattr(self._player_port, "state", None)
-        state_value = getattr(state, "value", None) or "unknown"
-        capabilities = getattr(self._player_port, "capabilities", None)
-        supported = []
-        if capabilities is not None:
-            for name in (
-                "current_position",
-                "duration",
-                "volume",
-                "mute",
-                "audio_tracks",
-                "subtitle_tracks",
-                "local_subtitles",
-                "subtitle_delay",
-            ):
-                if getattr(capabilities, name, False):
-                    supported.append(name.replace("_", " "))
-        mode = self._active_playback_content_type or "ready"
-        control_summary = ", ".join(supported) or "none"
-        summary = f"State: {state_value}; Mode: {mode}; Controls: {control_summary}"
-        self.playback_context_label.setToolTip(summary)
-        self._set_status_text("● Playback info ready")
+        create_owned_task(self, self._open_playback_diagnostics())
+
+    async def _open_playback_diagnostics(self) -> None:
+        """Build a sanitized runtime report and show it in an application-owned dialog."""
+        if self._player_port is None:
+            return
+        try:
+            diagnostics = await self._player_port.get_diagnostics()
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            self._set_status_text("● Playback diagnostics unavailable")
+            return
+        from samotech_iptv.presentation.dialogs.playback_diagnostics_dialog import (
+            PlaybackDiagnosticsDialog,
+        )
+
+        provider_id = self._provider_id()
+        context = PlaybackDiagnosticContext(
+            application_version=APP_VERSION,
+            platform=platform.platform(),
+            provider_type=self._provider_types.get(provider_id),
+            content_type=(
+                self._active_playback_content_type.value
+                if self._active_playback_content_type is not None
+                else None
+            ),
+        )
+        dialog = PlaybackDiagnosticsDialog(
+            format_playback_diagnostic_report(context, diagnostics),
+            self.window(),
+        )
+        dialog.show()
+        self._active_playback_diagnostics_dialog = dialog
+        self._set_status_text("● Playback diagnostics ready")
 
     def _set_status_text(self, text: str) -> None:
         """Update the shell status and the visible player overlay together."""

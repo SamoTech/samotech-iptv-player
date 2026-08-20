@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-import re
 from pathlib import Path
 from typing import TYPE_CHECKING
-from urllib.parse import urlsplit
 
 from PySide6.QtWidgets import (
     QDialog,
@@ -18,10 +16,13 @@ from samotech_iptv.application.dtos.provider_registration import (
     RegisterM3UProviderRequest,
     RegisterXtreamProviderResponse,
 )
+from samotech_iptv.presentation.dialogs.provider_id import generated_provider_id
 from samotech_iptv.presentation.task_owner import create_owned_task
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
+
+    from PySide6.QtWidgets import QWidget
 
     from samotech_iptv.application.use_cases.register_m3u_provider import RegisterM3UProvider
 
@@ -35,8 +36,12 @@ class M3UProviderDialog(QDialog):
         self,
         register_provider: RegisterM3UProvider,
         on_provider_added: Callable[[str], Awaitable[None]] | None = None,
+        parent: QWidget | None = None,
     ) -> None:
-        super().__init__()
+        if parent is None:
+            super().__init__()
+        else:
+            super().__init__(parent)
         self._register_provider = register_provider
         self._on_provider_added = on_provider_added
         self.closed_successfully = False
@@ -91,10 +96,7 @@ class M3UProviderDialog(QDialog):
     @staticmethod
     def _generated_provider_id(source: str) -> str:
         """Derive a deterministic, non-secret identifier so M3U setup needs no extra field."""
-        parsed = urlsplit(source)
-        raw = parsed.hostname or Path(parsed.path or source).stem or "playlist"
-        safe = re.sub(r"[^a-z0-9]+", "-", raw.casefold()).strip("-") or "playlist"
-        return f"m3u-{safe}"[:64]
+        return generated_provider_id("m3u", source)
 
     def _set_loading(self, loading: bool) -> None:
         self._loading = loading

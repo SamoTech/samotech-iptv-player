@@ -1,0 +1,19 @@
+# Wave 4 User-Feedback Investigation
+
+This investigation treats the supplied Reddit feedback as reported observations, not as automatic defects. Each classification below derives from the current source and existing Wave 3/Phase 27 contracts.
+
+| Reported concern | Classification | Evidence-based finding | Action |
+|---|---|---|---|
+| Difficulty loading a simple M3U | **NOT REPRODUCED** for required file/URL paths; **LIMITED** for raw pasted playlist text | The manual M3U dialog provides a URL field, an M3U/M3U8 local file picker, no mandatory provider ID field, and a generated safe ID. Smart Import can detect M3U but cannot register raw pasted playlist content that lacks a source URL. | Retain the proven file/URL flow; document it clearly. Do not invent an in-memory raw-playlist persistence route. |
+| Unnecessary provider-ID fields | **CONFIRMED** | Xtream and MAG dialogs still display and require Provider ID despite their required inputs being server/portal and protected identity fields. The underlying registration boundary requires an ID, but it can be generated locally as M3U already does. | Remove the visible requirement by deriving a bounded non-secret ID from the server/portal host and add regression tests. |
+| Settings requires extra menu clicks | **PARTIALLY FIXED / CONFIRMED SCOPE GAP** | Main-window Settings routes directly to PlayerShell’s Settings page in normal production composition; however the page currently exposes only Appearance. It has no visible General, Playback, Network, Diagnostics, or Privacy sections. | Keep direct in-shell navigation and make a targeted sectioned settings surface without creating fictitious controls. |
+| Settings opens as a separate window | **NOT REPRODUCED** in the normal application shell | Production composition prefers the in-shell Settings page. A theme dialog remains only as a reduced-test-shell fallback. | Keep the direct in-shell path; do not redesign it into a new top-level window. |
+| Alt+Tab clutter / multiple windows | **CONFIRMED RISK** | MainWindow retains dialog references but creates its QDialogs without a parent. Qt can therefore treat them as independent top-level windows. | Make routine dialogs owned/transient to MainWindow, then exercise focused presentation tests and hosted Windows validation. |
+| Theme setting behaves like a textbox | **NOT REPRODUCED** | Both the direct page and fallback theme dialog use a finite `QComboBox` with System/Light/Dark choices. | Preserve selector behavior. |
+| Request for screenshots | **CONFIRMED DOCUMENTATION GAP** | No current public-testing walkthrough/screenshots are established in the inspected README/documentation route. | Add accurate documentation/screenshots only after safe interfaces are finalized; preserve the badge block byte-for-byte. |
+| Large playlist/EPG responsiveness | **REQUIRES VALIDATION** | Existing Phase 27 large-data probes provide deterministic coverage; no new measurable regression is evidenced by the feedback alone. | Re-run the existing 1k/5k/practical-10k validation and fix only demonstrated regressions. |
+| Fullscreen, focus, Alt+Tab, multi-monitor | **REQUIRES WINDOWS VALIDATION** | The shell toggles genuine Qt fullscreen and uses a native surface; Linux cannot prove Windows window-manager behavior. | Retain current implementation and require hosted Windows plus later user evidence before claims. |
+
+## Confirmed Implementation Scope
+
+The confirmed Wave 4 changes are deliberately narrow: generated local provider IDs for Xtream/MAG, parent-owned transient dialogs, an in-shell diagnostic panel and sanitized copyable report, an optional safe debug launcher, a safer bug-report template, direct user-testing documentation, and settings sections that identify actual available or unavailable capability areas without inventing configuration values. No provider protocol, playback backend, recovery system, proxy, or credential relay is justified by this investigation.

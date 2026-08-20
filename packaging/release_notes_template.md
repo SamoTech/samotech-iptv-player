@@ -6,6 +6,8 @@ Download the portable Windows x64 executable:
 
 `{{ARTIFACT}}`
 
+> **This is a public testing release.** The project has been validated extensively at the architecture, application, security, deterministic-test, and Windows packaging levels. Real IPTV compatibility depends on provider implementation, stream format, headers/session behavior, codecs, and network conditions. Commercial IPTV compatibility is not universally certified. Test using your own legitimate IPTV source.
+
 ## SHA256
 
 ```text
@@ -15,6 +17,7 @@ Download the portable Windows x64 executable:
 ## What's Included
 
 - Windows x64 portable EXE
+- Optional `SamoTech-Debug.bat` local diagnostic launcher
 - Python runtime
 - PySide6/Qt runtime
 - `python-vlc`
@@ -24,6 +27,12 @@ Download the portable Windows x64 executable:
 ## Installation
 
 No installation is required. Download the EXE and run it. Verify the SHA256 checksum before execution.
+
+## Real-World Testing and Diagnostics
+
+Add one legitimate source using **Providers → Add IPTV Provider**. M3U/M3U8 supports a local file or playlist URL. Xtream uses server URL, username, and password. MAG/Stalker remains limited to the existing portal and device-identity flow. Playback diagnostics are available from **Player Controls → Info**; use **Copy Diagnostic Report** when reporting an issue. The optional `SamoTech-Debug.bat` launcher keeps a local console open for sanitized lifecycle events while normal users can continue launching the EXE directly.
+
+Do not post passwords, tokens, cookies, authorization headers, MAC addresses, private playlist URLs, or credential-bearing URLs. No credentials are collected by SamoTech.
 
 ## Requirements
 
@@ -42,6 +51,8 @@ The tagged GitHub Actions workflow completed all blocking Windows release gates 
 ## Known Limitations
 
 {{KNOWN_LIMITATIONS}}
+
+Real-world provider compatibility is still being validated. Use your own legitimate IPTV source. This release does not claim universal M3U, Xtream, MAG, codec, stream-format, or commercial-provider compatibility.
 
 ## Build Information
 

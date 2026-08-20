@@ -27,11 +27,13 @@ from samotech_iptv.application.smart_import import (
     detect_provider_input,
     mask_mac,
     mask_password,
-    suggest_provider_id,
 )
+from samotech_iptv.presentation.dialogs.provider_id import generated_provider_id
 from samotech_iptv.presentation.task_owner import create_owned_task
 
 if TYPE_CHECKING:
+    from PySide6.QtWidgets import QWidget
+
     from samotech_iptv.application.use_cases.register_m3u_provider import RegisterM3UProvider
     from samotech_iptv.application.use_cases.register_mag_provider import RegisterMAGProvider
     from samotech_iptv.application.use_cases.register_xtream_provider import RegisterXtreamProvider
@@ -50,8 +52,12 @@ class SmartImportDialog(QDialog):
         register_m3u_provider: RegisterM3UProvider,
         register_mag_provider: RegisterMAGProvider,
         on_provider_added: ProviderAddedCallback | None = None,
+        parent: QWidget | None = None,
     ) -> None:
-        super().__init__()
+        if parent is None:
+            super().__init__()
+        else:
+            super().__init__(parent)
         self._register_xtream_provider = register_xtream_provider
         self._register_m3u_provider = register_m3u_provider
         self._register_mag_provider = register_mag_provider
@@ -75,8 +81,6 @@ class SmartImportDialog(QDialog):
         self.protocol_selector.currentIndexChanged.connect(self._protocol_selection_changed)
         self.protocol_selector.setEnabled(False)
 
-        self.provider_id_input = QLineEdit()
-        self.provider_id_input.setPlaceholderText("Generated from safe provider details")
         self.server_input = QLineEdit()
         self.portal_input = QLineEdit()
         self.playlist_input = QLineEdit()
@@ -103,18 +107,24 @@ class SmartImportDialog(QDialog):
         layout.addRow(self.detect_button)
         layout.addRow("Detected protocol", self.protocol_selector)
         layout.addRow("Preview", self.preview_label)
-        layout.addRow("Provider ID", self.provider_id_input)
-        layout.addRow("Server URL", self.server_input)
-        layout.addRow("Portal URL", self.portal_input)
-        layout.addRow("Playlist URL", self.playlist_input)
-        layout.addRow("Username", self.username_input)
-        layout.addRow("Password", self.password_input)
-        layout.addRow("MAC address", self.mac_input)
+        self._server_label = QLabel("Server URL")
+        self._portal_label = QLabel("Portal URL")
+        self._playlist_label = QLabel("Playlist URL")
+        self._username_label = QLabel("Username")
+        self._password_label = QLabel("Password")
+        self._mac_label = QLabel("Device identity")
+        layout.addRow(self._server_label, self.server_input)
+        layout.addRow(self._portal_label, self.portal_input)
+        layout.addRow(self._playlist_label, self.playlist_input)
+        layout.addRow(self._username_label, self.username_input)
+        layout.addRow(self._password_label, self.password_input)
+        layout.addRow(self._mac_label, self.mac_input)
         layout.addRow(self.test_button)
         layout.addRow(self.add_button)
         layout.addRow(self.back_button)
         layout.addRow(self.status_label)
         self.setWindowTitle("Add IPTV Provider — Smart Import")
+        self._set_protocol_field_visibility(None)
 
     def paste_from_clipboard(self) -> None:
         """Read clipboard text locally without logging or sending its contents elsewhere."""
@@ -167,8 +177,10 @@ class SmartImportDialog(QDialog):
         self.username_input.setText(detected.username or "")
         self.password_input.setText(detected.password or "")
         self.mac_input.setText(detected.mac_address or "")
-        self.provider_id_input.setText(
-            suggest_provider_id(detected) if detected.protocol != ImportProtocol.AMBIGUOUS else ""
+        self._set_protocol_field_visibility(
+            detected.protocol
+            if detected.protocol in {ImportProtocol.XTREAM, ImportProtocol.M3U, ImportProtocol.MAG}
+            else None
         )
         if detected.protocol is ImportProtocol.XTREAM:
             details = (
@@ -199,6 +211,42 @@ class SmartImportDialog(QDialog):
             self.add_button.setEnabled(False)
             self.test_button.setEnabled(False)
 
+    def _set_protocol_field_visibility(self, protocol: ImportProtocol | None) -> None:
+        """Reveal only the fields required by the detected selected provider protocol."""
+        visibility = {
+            ImportProtocol.XTREAM: {
+                self._server_label,
+                self.server_input,
+                self._username_label,
+                self.username_input,
+                self._password_label,
+                self.password_input,
+            },
+            ImportProtocol.M3U: {self._playlist_label, self.playlist_input},
+            ImportProtocol.MAG: {
+                self._portal_label,
+                self.portal_input,
+                self._mac_label,
+                self.mac_input,
+            },
+        }
+        visible = set() if protocol is None else visibility.get(protocol, set())
+        for field in (
+            self._server_label,
+            self.server_input,
+            self._portal_label,
+            self.portal_input,
+            self._playlist_label,
+            self.playlist_input,
+            self._username_label,
+            self.username_input,
+            self._password_label,
+            self.password_input,
+            self._mac_label,
+            self.mac_input,
+        ):
+            field.setVisible(field in visible)
+
     def _test_connection(self) -> None:
         """Report validation without claiming an unimplemented network operation."""
         if self._detected is None or not self._detected.is_complete:
@@ -217,11 +265,8 @@ class SmartImportDialog(QDialog):
         if detected is None or not detected.is_complete:
             self.status_label.setText("Detect a complete provider configuration first")
             return
-        provider_id = self.provider_id_input.text().strip()
-        if not provider_id:
-            self.status_label.setText("Provider ID is required")
-            return
         if detected.protocol is ImportProtocol.XTREAM:
+            provider_id = generated_provider_id("xtream", self.server_input.text().strip())
             xtream_request = RegisterXtreamProviderRequest(
                 provider_id=provider_id,
                 base_url=self.server_input.text().strip(),
@@ -230,12 +275,14 @@ class SmartImportDialog(QDialog):
             )
             response = await self._register_xtream_provider.execute(xtream_request)
         elif detected.protocol is ImportProtocol.M3U:
+            provider_id = generated_provider_id("m3u", self.playlist_input.text().strip())
             m3u_request = RegisterM3UProviderRequest(
                 provider_id=provider_id,
                 source=self.playlist_input.text().strip(),
             )
             response = await self._register_m3u_provider.execute(m3u_request)
         else:
+            provider_id = generated_provider_id("mag", self.portal_input.text().strip())
             mag_request = RegisterMAGProviderRequest(
                 provider_id=provider_id,
                 portal_url=self.portal_input.text().strip(),

@@ -56,12 +56,19 @@ def test_smart_import_clipboard_preview_and_registration_are_local_and_masked() 
     assert "secret" not in dialog.preview_label.text()
     assert "••••••••" in dialog.preview_label.text()
     assert dialog.add_button.isEnabled()
+    assert not dialog.server_input.isHidden()
+    assert not dialog.username_input.isHidden()
+    assert not dialog.password_input.isHidden()
+    assert dialog.portal_input.isHidden()
+    assert dialog.playlist_input.isHidden()
+    assert dialog.mac_input.isHidden()
 
     asyncio.run(dialog.submit())
 
     assert len(xtream.requests) == 1
     assert m3u.requests == []
     assert mag.requests == []
+    assert xtream.requests[0].provider_id == "xtream-stream-example"
     assert added == ["saved-provider"]
     assert dialog.password_input.text() == ""
     assert dialog.source_input.toPlainText() == ""

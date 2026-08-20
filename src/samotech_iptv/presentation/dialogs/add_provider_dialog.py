@@ -23,8 +23,12 @@ class AddProviderDialog(QDialog):
         open_xtream: Callable[[], object],
         open_m3u: Callable[[], object],
         open_mag: Callable[[], object],
+        parent: QWidget | None = None,
     ) -> None:
-        super().__init__()
+        if parent is None:
+            super().__init__()
+        else:
+            super().__init__(parent)
         self._open_smart_import = open_smart_import
         self._open_xtream = open_xtream
         self._open_m3u = open_m3u
