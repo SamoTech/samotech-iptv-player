@@ -95,7 +95,7 @@
 - [x] Phase 2 — Produce the current prioritized feedback table with evidence, frequency, severity, reproducibility, affected subsystem, specialist owner, and recommended action.
 - [x] Phase 3 — Complete focused role-separated protocol, playback, UX, Windows, performance, diagnostics, security, QA, compatibility, CI, and documentation investigations using current repository evidence.
 - [x] Phase 4 — Cross-review all candidates, select the highest-value actionable issue using value × evidence × user impact × risk × feasibility, and complete an independent pre-implementation challenge.
-- [ ] Phase 5 — Implement the approved production improvement at the correct architectural layer, including focused positive and negative regression coverage.
-- [ ] Phase 6 — Run focused tests, full non-presentation corpus, isolated presentation corpus, Ruff, Black, MyPy, Bandit, credential/redaction scans, relevant performance tests, protected-boundary checks, and Windows Portable validation.
-- [ ] Phase 7 — Complete independent final audit, update only current-cycle documentation, commit/push verified non-empty changes, wait for all required workflows, and inspect results.
-- [ ] Phase 8 — Deliver the final decision with issue, evidence, implementation, tests, security, performance, Windows, independent-audit, blockers, release impact, commit SHA, remote parity, and next action.
+- [x] Phase 5 — Implement the approved production improvement at the correct architectural layer, including focused positive and negative regression coverage.
+- [x] Phase 6 — Run focused tests, full non-presentation corpus, isolated presentation corpus, Ruff, Black, MyPy, Bandit, credential/redaction scans, relevant performance tests, protected-boundary checks, and Windows Portable validation.
+- [x] Phase 7 — Complete independent final audit, update only current-cycle documentation, commit/push verified non-empty changes, wait for all required workflows, and inspect results.
+- [x] Phase 8 — Deliver the final decision with issue, evidence, implementation, tests, security, performance, Windows, independent-audit, blockers, release impact, commit SHA, remote parity, and next action.

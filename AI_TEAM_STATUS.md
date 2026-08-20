@@ -1,5 +1,9 @@
 # AI Team Status
 
+## Current Cycle Update — Provider Management Selection
+
+**Decision:** **PATCH COMPLETE**. The team selected a reproducible P2 provider-management usability defect: Edit, Remove, and Health actions required users to type an opaque Provider ID. Commit `c0c6dd49f8632ed8b25026f14fcfba8cea2f3e7c` replaces manual entry with a safe accessible selector while preserving all provider, playback, media, security, version, release, README, and workflow boundaries. Focused, static, full-applicable, performance, security, Windows Portable, CI, and CodeQL evidence passed; the monolithic Linux Qt collection remains an explicitly recorded environment blocker. See `CURRENT_STATE_EXECUTION_AUDIT.md` for the complete current-cycle decision.
+
 ## 1. Team Members
 
 The active operating team has fourteen role-separated members: Chief Architect, IPTV Protocol Engineer, Media Engineer, VLC/Playback Engineer, UI/UX Principal, Windows Desktop Specialist, Performance Engineer, Security Engineer, Test/QA Engineer, Feedback Analyst, Research/Compatibility Engineer, Release/CI Engineer, Documentation/Evidence Engineer, and Independent Auditor. Their authority, handoffs, and prohibited actions are recorded in the team charter. [1]
