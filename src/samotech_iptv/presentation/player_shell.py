@@ -447,9 +447,9 @@ class PlayerShell(QWidget):
         self.content_model = ContentListModel()
         self.global_search_model = QStringListModel()
         self.provider_selector = QComboBox()
-        self.provider_selector.setEditable(True)
+        self.provider_selector.setEditable(False)
         self.provider_selector.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
-        self.provider_selector.setPlaceholderText("Select provider or enter ID")
+        self.provider_selector.setPlaceholderText("Select provider")
         self.provider_selector.setAccessibleName("Active IPTV provider")
         self.provider_selector.setToolTip("Choose the registered provider for live TV")
         self.provider_selector.currentIndexChanged.connect(self._provider_changed)
@@ -671,13 +671,10 @@ class PlayerShell(QWidget):
         self._refresh_home_actions()
 
     def _provider_id(self) -> str:
-        """Return the selected provider ID, retaining editable fallback semantics."""
+        """Return the registered provider ID stored as safe selector item data."""
         index = self.provider_selector.currentIndex()
-        text = self.provider_selector.currentText().strip()
         data = self.provider_selector.itemData(index)
-        if index == 0 and text == "Select provider":
-            return ""
-        return str(data or text)
+        return str(data or "")
 
     async def refresh_categories(self, provider_id: str) -> None:
         """Populate persistent category navigation through the existing application boundary."""
@@ -2875,6 +2872,10 @@ class PlayerShell(QWidget):
         if self._player_port is None:
             return
         create_owned_task(self, self._open_playback_diagnostics())
+
+    def show_playback_diagnostics(self) -> None:
+        """Open the existing safe diagnostic panel from external presentation actions."""
+        self._show_playback_info()
 
     async def _open_playback_diagnostics(self) -> None:
         """Build a sanitized runtime report and show it in an application-owned dialog."""

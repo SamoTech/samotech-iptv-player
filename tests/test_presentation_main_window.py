@@ -155,11 +155,15 @@ class FakeMenuBar:
 
     def __init__(self) -> None:
         self.menus: list[FakeMenu] = []
+        self.actions: list[FakeAction] = []
 
     def addMenu(self, title: str) -> FakeMenu:  # noqa: N802
         menu = FakeMenu(title)
         self.menus.append(menu)
         return menu
+
+    def addAction(self, action: FakeAction) -> None:  # noqa: N802
+        self.actions.append(action)
 
 
 class FakeStatusBar:
@@ -431,6 +435,7 @@ def test_main_window_exposes_xtream_provider_menu_action() -> None:
 
     assert window.menu_bar.menus[0].title == "Providers"
     assert window.menu_bar.menus[0].actions == [
+        window.add_provider_action,
         window.add_xtream_provider_action,
         window.add_m3u_provider_action,
         window.add_mag_provider_action,
@@ -474,6 +479,7 @@ def test_main_window_exposes_xtream_provider_menu_action() -> None:
         window.stop_playback_action,
         window.start_recording_action,
         window.stop_recording_action,
+        window.show_diagnostics_action,
     ]
     assert window.pause_playback_action.text == "Pause"
     assert window.pause_playback_action.triggered.callbacks == [window._schedule_pause_playback]
@@ -485,8 +491,9 @@ def test_main_window_exposes_xtream_provider_menu_action() -> None:
     assert window.start_recording_action.triggered.callbacks == [window._schedule_start_recording]
     assert window.stop_recording_action.text == "Stop Recording"
     assert window.stop_recording_action.triggered.callbacks == [window._schedule_stop_recording]
-    assert window.menu_bar.menus[3].title == "Settings"
-    assert window.menu_bar.menus[3].actions == [window.settings_action]
+    assert window.show_diagnostics_action.text == "Playback Diagnostics…"
+    assert window.show_diagnostics_action.triggered.callbacks == [window.open_playback_diagnostics]
+    assert window.menu_bar.actions == [window.settings_action]
     assert window.settings_action.text == "Settings…"
     assert window.settings_action.triggered.callbacks == [window.open_settings_page]
 

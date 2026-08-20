@@ -81,11 +81,15 @@ class FakeMenuBar:
 
     def __init__(self) -> None:
         self.menus: list[FakeMenu] = []
+        self.actions: list[FakeAction] = []
 
     def addMenu(self, title: str) -> FakeMenu:  # noqa: N802
         menu = FakeMenu(title)
         self.menus.append(menu)
         return menu
+
+    def addAction(self, action: FakeAction) -> None:  # noqa: N802
+        self.actions.append(action)
 
 
 class FakeStatusBar:

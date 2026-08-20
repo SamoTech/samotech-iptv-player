@@ -1,0 +1,145 @@
+{
+  "baseline": {
+    "release": "v0.1.6",
+    "protected_readme_badge_sha256": "d6310d733baae10823f9a84f2bb7ad157706930d993f4b26d78eb534d7da810d",
+    "architecture": "provider adapters -> domain translation -> ResolvedPlayback -> PlayerPort/libVLC -> native Qt surface"
+  },
+  "roles": [
+    {
+      "name": "Interface & Visual Design Engineer",
+      "responsibilities": [
+        "visual hierarchy",
+        "component consistency",
+        "navigation",
+        "player controls",
+        "dialogs",
+        "themes",
+        "accessibility",
+        "discoverability"
+      ]
+    }
+  ],
+  "windows": [
+    {
+      "name": "MainWindow",
+      "purpose": "top-level Qt host for menu bar, status bar, PlayerShell, and native VLC surface"
+    },
+    {
+      "name": "PlayerShell",
+      "purpose": "player-first navigation, catalogue, search, library, provider, and settings workspace"
+    }
+  ],
+  "pages": [
+    "Home",
+    "Live TV",
+    "Movies",
+    "Series",
+    "Favorites",
+    "History",
+    "Search",
+    "EPG",
+    "Providers",
+    "Settings"
+  ],
+  "dialogs": [
+    "AddProviderDialog",
+    "SmartImportDialog",
+    "M3UProviderDialog",
+    "XtreamProviderDialog",
+    "MAGProviderDialog",
+    "ProviderEditDialog",
+    "ProviderListDialog",
+    "ChannelBrowserDialog",
+    "CategoryBrowserDialog",
+    "EPGGridDialog",
+    "XMLTVGuideDialog",
+    "FavoritesLibraryDialog",
+    "HistoryLibraryDialog",
+    "PlaybackDiagnosticsDialog",
+    "ThemeSettingsDialog"
+  ],
+  "menu_inventory": {
+    "Providers": [
+      "Add Xtream Provider",
+      "Add M3U Provider",
+      "Add MAG/Stalker Provider",
+      "Browse Channels",
+      "Browse Live Categories",
+      "Show EPG",
+      "Configure XMLTV Guide",
+      "Show Registered Providers"
+    ],
+    "Library": [
+      "Favorites",
+      "History"
+    ],
+    "Playback": [
+      "Pause",
+      "Resume",
+      "Stop",
+      "Start Recording",
+      "Stop Recording"
+    ],
+    "Settings": [
+      "Settings"
+    ]
+  },
+  "player_controls": [
+    "Pause",
+    "Play/Resume",
+    "Stop",
+    "Seek -30/-10/+10/+30",
+    "Restart",
+    "Retry",
+    "Previous episode",
+    "Next episode",
+    "Volume",
+    "Mute",
+    "Audio tracks",
+    "Subtitles",
+    "Aspect ratio",
+    "Safe diagnostics",
+    "Fullscreen"
+  ],
+  "shortcuts": [
+    "Space: play/pause",
+    "F: fullscreen",
+    "Escape: exit fullscreen",
+    "Left/J: seek backward",
+    "Right/L: seek forward",
+    "M: mute",
+    "Enter: activate selected list item"
+  ],
+  "state_surfaces": [
+    "No provider",
+    "Provider selected",
+    "Providers unavailable",
+    "No channels loaded",
+    "No channels in category",
+    "No loaded search result",
+    "Loading content",
+    "Content unavailable",
+    "Playback error/retry",
+    "No EPG selection",
+    "Artwork unavailable",
+    "Theme save/load feedback",
+    "Safe diagnostics"
+  ],
+  "discoverability_gaps": [
+    {
+      "feature": "AddProviderDialog / Smart Import",
+      "status": "supported but not exposed from the current top-level menu",
+      "evidence": "MainWindow creates add_provider_action but does not add it to Providers menu"
+    },
+    {
+      "feature": "Settings",
+      "status": "accessible but reached through a redundant one-item Settings menu",
+      "evidence": "MainWindow creates Settings menu containing only Settings action"
+    },
+    {
+      "feature": "Safe playback diagnostics",
+      "status": "supported in player overlay; no top-level menu entry",
+      "evidence": "PlayerShell Info button exposes diagnostics"
+    }
+  ]
+}

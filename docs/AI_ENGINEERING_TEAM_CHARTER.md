@@ -41,6 +41,7 @@ Each decision record must state the problem, reporter/discovery source, reproduc
 | 12. Release/CI Engineer | Preserve CI, CodeQL, Windows packaging, VLC, artifacts, checksums, and release conditions | Release gate record | Bypass/relax a gate or publish while required runs are active |
 | 13. Documentation/Evidence Engineer | Maintain additive, traceable reports, matrices, limitations, and developer guidance | Evidence update | Rewrite historical evidence |
 | 14. Independent Auditor | Challenge approved proposals and final implementation independently | Rejection/acceptance audit | Edit implementation or self-approve work |
+| 15. Interface & Visual Design Engineer | Audit visual hierarchy, typography, spacing, component consistency, navigation, menus, dialogs, player controls, themes, accessibility, discoverability, and responsive/fullscreen presentation with UI, QA, Playback, Provider, Security, and Independent Audit roles | Visual design finding and implementation specification | Bypass provider/media/playback/security boundaries or introduce unverified visual claims |
 
 ## Workflow Controls
 

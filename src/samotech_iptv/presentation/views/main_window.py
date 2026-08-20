@@ -230,10 +230,12 @@ class MainWindow(QMainWindow):
         self.start_recording_action.triggered.connect(self._schedule_start_recording)
         self.stop_recording_action = QAction("Stop Recording", self)
         self.stop_recording_action.triggered.connect(self._schedule_stop_recording)
+        self.show_diagnostics_action = QAction("Playback Diagnostics…", self)
+        self.show_diagnostics_action.triggered.connect(self.open_playback_diagnostics)
         providers_menu = self.menuBar().addMenu("Providers")
+        providers_menu.addAction(self.add_provider_action)
         add_separator = getattr(providers_menu, "addSeparator", None)
         if callable(add_separator):
-            providers_menu.addAction(self.add_provider_action)
             add_separator()
         providers_menu.addAction(self.add_xtream_provider_action)
         providers_menu.addAction(self.add_m3u_provider_action)
@@ -252,8 +254,8 @@ class MainWindow(QMainWindow):
         playback_menu.addAction(self.stop_playback_action)
         playback_menu.addAction(self.start_recording_action)
         playback_menu.addAction(self.stop_recording_action)
-        settings_menu = self.menuBar().addMenu("Settings")
-        settings_menu.addAction(self.settings_action)
+        playback_menu.addAction(self.show_diagnostics_action)
+        self.menuBar().addAction(self.settings_action)
         self._active_add_provider_dialog: AddProviderDialog | None = None
         self._active_smart_import_dialog: SmartImportDialog | None = None
         self._active_xtream_provider_dialog: XtreamProviderDialog | None = None
@@ -488,6 +490,13 @@ class MainWindow(QMainWindow):
             self.player_shell.open_settings_page()
             return
         self.open_settings_dialog()
+
+    def open_playback_diagnostics(self) -> None:
+        """Expose the existing safe diagnostics panel from the native Playback menu."""
+        if self.player_shell is None:
+            self.statusBar().showMessage("Playback diagnostics are unavailable")
+            return
+        self.player_shell.show_playback_diagnostics()
 
     def _schedule_pause_playback(self) -> None:
         """Queue playback pause on the supported Qt-aware event loop."""

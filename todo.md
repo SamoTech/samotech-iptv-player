@@ -99,3 +99,15 @@
 - [x] Phase 6 — Run focused tests, full non-presentation corpus, isolated presentation corpus, Ruff, Black, MyPy, Bandit, credential/redaction scans, relevant performance tests, protected-boundary checks, and Windows Portable validation.
 - [x] Phase 7 — Complete independent final audit, update only current-cycle documentation, commit/push verified non-empty changes, wait for all required workflows, and inspect results.
 - [x] Phase 8 — Deliver the final decision with issue, evidence, implementation, tests, security, performance, Windows, independent-audit, blockers, release impact, commit SHA, remote parity, and next action.
+
+## Phase 28 — UI/UX, Visual Design & Complete Menu Audit
+
+- [x] Read the complete Phase 28 UI/UX, visual-design, and menu-audit specification and reconcile its release instruction with its explicit protection boundaries.
+- [x] Phase 1 — Formally assign the Interface & Visual Design Engineer role, preserve v0.1.6/release/README/workflow boundaries, and capture current repository, workflow, architecture, feedback, diagnostics, launcher, and performance baseline.
+- [x] Phase 2 — Build a machine-readable inventory of every user-facing window, dialog, page, panel, menu, action, button, control, list, form, setting, keyboard shortcut, state, and hidden/discoverability gap.
+- [x] Phase 3 — Complete menu, icon, player-control, fullscreen, provider, settings, large-playlist, EPG, state, typography/spacing, theme, accessibility, discoverability, and Reddit-feedback mapping audits.
+- [x] Phase 4 — Produce a no-feature-loss exposure matrix, role-separated findings, visual/design cross-review, and independent pre-implementation challenge; select only actual capability-backed P0/P1/P2 work.
+- [x] Phase 5 — Implement the highest-value approved presentation/UI improvements without changing provider, playback, security, release, or media architecture; add focused positive and negative regression coverage.
+- [ ] Phase 6 — Run focused UI/provider/PlayerShell/menu/settings/navigation/accessibility/large-data tests, full non-presentation corpus, isolated presentation corpus, Ruff, Black, MyPy, Bandit, secret/protected-boundary scans, Windows Portable, CI, and CodeQL validation.
+- [ ] Phase 7 — Complete the independent final UI audit, create `PHASE28_UI_VISUAL_DESIGN_AUDIT.md` with all 30 required sections, and decide A/B/C/D from actual user-facing evidence.
+- [ ] Phase 8 — If all release criteria are satisfied and the design decision supports release qualification, update legitimate version sources, create/push a non-empty release commit and v0.1.7 tag, publish, verify assets/checksum/workflows, and report final status. Otherwise preserve v0.1.6 and explain why.

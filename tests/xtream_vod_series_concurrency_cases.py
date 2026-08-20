@@ -12,6 +12,7 @@ from tests.player_shell_native_probe import (
     FakeFavorite,
     FakeSearch,
     make_shell,
+    select_provider,
 )
 
 
@@ -148,7 +149,7 @@ async def test_old_movie_detail_cannot_mutate_selection_or_start_playback() -> N
         play,
         movie_details=details,  # type: ignore[arg-type]
     )
-    shell.provider_selector.setEditText("provider-a")
+    await select_provider(shell, "provider-a")
     old_task = asyncio.create_task(shell._load_and_play_movie(first))
     await details.started[first.id].wait()
     new_task = asyncio.create_task(shell._load_and_play_movie(second))
@@ -174,7 +175,7 @@ async def test_old_series_season_response_cannot_replace_current_series() -> Non
         lambda _: asyncio.sleep(0),
         series_seasons=seasons,  # type: ignore[arg-type]
     )
-    shell.provider_selector.setEditText("provider-a")
+    await select_provider(shell, "provider-a")
     old_task = asyncio.create_task(shell._load_series_seasons_for(first))
     await _wait_for_key(seasons.started, first.id)
     await seasons.started[first.id].wait()
@@ -200,7 +201,7 @@ async def test_old_season_response_cannot_replace_current_episode_list() -> None
         lambda _: asyncio.sleep(0),
         season_episodes=episodes,  # type: ignore[arg-type]
     )
-    shell.provider_selector.setEditText("provider-a")
+    await select_provider(shell, "provider-a")
     first = _season("provider-a", "provider-a:series-1", 1)
     second = _season("provider-a", "provider-a:series-1", 2)
     old_task = asyncio.create_task(shell._load_series_episodes_for(first))
@@ -235,10 +236,10 @@ async def test_provider_switch_invalidates_inflight_non_live_response() -> None:
         play,
         movie_details=details,  # type: ignore[arg-type]
     )
-    shell.provider_selector.setEditText("provider-a")
+    await select_provider(shell, "provider-a")
     task = asyncio.create_task(shell._load_and_play_movie(movie))
     await details.started[movie.id].wait()
-    shell.provider_selector.setEditText("provider-b")
+    await select_provider(shell, "provider-b")
     shell._provider_changed(0)
     details.release[movie.id].set()
     await task
@@ -264,7 +265,7 @@ async def test_rapid_episode_selection_only_allows_latest_playback() -> None:
         return SimpleNamespace(outcome=PlaybackOutcome.PLAYED, error=None)
 
     shell = make_shell(FakeBrowse(), FakeSearch(), FakeFavorite(), play)
-    shell.provider_selector.setEditText("provider-a")
+    await select_provider(shell, "provider-a")
     first = ContentItemDTO(
         id="provider-a:series-1:episode:1",
         provider_id="provider-a",
@@ -312,7 +313,7 @@ async def test_disposed_shell_rejects_late_movie_completion() -> None:
         play,
         movie_details=details,  # type: ignore[arg-type]
     )
-    shell.provider_selector.setEditText("provider-a")
+    await select_provider(shell, "provider-a")
     task = asyncio.create_task(shell._load_and_play_movie(movie))
     await details.started[movie.id].wait()
     shell._disposed = True
@@ -341,7 +342,7 @@ async def test_navigation_away_rejects_late_movie_completion() -> None:
         play,
         movie_details=details,  # type: ignore[arg-type]
     )
-    shell.provider_selector.setEditText("provider-a")
+    await select_provider(shell, "provider-a")
     task = asyncio.create_task(shell._load_and_play_movie(movie))
     await details.started[movie.id].wait()
     shell._change_page(0)
