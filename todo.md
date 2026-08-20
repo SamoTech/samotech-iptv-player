@@ -61,7 +61,7 @@
 - [x] Phase 4 — Audit actionable empty states and user-facing error classifications without exposing technical secrets or fabricating provider capabilities.
 - [x] Phase 5 — Audit context-sensitive live/VOD/series playback controls, fullscreen, focus, keyboard/remote-like controls, search, and large-playlist UI-thread risks without changing libVLC lifecycle ownership.
 - [x] Phase 6 — Audit EPG, favorites/history/resume, settings, safe diagnostics, debug launcher, logs, provider/media boundaries, and capability-truth surfaces.
-- [ ] Phase 7 — Improve documentation only where required, create the developer-facing Reddit feedback intake checklist, and preserve the README badge block byte-for-byte.
-- [ ] Phase 8 — Add/update focused deterministic coverage and run presentation/provider/VLC/diagnostics/security/large-data regressions, official non-presentation corpus, Ruff, Black, MyPy, Bandit, secret/credential/redaction scans, and diff checks.
-- [ ] Phase 9 — Run the Windows Portable workflow only if implementation changes exist; document every pass, failure, or Windows-only validation gap without creating a release.
-- [ ] Phase 10 — Create `PHASE28_PRE_FEEDBACK_HARDENING_AUDIT.md`, state the evidence-based final decision, commit/push only verified repository changes, and deliver that file as the one final report.
+- [x] Phase 7 — Improve documentation only where required, create the developer-facing Reddit feedback intake checklist, and preserve the README badge block byte-for-byte.
+- [x] Phase 8 — Add/update focused deterministic coverage and run presentation/provider/VLC/diagnostics/security/large-data regressions, official non-presentation corpus, Ruff, Black, MyPy, Bandit, secret/credential/redaction scans, and diff checks.
+- [x] Phase 9 — Run the Windows Portable workflow only if implementation changes exist; document every pass, failure, or Windows-only validation gap without creating a release.
+- [x] Phase 10 — Create `PHASE28_PRE_FEEDBACK_HARDENING_AUDIT.md`, state the evidence-based final decision, commit/push only verified repository changes, and deliver that file as the one final report.
