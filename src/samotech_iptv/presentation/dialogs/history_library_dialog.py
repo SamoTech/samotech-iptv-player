@@ -9,6 +9,7 @@ from PySide6.QtWidgets import (
     QDialog,
     QFormLayout,
     QLabel,
+    QListWidget,
     QPushButton,
 )
 
@@ -21,6 +22,7 @@ if TYPE_CHECKING:
     from samotech_iptv.application.dtos import HistoryItemDTO
     from samotech_iptv.application.use_cases.clear_history import ClearHistory
     from samotech_iptv.application.use_cases.load_history import LoadHistory
+    from samotech_iptv.application.use_cases.remove_history import RemoveHistory
 
 __all__ = ["HistoryLibraryDialog"]
 
@@ -29,13 +31,21 @@ _CLEAR_ERROR = "Unable to clear history"
 
 
 class HistoryLibraryDialog(QDialog):
-    """Render safe history summaries and offer only the existing clear-all operation."""
+    """Render safe history summaries with confirmed per-item and clear-all actions."""
 
-    def __init__(self, load_history: LoadHistory, clear_history: ClearHistory) -> None:
+    def __init__(
+        self,
+        load_history: LoadHistory,
+        clear_history: ClearHistory,
+        remove_history: RemoveHistory | None = None,
+    ) -> None:
         super().__init__()
         self._load_history = load_history
         self._clear_history = clear_history
+        self._remove_history = remove_history
+        self._history_items: list[HistoryItemDTO] = []
         self.history_summary_label = QLabel()
+        self.history_list = QListWidget()
         self.refresh_button = QPushButton("Refresh History")
         self.refresh_button.setAccessibleName("Refresh playback history")
         self.refresh_button.setToolTip("Reload saved playback history")
@@ -45,10 +55,17 @@ class HistoryLibraryDialog(QDialog):
         self.clear_button.setAccessibleName("Clear playback history")
         self.clear_button.setToolTip("Permanently clear all saved playback history")
         self.clear_button.clicked.connect(self._schedule_clear)
+        self.remove_button = QPushButton("Remove Selected History")
+        self.remove_button.setObjectName("destructive")
+        self.remove_button.setAccessibleName("Remove selected playback history")
+        self.remove_button.setToolTip("Permanently remove the selected playback history entry")
+        self.remove_button.clicked.connect(self._schedule_remove_selected)
         self.status_label = QLabel()
         layout = QFormLayout(self)
         layout.addRow(self.history_summary_label)
+        layout.addRow("Saved playback history", self.history_list)
         layout.addRow(self.refresh_button)
+        layout.addRow(self.remove_button)
         layout.addRow(self.clear_button)
         layout.addRow(self.status_label)
         self.setWindowTitle("History")
@@ -57,15 +74,45 @@ class HistoryLibraryDialog(QDialog):
     async def refresh(self) -> None:
         """Refresh presentation-safe history records through the application boundary."""
         response = await self._load_history.execute(LoadHistoryRequest())
+        self._history_items = list(response.items)
+        self.history_list.clear()
         if response.error is not None:
             self.history_summary_label.setText("No history available")
             self.status_label.setText(_LOAD_ERROR)
             return
-        self.history_summary_label.setText(
-            "\n".join(self._format_history_item(item) for item in response.items)
-            or "No history recorded"
-        )
+        formatted_items = [self._format_history_item(item) for item in response.items]
+        for item in formatted_items:
+            self.history_list.addItem(item)
+        self.history_summary_label.setText("\n".join(formatted_items) or "No history recorded")
         self.status_label.setText("" if response.items else "No history recorded")
+
+    async def remove_selected(self) -> None:
+        """Remove one selected history record through the application boundary."""
+        if self._remove_history is None:
+            self.status_label.setText("History item removal unavailable")
+            return
+        selected_row = self.history_list.currentRow()
+        if not 0 <= selected_row < len(self._history_items):
+            self.status_label.setText("Select a history entry")
+            return
+        item = self._history_items[selected_row]
+        if not confirm_destructive_action(
+            self,
+            "Remove history entry?",
+            "This permanently removes the selected playback history entry. Continue?",
+        ):
+            self.status_label.setText("History entry removal canceled")
+            return
+        response = await self._remove_history.execute(item.id)
+        if response.error is not None:
+            self.status_label.setText("Unable to remove history")
+            return
+        if not response.removed:
+            self.status_label.setText("History entry no longer exists")
+            await self.refresh()
+            return
+        self.status_label.setText("History entry removed")
+        await self.refresh()
 
     async def clear(self) -> None:
         """Clear all history only through the existing safe clear-all use case."""
@@ -115,6 +162,10 @@ class HistoryLibraryDialog(QDialog):
     def _schedule_refresh(self) -> None:
         """Queue history refresh on the supported Qt-aware event loop."""
         create_owned_task(self, self.refresh())
+
+    def _schedule_remove_selected(self) -> None:
+        """Queue selected-entry removal on the supported Qt-aware event loop."""
+        create_owned_task(self, self.remove_selected())
 
     def _schedule_clear(self) -> None:
         """Queue clear-all on the supported Qt-aware event loop."""

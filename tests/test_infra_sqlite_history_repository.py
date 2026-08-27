@@ -55,3 +55,28 @@ async def test_sqlite_history_repository_records_lists_and_clears_history(tmp_pa
     assert await repository.list_recent() == [history]
     assert await repository.clear() == 1
     assert await repository.list_recent() == []
+
+
+@pytest.mark.asyncio
+async def test_sqlite_history_repository_deletes_one_record_by_id(tmp_path: Path) -> None:
+    repository = SQLiteHistoryRepository(tmp_path / "history.sqlite3")
+    first = History(
+        id="history-1",
+        item_id="movie-1",
+        item_type="movie",
+        watched_at=datetime(2026, 8, 12, tzinfo=UTC),
+    )
+    second = History(
+        id="history-2",
+        item_id="movie-2",
+        item_type="movie",
+        watched_at=datetime(2026, 8, 11, tzinfo=UTC),
+    )
+
+    await repository.initialise()
+    await repository.record(first)
+    await repository.record(second)
+
+    assert await repository.delete("history-1") is True
+    assert await repository.delete("history-1") is False
+    assert await repository.list_recent() == [second]

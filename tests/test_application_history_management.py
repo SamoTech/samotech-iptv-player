@@ -8,6 +8,7 @@ from samotech_iptv.application.dtos import LoadHistoryRequest, RecordHistoryRequ
 from samotech_iptv.application.use_cases.clear_history import ClearHistory
 from samotech_iptv.application.use_cases.load_history import LoadHistory
 from samotech_iptv.application.use_cases.record_history import RecordHistory
+from samotech_iptv.application.use_cases.remove_history import RemoveHistory
 from samotech_iptv.domain.entities.history import History
 
 
@@ -29,6 +30,13 @@ class FakeHistoryRepository:
         cleared = len(self.records)
         self.records.clear()
         return cleared
+
+    async def delete(self, history_id: str) -> bool:
+        for index, record in enumerate(self.records):
+            if record.id == history_id:
+                self.records.pop(index)
+                return True
+        return False
 
 
 @pytest.mark.asyncio
@@ -125,6 +133,33 @@ async def test_load_history_exposes_existing_canonical_progress_values() -> None
     assert [
         (item.item_id, item.duration_seconds, item.position_seconds) for item in response.items
     ] == [("channel-1", 120, 30)]
+
+
+@pytest.mark.asyncio
+async def test_remove_history_deletes_one_opaque_record() -> None:
+    repository = FakeHistoryRepository()
+    repository.records.extend(
+        [
+            History(
+                id="history-1",
+                item_id="movie-1",
+                item_type="movie",
+                watched_at=datetime(2026, 8, 13, tzinfo=UTC),
+            ),
+            History(
+                id="history-2",
+                item_id="channel-2",
+                item_type="channel",
+                watched_at=datetime(2026, 8, 12, tzinfo=UTC),
+            ),
+        ]
+    )
+
+    response = await RemoveHistory(repository).execute("history-1")  # type: ignore[arg-type]
+
+    assert response.removed is True
+    assert response.error is None
+    assert [record.id for record in repository.records] == ["history-2"]
 
 
 @pytest.mark.asyncio

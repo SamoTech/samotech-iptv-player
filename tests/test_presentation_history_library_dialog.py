@@ -9,6 +9,7 @@ from samotech_iptv.application.dtos import (
     ClearHistoryResponse,
     HistoryItemDTO,
     LoadHistoryResponse,
+    RemoveHistoryResponse,
 )
 
 
@@ -57,6 +58,24 @@ class FakeFormLayout:
 
     def addRow(self, *row: object) -> None:  # noqa: N802
         self.rows.append(row)
+
+
+class FakeListWidget:
+    """Minimal QListWidget double retaining safe rows and selection."""
+
+    def __init__(self) -> None:
+        self.items: list[str] = []
+        self.current_row = -1
+
+    def clear(self) -> None:
+        self.items.clear()
+        self.current_row = -1
+
+    def addItem(self, value: str) -> None:  # noqa: N802
+        self.items.append(value)
+
+    def currentRow(self) -> int:  # noqa: N802
+        return self.current_row
 
 
 class FakeLabel:
@@ -120,6 +139,7 @@ def _install_fake_pyside6() -> None:
     qtwidgets.QDialog = FakeDialog
     qtwidgets.QFormLayout = FakeFormLayout
     qtwidgets.QLabel = FakeLabel
+    qtwidgets.QListWidget = FakeListWidget
     qtwidgets.QLineEdit = FakeLineEdit
     qtwidgets.QPushButton = FakeButton
     sys.modules["PySide6"] = ModuleType("PySide6")
@@ -157,18 +177,33 @@ class FakeClearHistory:
         return self.response
 
 
+class FakeRemoveHistory:
+    """History-item removal use-case double returning a generic outcome."""
+
+    def __init__(self, response: RemoveHistoryResponse) -> None:
+        self.response = response
+        self.ids: list[str] = []
+
+    async def execute(self, history_id: str) -> RemoveHistoryResponse:
+        self.ids.append(history_id)
+        return self.response
+
+
 def _dialog(
     load_responses: list[LoadHistoryResponse],
     clear_response: ClearHistoryResponse | None = None,
-) -> tuple[HistoryLibraryDialog, FakeLoadHistory, FakeClearHistory]:
+    remove_response: RemoveHistoryResponse | None = None,
+) -> tuple[HistoryLibraryDialog, FakeLoadHistory, FakeClearHistory, FakeRemoveHistory]:
     load_history = FakeLoadHistory(load_responses)
     clear_history = FakeClearHistory(clear_response or ClearHistoryResponse(cleared=0))
-    return HistoryLibraryDialog(load_history, clear_history), load_history, clear_history  # type: ignore[arg-type]
+    remove_history = FakeRemoveHistory(remove_response or RemoveHistoryResponse(removed=False))
+    dialog = HistoryLibraryDialog(load_history, clear_history, remove_history)  # type: ignore[arg-type]
+    return dialog, load_history, clear_history, remove_history
 
 
 @pytest.mark.asyncio
 async def test_history_refresh_renders_safe_user_progress_without_internal_identifiers() -> None:
-    dialog, load_history, _ = _dialog(
+    dialog, load_history, _, _ = _dialog(
         [
             LoadHistoryResponse(
                 items=(
@@ -198,7 +233,7 @@ async def test_history_refresh_renders_safe_user_progress_without_internal_ident
 
 @pytest.mark.asyncio
 async def test_history_refresh_displays_empty_state() -> None:
-    dialog, _, _ = _dialog([LoadHistoryResponse()])
+    dialog, _, _, _ = _dialog([LoadHistoryResponse()])
 
     await dialog.refresh()
 
@@ -208,7 +243,7 @@ async def test_history_refresh_displays_empty_state() -> None:
 
 @pytest.mark.asyncio
 async def test_history_refresh_hides_failure_detail() -> None:
-    dialog, _, _ = _dialog([LoadHistoryResponse(error="private database detail")])
+    dialog, _, _, _ = _dialog([LoadHistoryResponse(error="private database detail")])
 
     await dialog.refresh()
 
@@ -219,7 +254,7 @@ async def test_history_refresh_hides_failure_detail() -> None:
 
 @pytest.mark.asyncio
 async def test_history_clear_uses_existing_clear_all_boundary_and_refreshes() -> None:
-    dialog, load_history, clear_history = _dialog(
+    dialog, load_history, clear_history, _ = _dialog(
         [LoadHistoryResponse()],
         ClearHistoryResponse(cleared=3),
     )
@@ -233,7 +268,7 @@ async def test_history_clear_uses_existing_clear_all_boundary_and_refreshes() ->
 
 @pytest.mark.asyncio
 async def test_history_clear_hides_failure_detail() -> None:
-    dialog, load_history, clear_history = _dialog(
+    dialog, load_history, clear_history, _ = _dialog(
         [],
         ClearHistoryResponse(cleared=0, error="private database detail"),
     )
@@ -248,7 +283,7 @@ async def test_history_clear_hides_failure_detail() -> None:
 
 @pytest.mark.asyncio
 async def test_history_clear_requires_explicit_confirmation() -> None:
-    dialog, load_history, clear_history = _dialog(
+    dialog, load_history, clear_history, _ = _dialog(
         [],
         ClearHistoryResponse(cleared=3),
     )
@@ -260,3 +295,50 @@ async def test_history_clear_requires_explicit_confirmation() -> None:
     assert clear_history.calls == 0
     assert load_history.requests == []
     assert dialog.status_label.value == "History clear canceled"
+
+
+@pytest.mark.asyncio
+async def test_history_item_removal_uses_opaque_id_and_refreshes() -> None:
+    item = HistoryItemDTO(
+        id="history-1",
+        item_id="movie-1",
+        item_type="movie",
+        watched_at="2026-08-13T01:00:00+00:00",
+        duration_seconds=120,
+        position_seconds=30,
+    )
+    dialog, load_history, _, remove_history = _dialog(
+        [LoadHistoryResponse(items=(item,)), LoadHistoryResponse()],
+        remove_response=RemoveHistoryResponse(removed=True),
+    )
+
+    await dialog.refresh()
+    dialog.history_list.current_row = 0
+    await dialog.remove_selected()
+
+    assert remove_history.ids == ["history-1"]
+    assert len(load_history.requests) == 2
+    assert dialog.status_label.value == "No history recorded"
+
+
+@pytest.mark.asyncio
+async def test_history_item_removal_requires_explicit_confirmation() -> None:
+    item = HistoryItemDTO(
+        id="history-1",
+        item_id="movie-1",
+        item_type="movie",
+        watched_at="2026-08-13T01:00:00+00:00",
+    )
+    dialog, _, _, remove_history = _dialog(
+        [LoadHistoryResponse(items=(item,))],
+        remove_response=RemoveHistoryResponse(removed=True),
+    )
+    await dialog.refresh()
+    dialog.history_list.current_row = 0
+    FakeMessageBox.response = FakeMessageBox.StandardButton.No
+
+    await dialog.remove_selected()
+
+    FakeMessageBox.response = FakeMessageBox.StandardButton.Yes
+    assert remove_history.ids == []
+    assert dialog.status_label.value == "History entry removal canceled"

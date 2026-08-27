@@ -25,6 +25,9 @@ class HistoryRepository(ABC):
     @abstractmethod
     async def clear(self) -> int: ...
 
+    @abstractmethod
+    async def delete(self, history_id: str) -> bool: ...
+
     async def find_latest(
         self,
         *,

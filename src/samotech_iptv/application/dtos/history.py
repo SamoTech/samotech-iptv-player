@@ -15,6 +15,7 @@ __all__ = [
     "LoadHistoryResponse",
     "RecordHistoryRequest",
     "RecordHistoryResponse",
+    "RemoveHistoryResponse",
 ]
 
 
@@ -41,6 +42,12 @@ class LoadHistoryRequest:
 @dataclass(frozen=True)
 class LoadHistoryResponse:
     items: Sequence[HistoryItemDTO] = field(default_factory=list)
+    error: str | None = None
+
+
+@dataclass(frozen=True)
+class RemoveHistoryResponse:
+    removed: bool
     error: str | None = None
 
 

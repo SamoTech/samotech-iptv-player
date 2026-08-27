@@ -62,6 +62,7 @@ from samotech_iptv.application.dtos.history import (
     LoadHistoryResponse,
     RecordHistoryRequest,
     RecordHistoryResponse,
+    RemoveHistoryResponse,
 )
 from samotech_iptv.application.dtos.playback import (
     PlaybackAttempt,
@@ -155,6 +156,7 @@ __all__ = [
     "HistoryItemDTO",
     "LoadHistoryRequest",
     "LoadHistoryResponse",
+    "RemoveHistoryResponse",
     "RecordHistoryRequest",
     "RecordHistoryResponse",
     "FavoriteDTO",

@@ -206,7 +206,7 @@ async def test_favorites_refresh_renders_safe_user_summary_without_internal_iden
 
     assert list_favorites.calls == 1
     assert dialog.favorite_summary_label.value == "1 saved favorite"
-    assert dialog.favorite_list.items == ["Favorite 1 · Channel"]
+    assert dialog.favorite_list.items == ["Favorite 1 · Channel · Legacy provider"]
     assert "favorite-1" not in dialog.favorite_list.items[0]
     assert "channel-1" not in dialog.favorite_list.items[0]
     assert dialog.status_label.value == ""

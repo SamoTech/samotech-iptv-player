@@ -44,6 +44,7 @@ from samotech_iptv.application.use_cases.register_m3u_provider import RegisterM3
 from samotech_iptv.application.use_cases.register_mag_provider import RegisterMAGProvider
 from samotech_iptv.application.use_cases.register_xtream_provider import RegisterXtreamProvider
 from samotech_iptv.application.use_cases.remove_favorite import RemoveFavorite
+from samotech_iptv.application.use_cases.remove_history import RemoveHistory
 from samotech_iptv.application.use_cases.save_favorite import SaveFavorite
 from samotech_iptv.application.use_cases.save_theme_preference import SaveThemePreference
 from samotech_iptv.application.use_cases.search_registered_channels import (
@@ -166,6 +167,7 @@ async def build_production_desktop_application(
     remove_favorite = RemoveFavorite(favorite_repository)
     load_history = LoadHistory(history_repository)
     clear_history = ClearHistory(history_repository)
+    remove_history = RemoveHistory(history_repository)
     load_theme_preference = LoadThemePreference(theme_preference_repository)
     initial_theme = await load_theme_preference.execute()
 
@@ -211,6 +213,7 @@ async def build_production_desktop_application(
         artwork_loader=artwork_loader,
         record_history=record_history,
         check_provider_health=CheckProviderHealth(provider_resolution_service),
+        remove_history=remove_history,
     )
 
     async def close() -> None:

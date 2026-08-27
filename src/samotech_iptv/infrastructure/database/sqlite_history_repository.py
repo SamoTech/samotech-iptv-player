@@ -64,6 +64,10 @@ class SQLiteHistoryRepository(HistoryRepository):
         """Remove all persisted history and return the count removed."""
         return await asyncio.to_thread(self._clear_sync)
 
+    async def delete(self, history_id: str) -> bool:
+        """Remove one persisted history record by opaque ID."""
+        return await asyncio.to_thread(self._delete_sync, history_id)
+
     def _initialise_sync(self) -> None:
         try:
             self._database_path.parent.mkdir(parents=True, exist_ok=True)
@@ -172,3 +176,11 @@ class SQLiteHistoryRepository(HistoryRepository):
                 return cursor.rowcount
         except sqlite3.Error as exc:
             raise StorageError("Unable to clear history") from exc
+
+    def _delete_sync(self, history_id: str) -> bool:
+        try:
+            with sqlite_connection(self._database_path) as connection:
+                cursor = connection.execute("DELETE FROM watch_history WHERE id = ?", (history_id,))
+                return cursor.rowcount > 0
+        except sqlite3.Error as exc:
+            raise StorageError("Unable to remove history") from exc

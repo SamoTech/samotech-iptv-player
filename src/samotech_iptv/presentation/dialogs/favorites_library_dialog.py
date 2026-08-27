@@ -73,7 +73,8 @@ class FavoritesLibraryDialog(QDialog):
         self.favorite_list.clear()
         for index, favorite in enumerate(self._favorites, start=1):
             item_type = favorite.item_type.replace("_", " ").title()
-            self.favorite_list.addItem(f"Favorite {index} · {item_type}")
+            provider_scope = "Provider linked" if favorite.provider_id else "Legacy provider"
+            self.favorite_list.addItem(f"Favorite {index} · {item_type} · {provider_scope}")
         count = len(self._favorites)
         self.favorite_summary_label.setText(
             "No favorites saved"

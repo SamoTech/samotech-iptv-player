@@ -25,6 +25,7 @@ from samotech_iptv.application.use_cases.play_registered_channel import PlayRegi
 from samotech_iptv.application.use_cases.record_history import RecordHistory
 from samotech_iptv.application.use_cases.refresh_provider import RefreshProvider
 from samotech_iptv.application.use_cases.register_xtream_provider import RegisterXtreamProvider
+from samotech_iptv.application.use_cases.remove_history import RemoveHistory
 from samotech_iptv.application.use_cases.resolve_stream import ResolveStream
 from samotech_iptv.application.use_cases.save_favorite import SaveFavorite
 from samotech_iptv.application.use_cases.save_theme_preference import SaveThemePreference
@@ -66,6 +67,7 @@ __all__ = [
     "SaveThemePreference",
     "LoadHistory",
     "RecordHistory",
+    "RemoveHistory",
     "RefreshProvider",
     "RemoveFavorite",
     "RegisterXtreamProvider",

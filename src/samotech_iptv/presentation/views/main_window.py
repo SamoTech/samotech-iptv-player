@@ -50,6 +50,7 @@ if TYPE_CHECKING:
         RegisterXtreamProvider,
     )
     from samotech_iptv.application.use_cases.remove_favorite import RemoveFavorite
+    from samotech_iptv.application.use_cases.remove_history import RemoveHistory
     from samotech_iptv.application.use_cases.save_favorite import SaveFavorite
     from samotech_iptv.application.use_cases.save_theme_preference import SaveThemePreference
     from samotech_iptv.application.use_cases.search_registered_channels import (
@@ -124,6 +125,7 @@ class MainWindow(QMainWindow):
         artwork_loader: ArtworkPort | None = None,
         record_history: RecordHistory | None = None,
         check_provider_health: CheckProviderHealth | None = None,
+        remove_history: RemoveHistory | None = None,
     ) -> None:
 
         super().__init__()
@@ -160,6 +162,7 @@ class MainWindow(QMainWindow):
         self._artwork_loader = artwork_loader
         self._record_history = record_history
         self._check_provider_health = check_provider_health
+        self._remove_history = remove_history
         self._player = player
         self.video_surface = VlcVideoSurface(player)
         self.setWindowTitle("SamoTech IPTV Player")
@@ -450,7 +453,11 @@ class MainWindow(QMainWindow):
         """Create, refresh, and show existing persisted-history controls."""
         from samotech_iptv.presentation.dialogs.history_library_dialog import HistoryLibraryDialog
 
-        dialog = HistoryLibraryDialog(self._load_history, self._clear_history)
+        dialog = HistoryLibraryDialog(
+            self._load_history,
+            self._clear_history,
+            self._remove_history,
+        )
         dialog.show()
         create_owned_task(dialog, dialog.refresh())
         self._active_history_library_dialog = dialog

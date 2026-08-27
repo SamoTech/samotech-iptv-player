@@ -52,6 +52,7 @@ if TYPE_CHECKING:
         RegisterXtreamProvider,
     )
     from samotech_iptv.application.use_cases.remove_favorite import RemoveFavorite
+    from samotech_iptv.application.use_cases.remove_history import RemoveHistory
     from samotech_iptv.application.use_cases.save_favorite import SaveFavorite
     from samotech_iptv.application.use_cases.save_theme_preference import SaveThemePreference
     from samotech_iptv.application.use_cases.search_registered_channels import (
@@ -115,6 +116,7 @@ def build_desktop_application(
     artwork_loader: ArtworkPort | None = None,
     record_history: RecordHistory | None = None,
     check_provider_health: CheckProviderHealth | None = None,
+    remove_history: RemoveHistory | None = None,
 ) -> DesktopApplication:
     """Compose the Qt shell around externally configured registered-provider logic."""
     existing_application = QApplication.instance()
@@ -161,5 +163,6 @@ def build_desktop_application(
         artwork_loader=artwork_loader,
         record_history=record_history,
         check_provider_health=check_provider_health,
+        remove_history=remove_history,
     )
     return DesktopApplication(application=application, main_window=main_window)
