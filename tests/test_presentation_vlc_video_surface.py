@@ -42,6 +42,7 @@ def _install_fake_pyside6() -> None:
     qtgui = ModuleType("PySide6.QtGui")
     qtgui.QShowEvent = object
     qtwidgets = ModuleType("PySide6.QtWidgets")
+    qtwidgets.QCheckBox = type("FakeCheckBox", (), {})
     qtwidgets.QFrame = FakeFrame
     sys.modules.setdefault("PySide6", ModuleType("PySide6"))
     sys.modules.setdefault("PySide6.QtCore", qtcore)

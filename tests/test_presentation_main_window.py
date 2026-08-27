@@ -280,6 +280,7 @@ def _install_fake_pyside6() -> None:
     qtgui.QAction = FakeAction
     qtgui.QShowEvent = object
     qtwidgets = ModuleType("PySide6.QtWidgets")
+    qtwidgets.QCheckBox = type("FakeCheckBox", (), {})
     qtwidgets.QFrame = FakeFrame
     qtwidgets.QMainWindow = FakeMainWindow
     qtwidgets.QDialog = FakeDialog

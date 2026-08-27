@@ -143,4 +143,6 @@ def test_provider_added_refreshes_selector_and_provider_list_without_restart() -
     assert window.player_shell.refreshed is True
     assert window.player_shell.provider_selector.selected == 3
     assert window._active_provider_list_dialog.refreshed is True
-    assert window.status_bar.message == "Provider added and available immediately"
+    assert window.status_bar.message == (
+        "Provider saved · select it and load content to establish a provider session"
+    )

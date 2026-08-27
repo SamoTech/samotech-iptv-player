@@ -61,8 +61,8 @@ class FakeVBoxLayout:
 class FakeLabel:
     """Minimal QLabel double retaining safe status copy."""
 
-    def __init__(self) -> None:
-        self.value = ""
+    def __init__(self, value: str = "") -> None:
+        self.value = value
 
     def setText(self, value: str) -> None:  # noqa: N802
         self.value = value
@@ -110,6 +110,19 @@ class FakeListWidget:
         self.items.clear()
 
 
+class FakeCheckBox:
+    """Minimal QCheckBox double for sibling dialog imports."""
+
+    def __init__(self, _: str) -> None:
+        self.toggled = FakeSignal()
+
+    def setAccessibleName(self, _: str) -> None:  # noqa: N802
+        return None
+
+    def setEnabled(self, _: bool) -> None:  # noqa: N802
+        return None
+
+
 class FakeButton:
     """Minimal QPushButton double."""
 
@@ -119,6 +132,7 @@ class FakeButton:
 
 def _install_fake_pyside6() -> None:
     qtwidgets = ModuleType("PySide6.QtWidgets")
+    qtwidgets.QCheckBox = FakeCheckBox
     qtwidgets.QDialog = FakeDialog
     qtwidgets.QFormLayout = FakeFormLayout
     qtwidgets.QVBoxLayout = FakeVBoxLayout

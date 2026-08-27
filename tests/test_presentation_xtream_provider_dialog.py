@@ -17,6 +17,12 @@ class FakeDialog:
     def setWindowTitle(self, title: str) -> None:  # noqa: N802
         self.title = title
 
+    def setStyleSheet(self, _: str) -> None:  # noqa: N802
+        pass
+
+    def setMinimumWidth(self, _: int) -> None:  # noqa: N802
+        pass
+
 
 class FakeFormLayout:
     """Minimal QFormLayout double that records the configured rows."""
@@ -31,11 +37,30 @@ class FakeFormLayout:
 class FakeLabel:
     """Minimal QLabel double that retains status copy."""
 
-    def __init__(self) -> None:
-        self.value = ""
+    def __init__(self, value: str = "") -> None:
+        self.value = value
 
     def setText(self, value: str) -> None:  # noqa: N802
         self.value = value
+
+    def setWordWrap(self, _: bool) -> None:  # noqa: N802
+        pass
+
+    def setObjectName(self, _: str) -> None:  # noqa: N802
+        pass
+
+
+class FakeCheckBox:
+    """Minimal QCheckBox double for the transient visibility control."""
+
+    def __init__(self, _: str) -> None:
+        self.toggled = type("Signal", (), {"connect": lambda self, callback: None})()
+
+    def setAccessibleName(self, _: str) -> None:  # noqa: N802
+        return None
+
+    def setEnabled(self, _: bool) -> None:  # noqa: N802
+        return None
 
 
 class FakeButton:
@@ -43,6 +68,15 @@ class FakeButton:
 
     def __init__(self, _: str) -> None:
         self.clicked = type("Signal", (), {"connect": lambda self, callback: None})()
+
+    def setObjectName(self, _: str) -> None:  # noqa: N802
+        pass
+
+    def setAccessibleName(self, _: str) -> None:  # noqa: N802
+        pass
+
+    def setEnabled(self, _: bool) -> None:  # noqa: N802
+        pass
 
 
 class FakeLineEdit:
@@ -71,6 +105,12 @@ class FakeLineEdit:
     def setAccessibleName(self, accessible_name: str) -> None:  # noqa: N802
         self.accessible_name = accessible_name
 
+    def setToolTip(self, _: str) -> None:  # noqa: N802
+        pass
+
+    def setEnabled(self, _: bool) -> None:  # noqa: N802
+        pass
+
     def text(self) -> str:
         return self.value
 
@@ -91,6 +131,7 @@ def _install_fake_pyside6() -> tuple[object | None, object | None]:
     original_pyside = sys.modules.get("PySide6")
     original_widgets = sys.modules.get("PySide6.QtWidgets")
     qtwidgets = ModuleType("PySide6.QtWidgets")
+    qtwidgets.QCheckBox = FakeCheckBox
     qtwidgets.QDialog = FakeDialog
     qtwidgets.QFormLayout = FakeFormLayout
     qtwidgets.QLabel = FakeLabel
@@ -135,7 +176,7 @@ async def test_submit_shows_success_status_and_clears_password() -> None:
     response = await dialog.submit()
 
     assert response.provider_id == "home"
-    assert dialog.status_label.value == "Xtream provider added"
+    assert dialog.status_label.value == "Provider saved. Select it to load content."
     assert dialog.password_input.value == ""
 
 

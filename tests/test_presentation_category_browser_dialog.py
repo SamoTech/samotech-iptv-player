@@ -101,6 +101,7 @@ class FakeButton:
 
 def _install_fake_pyside6() -> None:
     qtwidgets = ModuleType("PySide6.QtWidgets")
+    qtwidgets.QCheckBox = type("FakeCheckBox", (), {})
     qtwidgets.QDialog = FakeDialog
     qtwidgets.QFormLayout = FakeFormLayout
     qtwidgets.QLabel = FakeLabel
