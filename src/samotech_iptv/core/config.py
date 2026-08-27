@@ -14,13 +14,19 @@ from pathlib import Path
 
 __all__ = ["AppConfig", "NetworkConfig", "PlayerConfig", "default_data_dir"]
 
+try:
+    _IMPORT_HOME = Path.home()
+except RuntimeError:  # pragma: no cover - only possible in severely restricted runtimes
+    _IMPORT_HOME = Path(".")
+
 
 def _home_dir() -> Path:
-    """Return a deterministic home fallback for cross-platform configuration tests."""
+    """Return an absolute home path even when a simulated platform clears its environment."""
     try:
-        return Path.home()
+        home = Path.home()
     except RuntimeError:
-        return Path(".")
+        return _IMPORT_HOME
+    return home if home.is_absolute() else _IMPORT_HOME
 
 
 def default_data_dir() -> str:
