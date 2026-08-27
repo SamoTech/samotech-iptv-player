@@ -157,7 +157,17 @@ The final local gate ran at local tip `7273987` after the documentation, present
 | `git diff --check` | PASS | exit 0 |
 | Credential/redaction classification | PASS | no leaked values; eight expected/classified matches |
 
-The known full monolithic PySide6 pytest collection crash remains a test-environment limitation and was not weakened or hidden: presentation modules were validated independently, as approved by the existing project strategy. Linux results are not native Windows verification. Hosted CI, CodeQL, and Windows Portable EXE results must be recorded after the final push.
+The known full monolithic PySide6 pytest collection crash remains a test-environment limitation and was not weakened or hidden: presentation modules were validated independently, as approved by the existing project strategy. Linux results are not native Windows verification.
+
+The first hosted validation push at `ba8c6ffda3dd05306a0a7488923ae6ad53d2d244` passed all required workflows:
+
+| Hosted workflow | Run ID | Result | Scope |
+|---|---:|---:|---|
+| CI | `33122857104` | PASS | lint, typecheck, security regression, non-presentation tests, build |
+| CodeQL Security Scan | `33122857139` | PASS | Python `security-extended` analysis |
+| Windows Portable EXE | `33122857224` | PASS | Windows x64 VLC/runtime, EXE, packaged-VLC, Qt/startup, sanitized-PATH, artifact checks |
+
+The Windows run’s `Publish tagged Windows release` job was **skipped**, as required for an ordinary `main` push with no tag or `release_ref`. The report-only follow-up commit needed to preserve these hosted facts will itself receive a final hosted recheck before closure.
 
 ## Release impact
 
@@ -165,7 +175,7 @@ This phase is protected against version/tag/release changes. The existing `v0.1.
 
 ## Final commit and decision
 
-**Current local validation tip:** `7273987` (`Remove redundant generated-output ignore rule`), with `92d6836` and `a14464a` immediately preceding it.
-**Hosted workflow IDs/statuses:** pending final push and inspection of CI, CodeQL, and Windows Portable EXE workflows.
-**Repository parity:** pending final push verification.
-**Decision:** locally ready for **A — CLEANUP COMPLETE**, subject to hosted workflow confirmation; if any required hosted gate fails, the result becomes **B — PARTIALLY COMPLETE WITH BLOCKERS** until minimally repaired and revalidated. No release action is authorized by this phase.
+**First hosted-validated commit:** `ba8c6ffda3dd05306a0a7488923ae6ad53d2d244`.
+**Current report-update commit:** pending push; the report-only follow-up will be rechecked by all required hosted workflows.
+**Repository parity:** currently `HEAD == origin/main` at `ba8c6ffda3dd05306a0a7488923ae6ad53d2d244` before this report-only update.
+**Decision:** **A — CLEANUP COMPLETE** is supported by all local gates and the first hosted validation set; final parity and final-SHA hosted recheck remain required before closing this phase. No release action is authorized by this phase.
