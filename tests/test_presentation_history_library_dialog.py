@@ -22,6 +22,20 @@ class FakeSignal:
         self.callbacks.append(callback)
 
 
+class FakeMessageBox:
+    """Deterministic QMessageBox double with a safe configurable response."""
+
+    class StandardButton:
+        Yes = 1
+        No = 2
+
+    response = StandardButton.Yes
+
+    @classmethod
+    def question(cls, *_args: object, **_kwargs: object) -> int:
+        return cls.response
+
+
 class FakeDialog:
     """Minimal QDialog double."""
 
@@ -81,15 +95,28 @@ class FakeLineEdit:
 
 
 class FakeButton:
-    """Minimal QPushButton double."""
+    """Minimal QPushButton double with accessible metadata support."""
 
     def __init__(self, _: str) -> None:
         self.clicked = FakeSignal()
+        self.object_name = ""
+        self.accessible_name = ""
+        self.tooltip = ""
+
+    def setObjectName(self, value: str) -> None:  # noqa: N802
+        self.object_name = value
+
+    def setAccessibleName(self, value: str) -> None:  # noqa: N802
+        self.accessible_name = value
+
+    def setToolTip(self, value: str) -> None:  # noqa: N802
+        self.tooltip = value
 
 
 def _install_fake_pyside6() -> None:
     qtwidgets = ModuleType("PySide6.QtWidgets")
     qtwidgets.QCheckBox = type("FakeCheckBox", (), {})
+    qtwidgets.QMessageBox = FakeMessageBox
     qtwidgets.QDialog = FakeDialog
     qtwidgets.QFormLayout = FakeFormLayout
     qtwidgets.QLabel = FakeLabel
@@ -217,3 +244,19 @@ async def test_history_clear_hides_failure_detail() -> None:
     assert load_history.requests == []
     assert dialog.status_label.value == "Unable to clear history"
     assert "private" not in dialog.status_label.value
+
+
+@pytest.mark.asyncio
+async def test_history_clear_requires_explicit_confirmation() -> None:
+    dialog, load_history, clear_history = _dialog(
+        [],
+        ClearHistoryResponse(cleared=3),
+    )
+    FakeMessageBox.response = FakeMessageBox.StandardButton.No
+
+    await dialog.clear()
+
+    FakeMessageBox.response = FakeMessageBox.StandardButton.Yes
+    assert clear_history.calls == 0
+    assert load_history.requests == []
+    assert dialog.status_label.value == "History clear canceled"

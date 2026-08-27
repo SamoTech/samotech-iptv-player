@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
 
 from samotech_iptv.application.dtos.provider_registration import UpdateProviderRequest
 from samotech_iptv.presentation.task_owner import create_owned_task
+from samotech_iptv.presentation.theme.dialogs import apply_form_dialog_style
 
 if TYPE_CHECKING:
     from samotech_iptv.application.dtos.provider import ProviderMetadata
@@ -36,6 +37,8 @@ class ProviderEditDialog(QDialog):
         self.provider_id_label = QLabel(provider.id)
         self.status_label = QLabel()
         self.save_button = QPushButton("Save Changes")
+        self.save_button.setObjectName("primary")
+        self.save_button.setAccessibleName("Save provider changes")
         self.save_button.clicked.connect(self._schedule_submit)
         layout = QFormLayout(self)
         layout.addRow("Provider ID", self.provider_id_label)
@@ -44,6 +47,7 @@ class ProviderEditDialog(QDialog):
         layout.addRow(self.save_button)
         layout.addRow(self.status_label)
         self.setWindowTitle(f"Edit {provider.type} Provider")
+        apply_form_dialog_style(self)
 
     def _add_type_specific_fields(self, layout: QFormLayout) -> None:
         """Render only fields that are safe and applicable to this provider type."""

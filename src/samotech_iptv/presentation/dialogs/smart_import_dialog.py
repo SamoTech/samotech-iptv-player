@@ -30,6 +30,7 @@ from samotech_iptv.application.smart_import import (
 )
 from samotech_iptv.presentation.dialogs.provider_id import generated_provider_id
 from samotech_iptv.presentation.task_owner import create_owned_task
+from samotech_iptv.presentation.theme.dialogs import apply_form_dialog_style
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QWidget
@@ -73,8 +74,11 @@ class SmartImportDialog(QDialog):
         )
         self.source_input.setAccessibleName("IPTV provider information")
         self.paste_button = QPushButton("Paste from Clipboard")
+        self.paste_button.setAccessibleName("Paste provider information from clipboard")
         self.paste_button.clicked.connect(self.paste_from_clipboard)
         self.detect_button = QPushButton("Detect & Continue")
+        self.detect_button.setObjectName("primary")
+        self.detect_button.setAccessibleName("Detect provider information and continue")
         self.detect_button.clicked.connect(self._detect)
         self.protocol_selector = QComboBox()
         self.protocol_selector.addItem("Select detected protocol", None)
@@ -92,12 +96,16 @@ class SmartImportDialog(QDialog):
         self.preview_label = QLabel("No provider detected")
         self.status_label = QLabel()
         self.test_button = QPushButton("Test Connection")
+        self.test_button.setAccessibleName("Test detected provider connection")
         self.test_button.clicked.connect(self._test_connection)
         self.test_button.setEnabled(False)
         self.add_button = QPushButton("Add Provider")
+        self.add_button.setObjectName("primary")
+        self.add_button.setAccessibleName("Add detected provider")
         self.add_button.clicked.connect(self._schedule_submit)
         self.add_button.setEnabled(False)
         self.back_button = QPushButton("Back")
+        self.back_button.setAccessibleName("Back to provider import entry")
         self.back_button.clicked.connect(self._cancel)
 
         layout = QFormLayout(self)
@@ -124,6 +132,7 @@ class SmartImportDialog(QDialog):
         layout.addRow(self.back_button)
         layout.addRow(self.status_label)
         self.setWindowTitle("Add IPTV Provider — Smart Import")
+        apply_form_dialog_style(self)
         self._set_protocol_field_visibility(None)
 
     def paste_from_clipboard(self) -> None:

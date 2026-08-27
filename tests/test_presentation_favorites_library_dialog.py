@@ -22,6 +22,20 @@ class FakeSignal:
         self.callbacks.append(callback)
 
 
+class FakeMessageBox:
+    """Deterministic QMessageBox double with a safe configurable response."""
+
+    class StandardButton:
+        Yes = 1
+        No = 2
+
+    response = StandardButton.Yes
+
+    @classmethod
+    def question(cls, *_args: object, **_kwargs: object) -> int:
+        return cls.response
+
+
 class FakeDialog:
     """Minimal QDialog double."""
 
@@ -99,15 +113,28 @@ class FakeLineEdit:
 
 
 class FakeButton:
-    """Minimal QPushButton double."""
+    """Minimal QPushButton double with accessible metadata support."""
 
     def __init__(self, _: str) -> None:
         self.clicked = FakeSignal()
+        self.object_name = ""
+        self.accessible_name = ""
+        self.tooltip = ""
+
+    def setObjectName(self, value: str) -> None:  # noqa: N802
+        self.object_name = value
+
+    def setAccessibleName(self, value: str) -> None:  # noqa: N802
+        self.accessible_name = value
+
+    def setToolTip(self, value: str) -> None:  # noqa: N802
+        self.tooltip = value
 
 
 def _install_fake_pyside6() -> None:
     qtwidgets = ModuleType("PySide6.QtWidgets")
     qtwidgets.QCheckBox = type("FakeCheckBox", (), {})
+    qtwidgets.QMessageBox = FakeMessageBox
     qtwidgets.QDialog = FakeDialog
     qtwidgets.QFormLayout = FakeFormLayout
     qtwidgets.QLabel = FakeLabel
@@ -250,3 +277,26 @@ async def test_favorite_removal_hides_failure_detail() -> None:
     assert remove_favorite.ids == ["favorite-1"]
     assert dialog.status_label.value == "Unable to remove favorite"
     assert "private" not in dialog.status_label.value
+
+
+@pytest.mark.asyncio
+async def test_favorite_removal_requires_explicit_confirmation() -> None:
+    favorite = FavoriteDTO(
+        id="favorite-1",
+        item_id="channel-1",
+        item_type="channel",
+        added_at="2026-08-28T00:00:00+00:00",
+    )
+    dialog, _, remove_favorite = _dialog(
+        [ListFavoritesResponse(favorites=(favorite,))],
+        RemoveFavoriteResponse(removed=True),
+    )
+    await dialog.refresh()
+    dialog.favorite_list.setCurrentRow(0)
+    FakeMessageBox.response = FakeMessageBox.StandardButton.No
+
+    await dialog.remove_selected()
+
+    FakeMessageBox.response = FakeMessageBox.StandardButton.Yes
+    assert remove_favorite.ids == []
+    assert dialog.status_label.value == "Favorite removal canceled"

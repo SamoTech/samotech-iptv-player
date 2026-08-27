@@ -84,4 +84,6 @@ QCheckBox:focus {{
 
 def apply_form_dialog_style(dialog: QWidget) -> None:
     """Apply the shared dark form style to a dialog or compact form widget."""
-    dialog.setStyleSheet(_FORM_DIALOG_STYLE)
+    set_style_sheet = getattr(dialog, "setStyleSheet", None)
+    if callable(set_style_sheet):
+        set_style_sheet(_FORM_DIALOG_STYLE)

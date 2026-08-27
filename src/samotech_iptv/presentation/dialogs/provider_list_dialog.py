@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
 from samotech_iptv.application.use_cases.check_provider_health import (
     CheckProviderHealthRequest,
 )
+from samotech_iptv.presentation.dialogs.confirm_action import confirm_destructive_action
 from samotech_iptv.presentation.task_owner import create_owned_task
 from samotech_iptv.presentation.theme.dialogs import apply_form_dialog_style
 
@@ -60,9 +61,12 @@ class ProviderListDialog(QDialog):
             "Choose a registered provider before editing, removing, or checking it"
         )
         self.edit_button = QPushButton("Edit Selected Provider")
+        self.edit_button.setAccessibleName("Edit selected provider")
+        self.edit_button.setToolTip("Edit safe provider settings; credentials stay protected")
         self.edit_button.clicked.connect(self.open_edit_dialog)
         self.remove_button = QPushButton("Remove Selected Provider")
         self.remove_button.setObjectName("destructive")
+        self.remove_button.setAccessibleName("Remove selected provider")
         self.remove_button.setToolTip("Permanently remove this provider and its stored credentials")
         self.remove_button.clicked.connect(self._schedule_remove_selected)
         self.health_button = QPushButton("Check Session Status")
@@ -196,6 +200,13 @@ class ProviderListDialog(QDialog):
         provider = self._selected_provider()
         if provider is None:
             self.status_label.setText("Select a registered provider")
+            return
+        if not confirm_destructive_action(
+            self,
+            "Remove provider?",
+            "This removes the provider profile and its stored credentials. Continue?",
+        ):
+            self.status_label.setText("Provider removal canceled")
             return
         response = await self._remove_provider.execute(provider.id)
         if response.provider_id is None:

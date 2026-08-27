@@ -1225,8 +1225,8 @@ class PlayerShell(QWidget):
         page = QFrame()
         page.setObjectName("contentCard")
         layout = QVBoxLayout(page)
-        layout.setContentsMargins(16, 16, 16, 16)
-        layout.setSpacing(10)
+        layout.setContentsMargins(SPACING.lg, SPACING.lg, SPACING.lg, SPACING.lg)
+        layout.setSpacing(SPACING.md)
         title = QLabel("Live TV")
         title.setObjectName("pageTitle")
         subtitle = QLabel("Search locally cached channels; browsing is loaded only when requested.")
@@ -1242,10 +1242,12 @@ class PlayerShell(QWidget):
         self.search_button.setAccessibleName("Search live channels")
         self.search_button.clicked.connect(self._schedule_search)
         category_button = QPushButton("Categories")
-        category_button.setToolTip("Browse live categories")
+        category_button.setAccessibleName("Browse live categories")
+        category_button.setToolTip("Browse live categories without starting playback")
         category_button.clicked.connect(self._open_category_dialog)
         self.favorite_button = QPushButton("Add favorite")
         self.favorite_button.setAccessibleName("Add selected channel to favorites")
+        self.favorite_button.setToolTip("Save the selected live channel to favorites")
         self.favorite_button.clicked.connect(self._schedule_add_favorite)
         actions.addWidget(self.load_button)
         actions.addWidget(self.search_button)
@@ -1272,8 +1274,8 @@ class PlayerShell(QWidget):
         page = QFrame()
         page.setObjectName("contentCard")
         layout = QVBoxLayout(page)
-        layout.setContentsMargins(16, 16, 16, 16)
-        layout.setSpacing(10)
+        layout.setContentsMargins(SPACING.lg, SPACING.lg, SPACING.lg, SPACING.lg)
+        layout.setSpacing(SPACING.md)
         title_text = "Movies" if content_type is ContentType.MOVIE else "Series"
         title = QLabel(title_text)
         title.setObjectName("pageTitle")
@@ -1288,6 +1290,7 @@ class PlayerShell(QWidget):
         load_button = QPushButton(f"Load {title_text.lower()}")
         load_button.setObjectName("primary")
         load_button.setAccessibleName(f"Load {title_text.lower()}")
+        load_button.setToolTip(f"Load {title_text.lower()} from the selected provider")
         load_button.clicked.connect(lambda: self._schedule_content_load(content_type))
         category_selector = QComboBox()
         category_selector.addItem(f"All {title_text.lower()}", None)
@@ -1312,12 +1315,22 @@ class PlayerShell(QWidget):
         activate_button.setAccessibleName(
             "Play selected movie" if content_type is ContentType.MOVIE else "Open selected series"
         )
+        activate_button.setToolTip(
+            "Play the selected movie"
+            if content_type is ContentType.MOVIE
+            else "Open the selected series"
+        )
         activate_button.clicked.connect(lambda: self._activate_current_content(content_type))
         favorite_button = QPushButton("Add favorite")
         favorite_button.setAccessibleName(
             "Add selected movie to favorites"
             if content_type is ContentType.MOVIE
             else "Add selected series to favorites"
+        )
+        favorite_button.setToolTip(
+            "Save the selected movie to favorites"
+            if content_type is ContentType.MOVIE
+            else "Save the selected series to favorites"
         )
         favorite_button.clicked.connect(lambda: self._schedule_content_favorite(content_type))
         actions.addWidget(load_button)
@@ -1328,6 +1341,7 @@ class PlayerShell(QWidget):
         if content_type is ContentType.SERIES:
             back_button = QPushButton("Back")
             back_button.setAccessibleName("Return to series catalogue")
+            back_button.setToolTip("Return from seasons or episodes to the series catalogue")
             back_button.setEnabled(False)
             back_button.clicked.connect(self._back_series_navigation)
             self._content_back_buttons[content_type] = back_button

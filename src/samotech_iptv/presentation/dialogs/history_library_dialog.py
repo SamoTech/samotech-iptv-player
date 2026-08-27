@@ -13,7 +13,9 @@ from PySide6.QtWidgets import (
 )
 
 from samotech_iptv.application.dtos import LoadHistoryRequest
+from samotech_iptv.presentation.dialogs.confirm_action import confirm_destructive_action
 from samotech_iptv.presentation.task_owner import create_owned_task
+from samotech_iptv.presentation.theme.dialogs import apply_form_dialog_style
 
 if TYPE_CHECKING:
     from samotech_iptv.application.dtos import HistoryItemDTO
@@ -35,8 +37,13 @@ class HistoryLibraryDialog(QDialog):
         self._clear_history = clear_history
         self.history_summary_label = QLabel()
         self.refresh_button = QPushButton("Refresh History")
+        self.refresh_button.setAccessibleName("Refresh playback history")
+        self.refresh_button.setToolTip("Reload saved playback history")
         self.refresh_button.clicked.connect(self._schedule_refresh)
         self.clear_button = QPushButton("Clear History")
+        self.clear_button.setObjectName("destructive")
+        self.clear_button.setAccessibleName("Clear playback history")
+        self.clear_button.setToolTip("Permanently clear all saved playback history")
         self.clear_button.clicked.connect(self._schedule_clear)
         self.status_label = QLabel()
         layout = QFormLayout(self)
@@ -45,6 +52,7 @@ class HistoryLibraryDialog(QDialog):
         layout.addRow(self.clear_button)
         layout.addRow(self.status_label)
         self.setWindowTitle("History")
+        apply_form_dialog_style(self)
 
     async def refresh(self) -> None:
         """Refresh presentation-safe history records through the application boundary."""
@@ -61,6 +69,13 @@ class HistoryLibraryDialog(QDialog):
 
     async def clear(self) -> None:
         """Clear all history only through the existing safe clear-all use case."""
+        if not confirm_destructive_action(
+            self,
+            "Clear playback history?",
+            "This permanently removes all saved playback history. Continue?",
+        ):
+            self.status_label.setText("History clear canceled")
+            return
         response = await self._clear_history.execute()
         if response.error is not None:
             self.status_label.setText(_CLEAR_ERROR)

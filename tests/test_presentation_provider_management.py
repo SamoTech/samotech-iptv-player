@@ -21,6 +21,20 @@ class FakeSignal:
         self.callbacks.append(callback)
 
 
+class FakeMessageBox:
+    """Deterministic QMessageBox double with a safe configurable response."""
+
+    class StandardButton:
+        Yes = 1
+        No = 2
+
+    response = StandardButton.Yes
+
+    @classmethod
+    def question(cls, *_args: object, **_kwargs: object) -> int:
+        return cls.response
+
+
 class FakeDialog:
     """Minimal QDialog double."""
 
@@ -142,6 +156,9 @@ class FakeButton:
     def setObjectName(self, _: str) -> None:  # noqa: N802
         pass
 
+    def setAccessibleName(self, _: str) -> None:  # noqa: N802
+        pass
+
     def setToolTip(self, _: str) -> None:  # noqa: N802
         pass
 
@@ -149,6 +166,7 @@ class FakeButton:
 def _install_fake_pyside6() -> None:
     qtwidgets = ModuleType("PySide6.QtWidgets")
     qtwidgets.QCheckBox = type("FakeCheckBox", (), {})
+    qtwidgets.QMessageBox = FakeMessageBox
     qtwidgets.QDialog = FakeDialog
     qtwidgets.QComboBox = FakeComboBox
     qtwidgets.QFormLayout = FakeFormLayout
@@ -333,3 +351,25 @@ def test_provider_list_keeps_unavailable_capabilities_distinct_from_unsupported(
     assert "Live: supported" in summary
     assert "VOD: not supported" in summary
     assert "Series: not available" in summary
+
+
+@pytest.mark.asyncio
+async def test_provider_removal_requires_explicit_confirmation() -> None:
+    provider = _xtream_provider()
+    list_providers = FakeListProviders([provider])
+    update_provider = FakeUpdateProvider()
+    remove_provider = FakeRemoveProvider()
+    dialog = ProviderListDialog(
+        list_providers,  # type: ignore[arg-type]
+        update_provider,  # type: ignore[arg-type]
+        remove_provider,  # type: ignore[arg-type]
+    )
+    await dialog.refresh()
+    dialog.provider_selector.setCurrentIndex(1)
+    FakeMessageBox.response = FakeMessageBox.StandardButton.No
+
+    await dialog.remove_selected()
+
+    FakeMessageBox.response = FakeMessageBox.StandardButton.Yes
+    assert remove_provider.provider_id is None
+    assert dialog.status_label.value == "Provider removal canceled"

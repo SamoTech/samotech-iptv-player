@@ -18,6 +18,7 @@ from samotech_iptv.application.dtos.provider_registration import (
 )
 from samotech_iptv.presentation.dialogs.provider_id import generated_provider_id
 from samotech_iptv.presentation.task_owner import create_owned_task
+from samotech_iptv.presentation.theme.dialogs import apply_form_dialog_style
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -62,6 +63,7 @@ class M3UProviderDialog(QDialog):
         self.load_button.clicked.connect(self._schedule_submit)
         self.save_button = self.load_button
         self.cancel_button = QPushButton("Cancel")
+        self.cancel_button.setAccessibleName("Cancel M3U provider setup")
         self.cancel_button.clicked.connect(self._cancel)
         self.status_label = QLabel()
         layout = QFormLayout(self)
@@ -72,6 +74,7 @@ class M3UProviderDialog(QDialog):
         layout.addRow(self.cancel_button)
         layout.addRow(self.status_label)
         self.setWindowTitle("Add M3U Provider")
+        apply_form_dialog_style(self)
 
     def _schedule_submit(self) -> None:
         """Queue registration on the supported Qt-aware event loop."""

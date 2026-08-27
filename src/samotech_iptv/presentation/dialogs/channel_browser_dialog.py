@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
 
 from samotech_iptv.application.dtos import ChannelDTO, LoadChannelsRequest, LoadChannelsResponse
 from samotech_iptv.presentation.task_owner import create_owned_task
+from samotech_iptv.presentation.theme.dialogs import apply_form_dialog_style
 from samotech_iptv.presentation.viewmodels.channel_list_model import ChannelListModel
 
 if TYPE_CHECKING:
@@ -67,6 +68,7 @@ class ChannelBrowserDialog(QDialog):
         layout.addRow("Channels", self.channel_list)
         layout.addRow(self.status_label)
         self.setWindowTitle("Browse Channels")
+        apply_form_dialog_style(self)
 
     def _schedule_channel_load(self) -> None:
         """Queue asynchronous catalogue loading on the supported Qt-aware event loop."""

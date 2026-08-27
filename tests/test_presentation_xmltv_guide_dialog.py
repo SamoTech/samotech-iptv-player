@@ -129,6 +129,12 @@ class FakeButton:
     def __init__(self, _: str) -> None:
         self.clicked = FakeSignal()
 
+    def setObjectName(self, _: str) -> None:  # noqa: N802
+        return None
+
+    def setAccessibleName(self, _: str) -> None:  # noqa: N802
+        return None
+
 
 def _install_fake_pyside6() -> None:
     qtwidgets = ModuleType("PySide6.QtWidgets")

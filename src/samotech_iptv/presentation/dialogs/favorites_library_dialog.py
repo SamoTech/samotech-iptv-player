@@ -12,7 +12,9 @@ from PySide6.QtWidgets import (
     QPushButton,
 )
 
+from samotech_iptv.presentation.dialogs.confirm_action import confirm_destructive_action
 from samotech_iptv.presentation.task_owner import create_owned_task
+from samotech_iptv.presentation.theme.dialogs import apply_form_dialog_style
 
 if TYPE_CHECKING:
     from samotech_iptv.application.dtos import FavoriteDTO
@@ -40,8 +42,13 @@ class FavoritesLibraryDialog(QDialog):
         self.favorite_summary_label = QLabel()
         self.favorite_list = QListWidget()
         self.refresh_button = QPushButton("Refresh Favorites")
+        self.refresh_button.setAccessibleName("Refresh saved favorites")
+        self.refresh_button.setToolTip("Reload saved favorites")
         self.refresh_button.clicked.connect(self._schedule_refresh)
         self.remove_button = QPushButton("Remove Selected Favorite")
+        self.remove_button.setObjectName("destructive")
+        self.remove_button.setAccessibleName("Remove selected favorite")
+        self.remove_button.setToolTip("Permanently remove the selected saved favorite")
         self.remove_button.clicked.connect(self._schedule_remove_selected)
         self.status_label = QLabel()
         layout = QFormLayout(self)
@@ -51,6 +58,7 @@ class FavoritesLibraryDialog(QDialog):
         layout.addRow(self.remove_button)
         layout.addRow(self.status_label)
         self.setWindowTitle("Favorites")
+        apply_form_dialog_style(self)
 
     async def refresh(self) -> None:
         """Refresh only presentation-safe favorite summaries."""
@@ -85,6 +93,13 @@ class FavoritesLibraryDialog(QDialog):
             self.status_label.setText("Select a saved favorite")
             return
         favorite = self._favorites[selected_row]
+        if not confirm_destructive_action(
+            self,
+            "Remove favorite?",
+            "This removes the selected saved favorite. Continue?",
+        ):
+            self.status_label.setText("Favorite removal canceled")
+            return
         response = await self._remove_favorite.execute(favorite.id)
         if response.error is not None:
             self.status_label.setText(_REMOVE_ERROR)

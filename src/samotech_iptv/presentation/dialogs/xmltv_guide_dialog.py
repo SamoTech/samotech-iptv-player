@@ -20,6 +20,7 @@ from samotech_iptv.application.dtos import (
     XMLTVChannelMappingRequest,
 )
 from samotech_iptv.presentation.task_owner import create_owned_task
+from samotech_iptv.presentation.theme.dialogs import apply_form_dialog_style
 
 if TYPE_CHECKING:
     from samotech_iptv.application.use_cases.configure_xmltv_binding import ConfigureXMLTVBinding
@@ -48,8 +49,11 @@ class XMLTVGuideDialog(QDialog):
         self.mapping_input = QLineEdit()
         self.mapping_input.setPlaceholderText("source-channel=canonical-channel, ...")
         self.configure_button = QPushButton("Save Local XMLTV Configuration")
+        self.configure_button.setObjectName("primary")
+        self.configure_button.setAccessibleName("Save local XMLTV configuration")
         self.configure_button.clicked.connect(self._schedule_configure)
         self.refresh_button = QPushButton("Refresh Guide")
+        self.refresh_button.setAccessibleName("Refresh local XMLTV guide")
         self.refresh_button.clicked.connect(self._schedule_refresh)
         self.status_label = QLabel()
         self.entries_list = QListWidget()
@@ -64,6 +68,7 @@ class XMLTVGuideDialog(QDialog):
         layout.addWidget(self.refresh_button)
         layout.addWidget(self.status_label)
         layout.addWidget(self.entries_list)
+        apply_form_dialog_style(self)
 
     async def configure(self) -> None:
         """Persist one explicit local XMLTV source binding with generic feedback."""

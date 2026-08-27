@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
 
 from samotech_iptv.application.dtos import EPGEntryDTO, LoadEPGResponse, LoadRegisteredEPGRequest
 from samotech_iptv.presentation.task_owner import create_owned_task
+from samotech_iptv.presentation.theme.dialogs import apply_form_dialog_style
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -51,6 +52,7 @@ class EPGGridDialog(QDialog):
         layout.addRow("Programme guide", self.epg_list)
         layout.addRow(self.status_label)
         self.setWindowTitle("Programme Guide")
+        apply_form_dialog_style(self)
         if provider_id is not None and channel_id is not None:
             self.status_label.setText("Ready to load the selected live channel guide")
 

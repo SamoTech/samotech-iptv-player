@@ -6,6 +6,8 @@ from typing import TYPE_CHECKING
 
 from PySide6.QtWidgets import QDialog, QLabel, QPushButton, QTabWidget, QVBoxLayout, QWidget
 
+from samotech_iptv.presentation.theme.dialogs import apply_form_dialog_style
+
 if TYPE_CHECKING:
     from collections.abc import Callable
 
@@ -43,6 +45,9 @@ class AddProviderDialog(QDialog):
             QLabel("Paste IPTV information and SamoTech will detect the format locally.")
         )
         smart_button = QPushButton("Paste / Import from Clipboard")
+        smart_button.setObjectName("primary")
+        smart_button.setAccessibleName("Paste or import provider information")
+        smart_button.setToolTip("Open smart import for locally detected provider details")
         smart_button.clicked.connect(self._show_smart_import)
         smart_layout.addWidget(smart_button)
         smart_layout.addWidget(QLabel("Paste → Detect → Review → Test → Add"))
@@ -53,10 +58,13 @@ class AddProviderDialog(QDialog):
             QLabel("Enter provider details manually with full advanced control.")
         )
         xtream_button = QPushButton("Manual Xtream Add")
+        xtream_button.setAccessibleName("Add Xtream provider manually")
         xtream_button.clicked.connect(self._show_xtream)
         m3u_button = QPushButton("Manual M3U Add")
+        m3u_button.setAccessibleName("Add M3U provider manually")
         m3u_button.clicked.connect(self._show_m3u)
         mag_button = QPushButton("Manual MAG / Stalker Add")
+        mag_button.setAccessibleName("Add MAG or Stalker provider manually")
         mag_button.clicked.connect(self._show_mag)
         manual_layout.addWidget(xtream_button)
         manual_layout.addWidget(m3u_button)
@@ -71,6 +79,7 @@ class AddProviderDialog(QDialog):
         layout.addWidget(QLabel("ADD IPTV PROVIDER"))
         layout.addWidget(tabs)
         self.setWindowTitle("Add IPTV Provider")
+        apply_form_dialog_style(self)
 
     def _show_smart_import(self) -> None:
         self._active_smart_import = self._open_smart_import()

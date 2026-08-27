@@ -112,6 +112,12 @@ class FakePushButton:
         self.text = text
         self.clicked = FakeSignal()
 
+    def setObjectName(self, _: str) -> None:  # noqa: N802
+        return None
+
+    def setAccessibleName(self, _: str) -> None:  # noqa: N802
+        return None
+
 
 class FakeLoadThemePreference:
     """Load-use-case double with a deterministic persisted preference."""

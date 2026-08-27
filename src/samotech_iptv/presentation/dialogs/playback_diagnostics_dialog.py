@@ -13,6 +13,8 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
+from samotech_iptv.presentation.theme.dialogs import apply_form_dialog_style
+
 __all__ = ["PlaybackDiagnosticsDialog"]
 
 if TYPE_CHECKING:
@@ -35,11 +37,13 @@ class PlaybackDiagnosticsDialog(QDialog):
         self.report_view.setAccessibleName("Safe playback diagnostic report")
         layout.addWidget(self.report_view)
         self.copy_button = QPushButton("Copy Diagnostic Report")
+        self.copy_button.setObjectName("primary")
         self.copy_button.setAccessibleName("Copy safe playback diagnostic report")
         self.copy_button.clicked.connect(self.copy_report)
         layout.addWidget(self.copy_button)
         self.status_label = QLabel()
         layout.addWidget(self.status_label)
+        apply_form_dialog_style(self)
 
     def copy_report(self) -> None:
         """Copy only the pre-sanitized report to the local clipboard."""
