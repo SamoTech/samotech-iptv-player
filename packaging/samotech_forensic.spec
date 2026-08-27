@@ -38,7 +38,10 @@ python_options = [("v", None, "OPTION")] if mode == "debug-all" else []
 
 vlc_binaries = [(str(path), "vlc") for path in vlc_root.glob("*.dll")]
 vlc_datas = [(str(plugins_root), "vlc/plugins")]
-application_datas = [(str(project_root / "pyproject.toml"), ".")]
+application_datas = [
+    (str(project_root / "pyproject.toml"), "."),
+    (str(project_root / "resources"), "resources"),
+]
 for directory_name in ("lua", "locale"):
     directory = vlc_root / directory_name
     if directory.is_dir():

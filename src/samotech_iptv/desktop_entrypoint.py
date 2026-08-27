@@ -176,11 +176,10 @@ def run(argv: Sequence[str] | None = None) -> int:
             exit_code=exit_code,
             details={"mode": "diagnostic" if _DIAGNOSTIC_ARGUMENT in arguments else "normal"},
         )
-        failure_message = str(diagnostics.state.get("failure_message", "unknown startup failure"))
         print(
             f"{_STARTUP_FAILURE_MESSAGE}.\n"
             f"Startup phase: {diagnostics.last_successful_stage.value}\n"
-            f"Details: {failure_message}\n"
+            "Details: A required runtime component could not be initialized.\n"
             f"Diagnostic log: {diagnostics.path}",
             file=sys.stderr,
         )

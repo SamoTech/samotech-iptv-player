@@ -12,6 +12,17 @@ def test_desktop_entrypoint_is_executable_as_a_pyinstaller_script() -> None:
     assert "--qt-only-test" in entrypoint
 
 
+def test_wheel_and_pyinstaller_configs_include_application_resources() -> None:
+    pyproject = (_ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    production_spec = (_ROOT / "samotech-iptv-player.spec").read_text(encoding="utf-8")
+    forensic_spec = (_ROOT / "packaging/samotech_forensic.spec").read_text(encoding="utf-8")
+
+    assert '"resources*"' in pyproject
+    assert 'resources = ["themes/*.qss", "icons/*", "translations/*"]' in pyproject
+    assert '(str(project_root / "resources"), "resources")' in production_spec
+    assert '(str(project_root / "resources"), "resources")' in forensic_spec
+
+
 def test_pyinstaller_spec_has_explicit_bundled_vlc_and_runtime_hook() -> None:
     spec = (_ROOT / "samotech-iptv-player.spec").read_text(encoding="utf-8")
     assert "VLC_RUNTIME_DIR" in spec

@@ -9,10 +9,13 @@ from enum import StrEnum
 from itertools import count
 from pathlib import Path
 from threading import Lock, current_thread
-from typing import Literal, Protocol
+from typing import Literal, Protocol, cast
 from urllib.parse import urlsplit
 
-import vlc  # type: ignore[import-untyped]
+try:
+    import vlc  # type: ignore[import-untyped]
+except ImportError:  # pragma: no cover - exercised through the runtime factory
+    vlc = None
 
 from samotech_iptv.application.dtos.content import ContentType
 from samotech_iptv.application.dtos.playback import ResolvedPlayback
@@ -28,6 +31,7 @@ from samotech_iptv.application.ports.player_port import PlayerPort
 from samotech_iptv.core.logging import get_logger
 from samotech_iptv.core.safe_logging import safe_label
 from samotech_iptv.domain.value_objects.url import URL
+from samotech_iptv.infrastructure.player.vlc_runtime import create_vlc_instance
 
 __all__ = ["VlcPlayerAdapter"]
 
@@ -179,8 +183,10 @@ class VlcPlayerAdapter(PlayerPort):
             < 0
         ):
             raise ValueError("live recovery durations must not be negative")
-        self._instance = instance or vlc.Instance()
-        self._player = player or self._instance.media_player_new()
+        self._instance = (
+            instance if instance is not None else cast("_VlcInstance", create_vlc_instance())
+        )
+        self._player = player if player is not None else self._instance.media_player_new()
         self._current_playback: ResolvedPlayback | None = None
         self._current_media: _VlcMedia | None = None
         self._recording_destination: Path | None = None

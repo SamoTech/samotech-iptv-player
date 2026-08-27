@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from samotech_iptv import __version__
+from samotech_iptv.core.config import default_data_dir
 from samotech_iptv.core.safe_logging import safe_label, sanitize_exception, sanitize_traceback
 
 if TYPE_CHECKING:
@@ -57,7 +58,7 @@ def startup_diagnostics_path() -> Path:
     local_app_data = os.environ.get("LOCALAPPDATA") or os.environ.get("APPDATA")
     if local_app_data:
         return Path(local_app_data) / "SamoTech" / "IPTV Player" / "startup-diagnostic.json"
-    return Path.home() / ".samotech_iptv" / "startup-diagnostic.json"
+    return Path(default_data_dir()) / "startup-diagnostic.json"
 
 
 def _utc_now() -> str:

@@ -177,6 +177,6 @@ def test_entrypoint_hides_startup_exception_details(
     assert captured.out == ""
     assert captured.err.startswith("Unable to start SamoTech IPTV Player.\n")
     assert "Startup phase:" in captured.err
-    assert "Details: RuntimeError: secret tokenized provider URL" in captured.err
+    assert "Details: A required runtime component could not be initialized." in captured.err
     assert "Diagnostic log:" in captured.err
-    assert "secret" in captured.err
+    assert "secret tokenized provider URL" not in captured.err

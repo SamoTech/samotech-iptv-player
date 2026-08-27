@@ -10,7 +10,7 @@ from __future__ import annotations
 import os
 from typing import TYPE_CHECKING
 
-from samotech_iptv.core.config import AppConfig, NetworkConfig, PlayerConfig
+from samotech_iptv.core.config import AppConfig, NetworkConfig, PlayerConfig, default_data_dir
 from samotech_iptv.core.exceptions import ConfigurationError
 from samotech_iptv.core.logging import get_logger
 
@@ -41,7 +41,7 @@ class ConfigurationProvider:
         config = AppConfig(
             debug=self._get_bool("debug", AppConfig.debug),
             log_level=self._get_str("log_level", AppConfig.log_level).upper(),
-            data_dir=self._get_str("data_dir", AppConfig.data_dir),
+            data_dir=self._get_str("data_dir", default_data_dir()),
             network=self.network_config(),
             player=self.player_config(),
         )

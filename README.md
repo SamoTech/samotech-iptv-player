@@ -94,7 +94,9 @@ The `domain` package contains framework-independent records and validation. The 
 
 ## Installation from source
 
-The source application requires **Python 3.12 or newer**. Runtime dependencies include `aiohttp`, `defusedxml`, `keyring`, `python-vlc`, `PySide6`, and `qasync`.
+The source application requires **Python 3.12 or newer**. The supported source-runtime platforms are Linux, macOS, and Windows where PySide6 and a compatible VLC/libVLC runtime are available. The supported portable release target is Windows x64. Runtime dependencies include `aiohttp`, `defusedxml`, `keyring`, `python-vlc`, `PySide6`, and `qasync`.
+
+Application settings and the local SQLite database use the platform application-data convention by default: `%LOCALAPPDATA%\\SamoTech\\IPTV Player` on Windows, `~/Library/Application Support/SamoTech/IPTV Player` on macOS, and `$XDG_DATA_HOME/SamoTech/IPTV Player` or `~/.local/share/SamoTech/IPTV Player` on Linux. Set `IPTV_DATA_DIR` when an explicit location is required.
 
 ```bash
 git clone https://github.com/SamoTech/samotech-iptv-player.git
@@ -116,7 +118,23 @@ A normal library installation is also supported:
 pip install .
 ```
 
-For source execution, the operating system must provide libVLC. `python-vlc` is a Python binding, not a VLC runtime installer.
+For source execution, the operating system must provide libVLC. `python-vlc` is a Python binding, not a VLC runtime installer. The application performs guarded libVLC initialization before constructing the main window; if the native runtime is absent or misconfigured, it exits with a generic safe message and writes sanitized troubleshooting details to the startup diagnostic path.
+
+### Clean installation and reproducible build
+
+From a clean Python 3.12+ environment, run:
+
+```bash
+python -m venv .venv-clean
+python -m pip install --upgrade pip
+python -m pip install .
+python -m pip check
+python -m compileall -q .
+python -m pip install --upgrade build
+python -m build
+```
+
+For development and tests, install the optional development dependencies with `python -m pip install -e '.[dev]'`. Then run `pytest -q`; the normal unit and integration corpus uses deterministic fixtures and does not require a live IPTV provider or stream. The PySide6 presentation tests and native probes require an offscreen-capable Qt runtime. Real VLC/live-stream checks are integration-only and require an authorized source and a locally installed or bundled VLC runtime.
 
 ## Running the application
 

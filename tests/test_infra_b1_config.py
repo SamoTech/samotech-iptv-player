@@ -7,6 +7,8 @@ from unittest.mock import patch
 
 import pytest
 
+from samotech_iptv.core import config as core_config
+from samotech_iptv.core.config import default_data_dir
 from samotech_iptv.core.exceptions import ConfigurationError
 from samotech_iptv.infrastructure.configuration.configuration_provider import (
     ConfigurationProvider,
@@ -19,9 +21,30 @@ class TestConfigurationProvider:
             config = ConfigurationProvider().app_config()
         assert config.debug is False
         assert config.log_level == "INFO"
-        assert config.data_dir == "~/.samotech_iptv"
+        assert config.data_dir == default_data_dir()
         assert config.network.connect_timeout == pytest.approx(10.0)
         assert config.player.buffer_size_mb == 16
+
+    @pytest.mark.parametrize(
+        ("platform", "environment", "expected_suffix"),
+        [
+            ("win32", {"LOCALAPPDATA": "C:/Users/test/AppData/Local"}, "SamoTech/IPTV Player"),
+            ("darwin", {}, "Library/Application Support/SamoTech/IPTV Player"),
+            ("linux", {"XDG_DATA_HOME": "/home/test/xdg-data"}, "SamoTech/IPTV Player"),
+        ],
+    )
+    def test_default_data_dir_uses_platform_convention(
+        self,
+        platform: str,
+        environment: dict[str, str],
+        expected_suffix: str,
+    ) -> None:
+        with (
+            patch.object(core_config.sys, "platform", platform),
+            patch.dict(os.environ, environment, clear=True),
+        ):
+            resolved = default_data_dir()
+        assert resolved.replace("\\", "/").endswith(expected_suffix)
 
     def test_explicit_override_wins_over_environment(self) -> None:
         with patch.dict(os.environ, {"IPTV_LOG_LEVEL": "WARNING"}, clear=True):

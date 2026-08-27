@@ -131,27 +131,34 @@ https://stream.example.test/live/local-news-2
     assert parsed.streams[1].id == parsed.channels[1].stream_id
 
 
-@pytest.mark.parametrize(
-    ("playlist", "message"),
-    [
-        ("", "must start with #EXTM3U"),
-        ("#EXTM3U\nhttps://stream.example.test/orphan", "without #EXTINF"),
-        ("#EXTM3U\n#EXTINF:-1,Missing stream", "no following stream URL"),
-        (
-            "#EXTM3U\n#EXTINF:-1,Unsupported stream\nftp://stream.example.test/live",
-            "invalid stream URL",
-        ),
-        (
-            "#EXTM3U\n#EXTINF:-1 tvg-chno=not-a-number,Invalid number\nhttps://stream.example.test/live",
-            "invalid tvg-chno",
-        ),
-    ],
-)
-def test_parse_rejects_invalid_playlist_entries(
-    parser: M3UParser, provider_id: ProviderId, playlist: str, message: str
+def test_parse_rejects_document_without_extended_m3u_header(
+    parser: M3UParser, provider_id: ProviderId
 ) -> None:
-    with pytest.raises(M3UParserError, match=message):
-        parser.parse(playlist, provider_id)
+    with pytest.raises(M3UParserError, match="must start with #EXTM3U"):
+        parser.parse("", provider_id)
+
+
+def test_parse_skips_malformed_records_and_continues_with_valid_channels(
+    parser: M3UParser, provider_id: ProviderId
+) -> None:
+    playlist = (
+        "#EXTM3U\n"
+        "https://stream.example.test/orphan\n"
+        "#EXTINF:-1,Missing stream\n"
+        "#EXTINF:-1,Unsupported stream\n"
+        "ftp://stream.example.test/live\n"
+        "#EXTINF:-1 tvg-chno=not-a-number,Valid channel\n"
+        "https://stream.example.test/invalid-number\n"
+        "#EXTINF:-1,Valid channel\n"
+        "https://stream.example.test/live/valid.ts\n"
+    )
+
+    parsed = parser.parse(playlist, provider_id)
+
+    assert [channel.name for channel in parsed.channels] == ["Valid channel"]
+    assert [stream.value for stream in (channel.stream_id for channel in parsed.channels)] == [
+        "m3u-demo:valid-channel"
+    ]
 
 
 def test_parse_rejects_document_larger_than_configured_character_limit(

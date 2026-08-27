@@ -29,7 +29,12 @@ jobs:
           sudo apt-get install --yes --no-install-recommends libegl1
 
       - name: Install dependencies
-        run: python -m pip install --upgrade pip && python -m pip install -e ".[dev]"
+        run: python -m pip install --upgrade pip && python -m pip install ".[dev]"
+
+      - name: Validate installation and compilation
+        run: |
+          python -m pip check
+          python -m compileall -q .
 
       - name: Verify PySide6 offscreen runtime
         env:
@@ -57,12 +62,19 @@ jobs:
         run: mypy src/
 
       - name: Security regression tests
+        env:
+          PYTHONPATH: src
         run: pytest -q tests/test_security_sensitive_logging.py tests/test_core_diagnostics.py
 
       - name: pytest (unit + integration, non-presentation corpus)
+        env:
+          PYTHONPATH: src
         run: >-
           pytest -q --cov=src --cov-report=xml
           $(find tests -type f -name 'test_*.py' ! -name 'test_presentation_*.py' | sort)
+
+      - name: Build source and wheel distributions
+        run: python -m build
 
       - name: Upload coverage
         uses: codecov/codecov-action@v4

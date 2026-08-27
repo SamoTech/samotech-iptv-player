@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 from samotech_iptv.application.dtos.playback import TransportMetadata
 from samotech_iptv.core.exceptions import ValidationError
 from samotech_iptv.core.logging import get_logger
+from samotech_iptv.core.safe_logging import safe_label
 from samotech_iptv.domain.entities.channel import Channel
 from samotech_iptv.domain.entities.stream import Stream
 from samotech_iptv.domain.value_objects.channel_id import ChannelId
@@ -117,17 +118,25 @@ class M3UParser:
                 continue
             if line.upper().startswith("#EXTINF:"):
                 if pending is not None:
-                    raise M3UParserError(f"Line {pending.line_number} has no following stream URL")
-                pending = self._parse_extinf(line, line_number)
+                    self._warn_skipped(pending.line_number, "missing stream URL")
+                try:
+                    pending = self._parse_extinf(line, line_number)
+                except M3UParserError as exc:
+                    self._warn_skipped(line_number, str(exc))
+                    pending = None
                 continue
             if line.startswith("#"):
                 continue
             if pending is None:
-                raise M3UParserError(
-                    f"Line {line_number} contains a stream URL without #EXTINF metadata"
-                )
+                self._warn_skipped(line_number, "stream URL without EXTINF metadata")
+                continue
 
-            channel, stream = self._to_domain(pending, line, provider_id, occurrences)
+            try:
+                channel, stream = self._to_domain(pending, line, provider_id, occurrences)
+            except (M3UParserError, ValidationError, ValueError) as exc:
+                self._warn_skipped(pending.line_number, str(exc))
+                pending = None
+                continue
             channels.append(channel)
             streams.append(stream)
             metadata = self._transport_metadata(pending)
@@ -138,11 +147,20 @@ class M3UParser:
             pending = None
 
         if pending is not None:
-            raise M3UParserError(f"Line {pending.line_number} has no following stream URL")
+            self._warn_skipped(pending.line_number, "missing stream URL")
         return ParsedM3UPlaylist(
             channels=tuple(channels),
             streams=tuple(streams),
             transport_metadata=tuple(transport_metadata),
+        )
+
+    @staticmethod
+    def _warn_skipped(line_number: int, reason: str) -> None:
+        """Record a bounded diagnostic without logging untrusted playlist content."""
+        _LOG.warning(
+            "Skipping malformed M3U record line=%d reason=%s",
+            line_number,
+            safe_label(reason, limit=160),
         )
 
     @staticmethod
@@ -208,12 +226,13 @@ class M3UParser:
         occurrences: dict[str, int],
     ) -> tuple[Channel, Stream]:
         attributes = entry.attributes
+        stream_url = M3UParser._stream_uri(raw_stream_url, entry.line_number)
+        logo_url = M3UParser._optional_logo_url(attributes.get("tvg-logo"), entry.line_number)
+        channel_number = M3UParser._channel_number(attributes.get("tvg-chno"), entry.line_number)
         base_identifier = attributes.get("tvg-id") or attributes.get("tvg-name") or entry.name
         identifier = M3UParser._next_identifier(base_identifier, occurrences)
         channel_id = ChannelId(f"{provider_id.value}:{identifier}")
         stream_id = StreamId(channel_id.value)
-        stream_url = M3UParser._stream_uri(raw_stream_url, entry.line_number)
-        logo_url = M3UParser._optional_logo_url(attributes.get("tvg-logo"), entry.line_number)
 
         channel = Channel(
             id=channel_id,
@@ -223,7 +242,7 @@ class M3UParser:
             category_id=attributes.get("group-title") or None,
             logo_url=logo_url,
             epg_channel_id=attributes.get("tvg-id") or None,
-            number=M3UParser._channel_number(attributes.get("tvg-chno"), entry.line_number),
+            number=channel_number,
         )
         stream = Stream(
             id=stream_id,

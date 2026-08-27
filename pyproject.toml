@@ -32,6 +32,7 @@ dev = [
     "ruff>=0.6",
     "types-defusedxml>=0.7",
     "pyinstaller==6.22.1",
+    "build>=1.2",
 ]
 
 [tool.pytest.ini_options]
@@ -43,7 +44,10 @@ testpaths  = ["tests"]
 # retained during the migration and must ship with the MAG adapter.
 [tool.setuptools.packages.find]
 where = ["src", "."]
-include = ["samotech_iptv*", "providers*"]
+include = ["samotech_iptv*", "providers*", "resources*"]
+
+[tool.setuptools.package-data]
+resources = ["themes/*.qss", "icons/*", "translations/*"]
 
 # ── Ruff ──────────────────────────────────────────────────────────────────────
 [tool.ruff]

@@ -7,9 +7,25 @@ process-environment reads so that they remain deterministic and testable.
 
 from __future__ import annotations
 
+import os
+import sys
 from dataclasses import dataclass, field
+from pathlib import Path
 
-__all__ = ["AppConfig", "NetworkConfig", "PlayerConfig"]
+__all__ = ["AppConfig", "NetworkConfig", "PlayerConfig", "default_data_dir"]
+
+
+def default_data_dir() -> str:
+    """Return the platform’s conventional per-user application-data directory."""
+    if sys.platform == "win32":
+        root = os.environ.get("LOCALAPPDATA") or os.environ.get("APPDATA")
+        base = Path(root) if root else Path.home() / "AppData" / "Local"
+    elif sys.platform == "darwin":
+        base = Path.home() / "Library" / "Application Support"
+    else:
+        root = os.environ.get("XDG_DATA_HOME")
+        base = Path(root) if root else Path.home() / ".local" / "share"
+    return str(base / "SamoTech" / "IPTV Player")
 
 
 @dataclass(frozen=True)
@@ -36,6 +52,6 @@ class AppConfig:
 
     debug: bool = False
     log_level: str = "INFO"
-    data_dir: str = "~/.samotech_iptv"
+    data_dir: str = field(default_factory=default_data_dir)
     network: NetworkConfig = field(default_factory=NetworkConfig)
     player: PlayerConfig = field(default_factory=PlayerConfig)
