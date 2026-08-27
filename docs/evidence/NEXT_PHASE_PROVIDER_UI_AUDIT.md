@@ -3,7 +3,7 @@
 **Project:** SamoTech IPTV Player  
 **Baseline commit:** `cc9f0c1bc49187e2d35e84b7420e7d0c1440f16b`  
 **Release candidate:** `0.1.7`  
-**Status:** Verification in progress; no release is considered complete until the blocking gates finish.
+**Status:** Local and hosted blocking gates passed; the release decision is patch release recommended.
 
 ## 1. Baseline and evidence policy
 
@@ -131,8 +131,8 @@ A new release must be created only after all blocking local and hosted checks pa
 
 ## 17. Exact commit SHA
 
-Pending final verification commit. This section must be updated with the immutable commit SHA before release publication.
+The verified implementation commit is `07718664fc181e4c7ae2fd364ae85e4844e3d1ae`. Hosted CI, CodeQL, and Windows portable validation all passed against this exact commit.
 
 ## 18. Final decision
 
-Pending final validation. The expected decision is **PATCH RELEASE RECOMMENDED** only if the required checks pass. If any blocking gate fails, the decision is **RELEASE BLOCKED** and no new release is published.
+**PATCH RELEASE RECOMMENDED.** The requested README and provider/UI increment is suitable for the next patch update. The release must use the verified implementation commit above and must not modify the existing public release.
