@@ -6,7 +6,7 @@ from pathlib import Path
 
 
 def test_public_testing_guide_covers_setup_diagnostics_and_privacy() -> None:
-    guide = Path("docs/PUBLIC_TESTING_GUIDE.md").read_text(encoding="utf-8").casefold()
+    guide = Path("docs/testing/PUBLIC_TESTING_GUIDE.md").read_text(encoding="utf-8").casefold()
 
     for required in (
         "m3u / m3u8",

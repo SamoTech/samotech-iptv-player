@@ -1,6 +1,6 @@
 # Project Status — Authoritative Current State
 
-> **Authority:** This document is the sole source of truth for what the repository currently implements, partially implements, and plans. [README.md](README.md) summarizes this state for users and contributors. [ROADMAP.md](ROADMAP.md) explains historical delivery and future direction. Historical reports and assessments are records of their stated date and commit, not current-state authority.
+> **Authority:** This document is the sole source of truth for what the repository currently implements, partially implements, and plans. [README.md](docs/historical/README.md) summarizes this state for users and contributors. [ROADMAP.md](ROADMAP.md) explains historical delivery and future direction. Historical reports and assessments are records of their stated date and commit, not current-state authority.
 
 **Product:** SamoTech IPTV Player
 **Package version:** `0.1.7`
@@ -10,7 +10,7 @@
 
 ## Zero-touch Windows portable release milestone — 2026-08-17
 
-The Windows x64 portable-executable pipeline is **IMPLEMENTED and VERIFIED** through the dedicated blocking GitHub Actions workflow. The zero-touch release increment adds a metadata-driven body generator, blocking tag/version validation, and release publication from the generated body through the maintained release action. Tagged run `32019974720` published `v0.1.1` from commit `5ba5938` with the versioned EXE, SHA256 asset, current build metadata, and no manual release-note edit. Full evidence is recorded in [ZERO_TOUCH_WINDOWS_RELEASE_AUDIT.md](ZERO_TOUCH_WINDOWS_RELEASE_AUDIT.md).
+The Windows x64 portable-executable pipeline is **IMPLEMENTED and VERIFIED** through the dedicated blocking GitHub Actions workflow. The zero-touch release increment adds a metadata-driven body generator, blocking tag/version validation, and release publication from the generated body through the maintained release action. Tagged run `32019974720` published `v0.1.1` from commit `5ba5938` with the versioned EXE, SHA256 asset, current build metadata, and no manual release-note edit. Full evidence is recorded in [ZERO_TOUCH_WINDOWS_RELEASE_AUDIT.md](docs/historical/ZERO_TOUCH_WINDOWS_RELEASE_AUDIT.md).
 
 The executable bundles Python application code, PySide6/Qt runtime components, `python-vlc`, VLC 3.0.23 native libraries, and the VLC plugin tree through an explicit PyInstaller spec. A runtime hook configures `PYTHON_VLC_LIB_PATH`, `PYTHON_VLC_MODULE_PATH`, `VLC_PLUGIN_PATH`, and the Windows DLL search path relative to the extracted application bundle. Source execution now accepts an explicit `VLC_RUNTIME_DIR` and applies the same deterministic path contract without consulting the current working directory. The generated executable is required to emit startup diagnostics proving VLC readiness and `MAIN_WINDOW_SHOWN` under the blocking path/PATH matrix.
 
@@ -218,12 +218,12 @@ The runtime observation must distinguish normal Live playback, a failure that do
 
 | Document | Purpose |
 |---|---|
-| [README.md](README.md) | Product overview, setup, architecture summary, and contributor orientation. |
+| [README.md](docs/historical/README.md) | Product overview, setup, architecture summary, and contributor orientation. |
 | [ROADMAP.md](ROADMAP.md) | Historical milestone mapping and prioritized delivery direction. |
-| [PRODUCT_GAP_ANALYSIS.md](PRODUCT_GAP_ANALYSIS.md) | P0–P3 product gaps and prioritization rationale. |
+| [PRODUCT_GAP_ANALYSIS.md](docs/historical/PRODUCT_GAP_ANALYSIS.md) | P0–P3 product gaps and prioritization rationale. |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Current dependency boundaries and terminology. |
 | [SECURITY.md](SECURITY.md) | Security policy and the current repository security model. |
-| [MINISTRA_COMPATIBILITY_ASSESSMENT.md](MINISTRA_COMPATIBILITY_ASSESSMENT.md) | Historical, date-scoped Ministra decision gate and implementation prerequisites. |
+| [MINISTRA_COMPATIBILITY_ASSESSMENT.md](docs/historical/MINISTRA_COMPATIBILITY_ASSESSMENT.md) | Historical, date-scoped Ministra decision gate and implementation prerequisites. |
 
 
 ## User-library increment — 2026-08-13
@@ -308,7 +308,7 @@ Player 2 is implemented across the preserved application, VLC infrastructure, Qt
 
 History now persists provider-scoped identity, runtime progress, watched percentage, lifecycle timestamps, and completion through a backward-compatible SQLite migration. Resume is restricted to incomplete Movie and Episode records with matching provider identity. Deterministic tests, source quality gates, offscreen PlayerShell probes, and 10K/50K/100K performance checkpoints pass.
 
-The Windows-only native VLC probe is **NOT EXECUTED** on Linux and reports an explicit platform skip. Populated authorized-provider acceptance is **NOT EXECUTED**. These remain open validation actions and are not converted into implementation claims. See [`docs/PLAYER_2_RUNTIME_VALIDATION.md`](docs/PLAYER_2_RUNTIME_VALIDATION.md) and [`PLAYER_2_FINAL_AUDIT.md`](PLAYER_2_FINAL_AUDIT.md).
+The Windows-only native VLC probe is **NOT EXECUTED** on Linux and reports an explicit platform skip. Populated authorized-provider acceptance is **NOT EXECUTED**. These remain open validation actions and are not converted into implementation claims. See [`docs/PLAYER_2_RUNTIME_VALIDATION.md`](docs/playback/PLAYER_2_RUNTIME_VALIDATION.md) and [`PLAYER_2_FINAL_AUDIT.md`](docs/historical/PLAYER_2_FINAL_AUDIT.md).
 
 
 ## Player 3 commercial hardening status — 2026-08-16
@@ -327,7 +327,7 @@ Player 3 is **implemented and deterministically validated** within the preserved
 | MAG VOD/Series/Episodes | **NOT EXECUTED** | The authorized portal contract remains blocked before a compatible non-live capability can be claimed. |
 | Catch-up/archive | **NOT IMPLEMENTED** | No current provider advertises `ProviderCapability.CATCHUP`; no fake resolver or UI was added. |
 
-The authoritative detailed record is [PLAYER_3_FINAL_AUDIT.md](PLAYER_3_FINAL_AUDIT.md). The controlled real-provider procedure is [docs/PLAYER_3_REAL_PROVIDER_ACCEPTANCE.md](docs/PLAYER_3_REAL_PROVIDER_ACCEPTANCE.md), and the architecture/runtime evidence supplements are [docs/PLAYER_3_ARCHITECTURE.md](docs/PLAYER_3_ARCHITECTURE.md) and [docs/PLAYER_3_RUNTIME_VALIDATION.md](docs/PLAYER_3_RUNTIME_VALIDATION.md).
+The authoritative detailed record is [PLAYER_3_FINAL_AUDIT.md](docs/historical/PLAYER_3_FINAL_AUDIT.md). The controlled real-provider procedure is [docs/PLAYER_3_REAL_PROVIDER_ACCEPTANCE.md](docs/playback/PLAYER_3_REAL_PROVIDER_ACCEPTANCE.md), and the architecture/runtime evidence supplements are [docs/PLAYER_3_ARCHITECTURE.md](docs/playback/PLAYER_3_ARCHITECTURE.md) and [docs/PLAYER_3_RUNTIME_VALIDATION.md](docs/playback/PLAYER_3_RUNTIME_VALIDATION.md).
 
 
 ## Commercial Provider Experience plus subtitle enhancement — 2026-08-17
@@ -368,4 +368,4 @@ This phase is **C — PARTIAL** on evidence. It extends the previous commercial-
 | Populated authorized provider | **BLOCKED BY EVIDENCE** | No populated authorized sequence was executed; previous evidence showed zero VOD/Series. |
 | Catch-up/archive | **NOT IMPLEMENTED** | No current provider advertises a verified provider-neutral capability. |
 
-The broad non-presentation matrix contains 816 passing tests and the isolated Qt matrix contains 64 passing tests. Black, Ruff, mypy, `git diff --check`, the native PlayerShell probe, and the performance probe pass. The full evidence record is [REAL_WORLD_IPTV_RELIABILITY_VALIDATION.md](REAL_WORLD_IPTV_RELIABILITY_VALIDATION.md).
+The broad non-presentation matrix contains 816 passing tests and the isolated Qt matrix contains 64 passing tests. Black, Ruff, mypy, `git diff --check`, the native PlayerShell probe, and the performance probe pass. The full evidence record is [REAL_WORLD_IPTV_RELIABILITY_VALIDATION.md](docs/historical/REAL_WORLD_IPTV_RELIABILITY_VALIDATION.md).

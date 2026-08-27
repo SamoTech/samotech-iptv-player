@@ -4,7 +4,7 @@ SamoTech IPTV Player is an extensible, provider-agnostic IPTV desktop-player fou
 
 ## Before changing code
 
-Read [PROJECT_STATUS.md](PROJECT_STATUS.md), [ARCHITECTURE.md](ARCHITECTURE.md), [ROADMAP.md](ROADMAP.md), [PRODUCT_GAP_ANALYSIS.md](PRODUCT_GAP_ANALYSIS.md), and [SECURITY.md](SECURITY.md). The current product status is authoritative in `PROJECT_STATUS.md`; historical reports and old phase notes are not substitutes for checking the source and tests.
+Read [PROJECT_STATUS.md](PROJECT_STATUS.md), [ARCHITECTURE.md](ARCHITECTURE.md), [ROADMAP.md](ROADMAP.md), [PRODUCT_GAP_ANALYSIS.md](docs/historical/PRODUCT_GAP_ANALYSIS.md), and [SECURITY.md](SECURITY.md). The current product status is authoritative in `PROJECT_STATUS.md`; historical reports and old phase notes are not substitutes for checking the source and tests.
 
 Do not infer provider capability from a protocol name, an enum value, or an abstract port. Verify the adapter implementation and its tests before claiming support.
 
@@ -73,7 +73,7 @@ Each provider capability must be independently executable and tested before bein
 4. Add authorized, sanitized fixtures or fake-backed contract tests as appropriate.
 5. Avoid using administrative APIs, portal scanning, unknown device identities, or subscription bypass behavior.
 
-Ministra has a separate decision gate. Do not begin a Ministra client without the authorized fixture and approved device identity described in [MINISTRA_COMPATIBILITY_ASSESSMENT.md](MINISTRA_COMPATIBILITY_ASSESSMENT.md).
+Ministra has a separate decision gate. Do not begin a Ministra client without the authorized fixture and approved device identity described in [MINISTRA_COMPATIBILITY_ASSESSMENT.md](docs/historical/MINISTRA_COMPATIBILITY_ASSESSMENT.md).
 
 ## Security and test data
 

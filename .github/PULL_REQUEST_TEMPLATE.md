@@ -1,6 +1,6 @@
 # Pull Request Exception Template
 
-> **Normal workflow:** This repository develops directly on `main`. Do not open a pull request unless a maintainer has explicitly requested an exception. The standard workflow is documented in [CONTRIBUTING.md](../../CONTRIBUTING.md).
+> **Normal workflow:** This repository develops directly on `main`. Do not open a pull request unless a maintainer has explicitly requested an exception. The standard workflow is documented in [CONTRIBUTING.md](../CONTRIBUTING.md).
 
 ## Summary
 

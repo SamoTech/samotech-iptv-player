@@ -53,7 +53,7 @@ Never log raw provider URLs, credentials, authorization headers, cookies, raw pr
 
 ### Trusted local plugins
 
-The plugin SDK supports explicitly selected, trusted local Python files only. Plugin code is **not sandboxed** and has the operating-system permissions of the application process. The loader validates plugin identity, API version, and provider namespace, and activates registrations transactionally, but it does not provide a permission system, code signing, automatic discovery, remote download, marketplace, or updater. Enable only plugins whose source and author you trust. See [docs/PLUGIN_SDK.md](docs/PLUGIN_SDK.md).
+The plugin SDK supports explicitly selected, trusted local Python files only. Plugin code is **not sandboxed** and has the operating-system permissions of the application process. The loader validates plugin identity, API version, and provider namespace, and activates registrations transactionally, but it does not provide a permission system, code signing, automatic discovery, remote download, marketplace, or updater. Enable only plugins whose source and author you trust. See [docs/PLUGIN_SDK.md](docs/development/PLUGIN_SDK.md).
 
 ## Development requirements
 
@@ -76,6 +76,6 @@ git diff --check
 
 - [PROJECT_STATUS.md](PROJECT_STATUS.md) — current support claims and known limitations.
 - [ARCHITECTURE.md](ARCHITECTURE.md) — security-relevant dependency and data-flow boundaries.
-- [docs/m3u_secure_source_design.md](docs/m3u_secure_source_design.md) — tokenized M3U source handling.
-- [docs/PLUGIN_SDK.md](docs/PLUGIN_SDK.md) — trusted local plugin security model.
-- [MINISTRA_COMPATIBILITY_ASSESSMENT.md](MINISTRA_COMPATIBILITY_ASSESSMENT.md) — Ministra implementation decision gate.
+- [docs/m3u_secure_source_design.md](docs/providers/m3u_secure_source_design.md) — tokenized M3U source handling.
+- [docs/PLUGIN_SDK.md](docs/development/PLUGIN_SDK.md) — trusted local plugin security model.
+- [MINISTRA_COMPATIBILITY_ASSESSMENT.md](docs/historical/MINISTRA_COMPATIBILITY_ASSESSMENT.md) — Ministra implementation decision gate.

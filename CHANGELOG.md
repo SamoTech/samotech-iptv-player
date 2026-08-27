@@ -74,7 +74,7 @@
 - The generated artifact was `SamoTech-IPTV-Player-Windows-x64-build-a7b57d5.exe` with SHA256 `bb14aaa8bd2ea13d62d4a5bdac56ffc10ddd101b5906a2f584466b5d5a65c7ef`; tag-triggered release publication is configured but was not exercised by this non-tag run.
 - Presentation test modules remain excluded from the Windows corpus because their collection causes a fatal Windows Qt access violation; this is documented as an environment limitation, not a weakened product assertion. Authorized-provider runtime acceptance, installer creation, ARM64 builds, and auto-update infrastructure remain out of scope.
 
-See [WINDOWS_PORTABLE_EXE_BUILD_AUDIT.md](WINDOWS_PORTABLE_EXE_BUILD_AUDIT.md) for the complete evidence matrix.
+See [WINDOWS_PORTABLE_EXE_BUILD_AUDIT.md](docs/historical/WINDOWS_PORTABLE_EXE_BUILD_AUDIT.md) for the complete evidence matrix.
 
 ## Real-world IPTV reliability validation — 2026-08-17
 
@@ -91,7 +91,7 @@ See [WINDOWS_PORTABLE_EXE_BUILD_AUDIT.md](WINDOWS_PORTABLE_EXE_BUILD_AUDIT.md) f
 
 - Provider architecture, MAG/Xtream/M3U ownership, shared libVLC, qasync, PlayerPort, and existing Live EOF recovery were preserved.
 - The final classification is **C — PARTIAL**. Populated authorized-provider acceptance, Windows-native VLC validation, real-provider subtitle interoperability, and native VLC track-shape validation remain blocked or not executed. Catch-up/archive remains unimplemented without a verified provider-neutral contract.
-- See [REAL_WORLD_IPTV_RELIABILITY_VALIDATION.md](REAL_WORLD_IPTV_RELIABILITY_VALIDATION.md) for the single authoritative evidence record.
+- See [REAL_WORLD_IPTV_RELIABILITY_VALIDATION.md](docs/historical/REAL_WORLD_IPTV_RELIABILITY_VALIDATION.md) for the single authoritative evidence record.
 
 ## Commercial provider and subtitle hardening — 2026-08-17
 

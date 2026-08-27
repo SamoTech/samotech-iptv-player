@@ -119,7 +119,7 @@ The items below should be sequenced only after the product-blocking lifecycle an
 |---|---|---|
 | Catalogue expansion | Concrete authorized Movie resolution, Series-detail/season discovery, Episode discovery/resolution, explicit UI navigation, and playback dispatch. | Builds on the delivered provider-neutral contracts; each adapter capability requires authorized sanitized fixtures and explicit runtime advertisement. |
 | MAG/Stalker expansion | Category, VOD, series, archive/catch-up capabilities where authorized fixtures prove behavior. | Requires protocol-specific evidence and capability-by-capability delivery; current MAG category browsing is typed unsupported. |
-| Ministra adapter | Separate device-facing Ministra integration. | Gated on authorized sanitized fixtures and approved device identity; see [MINISTRA_COMPATIBILITY_ASSESSMENT.md](MINISTRA_COMPATIBILITY_ASSESSMENT.md). |
+| Ministra adapter | Separate device-facing Ministra integration. | Gated on authorized sanitized fixtures and approved device identity; see [MINISTRA_COMPATIBILITY_ASSESSMENT.md](docs/historical/MINISTRA_COMPATIBILITY_ASSESSMENT.md). |
 | Library completion | Favorites and history lists, removal, resume behavior, and recording metadata management. | Builds on stable IDs, player-state events, and runnable lifecycle. |
 | Playback experience | Subtitle/audio-track controls, aspect ratio/fullscreen, picture-in-picture, player capability negotiation, and transport diagnostics. | Must remain libVLC-only unless the product makes an explicit backend decision. |
 | Production hardening | Packaging, installer/release process, crash reporting/privacy policy, update channel/signing, diagnostics, performance profiling, large-playlist testing, and recovery behavior. | Requires stable lifecycle and platform/distribution decisions. |
@@ -150,7 +150,7 @@ pytest -q
 git diff --check
 ```
 
-The current implementation status is authoritative in [PROJECT_STATUS.md](PROJECT_STATUS.md), while [PRODUCT_GAP_ANALYSIS.md](PRODUCT_GAP_ANALYSIS.md) explains priorities and remaining work.
+The current implementation status is authoritative in [PROJECT_STATUS.md](PROJECT_STATUS.md), while [PRODUCT_GAP_ANALYSIS.md](docs/historical/PRODUCT_GAP_ANALYSIS.md) explains priorities and remaining work.
 
 
 ## MAG client-fingerprint compatibility increment

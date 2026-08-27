@@ -43,4 +43,4 @@ The Independent Auditor challenged whether the selected work merely disguises an
 
 [1]: [`src/samotech_iptv/presentation/dialogs/provider_list_dialog.py`](../../src/samotech_iptv/presentation/dialogs/provider_list_dialog.py)
 [2]: [`tests/test_presentation_provider_management.py`](../../tests/test_presentation_provider_management.py)
-[3]: [`docs/REDDIT_FEEDBACK_INTAKE_CHECKLIST.md`](../REDDIT_FEEDBACK_INTAKE_CHECKLIST.md)
+[3]: [`docs/REDDIT_FEEDBACK_INTAKE_CHECKLIST.md`](../testing/REDDIT_FEEDBACK_INTAKE_CHECKLIST.md)

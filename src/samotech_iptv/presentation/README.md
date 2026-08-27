@@ -33,4 +33,4 @@ The current bootstrap accepts externally composed use cases and an initial theme
 
 ## Current UI limitations
 
-The current UI focuses on registered-provider live channels. It has no complete VOD/movie/series/episode browsing, provider edit/remove flow, favorites/history management screens, XMLTV source setup, subtitle/audio controls, playback state UX, picture-in-picture, system-tray flow, packaging, or updater. See [../../../PROJECT_STATUS.md](../../../PROJECT_STATUS.md) and [../../../PRODUCT_GAP_ANALYSIS.md](../../../PRODUCT_GAP_ANALYSIS.md).
+The current UI focuses on registered-provider live channels. It has no complete VOD/movie/series/episode browsing, provider edit/remove flow, favorites/history management screens, XMLTV source setup, subtitle/audio controls, playback state UX, picture-in-picture, system-tray flow, packaging, or updater. See [../../../PROJECT_STATUS.md](../../../PROJECT_STATUS.md) and [../../../PRODUCT_GAP_ANALYSIS.md](../../../docs/historical/PRODUCT_GAP_ANALYSIS.md).

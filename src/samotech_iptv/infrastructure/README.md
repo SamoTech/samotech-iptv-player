@@ -30,8 +30,8 @@ infrastructure → approved third-party I/O libraries
 
 Infrastructure must not expose raw provider payloads, credentials, MAC identities, session tokens, secure M3U source URLs, or resolved playback URLs to application or presentation code. It must translate provider records into canonical domain entities/value objects and use generic safe errors across user-facing boundaries.
 
-Provider metadata in SQLite is non-secret. Credentials and sensitive source strings belong in the OS keyring. Provider sessions/tokens are volatile runtime state. See [../../ARCHITECTURE.md](../../ARCHITECTURE.md), [../../PROJECT_STATUS.md](../../PROJECT_STATUS.md), and [../../SECURITY.md](../../SECURITY.md).
+Provider metadata in SQLite is non-secret. Credentials and sensitive source strings belong in the OS keyring. Provider sessions/tokens are volatile runtime state. See [../../../ARCHITECTURE.md](../../../ARCHITECTURE.md), [../../../PROJECT_STATUS.md](../../../PROJECT_STATUS.md), and [../../../SECURITY.md](../../../SECURITY.md).
 
 ## Lifecycle status
 
-The package contains the required building blocks for a production desktop composition root, but no production root currently initializes repositories, restores metadata, constructs the provider graph, loads the persisted theme, starts the UI, and closes resources. That gap is the current milestone in [../../ROADMAP.md](../../ROADMAP.md).
+The package contains the required building blocks for a production desktop composition root, but no production root currently initializes repositories, restores metadata, constructs the provider graph, loads the persisted theme, starts the UI, and closes resources. That gap is the current milestone in [../../../ROADMAP.md](../../../ROADMAP.md).

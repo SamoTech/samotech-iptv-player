@@ -9,7 +9,7 @@
 
 The audit began from a clean working tree at the baseline commit above. Evidence is classified separately as documented, implemented, unit tested, integration tested, runtime verified, not verified, or blocked. Deterministic fakes, HTTP 200 responses, catalogue object creation, or URL construction are not treated as proof of provider compatibility or media playback.
 
-The full baseline classification is recorded in [`PROVIDER_FORENSIC_BASELINE.md`](../../PROVIDER_FORENSIC_BASELINE.md).
+The full baseline classification is recorded in [`PROVIDER_FORENSIC_BASELINE.md`](../historical/PROVIDER_FORENSIC_BASELINE.md).
 
 ## 2. Provider architecture
 
