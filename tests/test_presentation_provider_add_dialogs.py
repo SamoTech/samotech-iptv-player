@@ -28,6 +28,12 @@ class FakeDialog:
     def setWindowTitle(self, _: str) -> None:  # noqa: N802
         pass
 
+    def setStyleSheet(self, _: str) -> None:  # noqa: N802
+        pass
+
+    def setMinimumWidth(self, _: int) -> None:  # noqa: N802
+        pass
+
     def accept(self) -> None:
         self.accepted = True
 
@@ -50,10 +56,17 @@ class FakeLabel:
     def setText(self, value: str) -> None:  # noqa: N802
         self.value = value
 
+    def setWordWrap(self, _: bool) -> None:  # noqa: N802
+        pass
+
+    def setObjectName(self, _: str) -> None:  # noqa: N802
+        pass
+
 
 class FakeLineEdit:
     class EchoMode:
         Password = object()
+        Normal = object()
 
     def __init__(self) -> None:
         self.value = ""
@@ -80,6 +93,22 @@ class FakeLineEdit:
     def setToolTip(self, _: str) -> None:  # noqa: N802
         return None
 
+    def setEnabled(self, _: bool) -> None:  # noqa: N802
+        return None
+
+
+class FakeCheckBox:
+    def __init__(self, text: str) -> None:
+        self.text = text
+        self.toggled = FakeSignal()
+        self.enabled = True
+
+    def setAccessibleName(self, _: str) -> None:  # noqa: N802
+        return None
+
+    def setEnabled(self, enabled: bool) -> None:  # noqa: N802
+        self.enabled = enabled
+
 
 class FakeButton:
     def __init__(self, text: str) -> None:
@@ -91,6 +120,12 @@ class FakeButton:
         self.enabled = enabled
 
     def setAccessibleName(self, _: str) -> None:  # noqa: N802
+        return None
+
+    def setObjectName(self, _: str) -> None:  # noqa: N802
+        return None
+
+    def setToolTip(self, _: str) -> None:  # noqa: N802
         return None
 
 
@@ -105,6 +140,7 @@ class FakeFileDialog:
 original_pyside = sys.modules.get("PySide6")
 original_widgets = sys.modules.get("PySide6.QtWidgets")
 widgets = ModuleType("PySide6.QtWidgets")
+widgets.QCheckBox = FakeCheckBox
 widgets.QDialog = FakeDialog
 widgets.QFormLayout = FakeFormLayout
 widgets.QLabel = FakeLabel
@@ -172,7 +208,7 @@ async def test_provider_add_dialogs_have_save_cancel_and_successful_save_closes(
         assert dialog.load_button.text == "Load Playlist"
         assert dialog.browse_button.text == "Browse Local File…"
     else:
-        assert dialog.save_button.text == "Save"
+        assert dialog.save_button.text == "Save provider"
     assert dialog.cancel_button.text == "Cancel"
     assert dialog.cancel_button.clicked.callbacks == [dialog._cancel]
     for field_name, value in values.items():
@@ -208,6 +244,49 @@ async def test_provider_add_dialog_validation_does_not_persist_or_close(
     assert dialog.closed_successfully is False
     expected = "playlist" if dialog_type is M3UProviderDialog else "url"
     assert expected in dialog.status_label.value.casefold()
+
+
+@pytest.mark.asyncio
+async def test_xtream_dialog_rejects_invalid_url_without_persisting() -> None:
+    registration = FakeRegistration()
+    dialog = XtreamProviderDialog(registration)  # type: ignore[arg-type]
+    dialog.base_url_input.setText("not-a-url")
+    dialog.username_input.setText("user")
+    dialog.password_input.setText("secret")
+
+    await dialog.submit()
+
+    assert registration.requests == []
+    assert dialog.closed_successfully is False
+    assert "valid http or https" in dialog.status_label.value.casefold()
+
+
+@pytest.mark.asyncio
+async def test_mag_dialog_rejects_invalid_portal_without_persisting() -> None:
+    registration = FakeRegistration()
+    dialog = MAGProviderDialog(registration)  # type: ignore[arg-type]
+    dialog.portal_url_input.setText("portal without scheme")
+    dialog.mac_address_input.setText("00:11:22:33:44:55")
+
+    await dialog.submit()
+
+    assert registration.requests == []
+    assert dialog.closed_successfully is False
+    assert "valid http or https" in dialog.status_label.value.casefold()
+
+
+def test_provider_secret_visibility_controls_are_transient() -> None:
+    xtream = XtreamProviderDialog(FakeRegistration())  # type: ignore[arg-type]
+    xtream._set_password_visible(True)
+    assert xtream.password_input.echo_mode is FakeLineEdit.EchoMode.Normal
+    xtream._set_password_visible(False)
+    assert xtream.password_input.echo_mode is FakeLineEdit.EchoMode.Password
+
+    mag = MAGProviderDialog(FakeRegistration())  # type: ignore[arg-type]
+    mag._set_identity_visible(True)
+    assert mag.mac_address_input.echo_mode is FakeLineEdit.EchoMode.Normal
+    mag._set_identity_visible(False)
+    assert mag.mac_address_input.echo_mode is FakeLineEdit.EchoMode.Password
 
 
 @pytest.mark.asyncio

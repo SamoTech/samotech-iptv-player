@@ -12,11 +12,11 @@ def test_runtime_version_matches_authoritative_project_metadata() -> None:
     with Path("pyproject.toml").open("rb") as file:
         project_version = tomllib.load(file)["project"]["version"]
 
-    assert project_version == "0.1.6"
+    assert project_version == "0.1.7"
     assert APP_VERSION == project_version
 
 
 def test_current_status_records_the_same_package_version() -> None:
     status = Path("PROJECT_STATUS.md").read_text(encoding="utf-8")
 
-    assert "**Package version:** `0.1.6`" in status
+    assert "**Package version:** `0.1.7`" in status

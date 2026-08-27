@@ -600,6 +600,9 @@ class PlayerShell(QWidget):
             else [compact_by_page[page] for _, page in entries]
         )
         self.navigation_model.setStringList(labels)
+        for row, (label, _) in enumerate(entries):
+            index = self.navigation_model.index(row, 0)
+            self.navigation_model.setData(index, label, Qt.ItemDataRole.ToolTipRole)
         self._navigation_pages = [page for _, page in entries]
         try:
             navigation_row = self._navigation_pages.index(current_page)
@@ -959,7 +962,7 @@ class PlayerShell(QWidget):
         if hasattr(self, "sidebar"):
             self.sidebar.setMinimumWidth(width)
             self.sidebar.setMaximumWidth(width)
-        self.sidebar_toggle.setText("Menu" if expanded else "☰")
+        self.sidebar_toggle.setText("Collapse" if expanded else "☰")
         self.sidebar_toggle.setToolTip("Collapse navigation" if expanded else "Expand navigation")
         if hasattr(self, "_navigation_entries"):
             self._refresh_navigation()

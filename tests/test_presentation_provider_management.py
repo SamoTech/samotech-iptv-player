@@ -31,6 +31,12 @@ class FakeDialog:
     def setWindowTitle(self, title: str) -> None:  # noqa: N802
         self.title = title
 
+    def setStyleSheet(self, _: str) -> None:  # noqa: N802
+        pass
+
+    def setMinimumWidth(self, _: int) -> None:  # noqa: N802
+        pass
+
     def show(self) -> None:
         self.shown = True
 
@@ -53,6 +59,12 @@ class FakeLabel:
 
     def setText(self, value: str) -> None:  # noqa: N802
         self.value = value
+
+    def setWordWrap(self, _: bool) -> None:  # noqa: N802
+        pass
+
+    def setObjectName(self, _: str) -> None:  # noqa: N802
+        pass
 
 
 class FakeLineEdit:
@@ -126,6 +138,12 @@ class FakeButton:
     def __init__(self, text: str) -> None:
         self.text = text
         self.clicked = FakeSignal()
+
+    def setObjectName(self, _: str) -> None:  # noqa: N802
+        pass
+
+    def setToolTip(self, _: str) -> None:  # noqa: N802
+        pass
 
 
 def _install_fake_pyside6() -> None:

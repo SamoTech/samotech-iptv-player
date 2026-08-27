@@ -2,15 +2,11 @@
 
 from __future__ import annotations
 
-import asyncio
 from typing import TYPE_CHECKING
 
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import QMainWindow
 
-from samotech_iptv.application.use_cases.check_provider_health import (
-    CheckProviderHealthRequest,
-)
 from samotech_iptv.presentation.task_owner import create_owned_task
 from samotech_iptv.presentation.theme.tokens import COLORS, RADII
 from samotech_iptv.presentation.widgets.vlc_video_surface import VlcVideoSurface
@@ -345,21 +341,9 @@ class MainWindow(QMainWindow):
                 self.player_shell.provider_selector.setCurrentIndex(index)
         if self._active_provider_list_dialog is not None:
             await self._active_provider_list_dialog.refresh()
-        self.statusBar().showMessage("Provider added and available immediately")
-        if getattr(self, "_check_provider_health", None) is not None:
-            create_owned_task(self, self._onboard_provider(provider_id))
-
-    async def _onboard_provider(self, provider_id: str) -> None:
-        """Run a non-blocking save → health/capability snapshot → ready status sequence."""
-        if self._check_provider_health is None:
-            return
-        self.statusBar().showMessage("Provider saved · checking connection and capabilities…")
-        response = await asyncio.to_thread(
-            self._check_provider_health.execute,
-            CheckProviderHealthRequest(provider_id=provider_id),
+        self.statusBar().showMessage(
+            "Provider saved · select it and load content to establish a provider session"
         )
-        status = response.health.status.value.replace("_", " ").title()
-        self.statusBar().showMessage(f"Provider onboarding · {status} · Ready")
 
     def open_xtream_provider_dialog(self) -> XtreamProviderDialog:
         """Create and show the secure manual Xtream-entry dialog."""

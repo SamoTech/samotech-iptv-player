@@ -18,6 +18,7 @@ from samotech_iptv.application.use_cases.check_provider_health import (
     CheckProviderHealthRequest,
 )
 from samotech_iptv.presentation.task_owner import create_owned_task
+from samotech_iptv.presentation.theme.dialogs import apply_form_dialog_style
 
 if TYPE_CHECKING:
     from samotech_iptv.application.dtos.provider import (
@@ -61,10 +62,16 @@ class ProviderListDialog(QDialog):
         self.edit_button = QPushButton("Edit Selected Provider")
         self.edit_button.clicked.connect(self.open_edit_dialog)
         self.remove_button = QPushButton("Remove Selected Provider")
+        self.remove_button.setObjectName("destructive")
+        self.remove_button.setToolTip("Permanently remove this provider and its stored credentials")
         self.remove_button.clicked.connect(self._schedule_remove_selected)
-        self.health_button = QPushButton("Check Provider Health")
+        self.health_button = QPushButton("Check Session Status")
+        self.health_button.setToolTip(
+            "Read the current provider adapter session state; this does not load a catalogue"
+        )
         self.health_button.clicked.connect(self._schedule_check_selected_health)
-        self.status_label = QLabel()
+        self.status_label = QLabel("Select a provider to view its saved status")
+        self.status_label.setWordWrap(True)
         layout = QFormLayout(self)
         layout.addRow(self.provider_summary_label)
         layout.addRow("Provider", self.provider_selector)
@@ -73,6 +80,8 @@ class ProviderListDialog(QDialog):
         layout.addRow(self.health_button)
         layout.addRow(self.status_label)
         self.setWindowTitle("Registered Providers")
+        self.setMinimumWidth(520)
+        apply_form_dialog_style(self)
 
     async def refresh(self) -> None:
         """Refresh only safe provider identifiers, types, and active states."""
@@ -146,9 +155,9 @@ class ProviderListDialog(QDialog):
             self.status_label.setText("Select a registered provider")
             return
         if self._check_provider_health is None:
-            self.status_label.setText("Provider health is unavailable")
+            self.status_label.setText("Provider session status is unavailable")
             return
-        self.status_label.setText("Checking provider health…")
+        self.status_label.setText("Reading provider session status…")
         response = await asyncio.to_thread(
             self._check_provider_health.execute,
             CheckProviderHealthRequest(provider_id=provider.id),
@@ -159,7 +168,7 @@ class ProviderListDialog(QDialog):
             or "No providers registered"
         )
         self.status_label.setText(
-            f"{response.health.status.value.replace('_', ' ').title()} · "
+            f"Session: {response.health.status.value.replace('_', ' ').title()} · "
             f"{response.health.response_time_ms:.1f} ms"
             if response.health.response_time_ms is not None
             else response.health.status.value.replace("_", " ").title()

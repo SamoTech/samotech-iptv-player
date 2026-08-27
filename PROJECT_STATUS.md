@@ -3,7 +3,7 @@
 > **Authority:** This document is the sole source of truth for what the repository currently implements, partially implements, and plans. [README.md](README.md) summarizes this state for users and contributors. [ROADMAP.md](ROADMAP.md) explains historical delivery and future direction. Historical reports and assessments are records of their stated date and commit, not current-state authority.
 
 **Product:** SamoTech IPTV Player
-**Package version:** `0.1.6`
+**Package version:** `0.1.7`
 **Current baseline:** The `main` revision containing the proven frozen-entrypoint main guard, deterministic bundled-VLC selection for source and frozen execution, durable startup checkpoints, and the prior bounded Live EOF recovery and Windows validation increments; use `git rev-parse HEAD` for its immutable revision identifier.
 **Current product milestone:** zero-touch Windows x64 portable release pipeline — **implemented and verified through blocking GitHub Actions packaging, generated-EXE smoke gates, startup-diagnostic checkpoints, dynamic release-body generation, and versioned release publication**, while populated authorized Xtream evidence and authorized Windows Live EOF runtime acceptance remain not executed. The preserved Player 3 commercial-hardening behavior, provider architecture, shared libVLC, qasync, and bounded Live EOF recovery remain unchanged.
 **Baseline verified:** 2026-08-18 UTC+03:00
