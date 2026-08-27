@@ -15,16 +15,24 @@ from pathlib import Path
 __all__ = ["AppConfig", "NetworkConfig", "PlayerConfig", "default_data_dir"]
 
 
+def _home_dir() -> Path:
+    """Return a deterministic home fallback for cross-platform configuration tests."""
+    try:
+        return Path.home()
+    except RuntimeError:
+        return Path(".")
+
+
 def default_data_dir() -> str:
     """Return the platform’s conventional per-user application-data directory."""
     if sys.platform == "win32":
         root = os.environ.get("LOCALAPPDATA") or os.environ.get("APPDATA")
-        base = Path(root) if root else Path.home() / "AppData" / "Local"
+        base = Path(root) if root else _home_dir() / "AppData" / "Local"
     elif sys.platform == "darwin":
-        base = Path.home() / "Library" / "Application Support"
+        base = _home_dir() / "Library" / "Application Support"
     else:
         root = os.environ.get("XDG_DATA_HOME")
-        base = Path(root) if root else Path.home() / ".local" / "share"
+        base = Path(root) if root else _home_dir() / ".local" / "share"
     return str(base / "SamoTech" / "IPTV Player")
 
 
