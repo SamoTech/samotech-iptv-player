@@ -95,7 +95,9 @@ M3U, Xtream, MAG/Stalker, and XMLTV provider boundaries were inspected and retai
 
 ## Security results
 
-The current tracked tree was scanned for credential-shaped literals and sensitive transport patterns. Existing synthetic test values and security-boundary code were classified as expected fixtures or implementation logic. No production credentials, cookies, tokens, authorization values, private provider URLs, or raw diagnostic dumps were added or moved into documentation. Historical documents retain their original evidence context and are not used as runtime inputs.
+The current tracked tree was scanned for credential-shaped literals and sensitive transport patterns. The scan returned eight classified matches: six synthetic test or historical fixture names, and two active `tools/mag_transport_probe.ps1` header-construction lines. The latter are expected MAG protocol implementation: `Authorization` and `Cookie` values are constructed dynamically from the operator-supplied MAC only for the outbound request. The probe output contains target/response metadata, not request headers, MAC values, response bodies, raw requests, or command lines; exception text is truncated. No production credentials, cookies, tokens, authorization values, private provider URLs, or raw diagnostic dumps were added or moved into documentation. Historical documents retain their original evidence context and are not used as runtime inputs.
+
+The corrected wheel-resource helper passed against `samotech_iptv_player-0.1.7.dist-info/METADATA` and the packaged theme resources. Relevant existing security/redaction tests passed as part of the final local corpus and focused packaging gates. No security finding justified a product-code change.
 
 ## Final structure summary
 
@@ -135,9 +137,27 @@ The current tracked tree was scanned for credential-shaped literals and sensitiv
 
 ## Validation and blockers
 
-Final validation must include Git status and parity, duplicate/dead-reference/structure scans, imports, Ruff, Black, MyPy, pip integrity, scoped compilation, focused provider/presentation tests, the complete non-presentation corpus, presentation modules independently, packaging tests, `python -m build`, fresh wheel installation, resource access, startup smoke, security/redaction scans, and hosted CI, CodeQL, and Windows packaging workflows where applicable.
+The final local gate ran at local tip `7273987` after the documentation, presentation-fixture, and redundant-ignore-rule commits. Results were:
 
-The known full monolithic PySide6 pytest collection crash must be recorded if reproduced; it must not be hidden by weakening tests. Linux must not be described as native Windows runtime verification, although hosted Windows workflow results may be reported separately.
+| Gate | Result | Evidence |
+|---|---:|---|
+| Ruff (`src/`, `tests/`, `providers/`, `scripts/`) | PASS | exit 0 |
+| Black check (`src/`, `tests/`, `providers/`) | PASS | exit 0 |
+| MyPy (`src/`) | PASS | exit 0 |
+| `pip check` | PASS | exit 0 |
+| Scoped `compileall` | PASS | exit 0 |
+| Non-presentation corpus | PASS | 906/906 tests, offscreen Qt, exit 0 |
+| Isolated presentation modules | PASS | 74/74 tests across 19 independent processes, exit 0 |
+| Focused packaging tests | PASS | exit 0 |
+| `python -m build` | PASS | sdist and `samotech_iptv_player-0.1.7-py3-none-any.whl` built |
+| Fresh external wheel install/resource probe | PASS | installed version 0.1.7; resources present |
+| Qt-only startup smoke | PASS | diagnostic reached `APPLICATION_READY`; status `ready` |
+| Active Markdown links | PASS | zero broken links; only intentional `{{WORKFLOW_URL}}` template placeholder excluded |
+| Generated-artifact and root-structure scans | PASS | no tracked generated artifacts; no unexpected root Markdown |
+| `git diff --check` | PASS | exit 0 |
+| Credential/redaction classification | PASS | no leaked values; eight expected/classified matches |
+
+The known full monolithic PySide6 pytest collection crash remains a test-environment limitation and was not weakened or hidden: presentation modules were validated independently, as approved by the existing project strategy. Linux results are not native Windows verification. Hosted CI, CodeQL, and Windows Portable EXE results must be recorded after the final push.
 
 ## Release impact
 
@@ -145,6 +165,7 @@ This phase is protected against version/tag/release changes. The existing `v0.1.
 
 ## Final commit and decision
 
-**Final commit SHA:** pending the cleanup validation commit.  
-**Repository parity:** pending final push verification.  
-**Decision:** pending final validation; expected result is **A — CLEANUP COMPLETE** if all required gates pass, otherwise **B — PARTIALLY COMPLETE WITH BLOCKERS**. No release action is authorized by this phase.
+**Current local validation tip:** `7273987` (`Remove redundant generated-output ignore rule`), with `92d6836` and `a14464a` immediately preceding it.
+**Hosted workflow IDs/statuses:** pending final push and inspection of CI, CodeQL, and Windows Portable EXE workflows.
+**Repository parity:** pending final push verification.
+**Decision:** locally ready for **A — CLEANUP COMPLETE**, subject to hosted workflow confirmation; if any required hosted gate fails, the result becomes **B — PARTIALLY COMPLETE WITH BLOCKERS** until minimally repaired and revalidated. No release action is authorized by this phase.
