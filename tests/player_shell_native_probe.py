@@ -718,7 +718,7 @@ async def main() -> None:
     assert content_shell.content_model.item_at(0) is newer_movie
     content_shell._content_sort_selectors[ContentType.MOVIE].setCurrentIndex(0)
     assert movie_list.gridSize().width() == 172
-    assert content_shell.sidebar_toggle.text() == "Menu"
+    assert content_shell.sidebar_toggle.text() == "Collapse"
     content_shell._set_sidebar_expanded(False, persist=False)
     assert content_shell.navigation_model.stringList() == [
         "⌂",
