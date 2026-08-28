@@ -22,7 +22,7 @@ The project dependency audit found no known vulnerabilities in the project’s p
 | Field | Final evidence |
 |---|---|
 | Branch | `main` |
-| Final commit | `5d7264f0b11956084b3280054bab02c9d848f097` |
+| Final commit | `36256d316eedba286917d989c9640144b49d957f` (report commit) |
 | Remote parity | `HEAD == origin/main`; ahead/behind `0 0` |
 | Working tree | Clean after removal of ignored validation outputs |
 | Application version | `0.1.7` |
@@ -33,11 +33,11 @@ The project dependency audit found no known vulnerabilities in the project’s p
 | Existing tag/release/assets altered | No |
 | Real provider/media acceptance performed | No, explicitly prohibited for this phase |
 
-The final commit was pushed directly to `origin/main`. No version bump, history rewrite, tag movement, release creation, asset replacement, or tagged-release publication occurred.
+The 17-file implementation commit was `5d7264f0b11956084b3280054bab02c9d848f097`; the one-file report commit is `36256d316eedba286917d989c9640144b49d957f`. Both were pushed directly to `origin/main`. No version bump, history rewrite, tag movement, release creation, asset replacement, or tagged-release publication occurred.
 
 ## 3. Files changed
 
-The final commit changed exactly 17 files, with 503 insertions and 18 deletions. No provider implementation, player infrastructure, resource, CI workflow, version, or release file changed.
+The implementation commit `5d7264f0b11956084b3280054bab02c9d848f097` changed exactly 17 files, with 503 insertions and 18 deletions. The subsequent report commit changed only this report. No provider implementation, player infrastructure, resource, CI workflow, version, or release file changed.
 
 | File | Purpose |
 |---|---|
@@ -141,13 +141,16 @@ The monolithic presentation collection remains a known exit-139 environment fail
 
 ## 9. Hosted validation
 
-All required workflows passed on exact commit `5d7264f0b11956084b3280054bab02c9d848f097`.
+All required workflows passed on the exact implementation commit `5d7264f0b11956084b3280054bab02c9d848f097`; the report-only commit also passed the same hosted CI, CodeQL, and Windows checks.
 
 | Workflow | Run | Result |
 |---|---:|---|
-| CI | [33128182332][2] | PASS |
-| CodeQL Security Scan | [33128182296][3] | PASS |
-| Windows Portable EXE | [33128182339][4] | PASS |
+| CI (implementation) | [33128182332][2] | PASS |
+| CodeQL Security Scan (implementation) | [33128182296][3] | PASS |
+| Windows Portable EXE (implementation) | [33128182339][4] | PASS |
+| CI (report commit) | [33128746333][5] | PASS |
+| CodeQL Security Scan (report commit) | [33128746369][6] | PASS |
+| Windows Portable EXE (report commit) | [33128746286][7] | PASS |
 
 The hosted CI passed installation/compilation, offscreen runtime, native Qt probes, Ruff, Black, MyPy, security regression tests, the non-presentation corpus, build, and coverage upload. CodeQL completed successfully.
 
@@ -206,7 +209,7 @@ The exact Phase 30 outcome is:
 
 This is the single selected Phase 30 outcome. It means the implementation, security boundary, deterministic validation, and Windows packaging prerequisites are ready for the next authorized acceptance gate. It does not mean real provider/media compatibility has been established, and it does not authorize publication of a new release.
 
-The repository remains at version `0.1.7`; the existing `v0.1.7` tag, release, and three published assets were not altered. Final repository parity is confirmed at commit `5d7264f0b11956084b3280054bab02c9d848f097`, with a clean working tree.
+The repository remains at version `0.1.7`; the existing `v0.1.7` tag, release, and three published assets were not altered. Final repository parity is confirmed at report commit `36256d316eedba286917d989c9640144b49d957f`, with a clean working tree.
 
 ## References
 
@@ -214,3 +217,6 @@ The repository remains at version `0.1.7`; the existing `v0.1.7` tag, release, a
 [2]: https://github.com/SamoTech/samotech-iptv-player/actions/runs/33128182332 "SamoTech Phase 30 hosted CI run"
 [3]: https://github.com/SamoTech/samotech-iptv-player/actions/runs/33128182296 "SamoTech Phase 30 hosted CodeQL run"
 [4]: https://github.com/SamoTech/samotech-iptv-player/actions/runs/33128182339 "SamoTech Phase 30 hosted Windows Portable EXE run"
+[5]: https://github.com/SamoTech/samotech-iptv-player/actions/runs/33128746333 "SamoTech Phase 30 final report CI run"
+[6]: https://github.com/SamoTech/samotech-iptv-player/actions/runs/33128746369 "SamoTech Phase 30 final report CodeQL run"
+[7]: https://github.com/SamoTech/samotech-iptv-player/actions/runs/33128746286 "SamoTech Phase 30 final report Windows Portable EXE run"
