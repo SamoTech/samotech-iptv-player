@@ -82,3 +82,39 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage.xml
         continue-on-error: true
+
+  presentation-isolated:
+    name: Presentation tests (fresh process per module)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install Qt offscreen runtime dependency
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends libegl1
+
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip && python -m pip install ".[dev]"
+
+      - name: Run every presentation module in an isolated process
+        env:
+          QT_QPA_PLATFORM: offscreen
+          PYTHONPATH: src
+        shell: bash
+        run: |
+          set -euo pipefail
+          count=0
+          while IFS= read -r test_file; do
+            echo "=== presentation test: ${test_file} ==="
+            pytest -q "${test_file}"
+            count=$((count + 1))
+          done < <(find tests -type f -name 'test_presentation_*.py' | sort)
+          echo "presentation_modules=${count}"
