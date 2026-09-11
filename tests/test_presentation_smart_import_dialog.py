@@ -4,10 +4,17 @@ import asyncio
 import importlib
 import sys
 
+
+def _clear_pyside6_modules() -> None:
+    """Remove the complete PySide6 module family before importing real Qt."""
+    for module_name in tuple(sys.modules):
+        if module_name == "PySide6" or module_name.startswith("PySide6."):
+            sys.modules.pop(module_name, None)
+
+
 widgets_module = sys.modules.get("PySide6.QtWidgets")
 if widgets_module is not None and not hasattr(widgets_module, "QApplication"):
-    sys.modules.pop("PySide6.QtWidgets", None)
-    sys.modules.pop("PySide6", None)
+    _clear_pyside6_modules()
 importlib.import_module("PySide6")
 importlib.import_module("PySide6.QtWidgets")
 
